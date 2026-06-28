@@ -8,6 +8,10 @@ Turn draft product intent into developer-ready planning artefacts: epics, milest
 
 Do not implement application code in this mode.
 
+## Required input
+
+Before producing output, read `.codex-runtime/planning-input.md` if it exists. Treat that file as the source planning request for the run.
+
 ## Current repo context
 
 - Product: PST email data extractor.
@@ -90,15 +94,15 @@ Output:
 
 ### 7. Systems Engineer
 
-Define infrastructure, security, CI/CD, and operational constraints.
+Define infrastructure, CI/CD, and operational constraints.
 
 Output:
 
-- Security impact.
+- Operational impact.
 - Environment requirements.
 - CI/CD implications.
-- Rollback or recovery notes.
-- Secrets and permissions review.
+- Recovery notes.
+- Permissions review.
 
 ### 8. Developer
 
@@ -159,4 +163,4 @@ Stop and report instead of guessing if:
 - The request has no clear product goal.
 - The repo evidence contradicts the requested stack or architecture.
 - Acceptance criteria cannot be created without human decisions.
-- The work touches private email content without privacy, retention, and access assumptions.
+- The work touches private email content without processing, retention, and access assumptions.
