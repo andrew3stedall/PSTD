@@ -4,39 +4,77 @@
 
 Define the stable output shape that PSTD planning and implementation should preserve.
 
-## Output directory shape
+The v1 command is named `pstd`. The v1 canonical output is structured TAR plus JSONL metadata. EML is not the default output format.
+
+## Output root shape
 
 ```text
 <output-root>/
-  manifest.json
-  summary.json
-  errors.jsonl
-  folders.json
-  messages/
-    <message-id>/
-      message.eml
-      metadata.json
-      body.txt
-      body.html
-      attachments/
-        <attachment-id>-<safe-filename>
+  run_summary.json
+  progress.jsonl
+  checkpoint.sqlite
+  archives/
+    <pst-id>_000001.tar
+  logs/
+    run_errors.jsonl
 ```
+
+## TAR shard shape
+
+```text
+_pstfast/
+  summary.json
+  manifest.jsonl
+  errors.jsonl
+  folder_inventory.jsonl
+  extraction_warnings.jsonl
+  run_config.json
+
+data/
+  messages.jsonl
+  recipients.jsonl
+  message_references.jsonl
+  bodies.jsonl
+  attachments.jsonl
+  folders.jsonl
+  selected_mapi_properties.jsonl
+
+bodies/
+  <message-key>.txt
+  <message-key>.html
+
+attachments/
+  <message-key>/
+    <attachment-key>_<safe-filename>
+```
+
+## Stable IDs
+
+Preserve stable keys for future joins, search, tagging, review, downloads, and graph work:
+
+- `run_id`
+- `pst_id`
+- `folder_key`
+- `message_key`
+- `recipient_key`
+- `body_key`
+- `attachment_key`
+- `reference_key`
 
 ## Required message metadata
 
 Each extracted message should preserve, where available:
 
-- Stable generated message id.
 - Source PST path.
 - Source folder path.
 - Subject.
-- Sender.
-- Recipients: to, cc, bcc.
-- Sent time.
-- Received time.
-- Conversation or thread identifiers.
-- Internet message id.
+- Sender fields.
+- Recipients: to, cc, bcc, reply-to.
+- Sent and received times.
+- Internet message ID.
 - In-reply-to and references headers.
+- Conversation fields.
+- Raw transport headers when available.
 - Attachment count.
 - Extraction status.
 - Error references.
@@ -45,27 +83,29 @@ Each extracted message should preserve, where available:
 
 - Preserve plain text body when available.
 - Preserve HTML body when available.
+- Store body content as files inside the TAR.
+- Record body path, encoding, size, hash, and status in `bodies.jsonl`.
 - Do not invent missing body representations.
-- If a body cannot be extracted, record the reason in `errors.jsonl`.
 
 ## Attachment outputs
 
-- Extract attachments into the message attachment folder when available.
+- Store attachments as files inside the TAR.
+- Do not store attachment bytes inside JSON records.
 - Use safe deterministic filenames.
 - Preserve original filename in metadata.
-- Record skipped or failed attachments in `errors.jsonl`.
+- Record skipped or incomplete attachments in `errors.jsonl`.
 
 ## Manifest outputs
 
-`manifest.json` is the run-level index. It should describe the source, tool version, run timing, totals, output layout, and generated artefacts.
+`manifest.jsonl` is the per-archive index. It should describe generated artefacts, statuses, hashes, sizes, and output paths.
 
 ## Error outputs
 
-`errors.jsonl` is append-friendly and should contain one JSON object per warning or error.
+`errors.jsonl` is append-friendly and should contain one JSON object per warning or issue.
 
 ## Stability rules
 
 - Output paths should be deterministic for the same source data and configuration.
-- Message ids should avoid collisions.
+- Message keys should avoid collisions.
 - Metadata field names should remain stable once released.
 - Future Snowflake loading should not require reparsing raw PST files when v1 outputs exist.
