@@ -1,6 +1,6 @@
 # PSTD Skills Index
 
-This folder contains reusable planning instructions for PSTD.
+This folder contains reusable planning and execution instructions for PSTD.
 
 ## Core skills
 
@@ -33,6 +33,14 @@ This folder contains reusable planning instructions for PSTD.
 - `process/readiness-check`: confirm planning output is ready.
 - `process/feedback-refiner`: incorporate review feedback.
 
+## Execution skills
+
+- `execution/milestone-executor`: build an approved milestone or epic.
+- `execution/epic-workforce`: coordinate role skills across an epic.
+- `execution/implementation-worker`: make scoped code changes.
+- `execution/milestone-branch-manager`: manage milestone branch and PR shape.
+- `execution/deferred-testing`: document tests that must be run later.
+
 ## Current mode
 
-Planning only. These skills describe how to plan and review work. They do not enable autonomous coding, scheduled work, or parallel execution.
+Milestone execution is allowed when a milestone or epic is approved. Local testing may be deferred until Codex is available on the user's laptop. Do not claim tests passed unless they were actually run.
