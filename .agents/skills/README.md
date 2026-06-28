@@ -2,6 +2,12 @@
 
 This folder contains reusable planning and execution instructions for PSTD.
 
+## References and assets
+
+- [References and assets index](references-and-assets.md)
+
+Use skill references and assets before inventing new output formats, PR wording, CLI behaviour, or extraction examples.
+
 ## Core skills
 
 - `planning-council`: orchestrates the planning role loop.
