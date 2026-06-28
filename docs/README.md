@@ -17,6 +17,7 @@ This documentation tree separates planning, engineering, data, operations, UX, a
 
 - [ADR-0001: Codex planning council](decisions/ADR-0001-codex-planning-council.md)
 - [ADR-0002: Mobile planning workflow](decisions/ADR-0002-phone-first-planning.md)
+- [ADR-0003: Milestone execution mode](decisions/ADR-0003-milestone-execution-mode.md)
 
 ## Changelog
 
@@ -24,7 +25,7 @@ This documentation tree separates planning, engineering, data, operations, UX, a
 
 ## Repo skills
 
-Repo-scoped skill instructions are kept under `.agents/skills/` for future Codex runtimes and reusable planning guidance.
+Repo-scoped skill instructions are kept under `.agents/skills/` for future Codex runtimes and reusable planning/execution guidance.
 
 ## Documentation rule
 
