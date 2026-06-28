@@ -16,21 +16,21 @@ M2 should make `pstd inspect --input <pst-file>` useful for confirming whether a
 
 ## Included issues
 
-1. M2-I01: Add PST byte reader and bounded random-access API.
-2. M2-I02: Parse and validate PST header metadata.
-3. M2-I03: Define strongly typed PST primitive identifiers.
-4. M2-I04: Add endian-aware binary parsing helpers.
-5. M2-I05: Parse block/page trailer structures.
-6. M2-I06: Implement BBT page parsing and block lookup skeleton.
-7. M2-I07: Implement NBT page parsing and node lookup skeleton.
-8. M2-I08: Add raw block loading and bounded block reassembly interface.
-9. M2-I09: Wire `pstd inspect` to real PST structure inspection.
-10. M2-I10: Add M2 diagnostics, deferred tests, fixture guidance, and handoff notes.
+1. #19 / M2-I01: Add PST byte reader and bounded random-access API.
+2. #20 / M2-I02: Parse and validate PST header metadata.
+3. #21 / M2-I03: Define strongly typed PST primitive identifiers.
+4. #22 / M2-I04: Add endian-aware binary parsing helpers.
+5. #23 / M2-I05: Parse block/page trailer structures.
+6. #24 / M2-I06: Implement BBT page parsing and block lookup skeleton.
+7. #25 / M2-I07: Implement NBT page parsing and node lookup skeleton.
+8. #26 / M2-I08: Add raw block loading and bounded block reassembly interface.
+9. #27 / M2-I09: Wire `pstd inspect` to real PST structure inspection.
+10. #28 / M2-I10: Add M2 diagnostics, deferred tests, fixture guidance, and handoff notes.
 
 ## Dependency order
 
 ```text
-I01 -> I02 -> I03 -> I04 -> I05 -> I06 -> I07 -> I08 -> I09 -> I10
+#19 -> #20 -> #21 -> #22 -> #23 -> #24 -> #25 -> #26 -> #27 -> #28
 ```
 
 ## Completion criteria
