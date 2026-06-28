@@ -1,41 +1,37 @@
 # PSTD
 
-PST email data extractor. The current direction is to use Rust to process PST files and extract individual emails.
+PSTD is a PST email data tool. The v1 command is `pstd`.
 
-## Project planning
+## M1 status
 
-This repo includes a planning-only Codex Delivery Council scaffold designed for a phone-first workflow.
+M1 adds the local foundation:
 
-The current workflow is:
+- Rust CLI shell.
+- TAR shard writer.
+- JSONL writer.
+- Stable ID and path helpers.
+- Status and progress records.
+- Python wrapper boundary.
+- Local Docker scaffold.
+
+PST binary parsing is planned for a later milestone.
+
+## Local validation commands
 
 ```text
-Prompt from ChatGPT on mobile
-  -> use GitHub connector to read/update repo
-  -> apply planning council logic
-  -> create docs, issues, or PRs
-  -> review from GitHub mobile or ChatGPT
+cargo fmt --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all
+pstd --help
+pstd extract --help
+python -m pstd --help
+docker build -t pstd:local -f docker/Dockerfile .
 ```
 
-Start with:
+## Planning docs
 
 - [Documentation index](docs/README.md)
-- [Planning council overview](docs/product/council-overview.md)
-- [PRD intake template](docs/product/prd-intake-template.md)
-- [Phone-first operating model](docs/product/phone-first-operating-model.md)
-- [Issue template](.github/codex/templates/issue-template.md)
-- [Epic template](.github/codex/templates/epic-template.md)
-
-## Repo-scoped skills
-
-Codex-style skills are committed under `.agents/skills/`:
-
-- `planning-council`: turn ideas or PRDs into milestones, epics, issues, and risks.
-- `issue-writer`: create developer-ready GitHub issue bodies.
-- `docs-writer`: maintain audience-specific docs.
-- `github-planning-loop`: operate from ChatGPT mobile through the GitHub connector.
-
-These skills prepare the repo for future Codex runtimes while also documenting the process used from this ChatGPT conversation.
-
-## Current automation mode
-
-Planning only. Execution mode, scheduled GitHub Action automation, API-key Codex usage, and parallel subagents are intentionally disabled or delayed.
+- [PSTD v1 MVP PRD](docs/product/pstd-v1-mvp-prd.md)
+- [PSTD v1 Roadmap](docs/product/pstd-v1-roadmap.md)
+- [M1 milestone](docs/milestones/pstd-v1-m1-extraction-foundation.md)
+- [M1 issue plan](docs/issues/pstd-v1-m1-ordered-issue-plan.md)
