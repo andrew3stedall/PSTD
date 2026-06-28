@@ -9,7 +9,7 @@
 - Repo-scoped skills under `.agents/skills/`.
 - Mobile-first planning workflow documentation.
 - ADR for the mobile planning workflow.
-- Role skills for sponsor, product, analysis, UX, feasibility, metrics, data, platform, integration, and review.
+- Role skills for sponsor, product, analysis, UX, feasibility, full-stack implementation planning, metrics, data, platform, integration, and review.
 - Process skills for PRD intake, milestone planning, epic planning, dependency mapping, risk review, readiness checks, and feedback refinement.
 - Skills index at `.agents/skills/README.md`.
 
