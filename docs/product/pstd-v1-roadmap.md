@@ -15,8 +15,8 @@
 M1: Extraction Foundation and Archive Contract [implemented, validation deferred]
   -> Rust CLI shell, archive writer, JSONL contract, Python wrapper boundary, Docker scaffold.
 
-M2: PST Binary Foundation [next]
-  -> Memory-mapped reader, PST header parser, primitive PST types, BBT/NBT planning and implementation.
+M2: PST Binary Foundation [planned]
+  -> Bounded byte reader, PST header parser, primitive PST types, BBT/NBT skeletons, raw block loading, real inspect command.
 
 M3: Folder and Metadata Extraction
   -> Folder tree, inventory, property context parsing, table context parsing, message metadata records.
@@ -42,22 +42,11 @@ Implemented and merged to `main` via PR #18. Issues #7-#16 are closed as complet
 
 Local validation remains deferred.
 
-### Delivered
-
-- Rust crate and `pstd` CLI shell.
-- `extract`, `inspect`, and `version` command boundary.
-- Structured TAR shard writer.
-- JSONL writer.
-- Stable ID helpers.
-- Safe path helpers.
-- Typed output record models.
-- Status and progress records.
-- Placeholder PST module boundaries.
-- Python `pstd` wrapper boundary.
-- Docker local run scaffold.
-- M1 testing and execution docs.
-
 ## Milestone M2: PST Binary Foundation
+
+### Status
+
+Planned in the M2 package. Implementation has not started.
 
 ### Goal
 
@@ -65,16 +54,20 @@ Implement low-level PST file access and structure parsing from scratch.
 
 ### Includes
 
-- Memory-mapped PST reader.
+- Bounded random-access PST byte reader.
 - PST header parser.
 - Strongly typed PST primitives.
-- BBT/NBT traversal.
-- Raw block loading.
+- Endian-aware parsing helpers.
+- Block/page trailer parsing.
+- BBT/NBT lookup skeletons.
+- Raw block loading interface.
+- Real `pstd inspect` structural output.
 
 ### Out of scope
 
 - Message bodies.
 - Attachments.
+- Folder/message extraction.
 - Snowflake.
 - Web UI.
 
