@@ -23,7 +23,5 @@ def main(argv: list[str] | None = None) -> int:
         print("pstd Rust binary was not found. Set PSTD_BINARY or build the Rust binary first.", file=sys.stderr)
         return 2
 
-    print("pstd Python wrapper boundary")
-    print("binary:", binary)
-    print("args:", " ".join(parsed.args))
-    return 0
+    argv_out = [binary, *parsed.args]
+    return os.spawnv(os.P_WAIT, binary, argv_out)
