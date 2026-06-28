@@ -15,12 +15,15 @@
 - Milestone execution skills under `.agents/skills/execution/`.
 - Milestone execution policy.
 - ADR for milestone execution mode.
+- Skill references for output contract, error policy, Rust structure, CLI design, and module boundaries.
+- Skill assets for manifest, message metadata, error logs, extraction summaries, milestone PRs, and deferred testing.
 
 ## Changed
 
 - Updated `AGENTS.md` for ChatGPT mobile plus GitHub connector operation.
 - Updated `AGENTS.md` to reference core, role, process, and execution skills.
 - Updated `AGENTS.md` to allow approved milestone or epic execution.
+- Updated `.agents/skills/README.md` to link skill references and assets.
 - Updated README to point to repo-scoped skills and the mobile workflow.
 - Updated planning labels to use connector-friendly alternatives where required.
 - Updated operating policy to avoid key-based planning workflows by default.
