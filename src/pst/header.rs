@@ -1,5 +1,5 @@
 use crate::error::{PstdError, PstdResult};
-use crate::pst::binary::{u16_le_at, u32_le_at, u64_le_at};
+use crate::pst::binary::{u16_le_at, u64_le_at};
 use crate::pst::primitives::{ByteOffset, PageRef, PstVariant, RootPointers};
 use crate::pst::reader::PstByteReader;
 
@@ -44,8 +44,7 @@ impl PstHeader {
             return Err(PstdError::pst_parse(Some(0), "missing PST magic !BDN"));
         }
 
-        let magic_client_bytes = &buf[8..10];
-        let magic_client = String::from_utf8_lossy(magic_client_bytes).to_string();
+        let magic_client = String::from_utf8_lossy(&buf[8..10]).to_string();
         let version = u16_le_at(buf, 10, 0)?;
         let variant = match version {
             23 | 36 => PstVariant::Unicode,
@@ -53,8 +52,6 @@ impl PstHeader {
             _ => PstVariant::Unknown,
         };
 
-        // These offsets are best-effort placeholders until the full header/root structure is decoded.
-        // They are intentionally optional so later BBT/NBT work can tighten parsing without changing callers.
         let bbt_root_offset = read_optional_offset(buf, 56).ok();
         let nbt_root_offset = read_optional_offset(buf, 48).ok();
         let roots = RootPointers {
@@ -78,11 +75,7 @@ impl PstHeader {
             nbt_root_offset,
         };
 
-        Ok(Self {
-            summary,
-            variant,
-            roots,
-        })
+        Ok(Self { summary, variant, roots })
     }
 }
 
