@@ -6,37 +6,44 @@ PSTD is a PST email data extractor. The current stated direction is to use Rust 
 
 ## Operating model
 
-This repository uses a planning-first Codex Delivery Council model. Codex should act as a bounded planning agent, not an unrestricted autonomous developer.
+This repository uses a Codex Delivery Council model with two lanes:
+
+1. Planning lane: turn product intent into milestones, epics, issues, docs, and risks.
+2. Execution lane: build approved milestones or epics on milestone branches.
 
 The current operating path is phone-first:
 
 - The user prompts from ChatGPT on mobile.
 - The assistant uses the GitHub connector to read and update repo artefacts.
-- Planning, docs, issues, and PRs are created through GitHub, not through an API-key GitHub Action.
-- Repo-scoped skills live under `.agents/skills/` for future Codex runtimes and as reusable planning instructions.
+- Planning, docs, issues, branches, and PRs are created through GitHub.
+- Local testing may be deferred until the user has Codex running on a laptop.
+- Repo-scoped skills live under `.agents/skills/` for future Codex runtimes and as reusable instructions.
 
 ## Current mode
 
-Mode: `planning-only`.
+Mode: `milestone-execution`.
 
-For now the assistant/Codex is allowed to:
+Allowed:
 
-- Read draft product requirements and repo context.
-- Convert draft PRDs into epics, milestones, and GitHub issues.
+- Read product requirements and repo context.
+- Convert PRDs into epics, milestones, and GitHub issues.
 - Define acceptance criteria, dependencies, risks, and documentation requirements.
-- Refine issues after developer feedback.
-- Produce planning reports and documentation.
-- Update planning and documentation files.
-- Open PRs for planning and documentation changes.
+- Build an approved milestone or epic without requiring a new prompt for every issue.
+- Follow the ordered issue list defined by the milestone or epic.
+- Use milestone or epic branches.
+- Update application code within the approved milestone or epic scope.
+- Add or update tests where practical.
+- Document tests that were not run locally.
+- Update docs and open PRs.
+- Merge PRs when the user explicitly asks.
 
-For now the assistant/Codex is not allowed to:
+Not allowed:
 
-- Implement application code unless explicitly moved out of planning-only mode.
-- Auto-merge changes.
-- Run parallel subagents.
-- Rely on API-key GitHub Actions for Codex work.
-- Modify deployment, credentials, authentication, billing, or production data flows.
-- Create broad architecture without an ADR.
+- Unrelated broad refactors.
+- Direct commits to `main` unless explicitly requested.
+- Secret, billing, deployment, authentication, or production access changes.
+- Claiming tests passed when they were not run.
+- Creating broad architecture without an ADR.
 
 ## Skills
 
@@ -44,10 +51,10 @@ Use `.agents/skills/README.md` as the skills index.
 
 Core skills:
 
-- `.agents/skills/planning-council/SKILL.md` for PRD-to-plan work.
-- `.agents/skills/issue-writer/SKILL.md` for developer-ready issue design.
-- `.agents/skills/docs-writer/SKILL.md` for documentation maintenance.
-- `.agents/skills/github-planning-loop/SKILL.md` for ChatGPT mobile plus GitHub connector workflows.
+- `.agents/skills/planning-council/SKILL.md`
+- `.agents/skills/issue-writer/SKILL.md`
+- `.agents/skills/docs-writer/SKILL.md`
+- `.agents/skills/github-planning-loop/SKILL.md`
 
 Role skills:
 
@@ -73,22 +80,41 @@ Process skills:
 - `process/readiness-check`
 - `process/feedback-refiner`
 
-When operating from this ChatGPT conversation, treat those skills as committed instruction files and follow their intent manually.
+Execution skills:
 
-## Required role sequence for planning work
+- `execution/milestone-executor`
+- `execution/epic-workforce`
+- `execution/implementation-worker`
+- `execution/milestone-branch-manager`
+- `execution/deferred-testing`
 
-1. Executive Sponsor: confirm alignment with the original goal.
-2. Product: confirm product value and MVP relevance.
-3. Business Analyst: decompose requirements into epics, issues, dependencies, and success criteria.
-4. UX: define relevant user flows and usability constraints.
-5. Metrics: define analysis, anomaly, inference, and evaluation needs where relevant.
-6. Data: define data contracts, volume assumptions, batch or streaming needs, and data quality checks.
-7. Platform: define operational, CI/CD, environment, and delivery risks.
-8. Developer Feasibility: provide implementation feasibility notes only while in planning-only mode.
-9. Full-Stack Developer: plan implementation across Rust, Python, React, Vite, APIs, data outputs, and future Snowflake integration without writing code.
-10. Docs Writer: update the planning, product, architecture, engineering, data, and user documentation structure.
-11. Integration: check dependency order and overlap.
-12. Reviewer: check readiness and quality.
+## Planning role sequence
+
+1. Executive Sponsor.
+2. Product.
+3. Business Analyst.
+4. UX.
+5. Metrics.
+6. Data.
+7. Platform.
+8. Developer Feasibility.
+9. Full-Stack Developer.
+10. Docs Writer.
+11. Integration.
+12. Reviewer.
+
+## Execution workflow
+
+1. Start from an approved milestone or epic.
+2. Confirm the ordered issue list.
+3. Create or use a milestone branch.
+4. Implement the issue set in the milestone order.
+5. Keep unrelated work out.
+6. Add or update tests when practical.
+7. Record tests that could not be run.
+8. Update docs.
+9. Open a milestone PR.
+10. Merge when the user explicitly asks.
 
 ## Planning rules
 
@@ -96,21 +122,8 @@ When operating from this ChatGPT conversation, treat those skills as committed i
 - Do not invent test, build, lint, or typecheck commands when they are unknown.
 - If the repo lacks code or tooling, document the gap instead of assuming a stack is already implemented.
 - Every planned issue must include scope, out-of-scope items, acceptance criteria, dependencies, risks, and documentation requirements.
-- Prefer small, dependency-aware issues over large ambiguous ones.
+- Prefer small, dependency-aware issues within coherent milestones.
 - Mark work as on hold if product intent, data access, operating model, or acceptance criteria are missing.
-- Make requirements developer-ready; a developer should not need extra context to begin.
-
-## Risk controls
-
-Planning may describe risky work, but the assistant/Codex must not execute risky work without explicit human approval. Risky work includes:
-
-- Data deletion or irreversible transformation.
-- Processing private or sensitive email content without a privacy and retention design.
-- Credential handling.
-- Authentication or authorization changes.
-- Infrastructure, deployment, or CI/CD permission changes.
-- Database migrations.
-- Large-scale data extraction or inference pipelines.
 
 ## Pull request standard
 
@@ -120,6 +133,7 @@ Every PR must include:
 - Scope.
 - Files changed.
 - Tests or validation performed.
+- Tests or validation deferred.
 - Documentation updated.
 - Data impact.
 - Operational impact.
@@ -127,4 +141,4 @@ Every PR must include:
 
 ## Documentation standard
 
-Every meaningful planning change must update docs. Use audience-specific folders under `docs/` rather than placing all notes in one file.
+Every meaningful planning or execution change must update docs. Use audience-specific folders under `docs/` rather than placing all notes in one file.
