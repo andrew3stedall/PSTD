@@ -1,0 +1,34 @@
+{
+  "schema_version": "pstd.manifest.v1",
+  "run_id": "2026-06-28T13-00-00Z_example",
+  "tool": {
+    "name": "pstd",
+    "version": "0.1.0"
+  },
+  "source": {
+    "type": "pst",
+    "path": "input/example.pst",
+    "size_bytes": 123456789
+  },
+  "output": {
+    "root": "output/example",
+    "messages_dir": "output/example/messages",
+    "errors_file": "output/example/errors.jsonl",
+    "summary_file": "output/example/summary.json",
+    "folders_file": "output/example/folders.json"
+  },
+  "started_at_utc": "2026-06-28T13:00:00Z",
+  "finished_at_utc": "2026-06-28T13:05:00Z",
+  "status": "completed_with_warnings",
+  "totals": {
+    "folders_seen": 12,
+    "messages_seen": 1000,
+    "messages_extracted": 995,
+    "messages_failed": 5,
+    "attachments_seen": 250,
+    "attachments_extracted": 247,
+    "attachments_failed": 3,
+    "errors": 8,
+    "warnings": 12
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "schema_version": "pstd.message_metadata.v1",
+  "message_id": "msg_000001",
+  "source": {
+    "pst_path": "input/example.pst",
+    "folder_path": "Inbox/Archive"
+  },
+  "headers": {
+    "internet_message_id": "<example-message-id@example.com>",
+    "in_reply_to": null,
+    "references": []
+  },
+  "subject": "Example subject",
+  "sender": {
+    "name": "Example Sender",
+    "email": "sender@example.com"
+  },
+  "recipients": {
+    "to": [{"name": "Example Recipient", "email": "recipient@example.com"}],
+    "cc": [],
+    "bcc": []
+  },
+  "timestamps": {
+    "sent_at_utc": "2026-06-28T12:00:00Z",
+    "received_at_utc": "2026-06-28T12:00:10Z"
+  },
+  "body": {
+    "text_path": "messages/msg_000001/body.txt",
+    "html_path": "messages/msg_000001/body.html"
+  },
+  "attachments": [
+    {
+      "attachment_id": "att_000001",
+      "original_filename": "example.pdf",
+      "stored_path": "messages/msg_000001/attachments/att_000001-example.pdf",
+      "size_bytes": 12345,
+      "status": "extracted"
+    }
+  ],
+  "status": "extracted"
+}
