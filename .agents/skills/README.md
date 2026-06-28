@@ -16,6 +16,7 @@ This folder contains reusable planning instructions for PSTD.
 - `roles/business-analyst`: issue and requirement decomposition.
 - `roles/ux`: user, CLI, API, and developer experience.
 - `roles/developer-feasibility`: implementation feasibility before coding.
+- `roles/full-stack-developer`: implementation planning across Rust, Python, React, Vite, APIs, data outputs, and future Snowflake integration.
 - `roles/metrics`: measurement and evaluation.
 - `roles/data`: data contracts and output readiness.
 - `roles/platform`: run, validation, and environment concerns.
