@@ -1,0 +1,57 @@
+use std::fs;
+
+use pstd::pst::binary::{u16_le_at, u32_le_at, u64_le_at};
+use pstd::pst::header::{PstHeader, PST_MAGIC};
+use pstd::pst::primitives::{BlockId, ByteOffset, NodeId};
+use pstd::pst::reader::PstByteReader;
+use pstd::pst::trailer::{BlockTrailer, PageTrailer};
+
+#[test]
+fn byte_reader_reads_bounded_ranges() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("sample.bin");
+    fs::write(&path, b"abcdef").unwrap();
+    let reader = PstByteReader::open(&path).unwrap();
+    assert_eq!(reader.file_size(), 6);
+    assert_eq!(reader.read_at(2, 3).unwrap(), b"cde");
+    assert!(reader.read_at(5, 2).is_err());
+}
+
+#[test]
+fn binary_helpers_read_little_endian_values() {
+    let bytes = [0x34, 0x12, 0x78, 0x56, 0, 0, 0, 0];
+    assert_eq!(u16_le_at(&bytes, 0, 0).unwrap(), 0x1234);
+    assert_eq!(u32_le_at(&bytes, 0, 0).unwrap(), 0x56781234);
+    assert_eq!(u64_le_at(&bytes, 0, 0).unwrap(), 0x0000000056781234);
+    assert!(u64_le_at(&bytes, 2, 0).is_err());
+}
+
+#[test]
+fn pst_header_accepts_minimal_unicode_header() {
+    let mut header = vec![0u8; 64];
+    header[0..4].copy_from_slice(&PST_MAGIC);
+    header[8..10].copy_from_slice(b"SM");
+    header[10..12].copy_from_slice(&23u16.to_le_bytes());
+    let parsed = PstHeader::parse_bytes(&header, 64).unwrap();
+    assert_eq!(parsed.summary.format, "pst");
+    assert_eq!(parsed.summary.version, Some(23));
+    assert_eq!(parsed.summary.variant, "unicode");
+}
+
+#[test]
+fn typed_primitives_format_for_diagnostics() {
+    assert_eq!(format!("{:?}", NodeId(0x22)), "NodeId(0x22)");
+    assert_eq!(format!("{:?}", BlockId(0x33)), "BlockId(0x33)");
+    assert_eq!(format!("{:?}", ByteOffset(44)), "ByteOffset(44)");
+}
+
+#[test]
+fn trailers_parse_from_slices() {
+    let page = vec![0u8; 512];
+    let page_trailer = PageTrailer::parse_from_page(&page, 0).unwrap();
+    assert_eq!(page_trailer.offset, 496);
+
+    let block = vec![0u8; 64];
+    let block_trailer = BlockTrailer::parse_from_block(&block, 100).unwrap();
+    assert_eq!(block_trailer.offset.0, 148);
+}
