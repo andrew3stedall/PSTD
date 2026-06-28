@@ -16,19 +16,15 @@ Local tests were not run from the phone/GitHub connector workflow. Tests should 
 
 ## M1 expected validation commands
 
-When M1 implementation starts, run these commands once the relevant tooling exists:
-
 ```text
 cargo fmt --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all
 pstd --help
 pstd extract --help
-python -m pstfast --help
+python -m pstd --help
 docker build -t pstd:local -f docker/Dockerfile .
 ```
-
-If final binary or package names differ, update the commands before running validation.
 
 ## M1 validation expectations by issue
 
@@ -39,25 +35,21 @@ If final binary or package names differ, update the commands before running vali
 | M1-I03 TAR shard writer | Unit tests proving readable TAR output and shard naming |
 | M1-I04 JSONL writer | Unit tests proving valid newline-delimited JSON |
 | M1-I05 Path and ID helpers | Unit tests for path traversal, duplicates, and stable IDs |
-| M1-I06 Error and progress models | Unit tests for JSON serialization |
-| M1-I07 Python CLI wrapper | Python CLI help and wrapper error behaviour |
-| M1-I08 Docker scaffold | Docker build and mounted-directory command smoke test |
+| M1-I06 Status and progress models | Unit tests for JSON serialization |
+| M1-I07 Python CLI wrapper | Python CLI help and wrapper behaviour |
+| M1-I08 Docker scaffold | Docker build and mounted-directory smoke test |
 | M1-I09 Deferred testing scaffold | Documentation review |
 | M1-I10 Execution checklist | Documentation review |
 
 ## High-risk unverified areas
 
-- Rust project may not compile until dependencies and crate layout are implemented.
-- CLI options may drift from documentation.
-- TAR writer may create unreadable archives if not tested with standard tooling.
-- JSONL records may not parse line by line if tests are skipped.
-- Docker build may fail if local filesystem layout differs from documentation.
-- Python package naming may differ from command examples.
+- Rust project compilation.
+- CLI option drift.
+- TAR readability.
+- JSONL parsing.
+- Docker build.
+- Python package wrapper behaviour.
 
-## Validation status for this planning package
+## Validation status for this implementation branch
 
-This planning package changes documentation only. Local tests were not run from the phone/GitHub connector workflow.
-
-## Release note
-
-Do not treat any implementation milestone as release-verified until local or CI validation has run and results are recorded in the PR.
+Local tests were not run from the phone/GitHub connector workflow.
