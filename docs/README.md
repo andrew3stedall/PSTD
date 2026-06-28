@@ -2,6 +2,19 @@
 
 This documentation tree separates planning, engineering, data, operations, UX, and user-facing information.
 
+## PSTD v1 planning package
+
+- [PSTD v1 MVP PRD](product/pstd-v1-mvp-prd.md)
+- [PSTD v1 Roadmap](product/pstd-v1-roadmap.md)
+- [Milestone M1: Extraction Foundation and Archive Contract](milestones/pstd-v1-m1-extraction-foundation.md)
+- [Epic E1: Local Extraction Foundation and Archive Contract](epics/pstd-v1-e1-local-extraction-foundation.md)
+- [M1 Ordered Issue Plan](issues/pstd-v1-m1-ordered-issue-plan.md)
+- [M1 Dependency Map](architecture/pstd-v1-m1-dependency-map.md)
+- [PSTD v1 Output Contract Summary](data/pstd-v1-output-contract-summary.md)
+- [PSTD v1 CLI and Rust Implementation Plan](engineering/pstd-v1-cli-rust-implementation-plan.md)
+- [PSTD v1 Deferred Testing Plan](operations/pstd-v1-deferred-testing-plan.md)
+- [M1 Milestone Execution Checklist](milestones/pstd-v1-m1-execution-checklist.md)
+
 ## Product
 
 - [Planning council overview](product/council-overview.md)
