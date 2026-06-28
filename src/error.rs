@@ -13,11 +13,36 @@ pub enum PstdError {
     #[error("output could not be written: {0}")]
     OutputWrite(String),
 
+    #[error("pst binary read failed at offset {offset:?}: {message}")]
+    PstRead { offset: Option<u64>, message: String },
+
+    #[error("pst binary parse failed at offset {offset:?}: {message}")]
+    PstParse { offset: Option<u64>, message: String },
+
+    #[error("unsupported pst feature: {0}")]
+    UnsupportedPstFeature(String),
+
     #[error("io error: {0}")]
     Io(#[from] io::Error),
 
     #[error("json serialization error: {0}")]
     Json(#[from] serde_json::Error),
+}
+
+impl PstdError {
+    pub fn pst_read(offset: impl Into<Option<u64>>, message: impl Into<String>) -> Self {
+        Self::PstRead {
+            offset: offset.into(),
+            message: message.into(),
+        }
+    }
+
+    pub fn pst_parse(offset: impl Into<Option<u64>>, message: impl Into<String>) -> Self {
+        Self::PstParse {
+            offset: offset.into(),
+            message: message.into(),
+        }
+    }
 }
 
 pub type PstdResult<T> = Result<T, PstdError>;
