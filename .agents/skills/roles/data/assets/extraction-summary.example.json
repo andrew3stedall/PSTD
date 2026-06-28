@@ -1,0 +1,26 @@
+{
+  "schema_version": "pstd.summary.v1",
+  "run_id": "2026-06-28T13-00-00Z_example",
+  "status": "completed_with_warnings",
+  "duration_seconds": 300,
+  "source_pst": "input/example.pst",
+  "output_root": "output/example",
+  "counts": {
+    "folders_seen": 12,
+    "messages_seen": 1000,
+    "messages_extracted": 995,
+    "messages_failed": 5,
+    "attachments_seen": 250,
+    "attachments_extracted": 247,
+    "attachments_failed": 3
+  },
+  "top_warning_codes": [
+    {"code": "attachment_decode_failed", "count": 3},
+    {"code": "missing_html_body", "count": 7}
+  ],
+  "next_validation_steps": [
+    "Review errors.jsonl",
+    "Sample extracted message metadata",
+    "Run local validation commands when available"
+  ]
+}
