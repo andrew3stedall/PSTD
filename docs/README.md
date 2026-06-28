@@ -4,7 +4,7 @@ This documentation tree separates planning, engineering, data, operations, UX, a
 
 ## Product
 
-- [Planning agent](product/planning-agent.md)
+- [Planning council overview](product/council-overview.md)
 - [PRD intake template](product/prd-intake-template.md)
 - [Planning labels](product/planning-labels.md)
 
@@ -14,7 +14,7 @@ This documentation tree separates planning, engineering, data, operations, UX, a
 
 ## Architecture decisions
 
-- [ADR-0001: Codex planning agent](decisions/ADR-0001-codex-planning-agent.md)
+- [ADR-0001: Codex planning council](decisions/ADR-0001-codex-planning-council.md)
 
 ## Changelog
 
