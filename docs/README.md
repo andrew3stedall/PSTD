@@ -5,7 +5,7 @@ This documentation tree separates planning, engineering, data, operations, UX, a
 ## Product
 
 - [Planning council overview](product/council-overview.md)
-- [Phone-first operating model](product/phone-first-operating-model.md)
+- [Mobile operating model](product/phone-first-operating-model.md)
 - [PRD intake template](product/prd-intake-template.md)
 - [Planning labels](product/planning-labels.md)
 
@@ -16,7 +16,7 @@ This documentation tree separates planning, engineering, data, operations, UX, a
 ## Architecture decisions
 
 - [ADR-0001: Codex planning council](decisions/ADR-0001-codex-planning-council.md)
-- [ADR-0002: Phone-first planning workflow](decisions/ADR-0002-phone-first-planning-workflow.md)
+- [ADR-0002: Mobile planning workflow](decisions/ADR-0002-phone-first-planning.md)
 
 ## Changelog
 
@@ -24,7 +24,7 @@ This documentation tree separates planning, engineering, data, operations, UX, a
 
 ## Repo skills
 
-Repo-scoped skill instructions are kept under `.agents/skills/` for future Codex runtimes and as reusable planning guidance for ChatGPT plus GitHub connector work.
+Repo-scoped skill instructions are kept under `.agents/skills/` for future Codex runtimes and reusable planning guidance.
 
 ## Documentation rule
 
