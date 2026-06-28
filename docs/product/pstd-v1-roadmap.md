@@ -12,10 +12,10 @@
 ## Roadmap overview
 
 ```text
-M1: Extraction Foundation and Archive Contract
-  -> Rust CLI shell, archive writer, JSONL contract, Python wrapper plan, deferred testing plan.
+M1: Extraction Foundation and Archive Contract [implemented, validation deferred]
+  -> Rust CLI shell, archive writer, JSONL contract, Python wrapper boundary, Docker scaffold.
 
-M2: PST Binary Foundation
+M2: PST Binary Foundation [next]
   -> Memory-mapped reader, PST header parser, primitive PST types, BBT/NBT planning and implementation.
 
 M3: Folder and Metadata Extraction
@@ -36,25 +36,26 @@ M7: Performance, Resilience, and Release Candidate
 
 ## Milestone M1: Extraction Foundation and Archive Contract
 
-### Goal
+### Status
 
-Create the first implementation-ready foundation for PSTD v1 without parsing PST internals yet. Establish CLI shape, archive contract, JSONL schemas, Rust/Python module boundaries, and deferred testing expectations.
+Implemented and merged to `main` via PR #18. Issues #7-#16 are closed as completed.
 
-### Why first
+Local validation remains deferred.
 
-The output contract and module boundaries must be stable before agents implement PST parsing layers. This prevents later work from embedding Snowflake/frontend assumptions inside the parser and prevents agents from writing ad hoc output formats.
+### Delivered
 
-### Expected implementation branch
-
-```text
-pstd-v1-m1-foundation
-```
-
-The repository skill suggests milestone-style branches. If slash-based branch names are available in the execution environment, use:
-
-```text
-milestone/pstd-v1-m1-foundation
-```
+- Rust crate and `pstd` CLI shell.
+- `extract`, `inspect`, and `version` command boundary.
+- Structured TAR shard writer.
+- JSONL writer.
+- Stable ID helpers.
+- Safe path helpers.
+- Typed output record models.
+- Status and progress records.
+- Placeholder PST module boundaries.
+- Python `pstd` wrapper boundary.
+- Docker local run scaffold.
+- M1 testing and execution docs.
 
 ## Milestone M2: PST Binary Foundation
 
@@ -83,30 +84,11 @@ Implement low-level PST file access and structure parsing from scratch.
 
 Enumerate folders and extract message metadata records.
 
-### Includes
-
-- Folder tree.
-- Folder inventory.
-- Property context parsing.
-- Table context parsing.
-- `messages.jsonl` records.
-
 ## Milestone M4: Recipients, Threading, and Address Resolution
 
 ### Goal
 
 Extract relationship-ready email fields needed for search, review, tagging, and graph work.
-
-### Includes
-
-- Recipient records.
-- Internet Message-ID.
-- In-Reply-To.
-- References.
-- Conversation-Index.
-- Conversation-Topic.
-- Raw transport headers.
-- X.400/Exchange address preservation and best-effort SMTP resolution.
 
 ## Milestone M5: Bodies and Attachments
 
@@ -114,31 +96,11 @@ Extract relationship-ready email fields needed for search, review, tagging, and 
 
 Extract searchable/reviewable content and attachment artefacts.
 
-### Includes
-
-- Plain text bodies.
-- HTML bodies.
-- Body metadata rows.
-- Raw attachment files.
-- Attachment metadata rows.
-- Inline attachment metadata.
-- Attached email preservation and best-effort metadata extraction.
-
 ## Milestone M6: Batch Orchestration, Checkpointing, and Progress
 
 ### Goal
 
 Make PSTD useful across normal batches of 20-100 PSTs and future larger job queues.
-
-### Includes
-
-- Python CLI wrapper.
-- Batch scheduler.
-- PST-level checkpointing.
-- Retry failed PSTs.
-- Skip completed PSTs.
-- Console progress.
-- `progress.jsonl`.
 
 ## Milestone M7: Performance, Resilience, and Release Candidate
 
@@ -146,32 +108,10 @@ Make PSTD useful across normal batches of 20-100 PSTs and future larger job queu
 
 Move from working extraction to release candidate quality.
 
-### Includes
-
-- Benchmark harness.
-- Performance profiles: `fast`, `balanced`, `audit`, `debug`.
-- Corruption-tolerant extraction hardening.
-- Memory usage checks.
-- Docker packaging.
-- End-to-end integration tests.
-- Final docs.
-
 ## Future roadmap after v1
 
 ```text
 V2: Snowflake ingestion
-  Load messages, recipients, bodies, attachments metadata, folder inventory, and errors into Snowflake tables/stages.
-
 V3: Search and review web application
-  Keyword search, semantic search, message review, generated email downloads, and tagging.
-
 V4: Knowledge graph and LLM support
-  Thread graphs, sender-recipient relationships, attachment relationships, entity extraction, graph-backed retrieval, and RAG workflows.
 ```
-
-## Known roadmap risks
-
-- PST parser correctness is the hardest part of v1.
-- Corrupt PST recovery may require iterative refinement against real fixtures.
-- X.400/Exchange address resolution may require optional external mapping files because not every raw Exchange address can be converted from the PST string alone.
-- Full message-level resume inside a partially processed PST is more complex than PST-level checkpointing and should not be assumed for M1.
