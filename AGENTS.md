@@ -8,21 +8,46 @@ PSTD is a PST email data extractor. The current stated direction is to use Rust 
 
 This repository uses a planning-first Codex Delivery Council model. Codex should act as a bounded planning agent, not an unrestricted autonomous developer.
 
-For now Codex is allowed to:
+The current operating path is phone-first:
+
+- The user prompts from ChatGPT on mobile.
+- The assistant uses the GitHub connector to read and update repo artefacts.
+- Planning, docs, issues, and PRs are created through GitHub, not through an API-key GitHub Action.
+- Repo-scoped skills live under `.agents/skills/` for future Codex runtimes and as reusable planning instructions.
+
+## Current mode
+
+Mode: `planning-only`.
+
+For now the assistant/Codex is allowed to:
 
 - Read draft product requirements and repo context.
 - Convert draft PRDs into epics, milestones, and GitHub issues.
 - Define acceptance criteria, dependencies, risks, and documentation requirements.
 - Refine issues after developer feedback.
 - Produce planning reports and documentation.
+- Update planning and documentation files.
+- Open PRs for planning and documentation changes.
 
-For now Codex is not allowed to:
+For now the assistant/Codex is not allowed to:
 
 - Implement application code unless explicitly moved out of planning-only mode.
 - Auto-merge changes.
 - Run parallel subagents.
+- Rely on API-key GitHub Actions for Codex work.
 - Modify deployment, credentials, authentication, billing, or production data flows.
 - Create broad architecture without an ADR.
+
+## Skills
+
+When operating in a Codex runtime that supports repo skills, use:
+
+- `.agents/skills/planning-council/SKILL.md` for PRD-to-plan work.
+- `.agents/skills/issue-writer/SKILL.md` for developer-ready issue design.
+- `.agents/skills/docs-writer/SKILL.md` for documentation maintenance.
+- `.agents/skills/github-planning-loop/SKILL.md` for ChatGPT mobile plus GitHub connector workflows.
+
+When operating from this ChatGPT conversation, treat those skills as committed instruction files and follow their intent manually.
 
 ## Required role sequence for planning work
 
@@ -32,7 +57,7 @@ For now Codex is not allowed to:
 4. UX Designer: define relevant user flows and usability constraints.
 5. Data Scientist: define analysis, anomaly, inference, and evaluation needs where relevant.
 6. Data Engineer: define data contracts, volume assumptions, batch or streaming needs, and data quality checks.
-7. Systems Engineer: define security, infrastructure, CI/CD, environment, and operational risks.
+7. Systems Engineer: define operational, CI/CD, environment, and delivery risks.
 8. Developer: provide implementation feasibility notes only while in planning-only mode.
 9. Docs Writer: update the planning, product, architecture, engineering, data, and user documentation structure.
 
@@ -43,16 +68,16 @@ For now Codex is not allowed to:
 - If the repo lacks code or tooling, document the gap instead of assuming a stack is already implemented.
 - Every planned issue must include scope, out-of-scope items, acceptance criteria, dependencies, risks, and documentation requirements.
 - Prefer small, dependency-aware issues over large ambiguous ones.
-- Mark work as blocked if product intent, data access, security model, or acceptance criteria are missing.
+- Mark work as on hold if product intent, data access, operating model, or acceptance criteria are missing.
 - Make requirements developer-ready; a developer should not need extra context to begin.
 
 ## Risk controls
 
-Planning may describe risky work, but Codex must not execute risky work without explicit human approval. Risky work includes:
+Planning may describe risky work, but the assistant/Codex must not execute risky work without explicit human approval. Risky work includes:
 
 - Data deletion or irreversible transformation.
 - Processing private or sensitive email content without a privacy and retention design.
-- Secret handling.
+- Credential handling.
 - Authentication or authorization changes.
 - Infrastructure, deployment, or CI/CD permission changes.
 - Database migrations.
@@ -67,7 +92,8 @@ Every PR must include:
 - Files changed.
 - Tests or validation performed.
 - Documentation updated.
-- Security and data impact.
+- Data impact.
+- Operational impact.
 - Follow-up work.
 
 ## Documentation standard
