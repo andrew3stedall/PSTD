@@ -10,7 +10,7 @@ Do not implement application code in this mode.
 
 ## Required input
 
-Before producing output, read `.codex-runtime/planning-input.md` if it exists. Treat that file as the source planning request for the run.
+Use the user's current request as the source planning request. If `.codex-runtime/planning-input.md` exists in a future local or cloud runtime, read it as supplementary context.
 
 ## Current repo context
 
@@ -55,7 +55,7 @@ Output:
 - Milestone proposal.
 - Issue breakdown.
 - Acceptance criteria for each issue.
-- Dependencies and blockers.
+- Dependencies and paused decisions.
 - Open questions.
 
 ### 4. UX Designer
@@ -151,7 +151,7 @@ Return a planning report with:
 4. Proposed epics.
 5. Proposed issue list.
 6. Dependency order.
-7. Risks and blocked decisions.
+7. Risks and paused decisions.
 8. Documentation updates.
 9. Suggested GitHub labels.
 10. Next human decisions.
