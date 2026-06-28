@@ -40,26 +40,55 @@ For now the assistant/Codex is not allowed to:
 
 ## Skills
 
-When operating in a Codex runtime that supports repo skills, use:
+Use `.agents/skills/README.md` as the skills index.
+
+Core skills:
 
 - `.agents/skills/planning-council/SKILL.md` for PRD-to-plan work.
 - `.agents/skills/issue-writer/SKILL.md` for developer-ready issue design.
 - `.agents/skills/docs-writer/SKILL.md` for documentation maintenance.
 - `.agents/skills/github-planning-loop/SKILL.md` for ChatGPT mobile plus GitHub connector workflows.
 
+Role skills:
+
+- `roles/executive-sponsor`
+- `roles/product`
+- `roles/business-analyst`
+- `roles/ux`
+- `roles/developer-feasibility`
+- `roles/full-stack-developer`
+- `roles/metrics`
+- `roles/data`
+- `roles/platform`
+- `roles/integration`
+- `roles/reviewer`
+
+Process skills:
+
+- `process/prd-intake`
+- `process/milestone-planner`
+- `process/epic`
+- `process/dependency-mapper`
+- `process/risk-reviewer`
+- `process/readiness-check`
+- `process/feedback-refiner`
+
 When operating from this ChatGPT conversation, treat those skills as committed instruction files and follow their intent manually.
 
 ## Required role sequence for planning work
 
 1. Executive Sponsor: confirm alignment with the original goal.
-2. Product Owner: confirm product value and MVP relevance.
+2. Product: confirm product value and MVP relevance.
 3. Business Analyst: decompose requirements into epics, issues, dependencies, and success criteria.
-4. UX Designer: define relevant user flows and usability constraints.
-5. Data Scientist: define analysis, anomaly, inference, and evaluation needs where relevant.
-6. Data Engineer: define data contracts, volume assumptions, batch or streaming needs, and data quality checks.
-7. Systems Engineer: define operational, CI/CD, environment, and delivery risks.
-8. Developer: provide implementation feasibility notes only while in planning-only mode.
-9. Docs Writer: update the planning, product, architecture, engineering, data, and user documentation structure.
+4. UX: define relevant user flows and usability constraints.
+5. Metrics: define analysis, anomaly, inference, and evaluation needs where relevant.
+6. Data: define data contracts, volume assumptions, batch or streaming needs, and data quality checks.
+7. Platform: define operational, CI/CD, environment, and delivery risks.
+8. Developer Feasibility: provide implementation feasibility notes only while in planning-only mode.
+9. Full-Stack Developer: plan implementation across Rust, Python, React, Vite, APIs, data outputs, and future Snowflake integration without writing code.
+10. Docs Writer: update the planning, product, architecture, engineering, data, and user documentation structure.
+11. Integration: check dependency order and overlap.
+12. Reviewer: check readiness and quality.
 
 ## Planning rules
 
