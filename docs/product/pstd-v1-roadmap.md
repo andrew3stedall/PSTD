@@ -15,10 +15,10 @@
 M1: Extraction Foundation and Archive Contract [implemented, validation deferred]
   -> Rust CLI shell, archive writer, JSONL contract, Python wrapper boundary, Docker scaffold.
 
-M2: PST Binary Foundation [implemented on branch, validation deferred]
+M2: PST Binary Foundation [implemented, validation deferred]
   -> Bounded byte reader, PST header parser, primitive PST types, BBT/NBT skeletons, block loading, real inspect command.
 
-M3: Folder and Metadata Extraction
+M3: Folder and Metadata Extraction [next]
   -> Folder tree, inventory, property context parsing, table context parsing, message metadata records.
 
 M4: Recipients, Threading, and Address Resolution
@@ -46,7 +46,9 @@ Local validation remains deferred.
 
 ### Status
 
-Implemented on branch `pstd-v1-m2`. Pull request review and local validation are pending.
+Implemented and merged to `main` via PR #30. Issues #19-#28 are closed as completed.
+
+Local validation remains deferred.
 
 ### Delivered
 
@@ -68,6 +70,10 @@ Implemented on branch `pstd-v1-m2`. Pull request review and local validation are
 - Web UI.
 
 ## Milestone M3: Folder and Metadata Extraction
+
+### Status
+
+Next planned milestone.
 
 ### Goal
 
