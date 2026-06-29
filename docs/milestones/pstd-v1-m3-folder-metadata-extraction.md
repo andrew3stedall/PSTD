@@ -2,7 +2,9 @@
 
 ## Status
 
-Implemented on branch `pstd-v1-m3-folder-metadata`. Pull request review and local validation are pending.
+Implemented and merged to `main` via PR #43.
+
+Local validation remains deferred. Do not treat M3 as release-verified until the documented validation commands have run from Codex/laptop or CI.
 
 ## Goal
 
@@ -14,7 +16,7 @@ M3 makes `pstd extract --manifest-only` write metadata-only structured archive o
 
 - [Epic E3: Logical PST structures and metadata extraction](../epics/pstd-v1-e3-folder-metadata-extraction.md)
 
-## Included issues
+## Completed issues
 
 1. #32 / M3-I01: Stabilise node and block access for logical PST layers.
 2. #33 / M3-I02: Implement heap-on-node parsing foundation.
