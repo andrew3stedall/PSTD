@@ -18,8 +18,8 @@ M1: Extraction Foundation and Archive Contract [implemented, validation deferred
 M2: PST Binary Foundation [implemented, validation deferred]
   -> Bounded byte reader, PST header parser, primitive PST types, BBT/NBT skeletons, block loading, real inspect command.
 
-M3: Folder and Metadata Extraction [next]
-  -> Folder tree, inventory, property context parsing, table context parsing, message metadata records.
+M3: Folder and Metadata Extraction [planned]
+  -> Logical PST structures, folder inventory, property/table contexts, message metadata records.
 
 M4: Recipients, Threading, and Address Resolution
   -> Recipients, Message-ID, In-Reply-To, References, Conversation fields, X.400/Exchange address handling.
@@ -50,34 +50,33 @@ Implemented and merged to `main` via PR #30. Issues #19-#28 are closed as comple
 
 Local validation remains deferred.
 
-### Delivered
+## Milestone M3: Folder and Metadata Extraction
 
-- Bounded random-access PST byte reader.
-- PST header parser.
-- Strongly typed PST primitives.
-- Endian-aware parsing helpers.
-- Block/page trailer parsing.
-- BBT/NBT lookup skeletons.
-- Block loading interface.
-- Real `pstd inspect` structural output.
+### Status
+
+Planned in the M3 package. Implementation has not started.
+
+### Includes
+
+- Logical node/block access.
+- Heap-on-node parsing.
+- BTH parsing.
+- Property context parsing.
+- Table context parsing.
+- Selected MAPI property decoding.
+- Folder hierarchy traversal.
+- Folder inventory output.
+- Initial message metadata output.
+- Metadata-only archive output.
 
 ### Out of scope
 
 - Message bodies.
 - Attachments.
-- Folder/message extraction.
+- Recipients.
+- Full threading.
 - Snowflake.
 - Web UI.
-
-## Milestone M3: Folder and Metadata Extraction
-
-### Status
-
-Next planned milestone.
-
-### Goal
-
-Enumerate folders and extract message metadata records.
 
 ## Milestone M4: Recipients, Threading, and Address Resolution
 
