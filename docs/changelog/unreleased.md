@@ -11,25 +11,20 @@
 - ADR for the mobile planning workflow.
 - Role, process, and execution skills under `.agents/skills/`.
 - Skill references and assets for planning, output contracts, Rust structure, CLI design, manifests, summaries, and deferred testing.
-- PSTD v1 planning package, roadmap, M1 milestone, E1 epic, ordered issue plan, dependency map, output contract summary, implementation plan, deferred testing plan, and execution checklist.
-- PSTD M1 foundation implementation.
-- PSTD M2 planning package and implementation.
-- PSTD M3 planning package: M3 milestone, E3 epic, ordered issue plan, dependency map, folder metadata implementation plan, deferred testing plan, and GitHub issues #32-#42.
-- PSTD M3 implementation: logical node access boundary, heap parser, BTH parser, property context scaffold, table context scaffold, selected MAPI property registry, folder inventory output, metadata status rows, metadata-only archive output, and `pstd extract --manifest-only` wiring.
+- PSTD v1 planning package and M1-M3 implementation docs.
+- Project status guide.
+- Developer guide.
+- Codebase map.
+- System overview.
+- Local validation guide.
+- Repo-hosted wiki home and developer onboarding pages.
 
 ## Changed
 
-- Updated `AGENTS.md` for ChatGPT mobile plus GitHub connector operation.
-- Updated `AGENTS.md` to reference core, role, process, and execution skills.
-- Updated `AGENTS.md` to allow approved milestone or epic execution.
-- Updated `.agents/skills/README.md` to link skill references and assets.
-- Updated README to point to the `pstd` M1 scaffold and validation commands.
-- Updated planning labels to use connector-friendly alternatives where required.
-- Updated operating policy to avoid key-based planning workflows by default.
-- Updated output-contract skill reference to use structured TAR + JSONL as the v1 canonical output instead of EML-first output.
-- Marked M1 roadmap and milestone docs as implemented with validation deferred.
-- Marked M2 roadmap and milestone docs as implemented and merged to `main`, with validation still deferred.
-- Marked M3 roadmap and milestone docs as implemented and merged to `main`, with validation still deferred.
+- Refreshed the root README to reflect M1-M3 current status.
+- Reorganised `docs/README.md` around audience-based navigation.
+- Updated M1, M2, and M3 documentation status to implemented with validation deferred.
+- Updated output-contract guidance around structured TAR + JSONL output.
 
 ## Removed
 
@@ -39,5 +34,4 @@
 
 - Local testing remains deferred until the laptop/Codex setup is available.
 - M1, M2, and M3 were merged to `main` without local validation at the user's request.
-- M3 local validation has not yet been run.
-- Run the documented Cargo, CLI, Python wrapper, and Docker commands before treating M1 or later milestones as release-verified.
+- Run the documented validation commands before treating M1 or later milestones as release-verified.
