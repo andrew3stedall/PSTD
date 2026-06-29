@@ -11,7 +11,7 @@ pub enum MapiValueType {
     Unknown,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize)]
 pub struct MapiPropertyDef {
     pub tag: u32,
     pub name: &'static str,
