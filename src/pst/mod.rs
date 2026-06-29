@@ -1,6 +1,12 @@
 pub mod attachments;
+pub mod bbt;
+pub mod binary;
+pub mod block;
 pub mod folders;
 pub mod header;
+pub mod inspect;
 pub mod messages;
+pub mod nbt;
 pub mod primitives;
 pub mod reader;
+pub mod trailer;

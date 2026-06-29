@@ -15,8 +15,8 @@
 M1: Extraction Foundation and Archive Contract [implemented, validation deferred]
   -> Rust CLI shell, archive writer, JSONL contract, Python wrapper boundary, Docker scaffold.
 
-M2: PST Binary Foundation [planned]
-  -> Bounded byte reader, PST header parser, primitive PST types, BBT/NBT skeletons, raw block loading, real inspect command.
+M2: PST Binary Foundation [implemented on branch, validation deferred]
+  -> Bounded byte reader, PST header parser, primitive PST types, BBT/NBT skeletons, block loading, real inspect command.
 
 M3: Folder and Metadata Extraction
   -> Folder tree, inventory, property context parsing, table context parsing, message metadata records.
@@ -46,13 +46,9 @@ Local validation remains deferred.
 
 ### Status
 
-Planned in the M2 package. Implementation has not started.
+Implemented on branch `pstd-v1-m2`. Pull request review and local validation are pending.
 
-### Goal
-
-Implement low-level PST file access and structure parsing from scratch.
-
-### Includes
+### Delivered
 
 - Bounded random-access PST byte reader.
 - PST header parser.
@@ -60,7 +56,7 @@ Implement low-level PST file access and structure parsing from scratch.
 - Endian-aware parsing helpers.
 - Block/page trailer parsing.
 - BBT/NBT lookup skeletons.
-- Raw block loading interface.
+- Block loading interface.
 - Real `pstd inspect` structural output.
 
 ### Out of scope
