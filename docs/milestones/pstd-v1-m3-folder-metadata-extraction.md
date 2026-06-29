@@ -2,13 +2,13 @@
 
 ## Status
 
-Planned. Not yet implemented.
+Implemented on branch `pstd-v1-m3-folder-metadata`. Pull request review and local validation are pending.
 
 ## Goal
 
 Build on M2 to parse logical PST structures and produce folder inventory plus initial message metadata records.
 
-M3 should make `pstd extract --manifest-only` produce structured archive output populated from real PST folders and message metadata. It does not extract bodies, attachments, recipients, or full threading yet.
+M3 makes `pstd extract --manifest-only` write metadata-only structured archive output using the M3 metadata layer. It does not extract bodies, attachments, recipients, or full threading yet.
 
 ## Included epic
 
@@ -28,17 +28,21 @@ M3 should make `pstd extract --manifest-only` produce structured archive output 
 10. #41 / M3-I10: Wire metadata-only extraction into the CLI.
 11. #42 / M3-I11: Add M3 diagnostics, tests, fixture guidance, and handoff notes.
 
-## Dependency order
+## Implemented foundation
 
-```text
-#32 -> #33 -> #34 -> #35 -> #36 -> #37 -> #38 -> #39 -> #40 -> #41 -> #42
-```
+- Logical node/block access boundary.
+- Heap-on-node parser foundation.
+- BTH parser foundation.
+- Property context parser foundation.
+- Table context parser foundation.
+- Selected MAPI property registry and value decoding.
+- Root folder inventory emission.
+- Initial message metadata/status rows.
+- Metadata-only archive output for `folders.jsonl`, `messages.jsonl`, folder inventory, manifest, status records, and summary.
+- `pstd extract --manifest-only` metadata path through the existing CLI.
+- M3 smoke tests for heap and BTH parsing.
 
-## Completion criteria
-
-M3 is complete when the repository has logical node access, heap parsing, BTH parsing, property context parsing, table context parsing, selected MAPI value decoding, folder hierarchy traversal, folder inventory records, initial message metadata records, and metadata-only archive output.
-
-## Out of scope
+## Out of scope retained
 
 Email bodies, attachments, recipients, full threading, X.400 address resolution, search indexes, Snowflake loading, and web UI remain later work.
 
