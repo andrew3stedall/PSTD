@@ -2,7 +2,9 @@
 
 ## Status
 
-Implemented on branch `pstd-v1-m2`. Pull request review and local validation are pending.
+Implemented and merged to `main` via PR #30.
+
+Local validation remains deferred. Do not treat M2 as release-verified until the documented validation commands have run from Codex/laptop or CI.
 
 ## Goal
 
@@ -14,7 +16,7 @@ M2 makes `pstd inspect --input <pst-file>` perform real file reads, parse PST he
 
 - [Epic E2: PST binary reader and structure foundation](../epics/pstd-v1-e2-pst-binary-foundation.md)
 
-## Included issues
+## Completed issues
 
 1. #19 / M2-I01: Add PST byte reader and bounded random-access API.
 2. #20 / M2-I02: Parse and validate PST header metadata.
