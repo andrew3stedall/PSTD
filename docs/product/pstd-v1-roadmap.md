@@ -13,7 +13,7 @@
 ```text
 M1: Extraction Foundation and Archive Contract [implemented, validation deferred]
 M2: PST Binary Foundation [implemented, validation deferred]
-M3: Folder and Metadata Extraction [implemented on branch, validation deferred]
+M3: Folder and Metadata Extraction [implemented, validation deferred]
 M4: Recipients, Threading, and Address Resolution [next]
 M5: Bodies and Attachments
 M6: Batch Orchestration, Checkpointing, and Progress
@@ -30,7 +30,7 @@ Implemented and merged to `main` via PR #30. Issues #19-#28 are closed as comple
 
 ## Milestone M3: Folder and Metadata Extraction
 
-Implemented on branch `pstd-v1-m3-folder-metadata`. Pull request review and local validation are pending.
+Implemented and merged to `main` via PR #43. Issues #32-#42 are completed at the milestone level. Local validation remains deferred.
 
 Delivered:
 
