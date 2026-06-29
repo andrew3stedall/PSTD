@@ -29,7 +29,7 @@
 - Updated output-contract skill reference to use structured TAR + JSONL as the v1 canonical output instead of EML-first output.
 - Marked M1 roadmap and milestone docs as implemented with validation deferred.
 - Marked M2 roadmap and milestone docs as implemented and merged to `main`, with validation still deferred.
-- Updated roadmap, milestone docs, and docs index for M3 implementation status.
+- Marked M3 roadmap and milestone docs as implemented and merged to `main`, with validation still deferred.
 
 ## Removed
 
@@ -38,6 +38,6 @@
 ## Notes
 
 - Local testing remains deferred until the laptop/Codex setup is available.
-- M1 and M2 were merged to `main` without local validation at the user's request.
+- M1, M2, and M3 were merged to `main` without local validation at the user's request.
 - M3 local validation has not yet been run.
 - Run the documented Cargo, CLI, Python wrapper, and Docker commands before treating M1 or later milestones as release-verified.
