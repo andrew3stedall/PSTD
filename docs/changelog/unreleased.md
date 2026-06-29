@@ -33,8 +33,8 @@
 - Updated operating policy to avoid key-based planning workflows by default.
 - Updated output-contract skill reference to use structured TAR + JSONL as the v1 canonical output instead of EML-first output.
 - Marked M1 roadmap and milestone docs as implemented with validation deferred.
-- Updated roadmap and docs index for M2 as the next planned milestone.
-- Updated M2 milestone docs to show implementation is pending validation.
+- Updated roadmap and docs index for M2.
+- Marked M2 roadmap and milestone docs as implemented and merged to `main`, with validation still deferred.
 
 ## Removed
 
@@ -44,5 +44,6 @@
 
 - Local testing remains deferred until the laptop/Codex setup is available.
 - M1 was merged to `main` without local validation at the user's request.
+- M2 was merged to `main` without local validation at the user's request.
 - M2 local validation has not yet been run.
 - Run the documented Cargo, CLI, Python wrapper, and Docker commands before treating M1 or later milestones as release-verified.
