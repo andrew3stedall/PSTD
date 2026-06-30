@@ -23,7 +23,10 @@ pub struct TableContext {
 impl TableContext {
     pub fn parse(buf: &[u8], base_offset: u64) -> PstdResult<Self> {
         if buf.len() < 8 {
-            return Err(PstdError::pst_parse(Some(base_offset), "table context buffer too short"));
+            return Err(PstdError::pst_parse(
+                Some(base_offset),
+                "table context buffer too short",
+            ));
         }
         let column_count = u16_le_at(buf, 0, base_offset)? as usize;
         let row_count = u16_le_at(buf, 2, base_offset)? as usize;
@@ -31,7 +34,9 @@ impl TableContext {
         let mut cursor = 8usize;
         let mut columns = Vec::new();
         for _ in 0..column_count {
-            if cursor + 8 > buf.len() { break; }
+            if cursor + 8 > buf.len() {
+                break;
+            }
             columns.push(TableColumn {
                 tag: u32_le_at(buf, cursor, base_offset)?,
                 offset: u16_le_at(buf, cursor + 4, base_offset)?,
@@ -42,7 +47,9 @@ impl TableContext {
 
         let mut rows = Vec::new();
         for row_index in 0..row_count {
-            if cursor + row_width > buf.len() { break; }
+            if cursor + row_width > buf.len() {
+                break;
+            }
             let row_buf = slice_at(buf, cursor, row_width, base_offset)?;
             let row_id = row_index as u32;
             let mut values = Vec::new();

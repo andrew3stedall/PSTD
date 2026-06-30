@@ -26,7 +26,11 @@ pub struct TarShardWriter {
 }
 
 impl TarShardWriter {
-    pub fn new(output_dir: impl AsRef<Path>, prefix: impl Into<String>, target_size_bytes: u64) -> PstdResult<Self> {
+    pub fn new(
+        output_dir: impl AsRef<Path>,
+        prefix: impl Into<String>,
+        target_size_bytes: u64,
+    ) -> PstdResult<Self> {
         let output_dir = output_dir.as_ref().to_path_buf();
         fs::create_dir_all(&output_dir)?;
         let prefix = prefix.into();
@@ -47,7 +51,9 @@ impl TarShardWriter {
     }
 
     pub fn append_bytes(&mut self, path_parts: &[impl AsRef<str>], bytes: &[u8]) -> PstdResult<()> {
-        if self.current_size > 0 && self.current_size.saturating_add(bytes.len() as u64) > self.target_size_bytes {
+        if self.current_size > 0
+            && self.current_size.saturating_add(bytes.len() as u64) > self.target_size_bytes
+        {
             self.rotate()?;
         }
 
@@ -72,7 +78,9 @@ impl TarShardWriter {
         self.finish_current()?;
         self.current_index += 1;
         self.current_size = 0;
-        self.current_path = self.output_dir.join(format!("{}_{:06}.tar", self.prefix, self.current_index));
+        self.current_path = self
+            .output_dir
+            .join(format!("{}_{:06}.tar", self.prefix, self.current_index));
         let file = File::create(&self.current_path)?;
         self.builder = Builder::new(file);
         Ok(())
@@ -80,7 +88,11 @@ impl TarShardWriter {
 
     fn finish_current(&mut self) -> PstdResult<()> {
         self.builder.finish()?;
-        if !self.shards.iter().any(|shard| shard.index == self.current_index) {
+        if !self
+            .shards
+            .iter()
+            .any(|shard| shard.index == self.current_index)
+        {
             self.shards.push(ShardInfo {
                 path: self.current_path.clone(),
                 index: self.current_index,

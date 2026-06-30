@@ -18,7 +18,10 @@ pub fn load_block(reader: &PstByteReader, block_ref: BlockRef) -> PstdResult<Loa
     if end > reader.file_size() {
         return Err(PstdError::pst_read(
             Some(block_ref.offset.0),
-            format!("block ends at {end}, beyond file size {}", reader.file_size()),
+            format!(
+                "block ends at {end}, beyond file size {}",
+                reader.file_size()
+            ),
         ));
     }
 

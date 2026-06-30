@@ -32,7 +32,13 @@ impl<'a> LogicalNodeStore<'a> {
             .clone();
 
         let block_ref = self.bbt.lookup(entry.data_block_id).ok_or_else(|| {
-            PstdError::pst_parse(None, format!("data block {:?} not found for node {:?}", entry.data_block_id, node_id))
+            PstdError::pst_parse(
+                None,
+                format!(
+                    "data block {:?} not found for node {:?}",
+                    entry.data_block_id, node_id
+                ),
+            )
         })?;
 
         let LoadedBlock { bytes, .. } = load_block(self.reader, block_ref)?;

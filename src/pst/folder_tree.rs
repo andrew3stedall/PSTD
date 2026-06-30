@@ -16,7 +16,10 @@ pub struct FolderInventoryRecord {
     pub inventory_status: String,
 }
 
-pub fn root_folder_from_header(pst_id: &str, header: &PstHeader) -> (FolderRecord, FolderInventoryRecord) {
+pub fn root_folder_from_header(
+    pst_id: &str,
+    header: &PstHeader,
+) -> (FolderRecord, FolderInventoryRecord) {
     let folder_key = ids::folder_key(pst_id, "root");
     let status = format!("metadata_root_from_{}", header.summary.parser_status);
     let folder = FolderRecord {
@@ -43,7 +46,12 @@ pub fn root_folder_from_header(pst_id: &str, header: &PstHeader) -> (FolderRecor
     (folder, inventory)
 }
 
-pub fn folder_from_properties(pst_id: &str, folder_identity: &str, parent_folder_key: Option<String>, properties: &PropertyContext) -> (FolderRecord, FolderInventoryRecord) {
+pub fn folder_from_properties(
+    pst_id: &str,
+    folder_identity: &str,
+    parent_folder_key: Option<String>,
+    properties: &PropertyContext,
+) -> (FolderRecord, FolderInventoryRecord) {
     let folder_key = ids::folder_key(pst_id, folder_identity);
     let folder_name = properties
         .string_value(PR_DISPLAY_NAME)

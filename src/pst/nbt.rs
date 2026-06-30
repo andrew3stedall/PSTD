@@ -22,7 +22,10 @@ pub struct NbtPage {
 impl NbtPage {
     pub fn parse(page: &[u8], source_offset: u64) -> PstdResult<Self> {
         if page.len() < PageTrailer::LEN + 4 {
-            return Err(PstdError::pst_parse(Some(source_offset), "node page too short"));
+            return Err(PstdError::pst_parse(
+                Some(source_offset),
+                "node page too short",
+            ));
         }
 
         let entry_count = u8_at(page, 0, source_offset)?;
@@ -38,8 +41,16 @@ impl NbtPage {
             let node_id = NodeId(u64_le_at(page, start, source_offset)?);
             let data_block_id = BlockId(u64_le_at(page, start + 8, source_offset)?);
             let raw_subnode = u64_le_at(page, start + 16, source_offset)?;
-            let subnode_block_id = if raw_subnode == 0 { None } else { Some(BlockId(raw_subnode)) };
-            entries.push(NbtEntry { node_id, data_block_id, subnode_block_id });
+            let subnode_block_id = if raw_subnode == 0 {
+                None
+            } else {
+                Some(BlockId(raw_subnode))
+            };
+            entries.push(NbtEntry {
+                node_id,
+                data_block_id,
+                subnode_block_id,
+            });
         }
 
         Ok(Self {
@@ -61,15 +72,26 @@ pub struct NbtIndex {
 impl NbtIndex {
     pub fn load_root(reader: &PstByteReader, root: Option<PageRef>) -> PstdResult<Self> {
         let Some(root_ref) = root else {
-            return Ok(Self { root, entries: Vec::new(), status: "root_unavailable".to_string() });
+            return Ok(Self {
+                root,
+                entries: Vec::new(),
+                status: "root_unavailable".to_string(),
+            });
         };
         if root_ref.offset.0 >= reader.file_size() {
-            return Err(PstdError::pst_parse(Some(root_ref.offset.0), "node root offset beyond file size"));
+            return Err(PstdError::pst_parse(
+                Some(root_ref.offset.0),
+                "node root offset beyond file size",
+            ));
         }
         let page_size = (reader.file_size() - root_ref.offset.0).min(512) as usize;
         let page = reader.read_at(root_ref.offset.0, page_size)?;
         let parsed = NbtPage::parse(&page, root_ref.offset.0)?;
-        Ok(Self { root, entries: parsed.entries, status: "root_page_parsed".to_string() })
+        Ok(Self {
+            root,
+            entries: parsed.entries,
+            status: "root_page_parsed".to_string(),
+        })
     }
 
     pub fn lookup(&self, node_id: NodeId) -> Option<&NbtEntry> {

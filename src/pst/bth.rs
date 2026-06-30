@@ -24,7 +24,10 @@ pub struct BthMap {
 impl BthMap {
     pub fn parse(buf: &[u8], base_offset: u64) -> PstdResult<Self> {
         if buf.len() < 8 {
-            return Err(PstdError::pst_parse(Some(base_offset), "BTH buffer too short"));
+            return Err(PstdError::pst_parse(
+                Some(base_offset),
+                "BTH buffer too short",
+            ));
         }
         let header = BthHeader {
             key_size: u8_at(buf, 0, base_offset)?,
@@ -34,7 +37,10 @@ impl BthMap {
         };
         let entry_size = header.key_size as usize + header.value_size as usize;
         if entry_size == 0 {
-            return Err(PstdError::pst_parse(Some(base_offset), "BTH entry size is zero"));
+            return Err(PstdError::pst_parse(
+                Some(base_offset),
+                "BTH entry size is zero",
+            ));
         }
 
         let mut entries = Vec::new();
@@ -44,7 +50,13 @@ impl BthMap {
                 break;
             }
             let key = slice_at(buf, cursor, header.key_size as usize, base_offset)?.to_vec();
-            let value = slice_at(buf, cursor + header.key_size as usize, header.value_size as usize, base_offset)?.to_vec();
+            let value = slice_at(
+                buf,
+                cursor + header.key_size as usize,
+                header.value_size as usize,
+                base_offset,
+            )?
+            .to_vec();
             entries.push(BthEntry { key, value });
             cursor += entry_size;
         }

@@ -27,23 +27,29 @@ impl PropertyContext {
             }
             let tag = u32::from_le_bytes([entry.key[0], entry.key[1], entry.key[2], entry.key[3]]);
             let Some(def) = property_def(tag) else {
-                values.insert(tag, PropertyValue {
+                values.insert(
                     tag,
-                    name: format!("unknown_0x{tag:08x}"),
-                    raw: entry.value.clone(),
-                    decoded: None,
-                    status: "not_selected".to_string(),
-                });
+                    PropertyValue {
+                        tag,
+                        name: format!("unknown_0x{tag:08x}"),
+                        raw: entry.value.clone(),
+                        decoded: None,
+                        status: "not_selected".to_string(),
+                    },
+                );
                 continue;
             };
             let decoded = decode_value(def.value_type, &entry.value).ok();
-            values.insert(tag, PropertyValue {
+            values.insert(
                 tag,
-                name: def.name.to_string(),
-                raw: entry.value.clone(),
-                decoded,
-                status: "selected".to_string(),
-            });
+                PropertyValue {
+                    tag,
+                    name: def.name.to_string(),
+                    raw: entry.value.clone(),
+                    decoded,
+                    status: "selected".to_string(),
+                },
+            );
         }
         Ok(Self { values })
     }

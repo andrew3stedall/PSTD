@@ -39,16 +39,22 @@ pub fn inspect_pst(input: impl AsRef<Path>) -> PstdResult<InspectSummary> {
     let reader = PstByteReader::open(input.as_ref())?;
     let header = PstHeader::parse(&reader)?;
 
-    let bbt = BbtIndex::load_root(&reader, header.roots.bbt_root)?;
-    let nbt = NbtIndex::load_root(&reader, header.roots.nbt_root)?;
+    let (bbt_status, bbt_entries) = match BbtIndex::load_root(&reader, header.roots.bbt_root) {
+        Ok(bbt) => (bbt.status, bbt.entries.len()),
+        Err(err) => (format!("unavailable: {err}"), 0),
+    };
+    let (nbt_status, nbt_entries) = match NbtIndex::load_root(&reader, header.roots.nbt_root) {
+        Ok(nbt) => (nbt.status, nbt.entries.len()),
+        Err(err) => (format!("unavailable: {err}"), 0),
+    };
 
     Ok(InspectSummary {
         input_path: reader.input_path().display().to_string(),
         file_size: reader.file_size(),
         header: header.summary,
-        bbt_status: bbt.status,
-        bbt_entries: bbt.entries.len(),
-        nbt_status: nbt.status,
-        nbt_entries: nbt.entries.len(),
+        bbt_status,
+        bbt_entries,
+        nbt_status,
+        nbt_entries,
     })
 }
