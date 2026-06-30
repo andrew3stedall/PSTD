@@ -6,35 +6,32 @@ Extend the metadata-only PSTD foundation so message archives include recipient/a
 
 ## Scope
 
-M4 is still metadata-only. It should not extract message bodies, attachments, Snowflake outputs, or UI features.
+M4 is still metadata-only. It does not extract message bodies, attachments, Snowflake outputs, or UI features.
 
-## Deliverables
+## Delivered
 
 1. Selected MAPI property registry entries for transport headers, internet message IDs, conversation fields, recipient/address fields, and Exchange/X.400 raw addresses.
-2. Threading helpers for normalized subjects, `References` header splitting, and stable message-reference rows.
-3. Recipient record scaffolding for to/cc/bcc/reply-to with stable keys and ordinal ordering.
+2. Threading helpers for normalized subjects, message-reference splitting, and threading status calculation.
+3. Recipient row conversion from `TableContext` into `RecipientRecord` rows with stable keys and ordinal ordering.
 4. `data/recipients.jsonl` and `data/message_references.jsonl` emitted into the archive contract even when empty.
-5. Status fields that distinguish extracted, absent, deferred, and unsupported recipient/threading data.
-6. Unit tests for subject normalization, internet-reference splitting, and recipient/reference key stability.
+5. Status fields that distinguish available, absent, deferred, and unsupported recipient/threading data.
+6. Unit tests for subject normalization, reference splitting, recipient type mapping, SMTP preference, and raw Exchange-style address preservation.
 7. Fixture validation through existing CI when a `.pst` fixture is available.
 
 ## Out of scope
 
 - Body extraction.
 - Attachment extraction.
-- Full BBT/NBT traversal beyond what is needed to surface M4 fields.
+- Full BBT/NBT traversal beyond the current foundation.
 - Full Exchange directory resolution.
 - Snowflake ingestion, search indexing, or web UI.
 
-## Execution order
+## Implementation notes
 
-1. Add M4 docs and output contract notes.
-2. Add threading/address MAPI constants.
-3. Add helpers for normalized subject and reference splitting.
-4. Emit empty recipient/reference JSONL files and manifest entries from the existing metadata runner.
-5. Wire selected fields into `MessageRecord` when property contexts are available.
-6. Add recipient table parsing once table-context traversal is sufficiently stable.
-7. Expand fixture validation and document known PST variability.
+- Current M4 converts recipient rows after they are represented as `TableContext` rows.
+- Current BBT/NBT and table traversal remain skeleton-level, so broader real-world recipient extraction still depends on deeper PST traversal work.
+- Exchange/X.400-style raw addresses are preserved when SMTP cannot be resolved.
+- Explicit SMTP fields are preferred over raw Exchange-style addresses when both are present.
 
 ## Acceptance criteria
 
@@ -43,6 +40,7 @@ M4 is still metadata-only. It should not extract message bodies, attachments, Sn
 - `data/message_references.jsonl` is present in TAR output.
 - Message rows use M4 threading status values instead of only `deferred_to_m4` once fields are attempted.
 - Unit tests cover normalized subject and references parsing.
+- Unit tests cover recipient row conversion and address resolution status.
 - Missing recipient/threading data is explicit rather than silent.
 
 ## Validation commands

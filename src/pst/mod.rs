@@ -16,6 +16,7 @@ pub mod nbt;
 pub mod primitives;
 pub mod property_context;
 pub mod reader;
+pub mod recipients;
 pub mod table_context;
 pub mod threading;
 pub mod trailer;

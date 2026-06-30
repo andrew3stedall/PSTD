@@ -18,13 +18,19 @@
 - System overview.
 - Local validation guide.
 - Repo-hosted wiki home and developer onboarding pages.
+- M4 recipient and threading milestone documentation.
+- M4 selected MAPI properties for message IDs, conversation fields, transport headers, and recipient/address fields.
+- M4 threading helpers for subject normalization, reference splitting, and threading status.
+- M4 recipient table row conversion into `RecipientRecord` rows.
+- Archive output scaffolding for `data/recipients.jsonl` and `data/message_references.jsonl`.
 
 ## Changed
 
 - Refreshed the root README to reflect M1-M3 current status.
 - Reorganised `docs/README.md` around audience-based navigation.
-- Updated M1, M2, and M3 documentation status to implemented with validation deferred.
+- Updated M1, M2, and M3 documentation status to implemented with CI validation.
 - Updated output-contract guidance around structured TAR + JSONL output.
+- Updated project status to reflect M4 recipients/threading foundation work.
 
 ## Removed
 
@@ -32,6 +38,6 @@
 
 ## Notes
 
-- Local testing remains deferred until the laptop/Codex setup is available.
-- M1, M2, and M3 were merged to `main` without local validation at the user's request.
-- Run the documented validation commands before treating M1 or later milestones as release-verified.
+- M1-M3 and the initial M4 scaffold have passed GitHub Actions validation.
+- Current recipient extraction converts parsed table rows into records, but broader real-world PST recipient extraction still depends on deeper BBT/NBT and table traversal coverage.
+- Private PST files must not be committed as fixtures.
