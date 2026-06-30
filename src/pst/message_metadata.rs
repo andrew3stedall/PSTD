@@ -1,10 +1,19 @@
 use crate::output::ids;
 use crate::output::metadata::MessageRecord;
-use crate::pst::mapi::{PR_HASATTACH, PR_MESSAGE_DELIVERY_TIME, PR_SENDER_EMAIL_ADDRESS, PR_SENDER_NAME, PR_SUBJECT};
+use crate::pst::mapi::{
+    PR_HASATTACH, PR_MESSAGE_DELIVERY_TIME, PR_SENDER_EMAIL_ADDRESS, PR_SENDER_NAME, PR_SUBJECT,
+};
 use crate::pst::primitives::NodeId;
 use crate::pst::property_context::PropertyContext;
 
-pub fn message_from_properties(run_id: &str, pst_id: &str, folder_key: &str, folder_path: &str, node_id: NodeId, properties: &PropertyContext) -> MessageRecord {
+pub fn message_from_properties(
+    run_id: &str,
+    pst_id: &str,
+    folder_key: &str,
+    folder_path: &str,
+    node_id: NodeId,
+    properties: &PropertyContext,
+) -> MessageRecord {
     let message_identity = format!("node_{:x}", node_id.0);
     let subject = properties.string_value(PR_SUBJECT);
     let has_attachments = properties
@@ -46,7 +55,13 @@ pub fn message_from_properties(run_id: &str, pst_id: &str, folder_key: &str, fol
     }
 }
 
-pub fn status_row(run_id: &str, pst_id: &str, folder_key: &str, folder_path: &str, status: &str) -> MessageRecord {
+pub fn status_row(
+    run_id: &str,
+    pst_id: &str,
+    folder_key: &str,
+    folder_path: &str,
+    status: &str,
+) -> MessageRecord {
     MessageRecord {
         run_id: run_id.to_string(),
         pst_id: pst_id.to_string(),
