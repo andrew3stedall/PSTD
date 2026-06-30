@@ -14,10 +14,16 @@ pub enum PstdError {
     OutputWrite(String),
 
     #[error("pst binary read failed at offset {offset:?}: {message}")]
-    PstRead { offset: Option<u64>, message: String },
+    PstRead {
+        offset: Option<u64>,
+        message: String,
+    },
 
     #[error("pst binary parse failed at offset {offset:?}: {message}")]
-    PstParse { offset: Option<u64>, message: String },
+    PstParse {
+        offset: Option<u64>,
+        message: String,
+    },
 
     #[error("unsupported pst feature: {0}")]
     UnsupportedPstFeature(String),
@@ -86,7 +92,11 @@ pub struct StatusRecord {
 }
 
 impl StatusRecord {
-    pub fn info(run_id: impl Into<String>, code: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn info(
+        run_id: impl Into<String>,
+        code: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             run_id: run_id.into(),
             source_pst: None,
