@@ -29,7 +29,7 @@ jobs:
       - name: Find fixture
         id: fixture
         run: |
-          fixture=$(find . -type f -iname '*.pst' | head -n 1)
+          fixture=$(find . -type f -iname '*.pst' | head -n 1 || true)
           echo "fixture=$fixture" >> "$GITHUB_OUTPUT"
       - name: Inspect fixture
         if: steps.fixture.outputs.fixture != ''
@@ -42,6 +42,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build
+      - run: echo "$PWD/target/debug" >> "$GITHUB_PATH"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
