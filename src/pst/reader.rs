@@ -27,9 +27,8 @@ pub struct PstByteReader {
 impl PstByteReader {
     pub fn open(input_path: impl AsRef<Path>) -> PstdResult<Self> {
         let input_path = input_path.as_ref().to_path_buf();
-        let file = File::open(&input_path).map_err(|err| {
-            PstdError::SourceOpen(format!("{}: {err}", input_path.display()))
-        })?;
+        let file = File::open(&input_path)
+            .map_err(|err| PstdError::SourceOpen(format!("{}: {err}", input_path.display())))?;
         let file_size = file.metadata()?.len();
         Ok(Self {
             input_path,
@@ -48,9 +47,9 @@ impl PstByteReader {
 
     pub fn read_at(&self, offset: u64, len: usize) -> PstdResult<Vec<u8>> {
         let len_u64 = len as u64;
-        let end = offset.checked_add(len_u64).ok_or_else(|| {
-            PstdError::pst_read(Some(offset), "offset plus length overflowed")
-        })?;
+        let end = offset
+            .checked_add(len_u64)
+            .ok_or_else(|| PstdError::pst_read(Some(offset), "offset plus length overflowed"))?;
 
         if end > self.file_size {
             return Err(PstdError::pst_read(
