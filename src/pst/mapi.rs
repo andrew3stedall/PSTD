@@ -22,6 +22,8 @@ pub const PR_SUBJECT: u32 = 0x0037_001f;
 pub const PR_MESSAGE_CLASS: u32 = 0x001a_001f;
 pub const PR_SENDER_NAME: u32 = 0x0c1a_001f;
 pub const PR_SENDER_EMAIL_ADDRESS: u32 = 0x0c1f_001f;
+pub const PR_SENDER_ADDRTYPE: u32 = 0x0c1e_001f;
+pub const PR_SENT_REPRESENTING_EMAIL_ADDRESS: u32 = 0x0065_001f;
 pub const PR_CLIENT_SUBMIT_TIME: u32 = 0x0039_0040;
 pub const PR_MESSAGE_DELIVERY_TIME: u32 = 0x0e06_0040;
 pub const PR_CREATION_TIME: u32 = 0x3007_0040;
@@ -33,6 +35,17 @@ pub const PR_HASATTACH: u32 = 0x0e1b_000b;
 pub const PR_DISPLAY_NAME: u32 = 0x3001_001f;
 pub const PR_CONTENT_COUNT: u32 = 0x3602_0003;
 pub const PR_CONTENT_UNREAD: u32 = 0x3603_0003;
+pub const PR_TRANSPORT_MESSAGE_HEADERS: u32 = 0x007d_001f;
+pub const PR_INTERNET_MESSAGE_ID: u32 = 0x1035_001f;
+pub const PR_IN_REPLY_TO_ID: u32 = 0x1042_001f;
+pub const PR_INTERNET_REFERENCES: u32 = 0x1039_001f;
+pub const PR_CONVERSATION_TOPIC: u32 = 0x0070_001f;
+pub const PR_CONVERSATION_INDEX: u32 = 0x0071_0102;
+pub const PR_RECIPIENT_TYPE: u32 = 0x0c15_0003;
+pub const PR_RECIPIENT_DISPLAY_NAME: u32 = 0x5ff6_001f;
+pub const PR_RECIPIENT_EMAIL_ADDRESS: u32 = 0x3003_001f;
+pub const PR_RECIPIENT_ADDRTYPE: u32 = 0x3002_001f;
+pub const PR_SMTP_ADDRESS: u32 = 0x39fe_001f;
 
 pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
     MapiPropertyDef {
@@ -53,6 +66,16 @@ pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
     MapiPropertyDef {
         tag: PR_SENDER_EMAIL_ADDRESS,
         name: "sender_email_address",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_SENDER_ADDRTYPE,
+        name: "sender_address_type",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_SENT_REPRESENTING_EMAIL_ADDRESS,
+        name: "sent_representing_email_address",
         value_type: MapiValueType::String,
     },
     MapiPropertyDef {
@@ -109,6 +132,61 @@ pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
         tag: PR_CONTENT_UNREAD,
         name: "content_unread",
         value_type: MapiValueType::Integer32,
+    },
+    MapiPropertyDef {
+        tag: PR_TRANSPORT_MESSAGE_HEADERS,
+        name: "transport_message_headers",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_INTERNET_MESSAGE_ID,
+        name: "internet_message_id",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_IN_REPLY_TO_ID,
+        name: "in_reply_to_id",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_INTERNET_REFERENCES,
+        name: "internet_references",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_CONVERSATION_TOPIC,
+        name: "conversation_topic",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_CONVERSATION_INDEX,
+        name: "conversation_index",
+        value_type: MapiValueType::Binary,
+    },
+    MapiPropertyDef {
+        tag: PR_RECIPIENT_TYPE,
+        name: "recipient_type",
+        value_type: MapiValueType::Integer32,
+    },
+    MapiPropertyDef {
+        tag: PR_RECIPIENT_DISPLAY_NAME,
+        name: "recipient_display_name",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_RECIPIENT_EMAIL_ADDRESS,
+        name: "recipient_email_address",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_RECIPIENT_ADDRTYPE,
+        name: "recipient_address_type",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_SMTP_ADDRESS,
+        name: "smtp_address",
+        value_type: MapiValueType::String,
     },
 ];
 
