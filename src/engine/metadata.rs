@@ -140,7 +140,11 @@ pub fn extract_metadata(
     })
 }
 
-pub fn fallback_metadata(run_id: &str, pst_id: &str, error: &PstdError) -> MetadataExtractionOutput {
+pub fn fallback_metadata(
+    run_id: &str,
+    pst_id: &str,
+    error: &PstdError,
+) -> MetadataExtractionOutput {
     let folder_key = ids::folder_key(pst_id, "metadata-fallback-root");
     let folder = FolderRecord {
         pst_id: pst_id.to_string(),
