@@ -17,6 +17,8 @@ pub struct ExtractConfig {
 
 impl ExtractConfig {
     pub fn tar_shard_size_bytes(&self) -> u64 {
-        self.tar_shard_size_mb.saturating_mul(1024).saturating_mul(1024)
+        self.tar_shard_size_mb
+            .saturating_mul(1024)
+            .saturating_mul(1024)
     }
 }
