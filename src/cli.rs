@@ -51,24 +51,63 @@ pub enum Commands {
 pub fn run() -> i32 {
     let cli = Cli::parse();
     match cli.command {
-        Commands::Extract { input, output, continue_on_error, overwrite, manifest_only, archive_format, data_format, tar_shard_size_mb, progress, log_level, profile } => {
-            let config = ExtractConfig { input, output, continue_on_error, overwrite, manifest_only, archive_format, data_format, tar_shard_size_mb, progress, log_level, profile };
+        Commands::Extract {
+            input,
+            output,
+            continue_on_error,
+            overwrite,
+            manifest_only,
+            archive_format,
+            data_format,
+            tar_shard_size_mb,
+            progress,
+            log_level,
+            profile,
+        } => {
+            let config = ExtractConfig {
+                input,
+                output,
+                continue_on_error,
+                overwrite,
+                manifest_only,
+                archive_format,
+                data_format,
+                tar_shard_size_mb,
+                progress,
+                log_level,
+                profile,
+            };
             match run_extract(config) {
-                Ok(summary) => { println!("PSTD extract completed: {}", summary.status); 0 }
-                Err(err) => { eprintln!("PSTD extract failed: {err}"); 1 }
+                Ok(summary) => {
+                    println!("PSTD extract completed: {}", summary.status);
+                    0
+                }
+                Err(err) => {
+                    eprintln!("PSTD extract failed: {err}");
+                    1
+                }
             }
         }
         Commands::Inspect { input, json } => match inspect_pst(&input) {
             Ok(summary) => {
                 if json {
-                    println!("{}", serde_json::to_string_pretty(&summary).unwrap_or_else(|_| "{}".to_string()));
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&summary).unwrap_or_else(|_| "{}".to_string())
+                    );
                 } else {
                     println!("{}", summary.to_human_text());
                 }
                 0
             }
-            Err(err) => { eprintln!("PSTD inspect failed: {err}"); 1 }
+            Err(err) => {
+                eprintln!("PSTD inspect failed: {err}");
+                1
+            }
         },
-        Commands::Version => { println!("pstd {}", env!("CARGO_PKG_VERSION")); 0 }
+        Commands::Version => {
+            println!("pstd {}", env!("CARGO_PKG_VERSION"));
+            0
+        }
     }
 }
