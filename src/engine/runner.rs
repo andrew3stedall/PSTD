@@ -24,7 +24,14 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     let run_id = ids::run_id(&input_display);
     let pst_id = ids::pst_id(&input_display);
 
-    write_root_progress(&config, &ProgressEvent::new(&run_id, ProgressEventType::RunStarted, "pstd metadata extraction started"))?;
+    write_root_progress(
+        &config,
+        &ProgressEvent::new(
+            &run_id,
+            ProgressEventType::RunStarted,
+            "pstd metadata extraction started",
+        ),
+    )?;
 
     let metadata = match extract_metadata(&input_display, &run_id, &pst_id) {
         Ok(value) => value,
@@ -33,19 +40,29 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     };
 
     let mut folders = JsonlBuffer::new();
-    for record in &metadata.folders { folders.write_record(record)?; }
+    for record in &metadata.folders {
+        folders.write_record(record)?;
+    }
 
     let mut folder_inventory = JsonlBuffer::new();
-    for record in &metadata.folder_inventory { folder_inventory.write_record(record)?; }
+    for record in &metadata.folder_inventory {
+        folder_inventory.write_record(record)?;
+    }
 
     let mut messages = JsonlBuffer::new();
-    for record in &metadata.messages { messages.write_record(record)?; }
+    for record in &metadata.messages {
+        messages.write_record(record)?;
+    }
 
     let mut manifest = JsonlBuffer::new();
-    for record in &metadata.manifest { manifest.write_record(record)?; }
+    for record in &metadata.manifest {
+        manifest.write_record(record)?;
+    }
 
     let mut issues = JsonlBuffer::new();
-    for record in &metadata.issues { issues.write_record(record)?; }
+    for record in &metadata.issues {
+        issues.write_record(record)?;
+    }
 
     let run_config_json = serde_json::to_vec_pretty(&serde_json::json!({
         "tool": "pstd",
@@ -56,11 +73,15 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         "metadata_status": metadata.status,
     }))?;
 
-    let mut tar = TarShardWriter::new(config.output.join("archives"), &pst_id, config.tar_shard_size_bytes())?;
+    let archives_dir = config.output.join("archives");
+    let mut tar = TarShardWriter::new(&archives_dir, &pst_id, config.tar_shard_size_bytes())?;
     tar.append_bytes(&["_pstfast", "run_config.json"], &run_config_json)?;
     tar.append_bytes(&["data", "folders.jsonl"], &folders.into_bytes())?;
     tar.append_bytes(&["data", "messages.jsonl"], &messages.into_bytes())?;
-    tar.append_bytes(&["_pstfast", "folder_inventory.jsonl"], &folder_inventory.into_bytes())?;
+    tar.append_bytes(
+        &["_pstfast", "folder_inventory.jsonl"],
+        &folder_inventory.into_bytes(),
+    )?;
     tar.append_bytes(&["_pstfast", "errors.jsonl"], &issues.into_bytes())?;
     tar.append_bytes(&["_pstfast", "manifest.jsonl"], &manifest.into_bytes())?;
 
@@ -75,7 +96,9 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         folders_discovered: metadata.folders_discovered,
         messages_discovered: metadata.messages_discovered,
         messages_extracted: metadata.messages_extracted,
-        messages_not_extracted: metadata.messages_discovered.saturating_sub(metadata.messages_extracted),
+        messages_not_extracted: metadata
+            .messages_discovered
+            .saturating_sub(metadata.messages_extracted),
         attachments_extracted: 0,
         attachments_not_extracted: 0,
         bytes_read: 0,
@@ -84,19 +107,40 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         status: metadata.status.clone(),
     };
 
-    tar.append_bytes(&["_pstfast", "summary.json"], &serde_json::to_vec_pretty(&summary)?)?;
+    tar.append_bytes(
+        &["_pstfast", "summary.json"],
+        &serde_json::to_vec_pretty(&summary)?,
+    )?;
     let shards = tar.finish()?;
     summary.tar_shards_written = shards.len() as u64;
     summary.bytes_written = shards.iter().map(|s| s.bytes_written_estimate).sum();
-    fs::write(config.output.join("run_summary.json"), serde_json::to_vec_pretty(&summary)?)?;
+    fs::write(
+        config.output.join("run_summary.json"),
+        serde_json::to_vec_pretty(&summary)?,
+    )?;
 
-    write_root_progress(&config, &ProgressEvent::new(&run_id, ProgressEventType::RunFinished, "pstd metadata extraction finished"))?;
+    write_root_progress(
+        &config,
+        &ProgressEvent::new(
+            &run_id,
+            ProgressEventType::RunFinished,
+            "pstd metadata extraction finished",
+        ),
+    )?;
     Ok(summary)
 }
 
 fn validate_config(config: &ExtractConfig) -> PstdResult<()> {
-    if config.archive_format != "tar" { return Err(PstdError::InvalidConfig("archive-format must be tar".to_string())); }
-    if config.data_format != "jsonl" { return Err(PstdError::InvalidConfig("data-format must be jsonl".to_string())); }
+    if config.archive_format != "tar" {
+        return Err(PstdError::InvalidConfig(
+            "archive-format must be tar".to_string(),
+        ));
+    }
+    if config.data_format != "jsonl" {
+        return Err(PstdError::InvalidConfig(
+            "data-format must be jsonl".to_string(),
+        ));
+    }
     Ok(())
 }
 
@@ -105,7 +149,10 @@ fn write_root_progress(config: &ExtractConfig, event: &ProgressEvent) -> PstdRes
     let path = config.output.join("progress.jsonl");
     let line = event.to_json_line()?;
     use std::io::Write;
-    let mut file = fs::OpenOptions::new().create(true).append(true).open(path)?;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
     file.write_all(line.as_bytes())?;
     Ok(())
 }
