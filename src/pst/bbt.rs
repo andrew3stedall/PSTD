@@ -32,7 +32,10 @@ pub struct BbtPage {
 impl BbtPage {
     pub fn parse(page: &[u8], source_offset: u64) -> PstdResult<Self> {
         if page.len() < PageTrailer::LEN + 4 {
-            return Err(PstdError::pst_parse(Some(source_offset), "BBT page too short"));
+            return Err(PstdError::pst_parse(
+                Some(source_offset),
+                "BBT page too short",
+            ));
         }
 
         let entry_count = u8_at(page, 0, source_offset)?;
@@ -49,11 +52,20 @@ impl BbtPage {
             let block_id = BlockId(u64_le_at(page, start, source_offset)?);
             let offset = ByteOffset(u64_le_at(page, start + 8, source_offset)?);
             let size = u32_le_at(page, start + 16, source_offset)? as u64;
-            entries.push(BbtEntry { block_id, offset, size });
+            entries.push(BbtEntry {
+                block_id,
+                offset,
+                size,
+            });
         }
 
         let trailer = PageTrailer::parse_from_page(page, source_offset).ok();
-        Ok(Self { source_offset, entry_count, entries, trailer })
+        Ok(Self {
+            source_offset,
+            entry_count,
+            entries,
+            trailer,
+        })
     }
 }
 
