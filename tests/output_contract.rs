@@ -14,10 +14,10 @@ fn stable_ids_are_deterministic() {
 #[test]
 fn path_sanitizer_blocks_unsafe_segments() {
     let sanitized = sanitize_segment("../../evil:name?.txt");
-    assert!(!sanitized.contains("/"));
-    assert!(!sanitized.contains("\\"));
-    assert!(!sanitized.contains(":"));
-    assert!(!sanitized.contains("?"));
+    assert!(!sanitized.contains('/'));
+    assert!(!sanitized.contains('\\'));
+    assert!(!sanitized.contains(':'));
+    assert!(!sanitized.contains('?'));
 }
 
 #[test]
@@ -46,7 +46,9 @@ fn jsonl_writer_outputs_one_json_object_per_line() {
 fn tar_writer_creates_readable_archive() {
     let temp = tempfile::tempdir().unwrap();
     let mut writer = TarShardWriter::new(temp.path(), "pst_test", 1024 * 1024).unwrap();
-    writer.append_bytes(&["data", "messages.jsonl"], b"{}\n").unwrap();
+    writer
+        .append_bytes(&["data", "messages.jsonl"], b"{}\n")
+        .unwrap();
     let shards = writer.finish().unwrap();
     assert_eq!(shards.len(), 1);
     assert!(shards[0].path.exists());
