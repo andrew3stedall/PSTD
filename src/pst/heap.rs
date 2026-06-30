@@ -60,7 +60,12 @@ impl HeapOnNode {
         })
     }
 
-    pub fn allocation<'a>(&self, buf: &'a [u8], id: u16, base_offset: u64) -> PstdResult<&'a [u8]> {
+    pub fn allocation<'a>(
+        &self,
+        buf: &'a [u8],
+        id: u16,
+        base_offset: u64,
+    ) -> PstdResult<&'a [u8]> {
         let allocation = self
             .allocations
             .iter()
