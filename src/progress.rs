@@ -22,7 +22,11 @@ pub struct ProgressEvent {
 }
 
 impl ProgressEvent {
-    pub fn new(run_id: impl Into<String>, event_type: ProgressEventType, message: impl Into<String>) -> Self {
+    pub fn new(
+        run_id: impl Into<String>,
+        event_type: ProgressEventType,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             run_id: run_id.into(),
             event_type,
