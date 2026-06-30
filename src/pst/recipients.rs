@@ -18,10 +18,12 @@ pub fn recipients_from_table(message_key: &str, table: &TableContext) -> Vec<Rec
 pub fn recipient_from_row(message_key: &str, row: &TableRow, ordinal: usize) -> RecipientRecord {
     let recipient_type_raw = integer_value(row, PR_RECIPIENT_TYPE);
     let recipient_type = recipient_type_label(recipient_type_raw);
-    let display_name = string_value(row, PR_RECIPIENT_DISPLAY_NAME).or_else(|| string_value(row, PR_DISPLAY_NAME));
+    let display_name =
+        string_value(row, PR_RECIPIENT_DISPLAY_NAME).or_else(|| string_value(row, PR_DISPLAY_NAME));
     let raw_address = string_value(row, PR_RECIPIENT_EMAIL_ADDRESS);
     let address_type = string_value(row, PR_RECIPIENT_ADDRTYPE);
-    let smtp_address = string_value(row, PR_SMTP_ADDRESS).or_else(|| smtp_from_raw(&raw_address, &address_type));
+    let smtp_address =
+        string_value(row, PR_SMTP_ADDRESS).or_else(|| smtp_from_raw(&raw_address, &address_type));
     let resolution_status = resolution_status(&raw_address, &address_type, &smtp_address);
 
     RecipientRecord {
@@ -146,8 +148,14 @@ mod tests {
         assert_eq!(recipients.len(), 1);
         assert_eq!(recipients[0].recipient_type, "to");
         assert_eq!(recipients[0].display_name.as_deref(), Some("Alice Example"));
-        assert_eq!(recipients[0].raw_address.as_deref(), Some("alice@example.com"));
-        assert_eq!(recipients[0].smtp_address.as_deref(), Some("alice@example.com"));
+        assert_eq!(
+            recipients[0].raw_address.as_deref(),
+            Some("alice@example.com")
+        );
+        assert_eq!(
+            recipients[0].smtp_address.as_deref(),
+            Some("alice@example.com")
+        );
         assert_eq!(recipients[0].resolution_status, "smtp_available");
         assert_eq!(recipients[0].ordinal, 0);
     }
@@ -160,7 +168,10 @@ mod tests {
                 row_id: 0,
                 values: vec![
                     (PR_RECIPIENT_TYPE, 2i32.to_le_bytes().to_vec()),
-                    (PR_RECIPIENT_EMAIL_ADDRESS, utf16le("/O=EXAMPLE/OU=ORG/CN=RECIPIENTS/CN=ALICE")),
+                    (
+                        PR_RECIPIENT_EMAIL_ADDRESS,
+                        utf16le("/O=EXAMPLE/OU=ORG/CN=RECIPIENTS/CN=ALICE"),
+                    ),
                     (PR_RECIPIENT_ADDRTYPE, utf16le("EX")),
                 ],
             }],
@@ -184,7 +195,10 @@ mod tests {
                 row_id: 0,
                 values: vec![
                     (PR_RECIPIENT_TYPE, 3i32.to_le_bytes().to_vec()),
-                    (PR_RECIPIENT_EMAIL_ADDRESS, utf16le("/O=EXAMPLE/OU=ORG/CN=RECIPIENTS/CN=BOB")),
+                    (
+                        PR_RECIPIENT_EMAIL_ADDRESS,
+                        utf16le("/O=EXAMPLE/OU=ORG/CN=RECIPIENTS/CN=BOB"),
+                    ),
                     (PR_RECIPIENT_ADDRTYPE, utf16le("EX")),
                     (PR_SMTP_ADDRESS, utf16le("bob@example.com")),
                 ],
@@ -193,7 +207,10 @@ mod tests {
 
         let recipients = recipients_from_table("msg_123", &table);
         assert_eq!(recipients[0].recipient_type, "bcc");
-        assert_eq!(recipients[0].smtp_address.as_deref(), Some("bob@example.com"));
+        assert_eq!(
+            recipients[0].smtp_address.as_deref(),
+            Some("bob@example.com")
+        );
         assert_eq!(recipients[0].resolution_status, "smtp_available");
     }
 
