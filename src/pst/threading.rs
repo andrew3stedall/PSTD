@@ -16,7 +16,11 @@ pub fn normalize_subject(subject: &str) -> String {
         }
     }
 
-    value.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
+    value
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
 }
 
 fn is_thread_prefix(prefix: &str) -> bool {
@@ -56,7 +60,10 @@ mod tests {
 
     #[test]
     fn normalizes_reply_and_forward_prefixes() {
-        assert_eq!(normalize_subject(" Re:  FW: Quarterly   Update "), "quarterly update");
+        assert_eq!(
+            normalize_subject(" Re:  FW: Quarterly   Update "),
+            "quarterly update"
+        );
         assert_eq!(normalize_subject("Fwd: Re: Test"), "test");
     }
 
@@ -68,7 +75,10 @@ mod tests {
     #[test]
     fn splits_internet_references() {
         let references = split_internet_references("<a@example> <b@example>; <c@example>, ignored");
-        assert_eq!(references, vec!["<a@example>", "<b@example>", "<c@example>"]);
+        assert_eq!(
+            references,
+            vec!["<a@example>", "<b@example>", "<c@example>"]
+        );
     }
 
     #[test]
