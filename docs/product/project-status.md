@@ -14,7 +14,7 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | PST header parser | Implemented foundation and CI validated | Validates basic PST magic and version/variant summary. |
 | BBT/NBT parsing | Skeleton implemented and CI validated | Basic page/index skeletons exist; full traversal remains incomplete. |
 | Metadata-only extraction | Implemented foundation and CI validated | Root folder inventory and metadata/status rows are emitted. |
-| Recipients/threading | Not yet implemented | Planned for M4. |
+| Recipients/threading | Implemented foundation, pending CI on final slice | M4 emits recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion. |
 | Bodies/attachments | Not yet implemented | Planned for M5. |
 | Batch orchestration | Not yet implemented | Planned for M6. |
 | Snowflake/web UI/search | Future work | Out of v1 implementation until later roadmap phases. |
@@ -26,10 +26,11 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M1: Extraction Foundation and Archive Contract | #18 | CI validated |
 | M2: PST Binary Foundation | #30 | CI validated |
 | M3: Folder and Metadata Extraction | #43 | CI validated |
+| M4: Recipients, Threading, and Address Resolution | #52 + follow-up | Final recipient-table slice pending CI |
 
 ## Latest validation
 
-GitHub Actions validation has passed for the M1-M3 implementation set, including:
+GitHub Actions validation has passed for the M1-M3 implementation set and the first M4 scaffold slice, including:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -42,21 +43,21 @@ GitHub Actions validation has passed for the M1-M3 implementation set, including
 
 ## Next milestone
 
-M4: Recipients, Threading, and Address Resolution.
+M5: Message Bodies and Attachments, after the final M4 recipient-table follow-up is merged.
 
-M4 should add:
+M5 should add:
 
-- Recipient records for to/cc/bcc/reply-to.
-- Message-ID, In-Reply-To, and References parsing where available.
-- Conversation Index and Conversation Topic fields where available.
-- Normalized subject handling.
-- Raw transport headers where available.
-- Address records and X.400 best-effort resolution.
+- Text body extraction.
+- HTML body extraction.
+- Body metadata records.
+- Attachment metadata records.
+- Attachment file extraction.
+- Safe filename and archive-path handling.
 
-M4 should not add bodies, attachments, Snowflake, or web UI work.
+M5 should not add Snowflake, search, or web UI work.
 
 ## Validation risk
 
-The M1-M3 foundation has passing CI coverage. The remaining validation risk is parser depth: BBT/NBT traversal, folder tables, recipient tables, and real-world PST variability still need broader fixture coverage as M4 and later milestones expand the parser.
+The M1-M4 foundation has CI coverage at the unit, smoke, Docker, and fixture level. The remaining validation risk is parser depth: BBT/NBT traversal, folder tables, recipient tables, and real-world PST variability still need broader fixture coverage as M5 and later milestones expand the parser.
 
 Before high-risk parser expansion, continue running the commands in [Validation Guide](../operations/validation-guide.md) and preserve fixture privacy guidance.
