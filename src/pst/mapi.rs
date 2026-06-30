@@ -1,5 +1,3 @@
-#![rustfmt::skip]
-
 use crate::error::{PstdError, PstdResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
