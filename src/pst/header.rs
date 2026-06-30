@@ -52,11 +52,15 @@ impl PstHeader {
             _ => PstVariant::Unknown,
         };
 
-        let bbt_root_offset = read_optional_offset(buf, 56).ok();
-        let nbt_root_offset = read_optional_offset(buf, 48).ok();
+        let bbt_root_offset = read_optional_offset(buf, 56)?;
+        let nbt_root_offset = read_optional_offset(buf, 48)?;
         let roots = RootPointers {
-            bbt_root: bbt_root_offset.map(|offset| PageRef { offset: ByteOffset(offset) }),
-            nbt_root: nbt_root_offset.map(|offset| PageRef { offset: ByteOffset(offset) }),
+            bbt_root: bbt_root_offset.map(|offset| PageRef {
+                offset: ByteOffset(offset),
+            }),
+            nbt_root: nbt_root_offset.map(|offset| PageRef {
+                offset: ByteOffset(offset),
+            }),
         };
 
         let summary = PstHeaderSummary {
@@ -75,7 +79,11 @@ impl PstHeader {
             nbt_root_offset,
         };
 
-        Ok(Self { summary, variant, roots })
+        Ok(Self {
+            summary,
+            variant,
+            roots,
+        })
     }
 }
 
@@ -84,12 +92,19 @@ fn read_optional_offset(buf: &[u8], start: usize) -> PstdResult<Option<u64>> {
         return Ok(None);
     }
     let value = u64_le_at(buf, start, 0)?;
-    if value == 0 { Ok(None) } else { Ok(Some(value)) }
+    if value == 0 {
+        Ok(None)
+    } else {
+        Ok(Some(value))
+    }
 }
 
 pub fn validate_pst_magic(buf: &[u8]) -> PstdResult<()> {
     if buf.len() < 4 {
-        return Err(PstdError::pst_parse(Some(0), "file too short to contain PST magic"));
+        return Err(PstdError::pst_parse(
+            Some(0),
+            "file too short to contain PST magic",
+        ));
     }
     if buf[0..4] != PST_MAGIC {
         return Err(PstdError::pst_parse(Some(0), "missing PST magic !BDN"));
