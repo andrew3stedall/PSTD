@@ -25,7 +25,10 @@ pub struct HeapOnNode {
 impl HeapOnNode {
     pub fn parse(buf: &[u8], base_offset: u64) -> PstdResult<Self> {
         if buf.len() < 12 {
-            return Err(PstdError::pst_parse(Some(base_offset), "heap buffer too short"));
+            return Err(PstdError::pst_parse(
+                Some(base_offset),
+                "heap buffer too short",
+            ));
         }
 
         let header = HeapHeader {
@@ -43,11 +46,18 @@ impl HeapOnNode {
             }
             let offset = u16_le_at(buf, cursor, base_offset)?;
             let size = u16_le_at(buf, cursor + 2, base_offset)?;
-            allocations.push(HeapAllocation { id: idx as u16, offset, size });
+            allocations.push(HeapAllocation {
+                id: idx as u16,
+                offset,
+                size,
+            });
             cursor += 4;
         }
 
-        Ok(Self { header, allocations })
+        Ok(Self {
+            header,
+            allocations,
+        })
     }
 
     pub fn allocation<'a>(&self, buf: &'a [u8], id: u16, base_offset: u64) -> PstdResult<&'a [u8]> {
@@ -55,7 +65,14 @@ impl HeapOnNode {
             .allocations
             .iter()
             .find(|item| item.id == id)
-            .ok_or_else(|| PstdError::pst_parse(Some(base_offset), format!("heap allocation {id} not found")))?;
-        slice_at(buf, allocation.offset as usize, allocation.size as usize, base_offset)
+            .ok_or_else(|| {
+                PstdError::pst_parse(Some(base_offset), format!("heap allocation {id} not found"))
+            })?;
+        slice_at(
+            buf,
+            allocation.offset as usize,
+            allocation.size as usize,
+            base_offset,
+        )
     }
 }
