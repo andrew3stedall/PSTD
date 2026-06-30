@@ -31,6 +31,7 @@ This tree is organised by audience.
 | M1 | [Extraction Foundation](milestones/pstd-v1-m1-extraction-foundation.md) | [E1](epics/pstd-v1-e1-local-extraction-foundation.md) | [M1 issues](issues/pstd-v1-m1-ordered-issue-plan.md) | [M1 map](architecture/pstd-v1-m1-dependency-map.md) |
 | M2 | [PST Binary Foundation](milestones/pstd-v1-m2-pst-binary-foundation.md) | [E2](epics/pstd-v1-e2-pst-binary-foundation.md) | [M2 issues](issues/pstd-v1-m2-ordered-issue-plan.md) | [M2 map](architecture/pstd-v1-m2-dependency-map.md) |
 | M3 | [Folder and Metadata Extraction](milestones/pstd-v1-m3-folder-metadata-extraction.md) | [E3](epics/pstd-v1-e3-folder-metadata-extraction.md) | [M3 issues](issues/pstd-v1-m3-ordered-issue-plan.md) | [M3 map](architecture/pstd-v1-m3-dependency-map.md) |
+| M4 | [Recipients and Threading](milestones/pstd-v1-m4-recipients-threading.md) | TBD | TBD | TBD |
 
 ## Engineering
 
@@ -40,6 +41,7 @@ This tree is organised by audience.
 - [PSTD v1 CLI and Rust Implementation Plan](engineering/pstd-v1-cli-rust-implementation-plan.md)
 - [M2 PST Binary Implementation Plan](engineering/pstd-v1-m2-pst-binary-implementation-plan.md)
 - [M3 Folder Metadata Implementation Plan](engineering/pstd-v1-m3-folder-metadata-implementation-plan.md)
+- [M4 Recipients and Threading Implementation Plan](engineering/pstd-v1-m4-recipients-threading-implementation-plan.md)
 
 ## Architecture and data
 
