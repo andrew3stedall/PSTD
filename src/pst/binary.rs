@@ -10,7 +10,7 @@ pub fn require_len(buf: &[u8], needed: usize, offset: Option<u64>) -> PstdResult
     Ok(())
 }
 
-pub fn slice_at<'a>(buf: &'a [u8], start: usize, len: usize, base_offset: u64) -> PstdResult<&'a [u8]> {
+pub fn slice_at(buf: &[u8], start: usize, len: usize, base_offset: u64) -> PstdResult<&[u8]> {
     let end = start.checked_add(len).ok_or_else(|| {
         PstdError::pst_parse(Some(base_offset + start as u64), "slice range overflowed")
     })?;
