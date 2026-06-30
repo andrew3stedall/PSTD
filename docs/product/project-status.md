@@ -8,12 +8,12 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 
 | Area | Status | Notes |
 |---|---|---|
-| Rust CLI | Implemented | `pstd extract`, `pstd inspect`, and `pstd version` exist. |
-| Structured output contract | Implemented foundation | TAR + JSONL writer and record models exist. |
-| PST byte reader | Implemented foundation | Bounded range reads from large PST files. |
-| PST header parser | Implemented foundation | Validates basic PST magic and version/variant summary. |
-| BBT/NBT parsing | Skeleton implemented | Basic page/index skeletons exist; full traversal remains incomplete. |
-| Metadata-only extraction | Implemented foundation | Root folder inventory and metadata/status rows are emitted. |
+| Rust CLI | Implemented and CI validated | `pstd extract`, `pstd inspect`, and `pstd version` exist. |
+| Structured output contract | Implemented foundation and CI validated | TAR + JSONL writer and record models exist. |
+| PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
+| PST header parser | Implemented foundation and CI validated | Validates basic PST magic and version/variant summary. |
+| BBT/NBT parsing | Skeleton implemented and CI validated | Basic page/index skeletons exist; full traversal remains incomplete. |
+| Metadata-only extraction | Implemented foundation and CI validated | Root folder inventory and metadata/status rows are emitted. |
 | Recipients/threading | Not yet implemented | Planned for M4. |
 | Bodies/attachments | Not yet implemented | Planned for M5. |
 | Batch orchestration | Not yet implemented | Planned for M6. |
@@ -23,9 +23,22 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 
 | Milestone | Merge PR | Validation status |
 |---|---:|---|
-| M1: Extraction Foundation and Archive Contract | #18 | Deferred |
-| M2: PST Binary Foundation | #30 | Deferred |
-| M3: Folder and Metadata Extraction | #43 | Deferred |
+| M1: Extraction Foundation and Archive Contract | #18 | CI validated |
+| M2: PST Binary Foundation | #30 | CI validated |
+| M3: Folder and Metadata Extraction | #43 | CI validated |
+
+## Latest validation
+
+GitHub Actions validation has passed for the M1-M3 implementation set, including:
+
+- Rust build.
+- Rust unit/integration tests with `cargo test --all`.
+- Rust linting with `cargo clippy --all-targets --all-features -- -D warnings`.
+- Rust formatting with `cargo fmt --check`.
+- Python wrapper install and `python -m pstd --help`.
+- Docker image build.
+- CLI smoke checks.
+- Fixture discovery, inspect, and metadata extract when a PST fixture is present.
 
 ## Next milestone
 
@@ -44,6 +57,6 @@ M4 should not add bodies, attachments, Snowflake, or web UI work.
 
 ## Validation risk
 
-The implementation has been created through the GitHub connector workflow. Local Rust, Python, Docker, and fixture validation has not yet been run.
+The M1-M3 foundation has passing CI coverage. The remaining validation risk is parser depth: BBT/NBT traversal, folder tables, recipient tables, and real-world PST variability still need broader fixture coverage as M4 and later milestones expand the parser.
 
-Before starting high-risk parser expansion, run the commands in [Validation Guide](../operations/validation-guide.md).
+Before high-risk parser expansion, continue running the commands in [Validation Guide](../operations/validation-guide.md) and preserve fixture privacy guidance.
