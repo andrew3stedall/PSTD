@@ -13,9 +13,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - run: cargo fmt --check
-      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo build
       - run: cargo test --all
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo fmt --check
 
   cli:
     runs-on: ubuntu-latest
