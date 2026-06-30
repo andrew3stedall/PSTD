@@ -21,7 +21,11 @@ pub struct MetadataExtractionOutput {
     pub status: String,
 }
 
-pub fn extract_metadata(input_path: &str, run_id: &str, pst_id: &str) -> PstdResult<MetadataExtractionOutput> {
+pub fn extract_metadata(
+    input_path: &str,
+    run_id: &str,
+    pst_id: &str,
+) -> PstdResult<MetadataExtractionOutput> {
     let reader = PstByteReader::open(input_path)?;
     let header = PstHeader::parse(&reader)?;
     let bbt = BbtIndex::load_root(&reader, header.roots.bbt_root)?;
@@ -38,7 +42,13 @@ pub fn extract_metadata(input_path: &str, run_id: &str, pst_id: &str) -> PstdRes
     };
 
     if nbt.entries.is_empty() {
-        messages.push(status_row(run_id, pst_id, &root_folder.folder_key, &root_folder.folder_path, &metadata_status));
+        messages.push(status_row(
+            run_id,
+            pst_id,
+            &root_folder.folder_key,
+            &root_folder.folder_path,
+            &metadata_status,
+        ));
         issues.push(StatusRecord::info(
             run_id,
             "m3_metadata_root_only",
@@ -112,7 +122,10 @@ pub fn extract_metadata(input_path: &str, run_id: &str, pst_id: &str) -> PstdRes
     let folders_discovered = 1;
     let messages_discovered = nbt.entries.len() as u64;
     let messages_extracted = messages.len() as u64;
-    let status = format!("{}; bbt_status={}; nbt_status={}", metadata_status, bbt.status, nbt.status);
+    let status = format!(
+        "{}; bbt_status={}; nbt_status={}",
+        metadata_status, bbt.status, nbt.status
+    );
 
     Ok(MetadataExtractionOutput {
         folders: vec![root_folder],
@@ -153,9 +166,19 @@ pub fn fallback_metadata(run_id: &str, pst_id: &str, error: &PstdError) -> Metad
     MetadataExtractionOutput {
         folders: vec![folder],
         folder_inventory: vec![inventory],
-        messages: vec![status_row(run_id, pst_id, &folder_key, "/", "metadata_unavailable")],
+        messages: vec![status_row(
+            run_id,
+            pst_id,
+            &folder_key,
+            "/",
+            "metadata_unavailable",
+        )],
         manifest: Vec::new(),
-        issues: vec![StatusRecord::info(run_id, "m3_metadata_unavailable", format!("Metadata extraction unavailable: {error}"))],
+        issues: vec![StatusRecord::info(
+            run_id,
+            "m3_metadata_unavailable",
+            format!("Metadata extraction unavailable: {error}"),
+        )],
         folders_discovered: 0,
         messages_discovered: 0,
         messages_extracted: 0,
