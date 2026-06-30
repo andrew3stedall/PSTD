@@ -1,1 +1,0 @@
-ignore = ["src/config.rs", "src/pst/mapi.rs"]
