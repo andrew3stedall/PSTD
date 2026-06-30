@@ -17,7 +17,10 @@ impl PageTrailer {
 
     pub fn parse_from_page(page: &[u8], page_offset: u64) -> PstdResult<Self> {
         if page.len() < Self::LEN {
-            return Err(PstdError::pst_parse(Some(page_offset), "page too short for trailer"));
+            return Err(PstdError::pst_parse(
+                Some(page_offset),
+                "page too short for trailer",
+            ));
         }
         let start = page.len() - Self::LEN;
         Self::parse(&page[start..], page_offset + start as u64)
@@ -52,7 +55,10 @@ impl BlockTrailer {
 
     pub fn parse_from_block(block: &[u8], block_offset: u64) -> PstdResult<Self> {
         if block.len() < Self::LEN {
-            return Err(PstdError::pst_parse(Some(block_offset), "block too short for trailer"));
+            return Err(PstdError::pst_parse(
+                Some(block_offset),
+                "block too short for trailer",
+            ));
         }
         let start = block.len() - Self::LEN;
         Self::parse(&block[start..], block_offset + start as u64)
@@ -60,7 +66,10 @@ impl BlockTrailer {
 
     pub fn parse(buf: &[u8], offset: u64) -> PstdResult<Self> {
         if buf.len() < Self::LEN {
-            return Err(PstdError::pst_parse(Some(offset), "block trailer too short"));
+            return Err(PstdError::pst_parse(
+                Some(offset),
+                "block trailer too short",
+            ));
         }
         let byte_count = u16_le_at(buf, 0, offset)?;
         let signature = u16_le_at(buf, 2, offset)?;
