@@ -2,17 +2,19 @@
 
 ## Implementation intent
 
-M4 turns PSTD's message metadata layer into a conversation-aware metadata extractor. The first implementation slice should be conservative: emit the M4 output files, add property constants and helper logic, and only populate fields when the parser has sufficient source data.
+M4 turns PSTD's message metadata layer into a conversation-aware metadata extractor. The implementation remains conservative: emit the M4 output files, add property constants and helper logic, and populate fields only when the parser has sufficient source data.
 
 ## Current foundation
 
-- `MessageRecord` already contains threading fields such as `internet_message_id`, `in_reply_to_id`, `conversation_index`, `conversation_topic`, and `normalized_subject`.
-- `RecipientRecord` and `MessageReferenceRecord` structs already exist in `src/output/metadata.rs`.
-- Existing archive output writes `folders.jsonl`, `messages.jsonl`, and M3 internal metadata files.
+- `MessageRecord` contains threading fields such as `internet_message_id`, `in_reply_to_id`, `conversation_index`, `conversation_topic`, and `normalized_subject`.
+- `RecipientRecord` and `MessageReferenceRecord` structs exist in `src/output/metadata.rs`.
+- Archive output writes `folders.jsonl`, `messages.jsonl`, `recipients.jsonl`, and `message_references.jsonl`.
+- `pst::threading` contains deterministic subject/reference helper logic.
+- `pst::recipients` converts parsed recipient table rows into recipient output records.
 
-## Initial code changes
+## Implemented M4 slices
 
-1. Add selected MAPI constants for:
+1. Selected MAPI constants for:
    - Internet message ID.
    - In-Reply-To ID.
    - Internet References.
@@ -21,21 +23,26 @@ M4 turns PSTD's message metadata layer into a conversation-aware metadata extrac
    - Conversation topic.
    - Sender raw and address-type fields.
    - Recipient display name, address type, email address, SMTP address, and recipient type.
-2. Add a `pst::threading` helper module for:
+2. Threading helpers for:
    - Normalized subject calculation.
    - Prefix removal for common reply/forward prefixes.
-   - Internet references splitting.
+   - Reference splitting.
    - Threading status calculation.
-3. Extend `MetadataExtractionOutput` with recipient and message-reference rows.
-4. Write `data/recipients.jsonl` and `data/message_references.jsonl` into TAR output.
-5. Add manifest entries for the new files.
+3. Metadata output wiring for:
+   - `data/recipients.jsonl`.
+   - `data/message_references.jsonl`.
+   - Manifest entries for both files.
+4. Recipient conversion for:
+   - To, CC, BCC, reply-to, unknown recipient type mapping.
+   - Display name extraction.
+   - Raw address preservation.
+   - SMTP address preference.
+   - Exchange/X.400-style raw address preservation when SMTP is unavailable.
+   - Stable recipient keys and ordinals.
 
-## Later M4 parser work
+## Remaining parser depth risk
 
-- Parse recipient table contexts once table traversal can locate recipient rows reliably.
-- Resolve SMTP values from direct SMTP fields first, then preserve Exchange/X.400 raw address data.
-- Preserve raw transport headers when available, but avoid deriving false precision from partial headers.
-- Add fixture-backed tests when safe PST fixtures are available.
+The recipient conversion layer expects rows that have already been parsed into `TableContext`. Current M2/M3 PST traversal remains skeleton-level, so broader real-world recipient extraction depends on later improvements to BBT/NBT traversal and table-context discovery.
 
 ## Safety and privacy
 
@@ -46,5 +53,6 @@ Do not commit private PST files. Any fixture added to the repo must be synthetic
 - M4 branch keeps CI green.
 - New M4 output files are emitted.
 - Threading helpers are covered by unit tests.
+- Recipient row conversion is covered by unit tests.
 - Missing or unsupported M4 fields are represented with explicit status values.
 - M5 body/attachment work remains out of scope.
