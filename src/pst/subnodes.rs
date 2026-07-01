@@ -24,11 +24,13 @@ pub fn subnode_references_from_entries(entries: &[NbtEntry]) -> SubnodeReference
     let references = entries
         .iter()
         .filter_map(|entry| {
-            entry.subnode_block_id.map(|subnode_block_id| SubnodeReference {
-                node_id: entry.node_id,
-                subnode_block_id,
-                status: "subnode_reference_discovered".to_string(),
-            })
+            entry
+                .subnode_block_id
+                .map(|subnode_block_id| SubnodeReference {
+                    node_id: entry.node_id,
+                    subnode_block_id,
+                    status: "subnode_reference_discovered".to_string(),
+                })
         })
         .collect::<Vec<_>>();
 
