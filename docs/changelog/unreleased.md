@@ -43,7 +43,7 @@
 - Updated output-contract guidance around structured TAR + JSONL output.
 - Updated project status to reflect M4 recipients/threading foundation work and CI validation.
 - Updated project status to reflect the M5 body and attachment foundation slice and CI validation.
-- Updated project status to reflect the M6 batch orchestration foundation slice.
+- Updated project status to reflect the M6 batch orchestration foundation slice and CI validation.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 
 ## Removed
@@ -52,7 +52,7 @@
 
 ## Notes
 
-- M1-M5 have passed GitHub Actions validation.
-- M6 is designed to improve local batch operation and resume safety while current parser depth remains limited.
+- M1-M6 have passed GitHub Actions validation.
+- M6 improves local batch operation and resume safety while current parser depth remains limited.
 - Real-world payload extraction still depends on deeper BBT/NBT, property-context, table-context, and subnode traversal coverage.
 - Private PST files, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
