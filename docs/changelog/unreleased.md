@@ -34,6 +34,10 @@
 - Batch checkpoint output at `batch_checkpoint.jsonl`.
 - Batch summary output at `batch_summary.json`.
 - Resume-by-skip behaviour for completed per-PST outputs.
+- M7 parser depth hardening milestone documentation.
+- BBT page diagnostics for parsed entries, truncated entries, page type, page level, and duplicate block entries.
+- Node-index page diagnostics for parsed entries, truncated entries, page type, page level, and duplicate node entries.
+- Synthetic parser diagnostics tests for complete and truncated BBT/node-index pages.
 
 ## Changed
 
@@ -44,7 +48,9 @@
 - Updated project status to reflect M4 recipients/threading foundation work and CI validation.
 - Updated project status to reflect the M5 body and attachment foundation slice and CI validation.
 - Updated project status to reflect the M6 batch orchestration foundation slice and CI validation.
+- Updated project status to reflect the M7 parser-depth hardening slice.
 - Expanded CLI CI coverage to include `pstd batch --help`.
+- Expanded BBT/NBT status strings with parser diagnostics used by inspect and extract status.
 
 ## Removed
 
@@ -53,6 +59,6 @@
 ## Notes
 
 - M1-M6 have passed GitHub Actions validation.
-- M6 improves local batch operation and resume safety while current parser depth remains limited.
+- M7 improves parser observability and failure reporting while current traversal depth remains limited.
 - Real-world payload extraction still depends on deeper BBT/NBT, property-context, table-context, and subnode traversal coverage.
 - Private PST files, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
