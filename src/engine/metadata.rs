@@ -4,12 +4,17 @@ use crate::output::metadata::{
     AttachmentRecord, BodyRecord, FolderRecord, ManifestRecord, MessageRecord,
     MessageReferenceRecord, RecipientRecord,
 };
+use crate::pst::attachments::{unavailable_attachment_record, AttachmentPayload};
 use crate::pst::bbt::BbtIndex;
 use crate::pst::folder_tree::{root_folder_from_header, FolderInventoryRecord};
 use crate::pst::header::PstHeader;
-use crate::pst::message_metadata::status_row;
-use crate::pst::nbt::NbtIndex;
+use crate::pst::limits::ParserLimits;
+use crate::pst::message_metadata::{message_from_properties, status_row};
+use crate::pst::messages::{body_payloads_from_properties, unavailable_body_record, BodyPayload};
+use crate::pst::nbt::{NbtEntry, NbtIndex};
+use crate::pst::node_payload::load_node_property_context;
 use crate::pst::reader::PstByteReader;
+use crate::pst::subnodes::{subnode_decode_plans, subnode_references_from_index};
 
 #[derive(Debug, Clone)]
 pub struct MetadataExtractionOutput {
@@ -19,7 +24,9 @@ pub struct MetadataExtractionOutput {
     pub recipients: Vec<RecipientRecord>,
     pub message_references: Vec<MessageReferenceRecord>,
     pub bodies: Vec<BodyRecord>,
+    pub body_payloads: Vec<BodyPayload>,
     pub attachments: Vec<AttachmentRecord>,
+    pub attachment_payloads: Vec<AttachmentPayload>,
     pub manifest: Vec<ManifestRecord>,
     pub issues: Vec<StatusRecord>,
     pub folders_discovered: u64,
@@ -35,16 +42,22 @@ pub fn extract_metadata(
 ) -> PstdResult<MetadataExtractionOutput> {
     let reader = PstByteReader::open(input_path)?;
     let header = PstHeader::parse(&reader)?;
-    let bbt = BbtIndex::load_root(&reader, header.roots.bbt_root)?;
-    let nbt = NbtIndex::load_root(&reader, header.roots.nbt_root)?;
+    let limits = ParserLimits::default();
+    let bbt = BbtIndex::load_root_with_limits(&reader, header.roots.bbt_root, limits)?;
+    let nbt = NbtIndex::load_root_with_limits(&reader, header.roots.nbt_root, limits)?;
 
     let (root_folder, root_inventory) = root_folder_from_header(pst_id, &header);
     let mut messages = Vec::new();
     let mut issues = Vec::new();
-    let recipients = Vec::new();
-    let message_references = Vec::new();
-    let bodies = Vec::new();
-    let attachments = Vec::new();
+    let recipients: Vec<RecipientRecord> = Vec::new();
+    let message_references: Vec<MessageReferenceRecord> = Vec::new();
+    let mut bodies: Vec<BodyRecord> = Vec::new();
+    let mut body_payloads: Vec<BodyPayload> = Vec::new();
+    let mut attachments: Vec<AttachmentRecord> = Vec::new();
+    let attachment_payloads: Vec<AttachmentPayload> = Vec::new();
+
+    let subnode_report = subnode_references_from_index(&nbt);
+    let subnode_plans = subnode_decode_plans(&subnode_report.references, limits);
 
     let metadata_status = if nbt.entries.is_empty() {
         "metadata_root_only".to_string()
@@ -67,67 +80,232 @@ pub fn extract_metadata(
         ));
     } else {
         for entry in nbt.entries.iter().take(1000) {
-            let message_key = ids::message_key(pst_id, &format!("node_{:x}", entry.node_id.0));
-            messages.push(MessageRecord {
-                run_id: run_id.to_string(),
-                pst_id: pst_id.to_string(),
-                folder_key: root_folder.folder_key.clone(),
-                message_key,
-                message_node_id: Some(format!("node_{:x}", entry.node_id.0)),
-                folder_path: root_folder.folder_path.clone(),
-                item_type: "message_metadata_candidate".to_string(),
-                subject: None,
-                sender_name: None,
-                sender_email: None,
-                sender_raw_address: None,
-                sender_address_type: None,
-                sent_at: None,
-                received_at: None,
-                created_at: None,
-                modified_at: None,
-                internet_message_id: None,
-                in_reply_to_id: None,
-                conversation_index: None,
-                conversation_topic: None,
-                normalized_subject: None,
-                has_text_body: false,
-                has_html_body: false,
-                has_attachments: false,
-                attachment_count: 0,
-                metadata_status: "node_candidate_only".to_string(),
-                threading_status: "threading_metadata_not_attempted".to_string(),
-                body_status: "body_payload_not_available_at_current_parser_depth".to_string(),
-                attachment_status: "attachment_payload_not_available_at_current_parser_depth"
-                    .to_string(),
-                extraction_status: "metadata_only_candidate".to_string(),
-            });
+            let message_key = ids::message_key(pst_id, &node_identity(entry));
+            match load_node_property_context(&reader, &bbt, entry, limits) {
+                Ok(loaded) => {
+                    let mut message = message_from_properties(
+                        run_id,
+                        pst_id,
+                        &root_folder.folder_key,
+                        &root_folder.folder_path,
+                        entry.node_id,
+                        &loaded.properties,
+                    );
+                    let loaded_body_payloads =
+                        body_payloads_from_properties(&message.message_key, &loaded.properties);
+                    if loaded_body_payloads.is_empty() {
+                        message.body_status = "body_payload_property_absent".to_string();
+                        bodies.push(unavailable_body_record(
+                            &message.message_key,
+                            "text",
+                            "body_payload_property_absent",
+                        ));
+                    } else {
+                        message.has_text_body = loaded_body_payloads
+                            .iter()
+                            .any(|payload| payload.record.body_type == "text");
+                        message.has_html_body = loaded_body_payloads
+                            .iter()
+                            .any(|payload| payload.record.body_type == "html");
+                        message.body_status = "body_payload_extracted".to_string();
+                        message.extraction_status = "metadata_and_payload".to_string();
+                        for payload in loaded_body_payloads {
+                            bodies.push(payload.record.clone());
+                            body_payloads.push(payload);
+                        }
+                    }
+
+                    if message.has_attachments {
+                        message.attachment_status = "attachment_table_not_loaded".to_string();
+                        attachments.push(unavailable_attachment_record(
+                            &message.message_key,
+                            0,
+                            None,
+                            "attachment_table_not_loaded",
+                        ));
+                    } else {
+                        message.attachment_status =
+                            "attachment_payload_property_absent".to_string();
+                    }
+
+                    message.metadata_status = format!(
+                        "property_context_loaded; property_count={}",
+                        loaded.property_report.parsed_property_count
+                    );
+                    messages.push(message);
+                }
+                Err(reason) => {
+                    messages.push(candidate_message(
+                        run_id,
+                        pst_id,
+                        &root_folder.folder_key,
+                        &root_folder.folder_path,
+                        entry,
+                    ));
+                    bodies.push(unavailable_body_record(
+                        &message_key,
+                        "text",
+                        "node_property_context_unavailable",
+                    ));
+                    issues.push(StatusRecord::info(
+                        run_id,
+                        "m11_node_payload_unavailable",
+                        format!(
+                            "Node payload could not be loaded for node_{:x}: {reason}",
+                            entry.node_id.0
+                        ),
+                    ));
+                }
+            }
         }
     }
 
-    let manifest = vec![
+    let mut manifest = base_manifest(
+        run_id,
+        pst_id,
+        &root_folder.folder_key,
+        &metadata_status,
+        issues.len() as u64,
+    );
+    for payload in &body_payloads {
+        manifest.push(ManifestRecord {
+            run_id: run_id.to_string(),
+            pst_id: pst_id.to_string(),
+            message_key: Some(payload.record.message_key.clone()),
+            folder_key: None,
+            artefact_type: format!("body_{}", payload.record.body_type),
+            archive_path: payload.record.archive_path.clone(),
+            sha256: Some(payload.record.sha256.clone()),
+            size_bytes: Some(payload.record.size_bytes),
+            status: payload.record.status.clone(),
+            issue_count: 0,
+        });
+    }
+    for payload in &attachment_payloads {
+        manifest.push(ManifestRecord {
+            run_id: run_id.to_string(),
+            pst_id: pst_id.to_string(),
+            message_key: Some(payload.record.message_key.clone()),
+            folder_key: None,
+            artefact_type: "attachment".to_string(),
+            archive_path: payload.record.archive_path.clone(),
+            sha256: Some(payload.record.sha256.clone()),
+            size_bytes: Some(payload.record.size_bytes),
+            status: payload.record.extraction_status.clone(),
+            issue_count: 0,
+        });
+    }
+
+    let folders_discovered = 1;
+    let messages_discovered = nbt.entries.len() as u64;
+    let messages_extracted = messages.len() as u64;
+    let status = format!(
+        "{}; bbt_status={}; nbt_status={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; body_payloads={}; attachment_payloads={}; subnode_references={}; subnode_decode_plans={}",
+        metadata_status,
+        bbt.status,
+        nbt.status,
+        body_payloads.len(),
+        attachment_payloads.len(),
+        subnode_report.subnode_reference_count,
+        subnode_plans.len()
+    );
+
+    Ok(MetadataExtractionOutput {
+        folders: vec![root_folder],
+        folder_inventory: vec![root_inventory],
+        messages,
+        recipients,
+        message_references,
+        bodies,
+        body_payloads,
+        attachments,
+        attachment_payloads,
+        manifest,
+        issues,
+        folders_discovered,
+        messages_discovered,
+        messages_extracted,
+        status,
+    })
+}
+
+fn node_identity(entry: &NbtEntry) -> String {
+    format!("node_{:x}", entry.node_id.0)
+}
+
+fn candidate_message(
+    run_id: &str,
+    pst_id: &str,
+    folder_key: &str,
+    folder_path: &str,
+    entry: &NbtEntry,
+) -> MessageRecord {
+    let message_identity = node_identity(entry);
+    MessageRecord {
+        run_id: run_id.to_string(),
+        pst_id: pst_id.to_string(),
+        folder_key: folder_key.to_string(),
+        message_key: ids::message_key(pst_id, &message_identity),
+        message_node_id: Some(message_identity),
+        folder_path: folder_path.to_string(),
+        item_type: "message_metadata_candidate".to_string(),
+        subject: None,
+        sender_name: None,
+        sender_email: None,
+        sender_raw_address: None,
+        sender_address_type: None,
+        sent_at: None,
+        received_at: None,
+        created_at: None,
+        modified_at: None,
+        internet_message_id: None,
+        in_reply_to_id: None,
+        conversation_index: None,
+        conversation_topic: None,
+        normalized_subject: None,
+        has_text_body: false,
+        has_html_body: false,
+        has_attachments: false,
+        attachment_count: 0,
+        metadata_status: "node_property_context_unavailable".to_string(),
+        threading_status: "threading_metadata_not_attempted".to_string(),
+        body_status: "node_property_context_unavailable".to_string(),
+        attachment_status: "node_property_context_unavailable".to_string(),
+        extraction_status: "metadata_only_candidate".to_string(),
+    }
+}
+
+fn base_manifest(
+    run_id: &str,
+    pst_id: &str,
+    root_folder_key: &str,
+    metadata_status: &str,
+    issue_count: u64,
+) -> Vec<ManifestRecord> {
+    vec![
         ManifestRecord {
             run_id: run_id.to_string(),
             pst_id: pst_id.to_string(),
             message_key: None,
-            folder_key: Some(root_folder.folder_key.clone()),
+            folder_key: Some(root_folder_key.to_string()),
             artefact_type: "folders".to_string(),
             archive_path: "data/folders.jsonl".to_string(),
             sha256: None,
             size_bytes: None,
-            status: metadata_status.clone(),
-            issue_count: issues.len() as u64,
+            status: metadata_status.to_string(),
+            issue_count,
         },
         ManifestRecord {
             run_id: run_id.to_string(),
             pst_id: pst_id.to_string(),
             message_key: None,
-            folder_key: Some(root_folder.folder_key.clone()),
+            folder_key: Some(root_folder_key.to_string()),
             artefact_type: "messages".to_string(),
             archive_path: "data/messages.jsonl".to_string(),
             sha256: None,
             size_bytes: None,
-            status: metadata_status.clone(),
-            issue_count: issues.len() as u64,
+            status: metadata_status.to_string(),
+            issue_count,
         },
         ManifestRecord {
             run_id: run_id.to_string(),
@@ -162,7 +340,7 @@ pub fn extract_metadata(
             archive_path: "data/bodies.jsonl".to_string(),
             sha256: None,
             size_bytes: None,
-            status: "m5_body_output_available".to_string(),
+            status: "m11_body_output_integrated".to_string(),
             issue_count: 0,
         },
         ManifestRecord {
@@ -174,34 +352,10 @@ pub fn extract_metadata(
             archive_path: "data/attachments.jsonl".to_string(),
             sha256: None,
             size_bytes: None,
-            status: "m5_attachment_output_available".to_string(),
+            status: "m11_attachment_output_integrated".to_string(),
             issue_count: 0,
         },
-    ];
-
-    let folders_discovered = 1;
-    let messages_discovered = nbt.entries.len() as u64;
-    let messages_extracted = messages.len() as u64;
-    let status = format!(
-        "{}; bbt_status={}; nbt_status={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available",
-        metadata_status, bbt.status, nbt.status
-    );
-
-    Ok(MetadataExtractionOutput {
-        folders: vec![root_folder],
-        folder_inventory: vec![root_inventory],
-        messages,
-        recipients,
-        message_references,
-        bodies,
-        attachments,
-        manifest,
-        issues,
-        folders_discovered,
-        messages_discovered,
-        messages_extracted,
-        status,
-    })
+    ]
 }
 
 pub fn fallback_metadata(
@@ -244,7 +398,9 @@ pub fn fallback_metadata(
         recipients: Vec::new(),
         message_references: Vec::new(),
         bodies: Vec::new(),
+        body_payloads: Vec::new(),
         attachments: Vec::new(),
+        attachment_payloads: Vec::new(),
         manifest: Vec::new(),
         issues: vec![StatusRecord::info(
             run_id,
