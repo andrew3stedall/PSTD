@@ -49,12 +49,12 @@ pub fn extract_metadata(
     let (root_folder, root_inventory) = root_folder_from_header(pst_id, &header);
     let mut messages = Vec::new();
     let mut issues = Vec::new();
-    let recipients = Vec::new();
-    let message_references = Vec::new();
-    let mut bodies = Vec::new();
-    let mut body_payloads = Vec::new();
-    let mut attachments = Vec::new();
-    let attachment_payloads = Vec::new();
+    let recipients: Vec<RecipientRecord> = Vec::new();
+    let message_references: Vec<MessageReferenceRecord> = Vec::new();
+    let mut bodies: Vec<BodyRecord> = Vec::new();
+    let mut body_payloads: Vec<BodyPayload> = Vec::new();
+    let mut attachments: Vec<AttachmentRecord> = Vec::new();
+    let attachment_payloads: Vec<AttachmentPayload> = Vec::new();
 
     let subnode_report = subnode_references_from_index(&nbt);
     let subnode_plans = subnode_decode_plans(&subnode_report.references, limits);
