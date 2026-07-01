@@ -79,9 +79,15 @@ pub fn run_batch(config: BatchConfig) -> PstdResult<BatchSummary> {
 
     let finished = chrono::Utc::now();
     let pst_total = items.len() as u64;
-    let pst_completed = items.iter().filter(|item| item.status == "completed").count() as u64;
+    let pst_completed = items
+        .iter()
+        .filter(|item| item.status == "completed")
+        .count() as u64;
     let pst_failed = items.iter().filter(|item| item.status == "failed").count() as u64;
-    let pst_skipped = items.iter().filter(|item| item.status == "skipped_completed").count() as u64;
+    let pst_skipped = items
+        .iter()
+        .filter(|item| item.status == "skipped_completed")
+        .count() as u64;
     let status = if pst_failed == 0 {
         "completed".to_string()
     } else if config.continue_on_error {
@@ -121,7 +127,9 @@ fn run_batch_item(config: &BatchConfig, pst_path: &Path, item_output: &Path) -> 
             status: "skipped_completed".to_string(),
             run_id: None,
             pst_id: None,
-            message: Some("existing run_summary.json found; use --overwrite to reprocess".to_string()),
+            message: Some(
+                "existing run_summary.json found; use --overwrite to reprocess".to_string(),
+            ),
         };
     }
 
@@ -233,7 +241,10 @@ fn append_checkpoint(path: &Path, item: &BatchItemSummary) -> PstdResult<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let mut file = fs::OpenOptions::new().create(true).append(true).open(path)?;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
     writeln!(file, "{}", serde_json::to_string(item)?)?;
     Ok(())
 }
