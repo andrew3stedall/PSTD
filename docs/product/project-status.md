@@ -15,11 +15,11 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | BBT/NBT parsing | Traversal expansion and CI validated | M8 adds bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards. |
 | Metadata-only extraction | Implemented foundation and CI validated | Root folder inventory and metadata/status rows are emitted. |
 | Recipients/threading | Implemented foundation and CI validated | M4 emits recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion. |
-| Bodies/attachments | Payload foundation and CI validated | M9 adds property-context payload builders and BBT-backed payload block loading. |
+| Bodies/attachments | Payload wiring, pending CI | M10 adds node payload-to-property wiring and attachment table-to-payload wiring. |
 | Batch orchestration | Implemented foundation and CI validated | M6 adds batch discovery, per-PST outputs, checkpoints, summaries, and resume-by-skip behaviour. |
 | Table/property parse reports | Implemented foundation and CI validated | M8 adds table and property parse diagnostics while preserving existing APIs. |
 | Parser limits | Implemented foundation and CI validated | M9 adds explicit parser limits for traversal pages, block payload size, and subnode depth. |
-| Subnode references | Implemented foundation and CI validated | M9 reports node-index subnode references before recursive decoding. |
+| Subnode references | Decode planning, pending CI | M10 adds bounded subnode decode planning with depth-limit status. |
 | Snowflake/web UI/search | Future work | Out of v1 implementation until later roadmap phases. |
 
 ## Merged milestones
@@ -35,6 +35,7 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M7: Parser Depth Hardening | #70 | CI validated |
 | M8: Traversal Expansion | #75 | CI validated |
 | M9: Payload and Subnode Traversal | #81 | CI validated |
+| M10: Payload Wiring | Pending | Pending CI |
 
 ## Latest validation
 
@@ -51,19 +52,19 @@ GitHub Actions validation has passed for the M1-M9 implementation set, including
 
 ## Next milestone
 
-M10: Recursive Payload Wiring.
+M11: Extraction Path Integration.
 
-M10 should add:
+M11 should add:
 
-- Recursive subnode decoding.
-- Real message data-block to property-context wiring.
-- Real attachment table and subnode payload wiring.
-- Broader synthetic/public fixture coverage.
+- Main extraction-path integration for node payload wiring.
+- Main archive writer integration for table-derived attachments.
+- Deeper synthetic and public fixture coverage.
+- Clear status rows for payload paths that remain unavailable.
 
-M10 should not add Snowflake, search, or web UI work.
+M11 should not add Snowflake, search, or web UI work.
 
 ## Validation risk
 
-The M1-M9 foundation has CI coverage at the unit, smoke, Docker, and fixture level. M9 adds payload and subnode foundations, but parser-depth risk remains: real-world payload extraction still depends on recursive subnode decoding and real-node wiring.
+The M1-M9 foundation has CI coverage at the unit, smoke, Docker, and fixture level. M10 adds payload wiring helpers, but parser-depth risk remains: real-world payload extraction still depends on deeper subnode decoding and main extraction-path integration.
 
 Before high-risk parser expansion, continue running the commands in [Validation Guide](../operations/validation-guide.md) and preserve fixture privacy guidance.
