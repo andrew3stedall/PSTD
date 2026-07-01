@@ -34,6 +34,7 @@ This tree is organised by audience.
 | M4 | [Recipients and Threading](milestones/pstd-v1-m4-recipients-threading.md) | TBD | [M4 issues](issues/pstd-v1-m4-ordered-issue-plan.md) | TBD |
 | M5 | [Bodies and Attachments](milestones/pstd-v1-m5-bodies-attachments.md) | TBD | [M5 issues](issues/pstd-v1-m5-ordered-issue-plan.md) | TBD |
 | M6 | [Batch and Resume](milestones/pstd-v1-m6-batch-resume.md) | TBD | [M6 issues](issues/pstd-v1-m6-ordered-issue-plan.md) | TBD |
+| M7 | [Parser Depth Hardening](milestones/pstd-v1-m7-parser-depth-hardening.md) | TBD | [M7 issues](issues/pstd-v1-m7-ordered-issue-plan.md) | TBD |
 
 ## Engineering
 
@@ -46,6 +47,7 @@ This tree is organised by audience.
 - [M4 Recipients and Threading Implementation Plan](engineering/pstd-v1-m4-recipients-threading-implementation-plan.md)
 - [M5 Bodies and Attachments Implementation Plan](engineering/pstd-v1-m5-bodies-attachments-implementation-plan.md)
 - [M6 Batch and Resume Implementation Plan](engineering/pstd-v1-m6-batch-resume-implementation-plan.md)
+- [M7 Parser Depth Hardening Implementation Plan](engineering/pstd-v1-m7-parser-depth-hardening-implementation-plan.md)
 
 ## Architecture and data
 
