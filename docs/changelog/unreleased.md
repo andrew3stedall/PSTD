@@ -58,10 +58,10 @@
 - Attachment table row to property-context conversion.
 - Attachment table row to payload construction with wiring reports.
 - M11 extraction path integration milestone documentation.
-- Main extraction-path node payload loading attempts.
-- Body payload metadata and TAR byte writing when payload properties are available.
+- Main processing-path node payload loading attempts.
+- Body payload metadata and TAR file writing when payload properties are available.
 - Explicit unavailable body rows for unsupported payload paths.
-- Per-payload manifest rows for extracted body and attachment payloads.
+- Per-payload manifest rows for body and attachment payloads.
 
 ## Changed
 
@@ -76,10 +76,10 @@
 - Updated project status to reflect the M8 traversal expansion slice and CI validation.
 - Updated project status to reflect the M9 payload and subnode traversal slice and CI validation.
 - Updated project status to reflect the M10 payload wiring slice and CI validation.
-- Updated project status to reflect the M11 extraction integration slice.
+- Updated project status to reflect the M11 extraction integration slice and CI validation.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
-- Updated extraction summaries to count extracted attachment payloads rather than only attachment metadata rows.
+- Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
 
 ## Removed
 
@@ -87,7 +87,7 @@
 
 ## Notes
 
-- M1-M10 have passed GitHub Actions validation.
-- M11 integrates payload helpers into the extraction/archive path while recursive subnode decoding remains a later slice.
-- Real-world attachment extraction still depends on recursive subnode decoding and real attachment table traversal.
+- M1-M11 have passed GitHub Actions validation.
+- M11 integrates payload helpers into the processing/archive path while recursive subnode decoding remains a later slice.
+- Attachment support still depends on recursive subnode decoding and attachment table traversal.
 - Private PST files, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
