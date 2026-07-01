@@ -123,7 +123,10 @@ mod tests {
 
     #[test]
     fn sanitizes_filenames() {
-        assert_eq!(safe_filename(Some("report:final?.pdf"), 0), "report_final_.pdf");
+        assert_eq!(
+            safe_filename(Some("report:final?.pdf"), 0),
+            "report_final_.pdf"
+        );
         assert_eq!(safe_filename(Some("../secret.txt"), 1), "secret.txt");
         assert_eq!(safe_filename(Some("   "), 2), "attachment_2");
         assert_eq!(safe_filename(None, 3), "attachment_3");
@@ -152,7 +155,10 @@ mod tests {
         assert_eq!(payload.record.message_key, "msg_123");
         assert_eq!(payload.record.filename_safe, "report.pdf");
         assert_eq!(payload.record.extension.as_deref(), Some("pdf"));
-        assert_eq!(payload.record.content_type.as_deref(), Some("application/pdf"));
+        assert_eq!(
+            payload.record.content_type.as_deref(),
+            Some("application/pdf")
+        );
         assert_eq!(payload.record.size_bytes, 9);
         assert_eq!(payload.record.extraction_status, "extracted");
         assert_eq!(payload.bytes, b"pdf bytes");
