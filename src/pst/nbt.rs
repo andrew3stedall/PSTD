@@ -2,11 +2,10 @@ use std::collections::{HashSet, VecDeque};
 
 use crate::error::{PstdError, PstdResult};
 use crate::pst::binary::{u64_le_at, u8_at};
+use crate::pst::limits::ParserLimits;
 use crate::pst::primitives::{BlockId, ByteOffset, NodeId, PageRef};
 use crate::pst::reader::PstByteReader;
 use crate::pst::trailer::PageTrailer;
-
-const MAX_TRAVERSAL_PAGES: usize = 128;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NbtEntry {
@@ -124,6 +123,14 @@ pub struct NbtIndex {
 
 impl NbtIndex {
     pub fn load_root(reader: &PstByteReader, root: Option<PageRef>) -> PstdResult<Self> {
+        Self::load_root_with_limits(reader, root, ParserLimits::default())
+    }
+
+    pub fn load_root_with_limits(
+        reader: &PstByteReader,
+        root: Option<PageRef>,
+        limits: ParserLimits,
+    ) -> PstdResult<Self> {
         let Some(root_ref) = root else {
             return Ok(Self {
                 root,
@@ -152,7 +159,7 @@ impl NbtIndex {
         let mut queue = VecDeque::from([root_ref]);
 
         while let Some(page_ref) = queue.pop_front() {
-            if parsed_pages as usize >= MAX_TRAVERSAL_PAGES {
+            if parsed_pages as usize >= limits.max_btree_pages {
                 traversal_error_count += 1;
                 break;
             }
@@ -198,13 +205,14 @@ impl NbtIndex {
 
         let duplicate_entry_count = duplicate_node_count(&entries);
         let status = format!(
-            "tree_traversed; parsed_pages={}; discovered_child_pages={}; entries={}; truncated_entries={}; duplicate_entries={}; traversal_errors={}",
+            "tree_traversed; parsed_pages={}; discovered_child_pages={}; entries={}; truncated_entries={}; duplicate_entries={}; traversal_errors={}; max_pages={}",
             parsed_pages,
             discovered_child_pages,
             entries.len(),
             truncated_entry_count,
             duplicate_entry_count,
-            traversal_error_count
+            traversal_error_count,
+            limits.max_btree_pages
         );
 
         Ok(Self {
