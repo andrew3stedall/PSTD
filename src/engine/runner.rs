@@ -136,7 +136,8 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         attachments_not_extracted: metadata
             .attachments
             .len()
-            .saturating_sub(metadata.attachment_payloads.len()) as u64,
+            .saturating_sub(metadata.attachment_payloads.len())
+            as u64,
         bytes_read: 0,
         bytes_written: 0,
         tar_shards_written: 0,
