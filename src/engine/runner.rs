@@ -105,6 +105,12 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     )?;
     tar.append_bytes(&["data", "bodies.jsonl"], &bodies.into_bytes())?;
     tar.append_bytes(&["data", "attachments.jsonl"], &attachments.into_bytes())?;
+    for payload in &metadata.body_payloads {
+        append_archive_payload(&mut tar, &payload.record.archive_path, &payload.bytes)?;
+    }
+    for payload in &metadata.attachment_payloads {
+        append_archive_payload(&mut tar, &payload.record.archive_path, &payload.bytes)?;
+    }
     tar.append_bytes(
         &["_pstfast", "folder_inventory.jsonl"],
         &folder_inventory.into_bytes(),
@@ -126,8 +132,11 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         messages_not_extracted: metadata
             .messages_discovered
             .saturating_sub(metadata.messages_extracted),
-        attachments_extracted: metadata.attachments.len() as u64,
-        attachments_not_extracted: 0,
+        attachments_extracted: metadata.attachment_payloads.len() as u64,
+        attachments_not_extracted: metadata
+            .attachments
+            .len()
+            .saturating_sub(metadata.attachment_payloads.len()) as u64,
         bytes_read: 0,
         bytes_written: 0,
         tar_shards_written: 0,
@@ -169,6 +178,15 @@ fn validate_config(config: &ExtractConfig) -> PstdResult<()> {
         ));
     }
     Ok(())
+}
+
+fn append_archive_payload(
+    tar: &mut TarShardWriter,
+    archive_path: &str,
+    bytes: &[u8],
+) -> PstdResult<()> {
+    let parts = archive_path.split('/').collect::<Vec<_>>();
+    tar.append_bytes(&parts, bytes)
 }
 
 fn write_root_progress(config: &ExtractConfig, event: &ProgressEvent) -> PstdResult<()> {
