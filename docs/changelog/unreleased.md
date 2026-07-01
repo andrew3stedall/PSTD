@@ -51,6 +51,12 @@
 - Body payload builders from parsed property contexts.
 - Attachment payload builders from parsed property contexts.
 - Subnode-reference reporting from node-index entries.
+- M10 payload wiring milestone documentation.
+- Node data-block to property-context wiring helpers.
+- Structured node payload reports.
+- Bounded subnode decode planning with depth-limit status.
+- Attachment table row to property-context conversion.
+- Attachment table row to payload construction with wiring reports.
 
 ## Changed
 
@@ -64,6 +70,7 @@
 - Updated project status to reflect the M7 parser-depth hardening slice and CI validation.
 - Updated project status to reflect the M8 traversal expansion slice and CI validation.
 - Updated project status to reflect the M9 payload and subnode traversal slice and CI validation.
+- Updated project status to reflect the M10 payload wiring slice.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
 
@@ -74,6 +81,6 @@
 ## Notes
 
 - M1-M9 have passed GitHub Actions validation.
-- M9 adds payload and subnode foundations while recursive subnode decoding remains a later slice.
-- Real-world payload extraction still depends on recursive subnode decoding and real-node wiring.
+- M10 adds payload wiring helpers while deeper subnode decoding remains a later slice.
+- Real-world payload extraction still depends on deeper subnode decoding and main extraction-path integration.
 - Private PST files, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.

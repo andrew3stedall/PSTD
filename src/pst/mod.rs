@@ -1,3 +1,4 @@
+pub mod attachment_table;
 pub mod attachments;
 pub mod bbt;
 pub mod binary;
@@ -14,6 +15,7 @@ pub mod mapi;
 pub mod message_metadata;
 pub mod messages;
 pub mod nbt;
+pub mod node_payload;
 pub mod payload;
 pub mod primitives;
 pub mod property_context;
