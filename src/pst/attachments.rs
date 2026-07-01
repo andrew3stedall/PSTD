@@ -3,8 +3,8 @@ use sha2::{Digest, Sha256};
 use crate::output::ids;
 use crate::output::metadata::AttachmentRecord;
 use crate::pst::mapi::{
-    MapiValue, PR_ATTACH_CONTENT_ID, PR_ATTACH_DATA_BIN, PR_ATTACH_FILENAME,
-    PR_ATTACH_LONG_FILENAME, PR_ATTACH_MIME_TAG, PR_ATTACHMENT_HIDDEN,
+    MapiValue, PR_ATTACHMENT_HIDDEN, PR_ATTACH_CONTENT_ID, PR_ATTACH_DATA_BIN, PR_ATTACH_FILENAME,
+    PR_ATTACH_LONG_FILENAME, PR_ATTACH_MIME_TAG,
 };
 use crate::pst::property_context::PropertyContext;
 
