@@ -91,10 +91,8 @@ pub fn extract_metadata(
                         entry.node_id,
                         &loaded.properties,
                     );
-                    let loaded_body_payloads = body_payloads_from_properties(
-                        &message.message_key,
-                        &loaded.properties,
-                    );
+                    let loaded_body_payloads =
+                        body_payloads_from_properties(&message.message_key, &loaded.properties);
                     if loaded_body_payloads.is_empty() {
                         message.body_status = "body_payload_property_absent".to_string();
                         bodies.push(unavailable_body_record(
@@ -126,7 +124,8 @@ pub fn extract_metadata(
                             "attachment_table_not_loaded",
                         ));
                     } else {
-                        message.attachment_status = "attachment_payload_property_absent".to_string();
+                        message.attachment_status =
+                            "attachment_payload_property_absent".to_string();
                     }
 
                     message.metadata_status = format!(
