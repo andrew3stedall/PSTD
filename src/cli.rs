@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 
 use crate::config::ExtractConfig;
+use crate::engine::batch::{run_batch, BatchConfig};
 use crate::engine::runner::run_extract;
 use crate::pst::inspect::inspect_pst;
 
@@ -20,6 +21,32 @@ pub enum Commands {
         input: std::path::PathBuf,
         #[arg(long)]
         output: std::path::PathBuf,
+        #[arg(long, default_value_t = true)]
+        continue_on_error: bool,
+        #[arg(long, default_value_t = false)]
+        overwrite: bool,
+        #[arg(long, default_value_t = false)]
+        manifest_only: bool,
+        #[arg(long, default_value = "tar")]
+        archive_format: String,
+        #[arg(long, default_value = "jsonl")]
+        data_format: String,
+        #[arg(long, default_value_t = 1024)]
+        tar_shard_size_mb: u64,
+        #[arg(long, default_value = "auto")]
+        progress: String,
+        #[arg(long, default_value = "info")]
+        log_level: String,
+        #[arg(long, default_value = "balanced")]
+        profile: String,
+    },
+    Batch {
+        #[arg(long)]
+        input: std::path::PathBuf,
+        #[arg(long)]
+        output: std::path::PathBuf,
+        #[arg(long, default_value_t = true)]
+        recursive: bool,
         #[arg(long, default_value_t = true)]
         continue_on_error: bool,
         #[arg(long, default_value_t = false)]
@@ -84,6 +111,52 @@ pub fn run() -> i32 {
                 }
                 Err(err) => {
                     eprintln!("PSTD extract failed: {err}");
+                    1
+                }
+            }
+        }
+        Commands::Batch {
+            input,
+            output,
+            recursive,
+            continue_on_error,
+            overwrite,
+            manifest_only,
+            archive_format,
+            data_format,
+            tar_shard_size_mb,
+            progress,
+            log_level,
+            profile,
+        } => {
+            let config = BatchConfig {
+                input,
+                output,
+                recursive,
+                continue_on_error,
+                overwrite,
+                manifest_only,
+                archive_format,
+                data_format,
+                tar_shard_size_mb,
+                progress,
+                log_level,
+                profile,
+            };
+            match run_batch(config) {
+                Ok(summary) => {
+                    println!(
+                        "PSTD batch completed: {} completed, {} failed, {} skipped",
+                        summary.pst_completed, summary.pst_failed, summary.pst_skipped
+                    );
+                    if summary.pst_failed == 0 {
+                        0
+                    } else {
+                        1
+                    }
+                }
+                Err(err) => {
+                    eprintln!("PSTD batch failed: {err}");
                     1
                 }
             }
