@@ -20,7 +20,10 @@ pub fn load_payload_block(
     limits: ParserLimits,
 ) -> PstdResult<PayloadBlock> {
     let block_ref = bbt.lookup(block_id).ok_or_else(|| {
-        PstdError::pst_parse(None, format!("payload block {:?} not found in BBT", block_id))
+        PstdError::pst_parse(
+            None,
+            format!("payload block {:?} not found in BBT", block_id),
+        )
     })?;
 
     if block_ref.size > limits.max_block_bytes {
@@ -61,7 +64,8 @@ mod tests {
         let reader = PstByteReader::open(file.path()).unwrap();
         let bbt = index_with_entry(BlockId(42), 10, 7);
 
-        let payload = load_payload_block(&reader, &bbt, BlockId(42), ParserLimits::default()).unwrap();
+        let payload =
+            load_payload_block(&reader, &bbt, BlockId(42), ParserLimits::default()).unwrap();
         assert_eq!(payload.block_id.0, 42);
         assert_eq!(payload.bytes, b"payload");
         assert_eq!(payload.status, "payload_loaded");
