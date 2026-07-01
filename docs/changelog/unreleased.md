@@ -28,6 +28,12 @@
 - M5 body helpers for stable body records, archive paths, byte counts, and SHA-256 hashes.
 - M5 attachment helpers for safe filenames, stable attachment records, archive paths, byte counts, and SHA-256 hashes.
 - Archive output scaffolding for `data/bodies.jsonl` and `data/attachments.jsonl`.
+- M6 batch and resume milestone documentation.
+- `pstd batch` command for local multi-PST batch execution.
+- Recursive PST discovery and per-PST output directory planning.
+- Batch checkpoint output at `batch_checkpoint.jsonl`.
+- Batch summary output at `batch_summary.json`.
+- Resume-by-skip behaviour for completed per-PST outputs.
 
 ## Changed
 
@@ -37,6 +43,8 @@
 - Updated output-contract guidance around structured TAR + JSONL output.
 - Updated project status to reflect M4 recipients/threading foundation work and CI validation.
 - Updated project status to reflect the M5 body and attachment foundation slice and CI validation.
+- Updated project status to reflect the M6 batch orchestration foundation slice.
+- Expanded CLI CI coverage to include `pstd batch --help`.
 
 ## Removed
 
@@ -45,6 +53,6 @@
 ## Notes
 
 - M1-M5 have passed GitHub Actions validation.
-- M5 is designed to emit deterministic body and attachment output records while current parser depth remains limited.
-- Current recipient extraction converts parsed table rows into records, but broader real-world PST recipient extraction still depends on deeper BBT/NBT and table traversal coverage.
-- Private PST files must not be committed as fixtures.
+- M6 is designed to improve local batch operation and resume safety while current parser depth remains limited.
+- Real-world payload extraction still depends on deeper BBT/NBT, property-context, table-context, and subnode traversal coverage.
+- Private PST files, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
