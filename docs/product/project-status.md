@@ -12,11 +12,12 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Structured output contract | Implemented foundation and CI validated | TAR + JSONL writer and record models exist. |
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
 | PST header parser | Implemented foundation and CI validated | Validates basic PST magic and version/variant summary. |
-| BBT/NBT parsing | Hardened foundation and CI validated | M7 adds page diagnostics, truncation counts, page level/type, and duplicate-entry counts. |
+| BBT/NBT parsing | Traversal expansion, pending CI | M8 adds bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards. |
 | Metadata-only extraction | Implemented foundation and CI validated | Root folder inventory and metadata/status rows are emitted. |
 | Recipients/threading | Implemented foundation and CI validated | M4 emits recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion. |
 | Bodies/attachments | Implemented foundation and CI validated | M5 emits body/attachment outputs and adds deterministic body and attachment helpers. |
 | Batch orchestration | Implemented foundation and CI validated | M6 adds batch discovery, per-PST outputs, checkpoints, summaries, and resume-by-skip behaviour. |
+| Table/property parse reports | Implemented foundation, pending CI | M8 adds table and property parse diagnostics while preserving existing APIs. |
 | Snowflake/web UI/search | Future work | Out of v1 implementation until later roadmap phases. |
 
 ## Merged milestones
@@ -30,6 +31,7 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M5: Message Bodies and Attachments | #59 | CI validated |
 | M6: Batch Orchestration and Resume | #65 | CI validated |
 | M7: Parser Depth Hardening | #70 | CI validated |
+| M8: Traversal Expansion | Pending | Pending CI |
 
 ## Latest validation
 
@@ -46,20 +48,19 @@ GitHub Actions validation has passed for the M1-M7 implementation set, including
 
 ## Next milestone
 
-M8: Traversal Expansion.
+M9: Payload and Subnode Traversal.
 
-M8 should add:
+M9 should add:
 
-- Multi-level BBT/NBT traversal.
-- More complete property-context traversal.
-- Better table-context traversal.
 - Attachment subnode traversal.
+- Body/property payload loading from real data blocks.
+- Folder, recipient, and attachment table traversal from real PST nodes.
 - Broader synthetic/public fixture coverage.
 
-M8 should not add Snowflake, search, or web UI work.
+M9 should not add Snowflake, search, or web UI work.
 
 ## Validation risk
 
-The M1-M7 foundation has CI coverage at the unit, smoke, Docker, and fixture level. M7 makes BBT/NBT parsing more observable, but parser-depth risk remains: real-world payload extraction still depends on deeper BBT/NBT, property-context, table-context, and attachment subnode traversal coverage.
+The M1-M7 foundation has CI coverage at the unit, smoke, Docker, and fixture level. M8 expands traversal in a bounded way, but parser-depth risk remains: real-world payload extraction still depends on deeper property-context, table-context, and attachment subnode traversal coverage.
 
 Before high-risk parser expansion, continue running the commands in [Validation Guide](../operations/validation-guide.md) and preserve fixture privacy guidance.

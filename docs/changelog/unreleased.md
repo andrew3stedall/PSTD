@@ -38,6 +38,12 @@
 - BBT page diagnostics for parsed entries, truncated entries, page type, page level, and duplicate block entries.
 - Node-index page diagnostics for parsed entries, truncated entries, page type, page level, and duplicate node entries.
 - Synthetic parser diagnostics tests for complete and truncated BBT/node-index pages.
+- M8 traversal expansion milestone documentation.
+- Bounded BBT traversal from internal pages to leaf pages.
+- Bounded node-index traversal from internal pages to leaf pages.
+- Traversal status for parsed pages, discovered child pages, repeated offsets, and traversal errors.
+- Table-context parse reports for declared/parsed rows and columns, truncated rows and columns, and omitted values.
+- Property-context parse reports for selected, unknown, skipped, and decode-error counts.
 
 ## Changed
 
@@ -49,8 +55,9 @@
 - Updated project status to reflect the M5 body and attachment foundation slice and CI validation.
 - Updated project status to reflect the M6 batch orchestration foundation slice and CI validation.
 - Updated project status to reflect the M7 parser-depth hardening slice and CI validation.
+- Updated project status to reflect the M8 traversal expansion slice.
 - Expanded CLI CI coverage to include `pstd batch --help`.
-- Expanded BBT/NBT status strings with parser diagnostics used by inspect and extract status.
+- Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
 
 ## Removed
 
@@ -59,6 +66,6 @@
 ## Notes
 
 - M1-M7 have passed GitHub Actions validation.
-- M7 improves parser observability and failure reporting while current traversal depth remains limited.
-- Real-world payload extraction still depends on deeper BBT/NBT, property-context, table-context, and subnode traversal coverage.
+- M8 expands traversal in a bounded way while current payload traversal remains limited.
+- Real-world payload extraction still depends on deeper property-context, table-context, and subnode traversal coverage.
 - Private PST files, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
