@@ -81,12 +81,15 @@ mod tests {
             subnode_block_id: None,
         };
 
-        let loaded = load_node_property_context(&reader, &bbt, &entry, ParserLimits::default())
-            .unwrap();
+        let loaded =
+            load_node_property_context(&reader, &bbt, &entry, ParserLimits::default()).unwrap();
         assert_eq!(loaded.report.node_id, 200);
         assert_eq!(loaded.report.data_block_id, 100);
         assert_eq!(loaded.report.property_count, 1);
-        assert_eq!(loaded.properties.string_value(PR_SUBJECT).as_deref(), Some("Hello from node"));
+        assert_eq!(
+            loaded.properties.string_value(PR_SUBJECT).as_deref(),
+            Some("Hello from node")
+        );
         assert_eq!(loaded.report.status, "node_property_context_loaded");
     }
 
