@@ -2,11 +2,34 @@ use sha2::{Digest, Sha256};
 
 use crate::output::ids;
 use crate::output::metadata::BodyRecord;
+use crate::pst::mapi::{MapiValue, PR_BODY, PR_HTML, PR_RTF_COMPRESSED};
+use crate::pst::property_context::PropertyContext;
 
 #[derive(Debug, Clone)]
 pub struct BodyPayload {
     pub record: BodyRecord,
     pub bytes: Vec<u8>,
+}
+
+pub fn body_payloads_from_properties(
+    message_key: &str,
+    properties: &PropertyContext,
+) -> Vec<BodyPayload> {
+    let mut payloads = Vec::new();
+
+    if let Some(text) = properties.string_value(PR_BODY) {
+        payloads.push(text_body_payload(message_key, &text));
+    }
+
+    if let Some(html) = binary_property_bytes(properties, PR_HTML) {
+        payloads.push(html_body_payload(message_key, &html));
+    }
+
+    if let Some(rtf) = binary_property_bytes(properties, PR_RTF_COMPRESSED) {
+        payloads.push(body_payload(message_key, "rtf", rtf, None));
+    }
+
+    payloads
 }
 
 pub fn text_body_payload(message_key: &str, text: &str) -> BodyPayload {
@@ -64,6 +87,15 @@ pub fn body_extension(body_type: &str) -> &'static str {
     }
 }
 
+fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u8>> {
+    let value = properties.value(tag)?;
+    match value.decoded.as_ref() {
+        Some(MapiValue::Binary(bytes)) => Some(bytes.clone()),
+        _ if !value.raw.is_empty() => Some(value.raw.clone()),
+        _ => None,
+    }
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
@@ -72,7 +104,14 @@ fn sha256_hex(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{body_extension, html_body_payload, text_body_payload, unavailable_body_record};
+    use std::collections::HashMap;
+
+    use super::{
+        body_extension, body_payloads_from_properties, html_body_payload, text_body_payload,
+        unavailable_body_record,
+    };
+    use crate::pst::mapi::{MapiValue, PR_BODY, PR_HTML};
+    use crate::pst::property_context::{PropertyContext, PropertyValue};
 
     #[test]
     fn builds_text_body_payload() {
@@ -93,6 +132,37 @@ mod tests {
         assert_eq!(payload.record.archive_path, "bodies/msg_123.html");
         assert_eq!(payload.record.encoding, None);
         assert_eq!(payload.record.size_bytes, 12);
+    }
+
+    #[test]
+    fn builds_body_payloads_from_properties() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_BODY,
+            PropertyValue {
+                tag: PR_BODY,
+                name: "body_text".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("Hello".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_HTML,
+            PropertyValue {
+                tag: PR_HTML,
+                name: "body_html".to_string(),
+                raw: b"<p>Hello</p>".to_vec(),
+                decoded: Some(MapiValue::Binary(b"<p>Hello</p>".to_vec())),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext { values };
+
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        assert_eq!(payloads.len(), 2);
+        assert_eq!(payloads[0].record.body_type, "text");
+        assert_eq!(payloads[1].record.body_type, "html");
     }
 
     #[test]
