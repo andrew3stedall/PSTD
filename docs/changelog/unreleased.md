@@ -70,7 +70,7 @@
 - Updated project status to reflect the M7 parser-depth hardening slice and CI validation.
 - Updated project status to reflect the M8 traversal expansion slice and CI validation.
 - Updated project status to reflect the M9 payload and subnode traversal slice and CI validation.
-- Updated project status to reflect the M10 payload wiring slice.
+- Updated project status to reflect the M10 payload wiring slice and CI validation.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
 
@@ -80,7 +80,7 @@
 
 ## Notes
 
-- M1-M9 have passed GitHub Actions validation.
+- M1-M10 have passed GitHub Actions validation.
 - M10 adds payload wiring helpers while deeper subnode decoding remains a later slice.
 - Real-world payload extraction still depends on deeper subnode decoding and main extraction-path integration.
 - Private PST files, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
