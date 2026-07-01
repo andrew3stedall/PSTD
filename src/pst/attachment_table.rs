@@ -22,7 +22,8 @@ pub fn attachment_payloads_from_table(
 
     for (ordinal, row) in table.rows.iter().enumerate() {
         let properties = property_context_from_table_row(row);
-        if let Some(payload) = attachment_payload_from_properties(message_key, ordinal, &properties) {
+        if let Some(payload) = attachment_payload_from_properties(message_key, ordinal, &properties)
+        {
             payloads.push(payload);
         } else {
             missing_payload_count += 1;
@@ -58,7 +59,11 @@ pub fn property_context_from_table_row(row: &TableRow) -> PropertyContext {
                 "selected".to_string(),
             )
         } else {
-            (format!("unknown_0x{tag:08x}"), None, "not_selected".to_string())
+            (
+                format!("unknown_0x{tag:08x}"),
+                None,
+                "not_selected".to_string(),
+            )
         };
 
         values.insert(
@@ -99,7 +104,10 @@ mod tests {
         let (payloads, report) = attachment_payloads_from_table("msg_123", &table);
         assert_eq!(payloads.len(), 1);
         assert_eq!(payloads[0].record.filename_safe, "report.pdf");
-        assert_eq!(payloads[0].record.content_type.as_deref(), Some("application/pdf"));
+        assert_eq!(
+            payloads[0].record.content_type.as_deref(),
+            Some("application/pdf")
+        );
         assert_eq!(payloads[0].bytes, b"attachment bytes");
         assert_eq!(report.row_count, 1);
         assert_eq!(report.payload_count, 1);
