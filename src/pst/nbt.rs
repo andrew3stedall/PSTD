@@ -181,7 +181,9 @@ impl NbtIndex {
             if parsed.is_internal() {
                 for child in parsed.child_page_refs {
                     discovered_child_pages += 1;
-                    if child.offset.0 < reader.file_size() && !seen_offsets.contains(&child.offset.0) {
+                    if child.offset.0 < reader.file_size()
+                        && !seen_offsets.contains(&child.offset.0)
+                    {
                         queue.push_back(PageRef {
                             offset: child.offset,
                         });
