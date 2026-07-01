@@ -1,7 +1,8 @@
 use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::ids;
 use crate::output::metadata::{
-    FolderRecord, ManifestRecord, MessageRecord, MessageReferenceRecord, RecipientRecord,
+    AttachmentRecord, BodyRecord, FolderRecord, ManifestRecord, MessageRecord,
+    MessageReferenceRecord, RecipientRecord,
 };
 use crate::pst::bbt::BbtIndex;
 use crate::pst::folder_tree::{root_folder_from_header, FolderInventoryRecord};
@@ -17,6 +18,8 @@ pub struct MetadataExtractionOutput {
     pub messages: Vec<MessageRecord>,
     pub recipients: Vec<RecipientRecord>,
     pub message_references: Vec<MessageReferenceRecord>,
+    pub bodies: Vec<BodyRecord>,
+    pub attachments: Vec<AttachmentRecord>,
     pub manifest: Vec<ManifestRecord>,
     pub issues: Vec<StatusRecord>,
     pub folders_discovered: u64,
@@ -40,6 +43,8 @@ pub fn extract_metadata(
     let mut issues = Vec::new();
     let recipients = Vec::new();
     let message_references = Vec::new();
+    let bodies = Vec::new();
+    let attachments = Vec::new();
 
     let metadata_status = if nbt.entries.is_empty() {
         "metadata_root_only".to_string()
@@ -91,8 +96,9 @@ pub fn extract_metadata(
                 attachment_count: 0,
                 metadata_status: "node_candidate_only".to_string(),
                 threading_status: "threading_metadata_not_attempted".to_string(),
-                body_status: "deferred_to_m5".to_string(),
-                attachment_status: "deferred_to_m5".to_string(),
+                body_status: "body_payload_not_available_at_current_parser_depth".to_string(),
+                attachment_status: "attachment_payload_not_available_at_current_parser_depth"
+                    .to_string(),
                 extraction_status: "metadata_only_candidate".to_string(),
             });
         }
@@ -132,7 +138,7 @@ pub fn extract_metadata(
             archive_path: "data/recipients.jsonl".to_string(),
             sha256: None,
             size_bytes: None,
-            status: "m4_scaffold_empty".to_string(),
+            status: "m4_recipient_output_available".to_string(),
             issue_count: 0,
         },
         ManifestRecord {
@@ -144,7 +150,31 @@ pub fn extract_metadata(
             archive_path: "data/message_references.jsonl".to_string(),
             sha256: None,
             size_bytes: None,
-            status: "m4_scaffold_empty".to_string(),
+            status: "m4_reference_output_available".to_string(),
+            issue_count: 0,
+        },
+        ManifestRecord {
+            run_id: run_id.to_string(),
+            pst_id: pst_id.to_string(),
+            message_key: None,
+            folder_key: None,
+            artefact_type: "bodies".to_string(),
+            archive_path: "data/bodies.jsonl".to_string(),
+            sha256: None,
+            size_bytes: None,
+            status: "m5_body_output_available".to_string(),
+            issue_count: 0,
+        },
+        ManifestRecord {
+            run_id: run_id.to_string(),
+            pst_id: pst_id.to_string(),
+            message_key: None,
+            folder_key: None,
+            artefact_type: "attachments".to_string(),
+            archive_path: "data/attachments.jsonl".to_string(),
+            sha256: None,
+            size_bytes: None,
+            status: "m5_attachment_output_available".to_string(),
             issue_count: 0,
         },
     ];
@@ -153,7 +183,7 @@ pub fn extract_metadata(
     let messages_discovered = nbt.entries.len() as u64;
     let messages_extracted = messages.len() as u64;
     let status = format!(
-        "{}; bbt_status={}; nbt_status={}; m4_status=recipient_threading_scaffold",
+        "{}; bbt_status={}; nbt_status={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available",
         metadata_status, bbt.status, nbt.status
     );
 
@@ -163,6 +193,8 @@ pub fn extract_metadata(
         messages,
         recipients,
         message_references,
+        bodies,
+        attachments,
         manifest,
         issues,
         folders_discovered,
@@ -211,6 +243,8 @@ pub fn fallback_metadata(
         )],
         recipients: Vec::new(),
         message_references: Vec::new(),
+        bodies: Vec::new(),
+        attachments: Vec::new(),
         manifest: Vec::new(),
         issues: vec![StatusRecord::info(
             run_id,
