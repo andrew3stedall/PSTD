@@ -20,20 +20,38 @@ pub struct TableContext {
     pub rows: Vec<TableRow>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TableContextParseReport {
+    pub context: TableContext,
+    pub declared_column_count: usize,
+    pub parsed_column_count: usize,
+    pub declared_row_count: usize,
+    pub parsed_row_count: usize,
+    pub row_width: usize,
+    pub truncated_column_count: usize,
+    pub truncated_row_count: usize,
+    pub omitted_value_count: usize,
+    pub status: String,
+}
+
 impl TableContext {
     pub fn parse(buf: &[u8], base_offset: u64) -> PstdResult<Self> {
+        Ok(Self::parse_with_report(buf, base_offset)?.context)
+    }
+
+    pub fn parse_with_report(buf: &[u8], base_offset: u64) -> PstdResult<TableContextParseReport> {
         if buf.len() < 8 {
             return Err(PstdError::pst_parse(
                 Some(base_offset),
                 "table context buffer too short",
             ));
         }
-        let column_count = u16_le_at(buf, 0, base_offset)? as usize;
-        let row_count = u16_le_at(buf, 2, base_offset)? as usize;
+        let declared_column_count = u16_le_at(buf, 0, base_offset)? as usize;
+        let declared_row_count = u16_le_at(buf, 2, base_offset)? as usize;
         let row_width = u16_le_at(buf, 4, base_offset)? as usize;
         let mut cursor = 8usize;
         let mut columns = Vec::new();
-        for _ in 0..column_count {
+        for _ in 0..declared_column_count {
             if cursor + 8 > buf.len() {
                 break;
             }
@@ -45,8 +63,11 @@ impl TableContext {
             cursor += 8;
         }
 
+        let parsed_column_count = columns.len();
+        let truncated_column_count = declared_column_count.saturating_sub(parsed_column_count);
         let mut rows = Vec::new();
-        for row_index in 0..row_count {
+        let mut omitted_value_count = 0usize;
+        for row_index in 0..declared_row_count {
             if cursor + row_width > buf.len() {
                 break;
             }
@@ -58,11 +79,84 @@ impl TableContext {
                 let width = column.width as usize;
                 if start + width <= row_buf.len() {
                     values.push((column.tag, row_buf[start..start + width].to_vec()));
+                } else {
+                    omitted_value_count += 1;
                 }
             }
             rows.push(TableRow { row_id, values });
             cursor += row_width;
         }
-        Ok(Self { columns, rows })
+
+        let parsed_row_count = rows.len();
+        let truncated_row_count = declared_row_count.saturating_sub(parsed_row_count);
+        let status = if truncated_column_count == 0
+            && truncated_row_count == 0
+            && omitted_value_count == 0
+        {
+            "table_context_parsed".to_string()
+        } else {
+            format!(
+                "table_context_parsed_with_issues; truncated_columns={truncated_column_count}; truncated_rows={truncated_row_count}; omitted_values={omitted_value_count}"
+            )
+        };
+
+        Ok(TableContextParseReport {
+            context: Self { columns, rows },
+            declared_column_count,
+            parsed_column_count,
+            declared_row_count,
+            parsed_row_count,
+            row_width,
+            truncated_column_count,
+            truncated_row_count,
+            omitted_value_count,
+            status,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TableContext;
+
+    #[test]
+    fn reports_table_parse_diagnostics() {
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&1u16.to_le_bytes());
+        buf.extend_from_slice(&2u16.to_le_bytes());
+        buf.extend_from_slice(&4u16.to_le_bytes());
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&0x0037_001fu32.to_le_bytes());
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&4u16.to_le_bytes());
+        buf.extend_from_slice(&[1, 2, 3, 4]);
+
+        let report = TableContext::parse_with_report(&buf, 0).unwrap();
+        assert_eq!(report.declared_column_count, 1);
+        assert_eq!(report.parsed_column_count, 1);
+        assert_eq!(report.declared_row_count, 2);
+        assert_eq!(report.parsed_row_count, 1);
+        assert_eq!(report.truncated_row_count, 1);
+        assert_eq!(report.omitted_value_count, 0);
+        assert!(report.status.contains("truncated_rows=1"));
+        assert_eq!(report.context.rows[0].values[0].1, vec![1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn reports_omitted_values() {
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&1u16.to_le_bytes());
+        buf.extend_from_slice(&1u16.to_le_bytes());
+        buf.extend_from_slice(&4u16.to_le_bytes());
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&0x0037_001fu32.to_le_bytes());
+        buf.extend_from_slice(&2u16.to_le_bytes());
+        buf.extend_from_slice(&4u16.to_le_bytes());
+        buf.extend_from_slice(&[1, 2, 3, 4]);
+
+        let report = TableContext::parse_with_report(&buf, 0).unwrap();
+        assert_eq!(report.parsed_row_count, 1);
+        assert_eq!(report.omitted_value_count, 1);
+        assert!(report.context.rows[0].values.is_empty());
     }
 }
