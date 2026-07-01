@@ -33,6 +33,7 @@ This tree is organised by audience.
 | M3 | [Folder and Metadata Extraction](milestones/pstd-v1-m3-folder-metadata-extraction.md) | [E3](epics/pstd-v1-e3-folder-metadata-extraction.md) | [M3 issues](issues/pstd-v1-m3-ordered-issue-plan.md) | [M3 map](architecture/pstd-v1-m3-dependency-map.md) |
 | M4 | [Recipients and Threading](milestones/pstd-v1-m4-recipients-threading.md) | TBD | [M4 issues](issues/pstd-v1-m4-ordered-issue-plan.md) | TBD |
 | M5 | [Bodies and Attachments](milestones/pstd-v1-m5-bodies-attachments.md) | TBD | [M5 issues](issues/pstd-v1-m5-ordered-issue-plan.md) | TBD |
+| M6 | [Batch and Resume](milestones/pstd-v1-m6-batch-resume.md) | TBD | [M6 issues](issues/pstd-v1-m6-ordered-issue-plan.md) | TBD |
 
 ## Engineering
 
@@ -44,6 +45,7 @@ This tree is organised by audience.
 - [M3 Folder Metadata Implementation Plan](engineering/pstd-v1-m3-folder-metadata-implementation-plan.md)
 - [M4 Recipients and Threading Implementation Plan](engineering/pstd-v1-m4-recipients-threading-implementation-plan.md)
 - [M5 Bodies and Attachments Implementation Plan](engineering/pstd-v1-m5-bodies-attachments-implementation-plan.md)
+- [M6 Batch and Resume Implementation Plan](engineering/pstd-v1-m6-batch-resume-implementation-plan.md)
 
 ## Architecture and data
 
