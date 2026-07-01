@@ -46,6 +46,17 @@ pub const PR_RECIPIENT_DISPLAY_NAME: u32 = 0x5ff6_001f;
 pub const PR_RECIPIENT_EMAIL_ADDRESS: u32 = 0x3003_001f;
 pub const PR_RECIPIENT_ADDRTYPE: u32 = 0x3002_001f;
 pub const PR_SMTP_ADDRESS: u32 = 0x39fe_001f;
+pub const PR_BODY: u32 = 0x1000_001f;
+pub const PR_RTF_COMPRESSED: u32 = 0x1009_0102;
+pub const PR_HTML: u32 = 0x1013_0102;
+pub const PR_ATTACH_DATA_BIN: u32 = 0x3701_0102;
+pub const PR_ATTACH_FILENAME: u32 = 0x3704_001f;
+pub const PR_ATTACH_METHOD: u32 = 0x3705_0003;
+pub const PR_ATTACH_LONG_FILENAME: u32 = 0x3707_001f;
+pub const PR_ATTACH_MIME_TAG: u32 = 0x370e_001f;
+pub const PR_ATTACH_CONTENT_ID: u32 = 0x3712_001f;
+pub const PR_ATTACH_SIZE: u32 = 0x0e20_0003;
+pub const PR_ATTACHMENT_HIDDEN: u32 = 0x7ffe_000b;
 
 pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
     MapiPropertyDef {
@@ -187,6 +198,61 @@ pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
         tag: PR_SMTP_ADDRESS,
         name: "smtp_address",
         value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_BODY,
+        name: "body_text",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_RTF_COMPRESSED,
+        name: "body_rtf_compressed",
+        value_type: MapiValueType::Binary,
+    },
+    MapiPropertyDef {
+        tag: PR_HTML,
+        name: "body_html",
+        value_type: MapiValueType::Binary,
+    },
+    MapiPropertyDef {
+        tag: PR_ATTACH_DATA_BIN,
+        name: "attachment_data",
+        value_type: MapiValueType::Binary,
+    },
+    MapiPropertyDef {
+        tag: PR_ATTACH_FILENAME,
+        name: "attachment_filename",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_ATTACH_METHOD,
+        name: "attachment_method",
+        value_type: MapiValueType::Integer32,
+    },
+    MapiPropertyDef {
+        tag: PR_ATTACH_LONG_FILENAME,
+        name: "attachment_long_filename",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_ATTACH_MIME_TAG,
+        name: "attachment_mime_tag",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_ATTACH_CONTENT_ID,
+        name: "attachment_content_id",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_ATTACH_SIZE,
+        name: "attachment_size",
+        value_type: MapiValueType::Integer32,
+    },
+    MapiPropertyDef {
+        tag: PR_ATTACHMENT_HIDDEN,
+        name: "attachment_hidden",
+        value_type: MapiValueType::Boolean,
     },
 ];
 

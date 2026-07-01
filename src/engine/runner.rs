@@ -64,6 +64,16 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         message_references.write_record(record)?;
     }
 
+    let mut bodies = JsonlBuffer::new();
+    for record in &metadata.bodies {
+        bodies.write_record(record)?;
+    }
+
+    let mut attachments = JsonlBuffer::new();
+    for record in &metadata.attachments {
+        attachments.write_record(record)?;
+    }
+
     let mut manifest = JsonlBuffer::new();
     for record in &metadata.manifest {
         manifest.write_record(record)?;
@@ -93,6 +103,8 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         &["data", "message_references.jsonl"],
         &message_references.into_bytes(),
     )?;
+    tar.append_bytes(&["data", "bodies.jsonl"], &bodies.into_bytes())?;
+    tar.append_bytes(&["data", "attachments.jsonl"], &attachments.into_bytes())?;
     tar.append_bytes(
         &["_pstfast", "folder_inventory.jsonl"],
         &folder_inventory.into_bytes(),
@@ -114,7 +126,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         messages_not_extracted: metadata
             .messages_discovered
             .saturating_sub(metadata.messages_extracted),
-        attachments_extracted: 0,
+        attachments_extracted: metadata.attachments.len() as u64,
         attachments_not_extracted: 0,
         bytes_read: 0,
         bytes_written: 0,
