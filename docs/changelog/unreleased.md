@@ -48,7 +48,7 @@
 - Updated project status to reflect M4 recipients/threading foundation work and CI validation.
 - Updated project status to reflect the M5 body and attachment foundation slice and CI validation.
 - Updated project status to reflect the M6 batch orchestration foundation slice and CI validation.
-- Updated project status to reflect the M7 parser-depth hardening slice.
+- Updated project status to reflect the M7 parser-depth hardening slice and CI validation.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with parser diagnostics used by inspect and extract status.
 
@@ -58,7 +58,7 @@
 
 ## Notes
 
-- M1-M6 have passed GitHub Actions validation.
+- M1-M7 have passed GitHub Actions validation.
 - M7 improves parser observability and failure reporting while current traversal depth remains limited.
 - Real-world payload extraction still depends on deeper BBT/NBT, property-context, table-context, and subnode traversal coverage.
 - Private PST files, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
