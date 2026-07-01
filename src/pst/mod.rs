@@ -1,3 +1,4 @@
+pub mod attachment_table;
 pub mod attachments;
 pub mod bbt;
 pub mod binary;
