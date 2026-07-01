@@ -38,6 +38,7 @@ This tree is organised by audience.
 | M8 | [Traversal Expansion](milestones/pstd-v1-m8-traversal-expansion.md) | TBD | [M8 issues](issues/pstd-v1-m8-ordered-issue-plan.md) | TBD |
 | M9 | [Payload and Subnode Traversal](milestones/pstd-v1-m9-payload-subnode-traversal.md) | TBD | [M9 issues](issues/pstd-v1-m9-ordered-issue-plan.md) | TBD |
 | M10 | [Payload Wiring](milestones/pstd-v1-m10-payload-wiring.md) | TBD | [M10 issues](issues/pstd-v1-m10-ordered-issue-plan.md) | TBD |
+| M11 | [Extraction Path Integration](milestones/pstd-v1-m11-extraction-integration.md) | TBD | [M11 issues](issues/pstd-v1-m11-ordered-issue-plan.md) | TBD |
 
 ## Engineering
 
@@ -54,6 +55,7 @@ This tree is organised by audience.
 - [M8 Traversal Expansion Implementation Plan](engineering/pstd-v1-m8-traversal-expansion-implementation-plan.md)
 - [M9 Payload and Subnode Traversal Implementation Plan](engineering/pstd-v1-m9-payload-subnode-traversal-implementation-plan.md)
 - [M10 Payload Wiring Implementation Plan](engineering/pstd-v1-m10-payload-wiring-implementation-plan.md)
+- [M11 Extraction Integration Implementation Plan](engineering/pstd-v1-m11-extraction-integration-implementation-plan.md)
 
 ## Architecture and data
 
