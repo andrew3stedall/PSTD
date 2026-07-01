@@ -54,7 +54,7 @@ pub fn extract_metadata(
     let mut bodies = Vec::new();
     let mut body_payloads = Vec::new();
     let mut attachments = Vec::new();
-    let mut attachment_payloads = Vec::new();
+    let attachment_payloads = Vec::new();
 
     let subnode_report = subnode_references_from_index(&nbt);
     let subnode_plans = subnode_decode_plans(&subnode_report.references, limits);
