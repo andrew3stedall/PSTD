@@ -44,6 +44,13 @@
 - Traversal status for parsed pages, discovered child pages, repeated offsets, and traversal errors.
 - Table-context parse reports for declared/parsed rows and columns, truncated rows and columns, and omitted values.
 - Property-context parse reports for selected, unknown, skipped, and decode-error counts.
+- M9 payload and subnode traversal milestone documentation.
+- Parser limits for B-tree traversal pages, payload block size, and subnode depth.
+- BBT/NBT traversal APIs that accept explicit parser limits.
+- BBT-backed payload block loading with a payload size cap.
+- Body payload builders from parsed property contexts.
+- Attachment payload builders from parsed property contexts.
+- Subnode-reference reporting from node-index entries.
 
 ## Changed
 
@@ -56,6 +63,7 @@
 - Updated project status to reflect the M6 batch orchestration foundation slice and CI validation.
 - Updated project status to reflect the M7 parser-depth hardening slice and CI validation.
 - Updated project status to reflect the M8 traversal expansion slice and CI validation.
+- Updated project status to reflect the M9 payload and subnode traversal slice.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
 
@@ -66,6 +74,6 @@
 ## Notes
 
 - M1-M8 have passed GitHub Actions validation.
-- M8 expands traversal in a bounded way while current payload traversal remains limited.
-- Real-world payload extraction still depends on deeper property-context, table-context, and subnode traversal coverage.
+- M9 adds payload and subnode foundations while recursive subnode decoding remains a later slice.
+- Real-world payload extraction still depends on recursive subnode decoding and real-node wiring.
 - Private PST files, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
