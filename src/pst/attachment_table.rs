@@ -236,7 +236,11 @@ fn decode_utf8_field(bytes: &[u8]) -> Option<String> {
     if bytes.is_empty() {
         None
     } else {
-        Some(String::from_utf8_lossy(bytes).trim_end_matches('\0').to_string())
+        Some(
+            String::from_utf8_lossy(bytes)
+                .trim_end_matches('\0')
+                .to_string(),
+        )
     }
 }
 
@@ -347,11 +351,17 @@ mod tests {
         let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &[block]);
         assert_eq!(payloads.len(), 1);
         assert_eq!(payloads[0].record.filename_safe, "compact.txt");
-        assert_eq!(payloads[0].record.content_type.as_deref(), Some("text/plain"));
+        assert_eq!(
+            payloads[0].record.content_type.as_deref(),
+            Some("text/plain")
+        );
         assert_eq!(payloads[0].bytes, b"compact bytes");
         assert_eq!(report.subnode_block_count, 1);
         assert_eq!(report.parsed_table_count, 1);
-        assert_eq!(report.table_statuses, vec!["compact_attachment_table_payloads_wired"]);
+        assert_eq!(
+            report.table_statuses,
+            vec!["compact_attachment_table_payloads_wired"]
+        );
         assert_eq!(report.status, "attachment_subnode_payloads_wired");
     }
 
@@ -363,7 +373,10 @@ mod tests {
         assert!(payloads.is_empty());
         assert_eq!(report.parsed_table_count, 1);
         assert_eq!(report.missing_payload_count, 1);
-        assert_eq!(report.table_statuses, vec!["compact_attachment_table_payloads_unavailable"]);
+        assert_eq!(
+            report.table_statuses,
+            vec!["compact_attachment_table_payloads_unavailable"]
+        );
         assert_eq!(report.status, "attachment_subnode_tables_without_payloads");
     }
 
