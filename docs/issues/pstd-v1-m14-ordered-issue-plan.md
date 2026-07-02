@@ -8,10 +8,10 @@
 
 | Order | Issue | Title | Notes |
 |---:|---:|---|---|
-| 1 | TBD | Add subnode layout classification reports | Classify loaded subnode blocks and record compatibility status. |
-| 2 | TBD | Add bounded recursive child loading | Follow known child-reference layouts within parser limits. |
-| 3 | TBD | Wire recursive subnode loading into extraction | Use recursive bounded loading for attachment subnode extraction. |
-| 4 | TBD | Add M14 validation and handoff notes | Finish docs and validation record. |
+| 1 | #102 | Add subnode layout classification reports | Classify loaded subnode blocks and record compatibility status. |
+| 2 | #103 | Add bounded recursive child loading | Follow known child-reference layouts within parser limits. |
+| 3 | #104 | Wire recursive subnode loading into extraction | Use recursive bounded loading for attachment subnode extraction. |
+| 4 | #105 | Add M14 validation and handoff notes | Finish docs and validation record. |
 
 ## Execution rule
 
