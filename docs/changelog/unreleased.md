@@ -68,6 +68,10 @@
 - Attachment payload extraction from parsed subnode table rows.
 - Main processing-path attachment extraction through matching subnode references.
 - Synthetic tests for subnode loading and subnode attachment table conversion.
+- M13 payload fixture expansion and parser compatibility milestone documentation.
+- Attachment subnode compatibility diagnostics for parse-error offsets, parse-error reasons, and parsed table statuses.
+- Synthetic mixed-block attachment compatibility coverage for extracted, unparseable, and missing-payload table blocks.
+- Synthetic body payload fixture coverage for text, HTML, and RTF payload paths.
 
 ## Changed
 
@@ -84,6 +88,7 @@
 - Updated project status to reflect the M10 payload wiring slice and CI validation.
 - Updated project status to reflect the M11 extraction integration slice and CI validation.
 - Updated project status to reflect the M12 attachment subnode integration slice and CI validation.
+- Updated project status to reflect the M13 fixture compatibility slice.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
@@ -96,6 +101,6 @@
 ## Notes
 
 - M1-M12 have passed GitHub Actions validation.
-- M12 integrates bounded subnode loading with attachment-table payload extraction while deeper recursive child-subnode discovery remains a later slice.
-- Attachment support still depends on broader PST layout coverage and public/sanitized fixture validation.
-- Private PST files, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
+- M13 expands synthetic payload fixture coverage and parser compatibility diagnostics.
+- Real-world extraction quality still depends on observed PST layout coverage and public/sanitized fixture validation.
+- Mailbox content, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
