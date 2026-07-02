@@ -83,7 +83,7 @@
 - Updated project status to reflect the M9 payload and subnode traversal slice and CI validation.
 - Updated project status to reflect the M10 payload wiring slice and CI validation.
 - Updated project status to reflect the M11 extraction integration slice and CI validation.
-- Updated project status to reflect the M12 attachment subnode integration slice.
+- Updated project status to reflect the M12 attachment subnode integration slice and CI validation.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
@@ -95,7 +95,7 @@
 
 ## Notes
 
-- M1-M11 have passed GitHub Actions validation.
+- M1-M12 have passed GitHub Actions validation.
 - M12 integrates bounded subnode loading with attachment-table payload extraction while deeper recursive child-subnode discovery remains a later slice.
 - Attachment support still depends on broader PST layout coverage and public/sanitized fixture validation.
 - Private PST files, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
