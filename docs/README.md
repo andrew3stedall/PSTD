@@ -42,6 +42,7 @@ This tree is organised by audience.
 | M12 | [Attachment Table and Subnode Integration](milestones/pstd-v1-m12-attachment-subnode-integration.md) | TBD | [M12 issues](issues/pstd-v1-m12-ordered-issue-plan.md) | TBD |
 | M13 | [Payload Fixture Expansion and Parser Compatibility](milestones/pstd-v1-m13-fixtures-compatibility.md) | TBD | [M13 issues](issues/pstd-v1-m13-ordered-issue-plan.md) | TBD |
 | M14 | [Recursive Subnode Layout Exploration](milestones/pstd-v1-m14-recursive-subnode-layouts.md) | TBD | [M14 issues](issues/pstd-v1-m14-ordered-issue-plan.md) | TBD |
+| M15 | [Observed Layout Compatibility and Public Fixture Triage](milestones/pstd-v1-m15-observed-layout-triage.md) | TBD | [M15 issues](issues/pstd-v1-m15-ordered-issue-plan.md) | TBD |
 
 ## Engineering
 
@@ -62,6 +63,7 @@ This tree is organised by audience.
 - [M12 Attachment Subnode Integration Implementation Plan](engineering/pstd-v1-m12-attachment-subnode-integration-implementation-plan.md)
 - [M13 Fixture Compatibility Implementation Plan](engineering/pstd-v1-m13-fixtures-compatibility-implementation-plan.md)
 - [M14 Recursive Subnode Layout Implementation Plan](engineering/pstd-v1-m14-recursive-subnode-layouts-implementation-plan.md)
+- [M15 Observed Layout Triage Implementation Plan](engineering/pstd-v1-m15-observed-layout-triage-implementation-plan.md)
 
 ## Architecture and data
 
@@ -71,6 +73,7 @@ This tree is organised by audience.
 ## Operations
 
 - [Local Validation](operations/local-validation.md)
+- [Public and Sanitized Fixture Triage](operations/public-sanitized-fixture-triage.md)
 - [PSTD v1 Deferred Testing Plan](operations/pstd-v1-deferred-testing-plan.md)
 - [M2 Deferred Testing Plan](operations/pstd-v1-m2-deferred-testing-plan.md)
 - [M3 Deferred Testing Plan](operations/pstd-v1-m3-deferred-testing-plan.md)
