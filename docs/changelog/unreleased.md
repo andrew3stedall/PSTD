@@ -77,6 +77,11 @@
 - Bounded recursive subnode child loading for known child-reference layouts.
 - Recursive subnode extraction-path counters for child references, child decodes, unsupported layouts, and table parse errors.
 - Synthetic tests for layout classification, mixed layout compatibility, recursive child loading, and depth-limit behaviour.
+- M15 observed layout compatibility and public fixture triage milestone documentation.
+- Observed layout triage reports for supported, partial, and parser-work cases.
+- Compatibility triage categories for table layouts, child-reference layouts, unsupported subnode layouts, unparseable attachment tables, and attachment rows without payloads.
+- Public and sanitized fixture triage guide.
+- Synthetic tests for supported layouts, unsupported layouts, parse errors, missing payloads, and empty triage reports.
 
 ## Changed
 
@@ -95,6 +100,7 @@
 - Updated project status to reflect the M12 attachment subnode integration slice and CI validation.
 - Updated project status to reflect the M13 fixture compatibility slice and CI validation.
 - Updated project status to reflect the M14 recursive subnode layout exploration slice and CI validation.
+- Updated project status to reflect the M15 observed layout triage slice.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
@@ -107,6 +113,6 @@
 ## Notes
 
 - M1-M14 have passed GitHub Actions validation.
-- M14 adds bounded recursive subnode layout exploration while unknown layouts remain explicit.
+- M15 adds compatibility triage for observed subnode and attachment-table layouts.
 - Real-world extraction quality still depends on observed PST layout coverage and public/sanitized fixture validation.
 - Mailbox content, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
