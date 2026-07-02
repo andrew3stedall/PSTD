@@ -41,6 +41,7 @@ This tree is organised by audience.
 | M11 | [Extraction Path Integration](milestones/pstd-v1-m11-extraction-integration.md) | TBD | [M11 issues](issues/pstd-v1-m11-ordered-issue-plan.md) | TBD |
 | M12 | [Attachment Table and Subnode Integration](milestones/pstd-v1-m12-attachment-subnode-integration.md) | TBD | [M12 issues](issues/pstd-v1-m12-ordered-issue-plan.md) | TBD |
 | M13 | [Payload Fixture Expansion and Parser Compatibility](milestones/pstd-v1-m13-fixtures-compatibility.md) | TBD | [M13 issues](issues/pstd-v1-m13-ordered-issue-plan.md) | TBD |
+| M14 | [Recursive Subnode Layout Exploration](milestones/pstd-v1-m14-recursive-subnode-layouts.md) | TBD | [M14 issues](issues/pstd-v1-m14-ordered-issue-plan.md) | TBD |
 
 ## Engineering
 
@@ -60,6 +61,7 @@ This tree is organised by audience.
 - [M11 Extraction Integration Implementation Plan](engineering/pstd-v1-m11-extraction-integration-implementation-plan.md)
 - [M12 Attachment Subnode Integration Implementation Plan](engineering/pstd-v1-m12-attachment-subnode-integration-implementation-plan.md)
 - [M13 Fixture Compatibility Implementation Plan](engineering/pstd-v1-m13-fixtures-compatibility-implementation-plan.md)
+- [M14 Recursive Subnode Layout Implementation Plan](engineering/pstd-v1-m14-recursive-subnode-layouts-implementation-plan.md)
 
 ## Architecture and data
 
