@@ -74,6 +74,11 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         attachments.write_record(record)?;
     }
 
+    let mut compatibility_triage = JsonlBuffer::new();
+    for record in &metadata.compatibility_triage {
+        compatibility_triage.write_record(record)?;
+    }
+
     let mut manifest = JsonlBuffer::new();
     for record in &metadata.manifest {
         manifest.write_record(record)?;
@@ -105,6 +110,10 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     )?;
     tar.append_bytes(&["data", "bodies.jsonl"], &bodies.into_bytes())?;
     tar.append_bytes(&["data", "attachments.jsonl"], &attachments.into_bytes())?;
+    tar.append_bytes(
+        &["data", "compatibility_triage.jsonl"],
+        &compatibility_triage.into_bytes(),
+    )?;
     for payload in &metadata.body_payloads {
         append_archive_payload(&mut tar, &payload.record.archive_path, &payload.bytes)?;
     }
