@@ -112,7 +112,7 @@
 - Updated project status to reflect the M14 recursive subnode layout exploration slice and CI validation.
 - Updated project status to reflect the M15 observed layout triage slice and CI validation.
 - Updated project status to reflect the M16 fixture-backed decoder expansion slice and CI validation.
-- Updated project status to reflect the M17 triage reporting slice.
+- Updated project status to reflect the M17 triage reporting slice and CI validation.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
@@ -124,7 +124,7 @@
 
 ## Notes
 
-- M1-M16 have passed GitHub Actions validation.
+- M1-M17 have passed GitHub Actions validation.
 - M17 adds decoder backlog JSONL reporting derived from compatibility triage.
-- Extraction quality still depends on broader observed PST layout coverage and safe fixture validation.
-- Generated extraction outputs and local processing artefacts should not be committed unless intentionally sanitized and reviewed.
+- Extraction quality still depends on broader observed PST layout coverage and reviewed validation inputs.
+- Generated extraction outputs and local processing artefacts should not be committed without review.
