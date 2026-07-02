@@ -22,6 +22,9 @@ pub struct AttachmentSubnodeWiringReport {
     pub row_count: usize,
     pub payload_count: usize,
     pub missing_payload_count: usize,
+    pub parse_error_offsets: Vec<u64>,
+    pub parse_error_reasons: Vec<String>,
+    pub table_statuses: Vec<String>,
     pub status: String,
 }
 
@@ -69,19 +72,25 @@ pub fn attachment_payloads_from_subnode_blocks(
     let mut parse_error_count = 0usize;
     let mut row_count = 0usize;
     let mut missing_payload_count = 0usize;
+    let mut parse_error_offsets = Vec::new();
+    let mut parse_error_reasons = Vec::new();
+    let mut table_statuses = Vec::new();
 
     for block in blocks {
         match TableContext::parse_with_report(&block.bytes, block.block_ref.offset.0) {
             Ok(table_report) => {
                 parsed_table_count += 1;
+                table_statuses.push(table_report.status);
                 let (mut table_payloads, report) =
                     attachment_payloads_from_table(message_key, &table_report.context);
                 row_count += report.row_count;
                 missing_payload_count += report.missing_payload_count;
                 payloads.append(&mut table_payloads);
             }
-            Err(_) => {
+            Err(reason) => {
                 parse_error_count += 1;
+                parse_error_offsets.push(block.block_ref.offset.0);
+                parse_error_reasons.push(reason.to_string());
             }
         }
     }
@@ -105,6 +114,9 @@ pub fn attachment_payloads_from_subnode_blocks(
         row_count,
         payload_count: payloads.len(),
         missing_payload_count,
+        parse_error_offsets,
+        parse_error_reasons,
+        table_statuses,
         status: status.to_string(),
     };
 
@@ -198,16 +210,7 @@ mod tests {
 
     #[test]
     fn wires_attachment_payloads_from_subnode_table_blocks() {
-        let block = PayloadBlock {
-            block_id: BlockId(100),
-            block_ref: BlockRef {
-                block_id: BlockId(100),
-                offset: ByteOffset(0),
-                size: 64,
-            },
-            bytes: table_buf(),
-            status: "payload_loaded".to_string(),
-        };
+        let block = payload_block(100, 0, table_buf());
 
         let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &[block]);
         assert_eq!(payloads.len(), 1);
@@ -216,26 +219,54 @@ mod tests {
         assert_eq!(report.subnode_block_count, 1);
         assert_eq!(report.parsed_table_count, 1);
         assert_eq!(report.payload_count, 1);
+        assert_eq!(report.table_statuses, vec!["table_context_parsed"]);
         assert_eq!(report.status, "attachment_subnode_payloads_wired");
     }
 
     #[test]
     fn reports_unparseable_subnode_table_blocks() {
-        let block = PayloadBlock {
-            block_id: BlockId(100),
-            block_ref: BlockRef {
-                block_id: BlockId(100),
-                offset: ByteOffset(0),
-                size: 3,
-            },
-            bytes: vec![1, 2, 3],
-            status: "payload_loaded".to_string(),
-        };
+        let block = payload_block(100, 4096, vec![1, 2, 3]);
 
         let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &[block]);
         assert!(payloads.is_empty());
         assert_eq!(report.parse_error_count, 1);
+        assert_eq!(report.parse_error_offsets, vec![4096]);
+        assert_eq!(report.parse_error_reasons.len(), 1);
+        assert!(report.parse_error_reasons[0].contains("table context buffer too short"));
         assert_eq!(report.status, "attachment_subnode_tables_unavailable");
+    }
+
+    #[test]
+    fn reports_partial_subnode_attachment_compatibility() {
+        let blocks = vec![
+            payload_block(100, 0, table_buf()),
+            payload_block(101, 8192, vec![1, 2, 3]),
+            payload_block(102, 16384, missing_payload_table_buf()),
+        ];
+
+        let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &blocks);
+        assert_eq!(payloads.len(), 1);
+        assert_eq!(report.subnode_block_count, 3);
+        assert_eq!(report.parsed_table_count, 2);
+        assert_eq!(report.parse_error_count, 1);
+        assert_eq!(report.row_count, 2);
+        assert_eq!(report.payload_count, 1);
+        assert_eq!(report.missing_payload_count, 1);
+        assert_eq!(report.parse_error_offsets, vec![8192]);
+        assert_eq!(report.status, "attachment_subnode_payloads_partially_wired");
+    }
+
+    fn payload_block(block_id: u64, offset: u64, bytes: Vec<u8>) -> PayloadBlock {
+        PayloadBlock {
+            block_id: BlockId(block_id),
+            block_ref: BlockRef {
+                block_id: BlockId(block_id),
+                offset: ByteOffset(offset),
+                size: bytes.len() as u64,
+            },
+            bytes,
+            status: "payload_loaded".to_string(),
+        }
     }
 
     fn table_buf() -> Vec<u8> {
@@ -260,6 +291,21 @@ mod tests {
         buf.extend_from_slice(attachment_bytes);
         buf.extend_from_slice(&filename);
         buf.extend_from_slice(&mime);
+        buf
+    }
+
+    fn missing_payload_table_buf() -> Vec<u8> {
+        let filename = utf16le_fixed("missing.pdf", 24);
+        let row_width = filename.len();
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&1u16.to_le_bytes());
+        buf.extend_from_slice(&1u16.to_le_bytes());
+        buf.extend_from_slice(&(row_width as u16).to_le_bytes());
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&PR_ATTACH_LONG_FILENAME.to_le_bytes());
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&(filename.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&filename);
         buf
     }
 

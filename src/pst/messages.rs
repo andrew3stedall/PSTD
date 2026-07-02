@@ -110,7 +110,7 @@ mod tests {
         body_extension, body_payloads_from_properties, html_body_payload, text_body_payload,
         unavailable_body_record,
     };
-    use crate::pst::mapi::{MapiValue, PR_BODY, PR_HTML};
+    use crate::pst::mapi::{MapiValue, PR_BODY, PR_HTML, PR_RTF_COMPRESSED};
     use crate::pst::property_context::{PropertyContext, PropertyValue};
 
     #[test]
@@ -163,6 +163,49 @@ mod tests {
         assert_eq!(payloads.len(), 2);
         assert_eq!(payloads[0].record.body_type, "text");
         assert_eq!(payloads[1].record.body_type, "html");
+    }
+
+    #[test]
+    fn builds_body_payloads_from_all_supported_synthetic_properties() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_BODY,
+            PropertyValue {
+                tag: PR_BODY,
+                name: "body_text".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("Hello".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_HTML,
+            PropertyValue {
+                tag: PR_HTML,
+                name: "body_html".to_string(),
+                raw: b"<p>Hello</p>".to_vec(),
+                decoded: Some(MapiValue::Binary(b"<p>Hello</p>".to_vec())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_RTF_COMPRESSED,
+            PropertyValue {
+                tag: PR_RTF_COMPRESSED,
+                name: "rtf_compressed".to_string(),
+                raw: b"{\\rtf1 synthetic}".to_vec(),
+                decoded: Some(MapiValue::Binary(b"{\\rtf1 synthetic}".to_vec())),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext { values };
+
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        assert_eq!(payloads.len(), 3);
+        assert_eq!(payloads[0].record.archive_path, "bodies/msg_123.txt");
+        assert_eq!(payloads[1].record.archive_path, "bodies/msg_123.html");
+        assert_eq!(payloads[2].record.archive_path, "bodies/msg_123.rtf");
+        assert_eq!(payloads[2].bytes, b"{\\rtf1 synthetic}");
     }
 
     #[test]
