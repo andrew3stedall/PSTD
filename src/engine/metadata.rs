@@ -7,9 +7,7 @@ use crate::output::metadata::{
 use crate::pst::attachment_table::attachment_payloads_from_subnode_blocks;
 use crate::pst::attachments::{unavailable_attachment_record, AttachmentPayload};
 use crate::pst::bbt::BbtIndex;
-use crate::pst::compatibility::{
-    triage_observed_attachment_layouts, CompatibilityTriageRecord,
-};
+use crate::pst::compatibility::{triage_observed_attachment_layouts, CompatibilityTriageRecord};
 use crate::pst::folder_tree::{root_folder_from_header, FolderInventoryRecord};
 use crate::pst::header::PstHeader;
 use crate::pst::limits::ParserLimits;
