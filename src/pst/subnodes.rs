@@ -275,7 +275,10 @@ pub fn load_recursive_subnode_blocks(
     }
 
     let layout_report = classify_subnode_payloads(&payloads);
-    let decoded_bytes = payloads.iter().map(|payload| payload.bytes.len() as u64).sum();
+    let decoded_bytes = payloads
+        .iter()
+        .map(|payload| payload.bytes.len() as u64)
+        .sum();
     let recursive_child_reference_count = layout_report.child_reference_count;
     let recursive_child_decode_count = payloads.len().saturating_sub(1);
     let layout_statuses = layout_report
@@ -666,7 +669,10 @@ mod tests {
         assert_eq!(loaded.payloads.len(), 1);
         assert_eq!(loaded.report.recursive_child_reference_count, 1);
         assert_eq!(loaded.report.recursive_child_decode_count, 0);
-        assert_eq!(loaded.report.status, "subnode_recursive_depth_limit_reached");
+        assert_eq!(
+            loaded.report.status,
+            "subnode_recursive_depth_limit_reached"
+        );
     }
 
     fn payload_block(block_id: BlockId, offset: u64, bytes: Vec<u8>) -> PayloadBlock {
