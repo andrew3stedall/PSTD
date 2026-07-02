@@ -100,8 +100,9 @@ pub fn triage_observed_attachment_layouts(
             category: "compact_attachment_table_layout".to_string(),
             observed_count: compact_decoder_count,
             severity: "supported".to_string(),
-            recommended_follow_up: "Keep compact attachment table regression coverage before extending this decoder."
-                .to_string(),
+            recommended_follow_up:
+                "Keep compact attachment table regression coverage before extending this decoder."
+                    .to_string(),
             status: "fixture_backed_decoder_supported".to_string(),
         });
     }
@@ -124,7 +125,7 @@ pub fn triage_observed_attachment_layouts(
             category: "unsupported_subnode_layout".to_string(),
             observed_count: layout_report.unsupported_layout_count,
             severity: "needs_parser_work".to_string(),
-            recommended_follow_up: "Capture a sanitized/public fixture fingerprint and add a focused decoder test before expanding parsing."
+            recommended_follow_up: "Capture a focused fixture fingerprint and add a decoder test before expanding parsing."
                 .to_string(),
             status: "layout_needs_triage".to_string(),
         });
