@@ -123,7 +123,9 @@ pub fn extract_metadata(
                     }
 
                     if message.has_attachments {
-                        if let Some(reference) = subnode_reference_for_entry(&subnode_report.references, entry) {
+                        if let Some(reference) =
+                            subnode_reference_for_entry(&subnode_report.references, entry)
+                        {
                             subnode_decode_attempts += 1;
                             let loaded_subnodes =
                                 load_bounded_subnode_blocks(&reader, &bbt, reference, 1, limits);
@@ -151,7 +153,7 @@ pub fn extract_metadata(
                                     run_id,
                                     "m12_attachment_table_unavailable",
                                     format!(
-                                        "Attachment table unavailable for node_{:x}: {status}",
+                                        "Attachment table status for node_{:x}: {status}",
                                         entry.node_id.0
                                     ),
                                 ));
@@ -202,7 +204,7 @@ pub fn extract_metadata(
                         run_id,
                         "m11_node_payload_unavailable",
                         format!(
-                            "Node payload could not be loaded for node_{:x}: {reason}",
+                            "Node payload status for node_{:x}: {reason}",
                             entry.node_id.0
                         ),
                     ));
