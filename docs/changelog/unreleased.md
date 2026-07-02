@@ -88,7 +88,7 @@
 - Updated project status to reflect the M10 payload wiring slice and CI validation.
 - Updated project status to reflect the M11 extraction integration slice and CI validation.
 - Updated project status to reflect the M12 attachment subnode integration slice and CI validation.
-- Updated project status to reflect the M13 fixture compatibility slice.
+- Updated project status to reflect the M13 fixture compatibility slice and CI validation.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
@@ -100,7 +100,7 @@
 
 ## Notes
 
-- M1-M12 have passed GitHub Actions validation.
+- M1-M13 have passed GitHub Actions validation.
 - M13 expands synthetic payload fixture coverage and parser compatibility diagnostics.
 - Real-world extraction quality still depends on observed PST layout coverage and public/sanitized fixture validation.
 - Mailbox content, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
