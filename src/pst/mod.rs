@@ -4,6 +4,7 @@ pub mod bbt;
 pub mod binary;
 pub mod block;
 pub mod bth;
+pub mod compatibility;
 pub mod folder_tree;
 pub mod folders;
 pub mod header;
