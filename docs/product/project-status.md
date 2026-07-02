@@ -15,9 +15,9 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | BBT/NBT parsing | Traversal expansion and CI validated | Bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards exist. |
 | Metadata processing | M12 integrated and CI validated | M12 attempts attachment extraction when message metadata has attachments and a matching subnode reference exists. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
-| Bodies/attachments | M13 fixture compatibility pending CI | M13 expands synthetic body/attachment payload coverage and attachment compatibility diagnostics. |
+| Bodies/attachments | M13 fixture compatibility and CI validated | M13 expands synthetic body/attachment payload coverage and attachment compatibility diagnostics. |
 | Batch orchestration | Implemented foundation and CI validated | Batch discovery, per-PST outputs, checkpoints, summaries, and resume-by-skip behaviour exist. |
-| Table/property parse reports | M13 fixture compatibility pending CI | M13 adds attachment subnode parse-error offsets, reasons, and table statuses for compatibility triage. |
+| Table/property parse reports | M13 fixture compatibility and CI validated | M13 adds attachment subnode parse-error offsets, reasons, and table statuses for compatibility triage. |
 | Parser limits | Implemented foundation and CI validated | Explicit parser limits exist for traversal pages, block payload size, and subnode depth. |
 | Subnode references | M12 integrated and CI validated | M12 loads bounded subnode root blocks and reports decoded/failure counts. |
 | Snowflake/web UI/search | Future work | Out of v1 implementation until later roadmap phases. |
@@ -38,11 +38,11 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M10: Payload Wiring | #86 | CI validated |
 | M11: Extraction Path Integration | #91 | CI validated |
 | M12: Attachment Table and Subnode Integration | #96 | CI validated |
-| M13: Payload Fixture Expansion and Parser Compatibility | Pending | Pending CI |
+| M13: Payload Fixture Expansion and Parser Compatibility | #101 | CI validated |
 
 ## Latest validation
 
-GitHub Actions validation has passed for the M1-M12 implementation set, including:
+GitHub Actions validation has passed for the M1-M13 implementation set, including:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -68,6 +68,6 @@ M14 should not add Snowflake, search, or web UI work.
 
 ## Validation risk
 
-The M1-M12 foundation has CI coverage at the unit, smoke, Docker, and fixture level. M13 expands synthetic fixture coverage and parser compatibility diagnostics, but real-world extraction quality still depends on observed PST layout coverage and public/sanitized fixture validation.
+The M1-M13 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Real-world extraction quality still depends on observed PST layout coverage and public/sanitized fixture validation.
 
 Before high-risk parser expansion, continue running the commands in [Validation Guide](../operations/validation-guide.md) and preserve fixture privacy guidance.
