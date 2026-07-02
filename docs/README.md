@@ -43,6 +43,7 @@ This tree is organised by audience.
 | M13 | [Payload Fixture Expansion and Parser Compatibility](milestones/pstd-v1-m13-fixtures-compatibility.md) | TBD | [M13 issues](issues/pstd-v1-m13-ordered-issue-plan.md) | TBD |
 | M14 | [Recursive Subnode Layout Exploration](milestones/pstd-v1-m14-recursive-subnode-layouts.md) | TBD | [M14 issues](issues/pstd-v1-m14-ordered-issue-plan.md) | TBD |
 | M15 | [Observed Layout Compatibility and Public Fixture Triage](milestones/pstd-v1-m15-observed-layout-triage.md) | TBD | [M15 issues](issues/pstd-v1-m15-ordered-issue-plan.md) | TBD |
+| M16 | [Fixture-Backed Decoder Expansion](milestones/pstd-v1-m16-fixture-backed-decoders.md) | TBD | [M16 issues](issues/pstd-v1-m16-ordered-issue-plan.md) | TBD |
 
 ## Engineering
 
@@ -64,6 +65,7 @@ This tree is organised by audience.
 - [M13 Fixture Compatibility Implementation Plan](engineering/pstd-v1-m13-fixtures-compatibility-implementation-plan.md)
 - [M14 Recursive Subnode Layout Implementation Plan](engineering/pstd-v1-m14-recursive-subnode-layouts-implementation-plan.md)
 - [M15 Observed Layout Triage Implementation Plan](engineering/pstd-v1-m15-observed-layout-triage-implementation-plan.md)
+- [M16 Fixture-Backed Decoder Implementation Plan](engineering/pstd-v1-m16-fixture-backed-decoders-implementation-plan.md)
 
 ## Architecture and data
 

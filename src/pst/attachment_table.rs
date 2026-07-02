@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 
-use crate::pst::attachments::{attachment_payload_from_properties, AttachmentPayload};
+use crate::pst::attachments::{
+    attachment_payload, attachment_payload_from_properties, AttachmentMetadata, AttachmentPayload,
+};
 use crate::pst::mapi::{decode_value, property_def};
 use crate::pst::payload::PayloadBlock;
 use crate::pst::property_context::{PropertyContext, PropertyValue};
 use crate::pst::table_context::{TableContext, TableRow};
+
+const COMPACT_ATTACHMENT_TABLE_MAGIC: &[u8; 4] = b"CATB";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AttachmentTableWiringReport {
@@ -75,22 +79,22 @@ pub fn attachment_payloads_from_subnode_blocks(
     let mut parse_error_offsets = Vec::new();
     let mut parse_error_reasons = Vec::new();
     let mut table_statuses = Vec::new();
+    let mut next_ordinal = 0usize;
 
     for block in blocks {
-        match TableContext::parse_with_report(&block.bytes, block.block_ref.offset.0) {
-            Ok(table_report) => {
+        match decode_attachment_block(message_key, block, next_ordinal) {
+            Ok((mut block_payloads, report)) => {
                 parsed_table_count += 1;
-                table_statuses.push(table_report.status);
-                let (mut table_payloads, report) =
-                    attachment_payloads_from_table(message_key, &table_report.context);
+                table_statuses.push(report.status);
                 row_count += report.row_count;
                 missing_payload_count += report.missing_payload_count;
-                payloads.append(&mut table_payloads);
+                next_ordinal += report.row_count;
+                payloads.append(&mut block_payloads);
             }
             Err(reason) => {
                 parse_error_count += 1;
                 parse_error_offsets.push(block.block_ref.offset.0);
-                parse_error_reasons.push(reason.to_string());
+                parse_error_reasons.push(reason);
             }
         }
     }
@@ -121,6 +125,123 @@ pub fn attachment_payloads_from_subnode_blocks(
     };
 
     (payloads, report)
+}
+
+fn decode_attachment_block(
+    message_key: &str,
+    block: &PayloadBlock,
+    start_ordinal: usize,
+) -> Result<(Vec<AttachmentPayload>, AttachmentTableWiringReport), String> {
+    if block.bytes.starts_with(COMPACT_ATTACHMENT_TABLE_MAGIC) {
+        return decode_compact_attachment_table(message_key, &block.bytes, start_ordinal);
+    }
+
+    match TableContext::parse_with_report(&block.bytes, block.block_ref.offset.0) {
+        Ok(table_report) => {
+            let (payloads, mut report) =
+                attachment_payloads_from_table(message_key, &table_report.context);
+            report.status = table_report.status;
+            Ok((payloads, report))
+        }
+        Err(reason) => Err(reason.to_string()),
+    }
+}
+
+fn decode_compact_attachment_table(
+    message_key: &str,
+    bytes: &[u8],
+    start_ordinal: usize,
+) -> Result<(Vec<AttachmentPayload>, AttachmentTableWiringReport), String> {
+    if bytes.len() < 8 {
+        return Err("compact attachment table buffer too short".to_string());
+    }
+
+    let row_count = u16::from_le_bytes([bytes[4], bytes[5]]) as usize;
+    let mut cursor = 8usize;
+    let mut payloads = Vec::new();
+    let mut missing_payload_count = 0usize;
+
+    for ordinal_offset in 0..row_count {
+        if cursor + 8 > bytes.len() {
+            return Err(format!(
+                "compact attachment table row {ordinal_offset} header truncated"
+            ));
+        }
+
+        let filename_len = u16::from_le_bytes([bytes[cursor], bytes[cursor + 1]]) as usize;
+        let content_type_len = u16::from_le_bytes([bytes[cursor + 2], bytes[cursor + 3]]) as usize;
+        let data_len = u32::from_le_bytes([
+            bytes[cursor + 4],
+            bytes[cursor + 5],
+            bytes[cursor + 6],
+            bytes[cursor + 7],
+        ]) as usize;
+        cursor += 8;
+
+        let row_len = filename_len
+            .checked_add(content_type_len)
+            .and_then(|value| value.checked_add(data_len))
+            .ok_or_else(|| "compact attachment table row length overflow".to_string())?;
+        if cursor + row_len > bytes.len() {
+            return Err(format!(
+                "compact attachment table row {ordinal_offset} data truncated"
+            ));
+        }
+
+        let filename = decode_utf8_field(&bytes[cursor..cursor + filename_len]);
+        cursor += filename_len;
+        let content_type = decode_utf8_field(&bytes[cursor..cursor + content_type_len]);
+        cursor += content_type_len;
+        let data = bytes[cursor..cursor + data_len].to_vec();
+        cursor += data_len;
+
+        if data.is_empty() {
+            missing_payload_count += 1;
+            continue;
+        }
+
+        payloads.push(attachment_payload(
+            message_key,
+            start_ordinal + ordinal_offset,
+            AttachmentMetadata {
+                filename_original: filename,
+                content_type,
+                is_inline: false,
+                content_id: None,
+            },
+            data,
+        ));
+    }
+
+    let status = if missing_payload_count == 0 {
+        "compact_attachment_table_payloads_wired"
+    } else if payloads.is_empty() {
+        "compact_attachment_table_payloads_unavailable"
+    } else {
+        "compact_attachment_table_payloads_partially_wired"
+    };
+
+    Ok((
+        payloads,
+        AttachmentTableWiringReport {
+            row_count,
+            payload_count: row_count.saturating_sub(missing_payload_count),
+            missing_payload_count,
+            status: status.to_string(),
+        },
+    ))
+}
+
+fn decode_utf8_field(bytes: &[u8]) -> Option<String> {
+    if bytes.is_empty() {
+        None
+    } else {
+        Some(
+            String::from_utf8_lossy(bytes)
+                .trim_end_matches('\0')
+                .to_string(),
+        )
+    }
 }
 
 pub fn property_context_from_table_row(row: &TableRow) -> PropertyContext {
@@ -224,6 +345,42 @@ mod tests {
     }
 
     #[test]
+    fn wires_compact_attachment_table_blocks() {
+        let block = payload_block(100, 0, compact_attachment_table_buf());
+
+        let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &[block]);
+        assert_eq!(payloads.len(), 1);
+        assert_eq!(payloads[0].record.filename_safe, "compact.txt");
+        assert_eq!(
+            payloads[0].record.content_type.as_deref(),
+            Some("text/plain")
+        );
+        assert_eq!(payloads[0].bytes, b"compact bytes");
+        assert_eq!(report.subnode_block_count, 1);
+        assert_eq!(report.parsed_table_count, 1);
+        assert_eq!(
+            report.table_statuses,
+            vec!["compact_attachment_table_payloads_wired"]
+        );
+        assert_eq!(report.status, "attachment_subnode_payloads_wired");
+    }
+
+    #[test]
+    fn reports_compact_attachment_table_missing_payloads() {
+        let block = payload_block(100, 0, compact_attachment_table_missing_payload_buf());
+
+        let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &[block]);
+        assert!(payloads.is_empty());
+        assert_eq!(report.parsed_table_count, 1);
+        assert_eq!(report.missing_payload_count, 1);
+        assert_eq!(
+            report.table_statuses,
+            vec!["compact_attachment_table_payloads_unavailable"]
+        );
+        assert_eq!(report.status, "attachment_subnode_tables_without_payloads");
+    }
+
+    #[test]
     fn reports_unparseable_subnode_table_blocks() {
         let block = payload_block(100, 4096, vec![1, 2, 3]);
 
@@ -306,6 +463,38 @@ mod tests {
         buf.extend_from_slice(&0u16.to_le_bytes());
         buf.extend_from_slice(&(filename.len() as u16).to_le_bytes());
         buf.extend_from_slice(&filename);
+        buf
+    }
+
+    fn compact_attachment_table_buf() -> Vec<u8> {
+        let filename = b"compact.txt";
+        let mime = b"text/plain";
+        let payload = b"compact bytes";
+        let mut buf = Vec::new();
+        buf.extend_from_slice(b"CATB");
+        buf.extend_from_slice(&1u16.to_le_bytes());
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&(filename.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&(mime.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        buf.extend_from_slice(filename);
+        buf.extend_from_slice(mime);
+        buf.extend_from_slice(payload);
+        buf
+    }
+
+    fn compact_attachment_table_missing_payload_buf() -> Vec<u8> {
+        let filename = b"compact-missing.txt";
+        let mime = b"text/plain";
+        let mut buf = Vec::new();
+        buf.extend_from_slice(b"CATB");
+        buf.extend_from_slice(&1u16.to_le_bytes());
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&(filename.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&(mime.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&0u32.to_le_bytes());
+        buf.extend_from_slice(filename);
+        buf.extend_from_slice(mime);
         buf
     }
 

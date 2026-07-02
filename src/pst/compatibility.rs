@@ -16,11 +16,57 @@ pub struct ObservedLayoutTriageReport {
     pub supported_layout_count: usize,
     pub partial_layout_count: usize,
     pub unsupported_layout_count: usize,
+    pub fixture_backed_decoder_count: usize,
     pub attachment_table_parse_error_count: usize,
     pub missing_payload_count: usize,
     pub follow_up_issue_count: usize,
     pub cases: Vec<LayoutCompatibilityCase>,
     pub status: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CompatibilityTriageRecord {
+    pub run_id: String,
+    pub pst_id: String,
+    pub message_key: String,
+    pub message_node_id: Option<String>,
+    pub observed_layout_count: usize,
+    pub supported_layout_count: usize,
+    pub partial_layout_count: usize,
+    pub unsupported_layout_count: usize,
+    pub fixture_backed_decoder_count: usize,
+    pub attachment_table_parse_error_count: usize,
+    pub missing_payload_count: usize,
+    pub follow_up_issue_count: usize,
+    pub cases: Vec<LayoutCompatibilityCase>,
+    pub status: String,
+}
+
+impl CompatibilityTriageRecord {
+    pub fn from_report(
+        run_id: &str,
+        pst_id: &str,
+        message_key: &str,
+        message_node_id: Option<String>,
+        report: ObservedLayoutTriageReport,
+    ) -> Self {
+        Self {
+            run_id: run_id.to_string(),
+            pst_id: pst_id.to_string(),
+            message_key: message_key.to_string(),
+            message_node_id,
+            observed_layout_count: report.observed_layout_count,
+            supported_layout_count: report.supported_layout_count,
+            partial_layout_count: report.partial_layout_count,
+            unsupported_layout_count: report.unsupported_layout_count,
+            fixture_backed_decoder_count: report.fixture_backed_decoder_count,
+            attachment_table_parse_error_count: report.attachment_table_parse_error_count,
+            missing_payload_count: report.missing_payload_count,
+            follow_up_issue_count: report.follow_up_issue_count,
+            cases: report.cases,
+            status: report.status,
+        }
+    }
 }
 
 pub fn triage_observed_attachment_layouts(
@@ -31,6 +77,11 @@ pub fn triage_observed_attachment_layouts(
     let mut supported_layout_count = 0usize;
     let mut partial_layout_count = 0usize;
     let mut unsupported_layout_count = 0usize;
+    let compact_decoder_count = attachment_report
+        .table_statuses
+        .iter()
+        .filter(|status| status.starts_with("compact_attachment_table_"))
+        .count();
 
     if layout_report.table_layout_count > 0 {
         supported_layout_count += layout_report.table_layout_count;
@@ -40,6 +91,19 @@ pub fn triage_observed_attachment_layouts(
             severity: "supported".to_string(),
             recommended_follow_up: "Keep fixture coverage for this table layout.".to_string(),
             status: "layout_supported".to_string(),
+        });
+    }
+
+    if compact_decoder_count > 0 {
+        supported_layout_count += compact_decoder_count;
+        cases.push(LayoutCompatibilityCase {
+            category: "compact_attachment_table_layout".to_string(),
+            observed_count: compact_decoder_count,
+            severity: "supported".to_string(),
+            recommended_follow_up:
+                "Keep compact attachment table regression coverage before extending this decoder."
+                    .to_string(),
+            status: "fixture_backed_decoder_supported".to_string(),
         });
     }
 
@@ -61,7 +125,7 @@ pub fn triage_observed_attachment_layouts(
             category: "unsupported_subnode_layout".to_string(),
             observed_count: layout_report.unsupported_layout_count,
             severity: "needs_parser_work".to_string(),
-            recommended_follow_up: "Capture a sanitized/public fixture fingerprint and add a focused decoder test before expanding parsing."
+            recommended_follow_up: "Capture a focused fixture fingerprint and add a decoder test before expanding parsing."
                 .to_string(),
             status: "layout_needs_triage".to_string(),
         });
@@ -112,6 +176,7 @@ pub fn triage_observed_attachment_layouts(
         supported_layout_count,
         partial_layout_count,
         unsupported_layout_count,
+        fixture_backed_decoder_count: compact_decoder_count,
         attachment_table_parse_error_count: attachment_report.parse_error_count,
         missing_payload_count: attachment_report.missing_payload_count,
         follow_up_issue_count,
@@ -122,7 +187,7 @@ pub fn triage_observed_attachment_layouts(
 
 #[cfg(test)]
 mod tests {
-    use super::triage_observed_attachment_layouts;
+    use super::{triage_observed_attachment_layouts, CompatibilityTriageRecord};
     use crate::pst::attachment_table::AttachmentSubnodeWiringReport;
     use crate::pst::primitives::{BlockId, ByteOffset};
     use crate::pst::subnodes::{SubnodeBlockLayout, SubnodeLayoutReport};
@@ -130,7 +195,7 @@ mod tests {
     #[test]
     fn triages_supported_layouts() {
         let layout_report = layout_report(2, 1, 1, 0);
-        let attachment_report = attachment_report(2, 0, 0);
+        let attachment_report = attachment_report(2, 0, 0, Vec::new());
 
         let triage = triage_observed_attachment_layouts(&layout_report, &attachment_report);
         assert_eq!(triage.status, "observed_layouts_supported");
@@ -140,9 +205,29 @@ mod tests {
     }
 
     #[test]
+    fn triages_fixture_backed_compact_decoder_hits() {
+        let layout_report = layout_report(1, 0, 0, 0);
+        let attachment_report = attachment_report(
+            1,
+            0,
+            0,
+            vec!["compact_attachment_table_payloads_wired".to_string()],
+        );
+
+        let triage = triage_observed_attachment_layouts(&layout_report, &attachment_report);
+        assert_eq!(triage.status, "observed_layouts_supported");
+        assert_eq!(triage.fixture_backed_decoder_count, 1);
+        assert_eq!(triage.supported_layout_count, 1);
+        assert!(triage
+            .cases
+            .iter()
+            .any(|case| case.category == "compact_attachment_table_layout"));
+    }
+
+    #[test]
     fn triages_unsupported_layouts_and_parse_errors() {
         let layout_report = layout_report(3, 1, 0, 2);
-        let attachment_report = attachment_report(3, 1, 0);
+        let attachment_report = attachment_report(3, 1, 0, Vec::new());
 
         let triage = triage_observed_attachment_layouts(&layout_report, &attachment_report);
         assert_eq!(triage.status, "observed_layouts_need_parser_triage");
@@ -162,7 +247,7 @@ mod tests {
     #[test]
     fn triages_missing_payloads_as_partial() {
         let layout_report = layout_report(1, 1, 0, 0);
-        let attachment_report = attachment_report(1, 0, 2);
+        let attachment_report = attachment_report(1, 0, 2, Vec::new());
 
         let triage = triage_observed_attachment_layouts(&layout_report, &attachment_report);
         assert_eq!(triage.status, "observed_layouts_need_payload_triage");
@@ -174,11 +259,33 @@ mod tests {
     #[test]
     fn triages_empty_reports() {
         let layout_report = layout_report(0, 0, 0, 0);
-        let attachment_report = attachment_report(0, 0, 0);
+        let attachment_report = attachment_report(0, 0, 0, Vec::new());
 
         let triage = triage_observed_attachment_layouts(&layout_report, &attachment_report);
         assert_eq!(triage.status, "observed_layouts_empty");
         assert_eq!(triage.cases.len(), 0);
+    }
+
+    #[test]
+    fn builds_machine_readable_triage_record() {
+        let layout_report = layout_report(1, 1, 0, 0);
+        let attachment_report = attachment_report(1, 0, 0, Vec::new());
+        let report = triage_observed_attachment_layouts(&layout_report, &attachment_report);
+
+        let record = CompatibilityTriageRecord::from_report(
+            "run_123",
+            "pst_123",
+            "msg_123",
+            Some("node_1".to_string()),
+            report,
+        );
+
+        assert_eq!(record.run_id, "run_123");
+        assert_eq!(record.pst_id, "pst_123");
+        assert_eq!(record.message_key, "msg_123");
+        assert_eq!(record.message_node_id.as_deref(), Some("node_1"));
+        assert_eq!(record.status, "observed_layouts_supported");
+        assert_eq!(record.cases.len(), 1);
     }
 
     fn layout_report(
@@ -212,6 +319,7 @@ mod tests {
         subnode_block_count: usize,
         parse_error_count: usize,
         missing_payload_count: usize,
+        table_statuses: Vec<String>,
     ) -> AttachmentSubnodeWiringReport {
         AttachmentSubnodeWiringReport {
             subnode_block_count,
@@ -222,7 +330,7 @@ mod tests {
             missing_payload_count,
             parse_error_offsets: Vec::new(),
             parse_error_reasons: Vec::new(),
-            table_statuses: Vec::new(),
+            table_statuses,
             status: "test".to_string(),
         }
     }

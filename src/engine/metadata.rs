@@ -7,6 +7,7 @@ use crate::output::metadata::{
 use crate::pst::attachment_table::attachment_payloads_from_subnode_blocks;
 use crate::pst::attachments::{unavailable_attachment_record, AttachmentPayload};
 use crate::pst::bbt::BbtIndex;
+use crate::pst::compatibility::{triage_observed_attachment_layouts, CompatibilityTriageRecord};
 use crate::pst::folder_tree::{root_folder_from_header, FolderInventoryRecord};
 use crate::pst::header::PstHeader;
 use crate::pst::limits::ParserLimits;
@@ -31,6 +32,7 @@ pub struct MetadataExtractionOutput {
     pub body_payloads: Vec<BodyPayload>,
     pub attachments: Vec<AttachmentRecord>,
     pub attachment_payloads: Vec<AttachmentPayload>,
+    pub compatibility_triage: Vec<CompatibilityTriageRecord>,
     pub manifest: Vec<ManifestRecord>,
     pub issues: Vec<StatusRecord>,
     pub folders_discovered: u64,
@@ -59,12 +61,15 @@ pub fn extract_metadata(
     let mut body_payloads: Vec<BodyPayload> = Vec::new();
     let mut attachments: Vec<AttachmentRecord> = Vec::new();
     let mut attachment_payloads: Vec<AttachmentPayload> = Vec::new();
+    let mut compatibility_triage: Vec<CompatibilityTriageRecord> = Vec::new();
     let mut subnode_decode_attempts = 0usize;
     let mut subnode_decoded_blocks = 0usize;
     let mut subnode_child_references = 0usize;
     let mut subnode_recursive_child_decodes = 0usize;
     let mut subnode_unsupported_layouts = 0usize;
     let mut attachment_table_parse_errors = 0usize;
+    let mut fixture_backed_decoder_hits = 0usize;
+    let mut compatibility_follow_up_count = 0usize;
 
     let subnode_report = subnode_references_from_index(&nbt);
     let subnode_plans = subnode_decode_plans(&subnode_report.references, limits);
@@ -145,13 +150,29 @@ pub fn extract_metadata(
                                     &loaded_subnodes.payloads,
                                 );
                             attachment_table_parse_errors += attachment_report.parse_error_count;
+                            let triage_report = triage_observed_attachment_layouts(
+                                &loaded_subnodes.layout_report,
+                                &attachment_report,
+                            );
+                            fixture_backed_decoder_hits +=
+                                triage_report.fixture_backed_decoder_count;
+                            compatibility_follow_up_count += triage_report.follow_up_issue_count;
+                            let triage_status = triage_report.status.clone();
+                            compatibility_triage.push(CompatibilityTriageRecord::from_report(
+                                run_id,
+                                pst_id,
+                                &message.message_key,
+                                message.message_node_id.clone(),
+                                triage_report,
+                            ));
 
                             if loaded_attachments.is_empty() {
                                 let status = format!(
-                                    "{}; {}; {}",
+                                    "{}; {}; {}; {}",
                                     loaded_subnodes.report.status,
                                     loaded_subnodes.layout_report.status,
-                                    attachment_report.status
+                                    attachment_report.status,
+                                    triage_status
                                 );
                                 message.attachment_status = status.clone();
                                 attachments.push(unavailable_attachment_record(
@@ -162,17 +183,19 @@ pub fn extract_metadata(
                                 ));
                                 issues.push(StatusRecord::info(
                                     run_id,
-                                    "m14_attachment_layout_unavailable",
+                                    "m16_attachment_layout_triage",
                                     format!(
-                                        "Attachment subnode layout status for node_{:x}: {status}",
+                                        "Attachment compatibility triage for node_{:x}: {status}",
                                         entry.node_id.0
                                     ),
                                 ));
                             } else {
                                 message.attachment_count = loaded_attachments.len() as u64;
                                 message.attachment_status = format!(
-                                    "{}; {}",
-                                    loaded_subnodes.report.status, attachment_report.status
+                                    "{}; {}; {}",
+                                    loaded_subnodes.report.status,
+                                    attachment_report.status,
+                                    triage_status
                                 );
                                 message.extraction_status = "metadata_and_payload".to_string();
                                 for payload in loaded_attachments.drain(..) {
@@ -267,7 +290,7 @@ pub fn extract_metadata(
     let messages_discovered = nbt.entries.len() as u64;
     let messages_extracted = messages.len() as u64;
     let status = format!(
-        "{}; bbt_status={}; nbt_status={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; body_payloads={}; attachment_payloads={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}",
+        "{}; bbt_status={}; nbt_status={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; body_payloads={}; attachment_payloads={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}",
         metadata_status,
         bbt.status,
         nbt.status,
@@ -280,7 +303,10 @@ pub fn extract_metadata(
         subnode_child_references,
         subnode_recursive_child_decodes,
         subnode_unsupported_layouts,
-        attachment_table_parse_errors
+        attachment_table_parse_errors,
+        fixture_backed_decoder_hits,
+        compatibility_triage.len(),
+        compatibility_follow_up_count
     );
 
     Ok(MetadataExtractionOutput {
@@ -293,6 +319,7 @@ pub fn extract_metadata(
         body_payloads,
         attachments,
         attachment_payloads,
+        compatibility_triage,
         manifest,
         issues,
         folders_discovered,
@@ -437,6 +464,18 @@ fn base_manifest(
             status: "m14_recursive_subnode_layout_output_available".to_string(),
             issue_count: 0,
         },
+        ManifestRecord {
+            run_id: run_id.to_string(),
+            pst_id: pst_id.to_string(),
+            message_key: None,
+            folder_key: None,
+            artefact_type: "compatibility_triage".to_string(),
+            archive_path: "data/compatibility_triage.jsonl".to_string(),
+            sha256: None,
+            size_bytes: None,
+            status: "m16_compatibility_triage_output_available".to_string(),
+            issue_count: 0,
+        },
     ]
 }
 
@@ -483,6 +522,7 @@ pub fn fallback_metadata(
         body_payloads: Vec::new(),
         attachments: Vec::new(),
         attachment_payloads: Vec::new(),
+        compatibility_triage: Vec::new(),
         manifest: Vec::new(),
         issues: vec![StatusRecord::info(
             run_id,
