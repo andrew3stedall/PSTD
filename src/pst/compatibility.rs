@@ -49,8 +49,8 @@ pub fn triage_observed_attachment_layouts(
             category: "known_child_reference_layout".to_string(),
             observed_count: layout_report.child_reference_layout_count,
             severity: "supported".to_string(),
-            recommended_follow_up: "Keep recursive depth and duplicate-guard coverage for this layout."
-                .to_string(),
+            recommended_follow_up:
+                "Keep recursive depth and duplicate-guard coverage for this layout.".to_string(),
             status: "layout_supported".to_string(),
         });
     }
@@ -85,8 +85,9 @@ pub fn triage_observed_attachment_layouts(
             category: "attachment_rows_without_payloads".to_string(),
             observed_count: attachment_report.missing_payload_count,
             severity: "partial".to_string(),
-            recommended_follow_up: "Confirm whether payload bytes are absent, indirect, or stored in a child subnode."
-                .to_string(),
+            recommended_follow_up:
+                "Confirm whether payload bytes are absent, indirect, or stored in a child subnode."
+                    .to_string(),
             status: "payload_mapping_needs_triage".to_string(),
         });
     }
