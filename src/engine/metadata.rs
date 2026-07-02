@@ -4,6 +4,7 @@ use crate::output::metadata::{
     AttachmentRecord, BodyRecord, FolderRecord, ManifestRecord, MessageRecord,
     MessageReferenceRecord, RecipientRecord,
 };
+use crate::pst::attachment_table::attachment_payloads_from_subnode_blocks;
 use crate::pst::attachments::{unavailable_attachment_record, AttachmentPayload};
 use crate::pst::bbt::BbtIndex;
 use crate::pst::folder_tree::{root_folder_from_header, FolderInventoryRecord};
@@ -14,7 +15,10 @@ use crate::pst::messages::{body_payloads_from_properties, unavailable_body_recor
 use crate::pst::nbt::{NbtEntry, NbtIndex};
 use crate::pst::node_payload::load_node_property_context;
 use crate::pst::reader::PstByteReader;
-use crate::pst::subnodes::{subnode_decode_plans, subnode_references_from_index};
+use crate::pst::subnodes::{
+    load_bounded_subnode_blocks, subnode_decode_plans, subnode_references_from_index,
+    SubnodeReference,
+};
 
 #[derive(Debug, Clone)]
 pub struct MetadataExtractionOutput {
@@ -54,7 +58,10 @@ pub fn extract_metadata(
     let mut bodies: Vec<BodyRecord> = Vec::new();
     let mut body_payloads: Vec<BodyPayload> = Vec::new();
     let mut attachments: Vec<AttachmentRecord> = Vec::new();
-    let attachment_payloads: Vec<AttachmentPayload> = Vec::new();
+    let mut attachment_payloads: Vec<AttachmentPayload> = Vec::new();
+    let mut subnode_decode_attempts = 0usize;
+    let mut subnode_decoded_blocks = 0usize;
+    let mut attachment_table_parse_errors = 0usize;
 
     let subnode_report = subnode_references_from_index(&nbt);
     let subnode_plans = subnode_decode_plans(&subnode_report.references, limits);
@@ -116,13 +123,59 @@ pub fn extract_metadata(
                     }
 
                     if message.has_attachments {
-                        message.attachment_status = "attachment_table_not_loaded".to_string();
-                        attachments.push(unavailable_attachment_record(
-                            &message.message_key,
-                            0,
-                            None,
-                            "attachment_table_not_loaded",
-                        ));
+                        if let Some(reference) =
+                            subnode_reference_for_entry(&subnode_report.references, entry)
+                        {
+                            subnode_decode_attempts += 1;
+                            let loaded_subnodes =
+                                load_bounded_subnode_blocks(&reader, &bbt, reference, 1, limits);
+                            subnode_decoded_blocks += loaded_subnodes.report.decoded_block_count;
+                            let (mut loaded_attachments, attachment_report) =
+                                attachment_payloads_from_subnode_blocks(
+                                    &message.message_key,
+                                    &loaded_subnodes.payloads,
+                                );
+                            attachment_table_parse_errors += attachment_report.parse_error_count;
+
+                            if loaded_attachments.is_empty() {
+                                let status = format!(
+                                    "{}; {}",
+                                    loaded_subnodes.report.status, attachment_report.status
+                                );
+                                message.attachment_status = status.clone();
+                                attachments.push(unavailable_attachment_record(
+                                    &message.message_key,
+                                    0,
+                                    None,
+                                    &status,
+                                ));
+                                issues.push(StatusRecord::info(
+                                    run_id,
+                                    "m12_attachment_table_unavailable",
+                                    format!(
+                                        "Attachment table status for node_{:x}: {status}",
+                                        entry.node_id.0
+                                    ),
+                                ));
+                            } else {
+                                message.attachment_count = loaded_attachments.len() as u64;
+                                message.attachment_status = attachment_report.status.clone();
+                                message.extraction_status = "metadata_and_payload".to_string();
+                                for payload in loaded_attachments.drain(..) {
+                                    attachments.push(payload.record.clone());
+                                    attachment_payloads.push(payload);
+                                }
+                            }
+                        } else {
+                            message.attachment_status =
+                                "attachment_subnode_reference_absent".to_string();
+                            attachments.push(unavailable_attachment_record(
+                                &message.message_key,
+                                0,
+                                None,
+                                "attachment_subnode_reference_absent",
+                            ));
+                        }
                     } else {
                         message.attachment_status =
                             "attachment_payload_property_absent".to_string();
@@ -151,7 +204,7 @@ pub fn extract_metadata(
                         run_id,
                         "m11_node_payload_unavailable",
                         format!(
-                            "Node payload could not be loaded for node_{:x}: {reason}",
+                            "Node payload status for node_{:x}: {reason}",
                             entry.node_id.0
                         ),
                     ));
@@ -200,14 +253,17 @@ pub fn extract_metadata(
     let messages_discovered = nbt.entries.len() as u64;
     let messages_extracted = messages.len() as u64;
     let status = format!(
-        "{}; bbt_status={}; nbt_status={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; body_payloads={}; attachment_payloads={}; subnode_references={}; subnode_decode_plans={}",
+        "{}; bbt_status={}; nbt_status={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; body_payloads={}; attachment_payloads={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; attachment_table_parse_errors={}",
         metadata_status,
         bbt.status,
         nbt.status,
         body_payloads.len(),
         attachment_payloads.len(),
         subnode_report.subnode_reference_count,
-        subnode_plans.len()
+        subnode_plans.len(),
+        subnode_decode_attempts,
+        subnode_decoded_blocks,
+        attachment_table_parse_errors
     );
 
     Ok(MetadataExtractionOutput {
@@ -231,6 +287,15 @@ pub fn extract_metadata(
 
 fn node_identity(entry: &NbtEntry) -> String {
     format!("node_{:x}", entry.node_id.0)
+}
+
+fn subnode_reference_for_entry<'a>(
+    references: &'a [SubnodeReference],
+    entry: &NbtEntry,
+) -> Option<&'a SubnodeReference> {
+    references
+        .iter()
+        .find(|reference| reference.node_id == entry.node_id)
 }
 
 fn candidate_message(
@@ -352,7 +417,7 @@ fn base_manifest(
             archive_path: "data/attachments.jsonl".to_string(),
             sha256: None,
             size_bytes: None,
-            status: "m11_attachment_output_integrated".to_string(),
+            status: "m12_attachment_subnode_output_integrated".to_string(),
             issue_count: 0,
         },
     ]

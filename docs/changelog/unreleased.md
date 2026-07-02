@@ -62,6 +62,12 @@
 - Body payload metadata and TAR file writing when payload properties are available.
 - Explicit unavailable body rows for unsupported payload paths.
 - Per-payload manifest rows for body and attachment payloads.
+- M12 attachment table and subnode integration milestone documentation.
+- Bounded subnode root-block loading with status reports.
+- Attachment-table parsing attempts from loaded subnode blocks.
+- Attachment payload extraction from parsed subnode table rows.
+- Main processing-path attachment extraction through matching subnode references.
+- Synthetic tests for subnode loading and subnode attachment table conversion.
 
 ## Changed
 
@@ -77,9 +83,11 @@
 - Updated project status to reflect the M9 payload and subnode traversal slice and CI validation.
 - Updated project status to reflect the M10 payload wiring slice and CI validation.
 - Updated project status to reflect the M11 extraction integration slice and CI validation.
+- Updated project status to reflect the M12 attachment subnode integration slice.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
+- Updated attachment status handling to distinguish missing subnode references, unavailable subnode blocks, unparseable tables, tables without payloads, and extracted payloads.
 
 ## Removed
 
@@ -88,6 +96,6 @@
 ## Notes
 
 - M1-M11 have passed GitHub Actions validation.
-- M11 integrates payload helpers into the processing/archive path while recursive subnode decoding remains a later slice.
-- Attachment support still depends on recursive subnode decoding and attachment table traversal.
+- M12 integrates bounded subnode loading with attachment-table payload extraction while deeper recursive child-subnode discovery remains a later slice.
+- Attachment support still depends on broader PST layout coverage and public/sanitized fixture validation.
 - Private PST files, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
