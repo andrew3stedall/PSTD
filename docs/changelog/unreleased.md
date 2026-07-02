@@ -82,6 +82,11 @@
 - Compatibility triage categories for table layouts, child-reference layouts, unsupported subnode layouts, unparseable attachment tables, and attachment rows without payloads.
 - Public and sanitized fixture triage guide.
 - Synthetic tests for supported layouts, unsupported layouts, parse errors, missing payloads, and empty triage reports.
+- M16 fixture-backed decoder expansion milestone documentation.
+- Compact `CATB` attachment-table decoder with focused regression coverage.
+- Compatibility triage records exported as `data/compatibility_triage.jsonl`.
+- Compatibility triage classification for compact attachment-table decoder hits.
+- Extraction status counters for fixture-backed decoder hits, compatibility triage records, and follow-up cases.
 
 ## Changed
 
@@ -101,6 +106,7 @@
 - Updated project status to reflect the M13 fixture compatibility slice and CI validation.
 - Updated project status to reflect the M14 recursive subnode layout exploration slice and CI validation.
 - Updated project status to reflect the M15 observed layout triage slice and CI validation.
+- Updated project status to reflect the M16 fixture-backed decoder expansion slice.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
@@ -113,6 +119,6 @@
 ## Notes
 
 - M1-M15 have passed GitHub Actions validation.
-- M15 adds compatibility triage for observed subnode and attachment-table layouts.
+- M16 adds one focused compact attachment-table decoder and exports compatibility triage JSONL.
 - Extraction quality still depends on broader observed PST layout coverage and safe fixture validation.
-- Mailbox content, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
+- Generated extraction outputs and local processing artefacts should not be committed unless intentionally sanitized and reviewed.
