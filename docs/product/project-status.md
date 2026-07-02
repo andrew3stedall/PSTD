@@ -9,17 +9,17 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Area | Status | Notes |
 |---|---|---|
 | Rust CLI | Implemented and CI validated | `pstd extract`, `pstd inspect`, `pstd batch`, and `pstd version` exist. |
-| Structured output contract | M15 compatibility triage pending CI | M15 adds observed-layout triage structures without changing archive output. |
+| Structured output contract | M15 compatibility triage and CI validated | M15 adds observed-layout triage structures without changing archive output. |
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
 | PST header parser | Implemented foundation and CI validated | Validates basic PST magic and version/variant summary. |
 | BBT/NBT parsing | Traversal expansion and CI validated | Bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards exist. |
 | Metadata processing | M14 recursive layout and CI validated | M14 switches attachment subnode loading to recursive bounded loading. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
-| Bodies/attachments | M15 compatibility triage pending CI | M15 classifies supported, partial, and parser-work attachment layout cases. |
+| Bodies/attachments | M15 compatibility triage and CI validated | M15 classifies supported, partial, and parser-work attachment layout cases. |
 | Batch orchestration | Implemented foundation and CI validated | Batch discovery, per-PST outputs, checkpoints, summaries, and resume-by-skip behaviour exist. |
-| Table/property parse reports | M15 compatibility triage pending CI | M15 converts table parse errors and missing payload counts into follow-up triage cases. |
+| Table/property parse reports | M15 compatibility triage and CI validated | M15 converts table parse errors and missing payload counts into follow-up triage cases. |
 | Parser limits | Implemented foundation and CI validated | Explicit parser limits exist for traversal pages, block payload size, and subnode depth. |
-| Subnode references | M15 compatibility triage pending CI | M15 summarizes observed subnode layout reports into supported, partial, and unsupported categories. |
+| Subnode references | M15 compatibility triage and CI validated | M15 summarizes observed subnode layout reports into supported, partial, and unsupported categories. |
 | Snowflake/web UI/search | Future work | Out of v1 implementation until later roadmap phases. |
 
 ## Merged milestones
@@ -40,11 +40,11 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M12: Attachment Table and Subnode Integration | #96 | CI validated |
 | M13: Payload Fixture Expansion and Parser Compatibility | #101 | CI validated |
 | M14: Recursive Subnode Layout Exploration | #106 | CI validated |
-| M15: Observed Layout Compatibility and Public Fixture Triage | Pending | Pending CI |
+| M15: Observed Layout Compatibility and Public Fixture Triage | #111 | CI validated |
 
 ## Latest validation
 
-GitHub Actions validation has passed for the M1-M14 implementation set, including:
+GitHub Actions validation has passed for the M1-M15 implementation set, including:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -70,6 +70,6 @@ M16 should not add Snowflake, search, or web UI work.
 
 ## Validation risk
 
-The M1-M14 foundation has CI coverage at the unit, smoke, Docker, and fixture level. M15 adds compatibility triage, but real-world extraction quality still depends on observed PST layout coverage and public/sanitized fixture validation.
+The M1-M15 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Extraction quality still depends on broader observed layout coverage and safe fixture validation.
 
-Before high-risk parser expansion, continue running the commands in [Validation Guide](../operations/validation-guide.md) and preserve fixture privacy guidance.
+Before high-risk parser expansion, continue running the commands in [Validation Guide](../operations/validation-guide.md) and preserve fixture handling guidance.
