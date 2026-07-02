@@ -84,6 +84,16 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         decoder_backlog.write_record(record)?;
     }
 
+    let mut decoder_backlog_review = JsonlBuffer::new();
+    for record in &metadata.decoder_backlog_review {
+        decoder_backlog_review.write_record(record)?;
+    }
+
+    let mut decoder_issue_candidates = JsonlBuffer::new();
+    for record in &metadata.decoder_issue_candidates {
+        decoder_issue_candidates.write_record(record)?;
+    }
+
     let mut manifest = JsonlBuffer::new();
     for record in &metadata.manifest {
         manifest.write_record(record)?;
@@ -122,6 +132,14 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     tar.append_bytes(
         &["data", "decoder_backlog.jsonl"],
         &decoder_backlog.into_bytes(),
+    )?;
+    tar.append_bytes(
+        &["data", "decoder_backlog_review.jsonl"],
+        &decoder_backlog_review.into_bytes(),
+    )?;
+    tar.append_bytes(
+        &["data", "decoder_issue_candidates.jsonl"],
+        &decoder_issue_candidates.into_bytes(),
     )?;
     for payload in &metadata.body_payloads {
         append_archive_payload(&mut tar, &payload.record.archive_path, &payload.bytes)?;
