@@ -1,3 +1,5 @@
+use std::collections::{BTreeMap, BTreeSet};
+
 use crate::pst::attachment_table::AttachmentSubnodeWiringReport;
 use crate::pst::subnodes::SubnodeLayoutReport;
 
@@ -56,6 +58,38 @@ pub struct DecoderBacklogItem {
     pub source_triage_status: String,
     pub recommended_action: String,
     pub backlog_status: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DecoderBacklogReviewSummary {
+    pub run_id: String,
+    pub pst_id: String,
+    pub total_items: usize,
+    pub high_priority_count: usize,
+    pub medium_priority_count: usize,
+    pub low_priority_count: usize,
+    pub decoder_work_count: usize,
+    pub payload_mapping_count: usize,
+    pub unique_candidate_count: usize,
+    pub top_candidate_key: Option<String>,
+    pub review_status: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DecoderIssueCandidate {
+    pub run_id: String,
+    pub pst_id: String,
+    pub decoder_candidate_key: String,
+    pub category: String,
+    pub priority: String,
+    pub backlog_status: String,
+    pub affected_message_count: usize,
+    pub observed_total: usize,
+    pub source_item_count: usize,
+    pub recommended_title: String,
+    pub recommended_action: String,
+    pub checklist: Vec<String>,
+    pub issue_status: String,
 }
 
 impl CompatibilityTriageRecord {
@@ -232,6 +266,120 @@ pub fn decoder_backlog_from_triage_records(
     items
 }
 
+pub fn decoder_backlog_review_summary(
+    run_id: &str,
+    pst_id: &str,
+    items: &[DecoderBacklogItem],
+) -> DecoderBacklogReviewSummary {
+    let mut unique_candidate_keys = BTreeSet::new();
+    let mut high_priority_count = 0usize;
+    let mut medium_priority_count = 0usize;
+    let mut low_priority_count = 0usize;
+    let mut decoder_work_count = 0usize;
+    let mut payload_mapping_count = 0usize;
+
+    for item in items {
+        unique_candidate_keys.insert(item.decoder_candidate_key.clone());
+        match item.priority.as_str() {
+            "high" => high_priority_count += 1,
+            "medium" => medium_priority_count += 1,
+            _ => low_priority_count += 1,
+        }
+        if item.backlog_status == "payload_mapping_backlog_open" {
+            payload_mapping_count += 1;
+        } else {
+            decoder_work_count += 1;
+        }
+    }
+
+    let top_candidate_key = items
+        .iter()
+        .min_by_key(|item| {
+            (
+                priority_rank(&item.priority),
+                item.decoder_candidate_key.as_str(),
+            )
+        })
+        .map(|item| item.decoder_candidate_key.clone());
+
+    let review_status = if items.is_empty() {
+        "decoder_backlog_review_empty"
+    } else if high_priority_count > 0 {
+        "decoder_backlog_review_high_priority_open"
+    } else if medium_priority_count > 0 {
+        "decoder_backlog_review_medium_priority_open"
+    } else {
+        "decoder_backlog_review_low_priority_open"
+    };
+
+    DecoderBacklogReviewSummary {
+        run_id: run_id.to_string(),
+        pst_id: pst_id.to_string(),
+        total_items: items.len(),
+        high_priority_count,
+        medium_priority_count,
+        low_priority_count,
+        decoder_work_count,
+        payload_mapping_count,
+        unique_candidate_count: unique_candidate_keys.len(),
+        top_candidate_key,
+        review_status: review_status.to_string(),
+    }
+}
+
+pub fn decoder_issue_candidates_from_backlog(
+    run_id: &str,
+    pst_id: &str,
+    items: &[DecoderBacklogItem],
+) -> Vec<DecoderIssueCandidate> {
+    let mut grouped: BTreeMap<String, Vec<&DecoderBacklogItem>> = BTreeMap::new();
+    for item in items {
+        grouped
+            .entry(item.decoder_candidate_key.clone())
+            .or_default()
+            .push(item);
+    }
+
+    let mut candidates = grouped
+        .into_iter()
+        .map(|(candidate_key, grouped_items)| {
+            let first = grouped_items[0];
+            let affected_message_count = grouped_items
+                .iter()
+                .map(|item| item.message_key.as_str())
+                .collect::<BTreeSet<_>>()
+                .len();
+            let observed_total = grouped_items
+                .iter()
+                .map(|item| item.observed_count)
+                .sum::<usize>();
+            DecoderIssueCandidate {
+                run_id: run_id.to_string(),
+                pst_id: pst_id.to_string(),
+                decoder_candidate_key: candidate_key,
+                category: first.category.clone(),
+                priority: first.priority.clone(),
+                backlog_status: first.backlog_status.clone(),
+                affected_message_count,
+                observed_total,
+                source_item_count: grouped_items.len(),
+                recommended_title: recommended_issue_title(first),
+                recommended_action: first.recommended_action.clone(),
+                checklist: review_checklist(first),
+                issue_status: "issue_candidate_ready_for_review".to_string(),
+            }
+        })
+        .collect::<Vec<_>>();
+
+    candidates.sort_by_key(|candidate| {
+        (
+            priority_rank(&candidate.priority),
+            candidate.decoder_candidate_key.clone(),
+        )
+    });
+    candidates
+}
+
 fn decoder_candidate_key(category: &str, status: &str) -> String {
     format!("{category}:{status}")
 }
@@ -254,10 +402,51 @@ fn backlog_status(severity: &str) -> &'static str {
     }
 }
 
+fn priority_rank(priority: &str) -> u8 {
+    match priority {
+        "high" => 0,
+        "medium" => 1,
+        _ => 2,
+    }
+}
+
+fn recommended_issue_title(item: &DecoderBacklogItem) -> String {
+    format!(
+        "[decoder-backlog] {} ({})",
+        item.category.replace('_', " "),
+        item.priority
+    )
+}
+
+fn review_checklist(item: &DecoderBacklogItem) -> Vec<String> {
+    let mut checklist = vec![
+        "Review the source decoder_backlog.jsonl rows.".to_string(),
+        "Confirm the category, priority, and affected message count.".to_string(),
+        "Add a focused regression test before changing parser behaviour.".to_string(),
+        "Preserve fallback status for unsupported rows.".to_string(),
+    ];
+
+    match item.category.as_str() {
+        "unsupported_subnode_layout" => checklist.push(
+            "Document the observed subnode layout before adding a decoder.".to_string(),
+        ),
+        "unparseable_attachment_table" => checklist.push(
+            "Record parse-error offsets and reasons in the issue body.".to_string(),
+        ),
+        "attachment_rows_without_payloads" => checklist.push(
+            "Trace whether payload bytes are direct, indirect, or in a child subnode.".to_string(),
+        ),
+        _ => checklist.push("Record the reviewed evidence before implementation.".to_string()),
+    }
+
+    checklist
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        decoder_backlog_from_triage_records, triage_observed_attachment_layouts,
+        decoder_backlog_from_triage_records, decoder_backlog_review_summary,
+        decoder_issue_candidates_from_backlog, triage_observed_attachment_layouts,
         CompatibilityTriageRecord,
     };
     use crate::pst::attachment_table::AttachmentSubnodeWiringReport;
@@ -362,18 +551,7 @@ mod tests {
 
     #[test]
     fn builds_decoder_backlog_from_non_supported_cases() {
-        let layout_report = layout_report(3, 1, 0, 2);
-        let attachment_report = attachment_report(3, 1, 2, Vec::new());
-        let report = triage_observed_attachment_layouts(&layout_report, &attachment_report);
-        let record = CompatibilityTriageRecord::from_report(
-            "run_123",
-            "pst_123",
-            "msg_123",
-            Some("node_1".to_string()),
-            report,
-        );
-
-        let backlog = decoder_backlog_from_triage_records(&[record]);
+        let backlog = sample_backlog();
 
         assert_eq!(backlog.len(), 3);
         assert!(backlog
@@ -404,6 +582,66 @@ mod tests {
         let backlog = decoder_backlog_from_triage_records(&[record]);
 
         assert!(backlog.is_empty());
+    }
+
+    #[test]
+    fn summarizes_decoder_backlog_for_review() {
+        let backlog = sample_backlog();
+
+        let summary = decoder_backlog_review_summary("run_123", "pst_123", &backlog);
+
+        assert_eq!(summary.total_items, 3);
+        assert_eq!(summary.high_priority_count, 2);
+        assert_eq!(summary.medium_priority_count, 1);
+        assert_eq!(summary.low_priority_count, 0);
+        assert_eq!(summary.decoder_work_count, 2);
+        assert_eq!(summary.payload_mapping_count, 1);
+        assert_eq!(summary.unique_candidate_count, 3);
+        assert_eq!(
+            summary.review_status,
+            "decoder_backlog_review_high_priority_open"
+        );
+    }
+
+    #[test]
+    fn summarizes_empty_backlog_for_review() {
+        let summary = decoder_backlog_review_summary("run_123", "pst_123", &[]);
+
+        assert_eq!(summary.total_items, 0);
+        assert_eq!(summary.top_candidate_key, None);
+        assert_eq!(summary.review_status, "decoder_backlog_review_empty");
+    }
+
+    #[test]
+    fn builds_issue_candidates_from_backlog() {
+        let backlog = sample_backlog();
+
+        let candidates = decoder_issue_candidates_from_backlog("run_123", "pst_123", &backlog);
+
+        assert_eq!(candidates.len(), 3);
+        assert_eq!(candidates[0].priority, "high");
+        assert_eq!(candidates[0].issue_status, "issue_candidate_ready_for_review");
+        assert!(candidates[0]
+            .checklist
+            .iter()
+            .any(|item| item.contains("regression test")));
+        assert!(candidates
+            .iter()
+            .any(|candidate| candidate.backlog_status == "payload_mapping_backlog_open"));
+    }
+
+    fn sample_backlog() -> Vec<super::DecoderBacklogItem> {
+        let layout_report = layout_report(3, 1, 0, 2);
+        let attachment_report = attachment_report(3, 1, 2, Vec::new());
+        let report = triage_observed_attachment_layouts(&layout_report, &attachment_report);
+        let record = CompatibilityTriageRecord::from_report(
+            "run_123",
+            "pst_123",
+            "msg_123",
+            Some("node_1".to_string()),
+            report,
+        );
+        decoder_backlog_from_triage_records(&[record])
     }
 
     fn layout_report(
