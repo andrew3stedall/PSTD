@@ -427,12 +427,11 @@ fn review_checklist(item: &DecoderBacklogItem) -> Vec<String> {
     ];
 
     match item.category.as_str() {
-        "unsupported_subnode_layout" => checklist.push(
-            "Document the observed subnode layout before adding a decoder.".to_string(),
-        ),
-        "unparseable_attachment_table" => checklist.push(
-            "Record parse-error offsets and reasons in the issue body.".to_string(),
-        ),
+        "unsupported_subnode_layout" => checklist
+            .push("Document the observed subnode layout before adding a decoder.".to_string()),
+        "unparseable_attachment_table" => {
+            checklist.push("Record parse-error offsets and reasons in the issue body.".to_string())
+        }
         "attachment_rows_without_payloads" => checklist.push(
             "Trace whether payload bytes are direct, indirect, or in a child subnode.".to_string(),
         ),
@@ -620,7 +619,10 @@ mod tests {
 
         assert_eq!(candidates.len(), 3);
         assert_eq!(candidates[0].priority, "high");
-        assert_eq!(candidates[0].issue_status, "issue_candidate_ready_for_review");
+        assert_eq!(
+            candidates[0].issue_status,
+            "issue_candidate_ready_for_review"
+        );
         assert!(candidates[0]
             .checklist
             .iter()
