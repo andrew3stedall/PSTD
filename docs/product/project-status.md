@@ -9,17 +9,17 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Area | Status | Notes |
 |---|---|---|
 | Rust CLI | Implemented and CI validated | `pstd extract`, `pstd inspect`, `pstd batch`, and `pstd version` exist. |
-| Structured output contract | M11 integrated and CI validated | M11 writes payload files into TAR archives when helper logic produces payloads. |
+| Structured output contract | M12 integration pending CI | M12 reuses M11 payload file writing for attachment payloads extracted through subnode tables. |
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
 | PST header parser | Implemented foundation and CI validated | Validates basic PST magic and version/variant summary. |
 | BBT/NBT parsing | Traversal expansion and CI validated | Bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards exist. |
-| Metadata processing | M11 integrated and CI validated | M11 attempts node payload-to-property context loading for node-index candidates. |
+| Metadata processing | M12 integration pending CI | M12 attempts attachment extraction when message metadata has attachments and a matching subnode reference exists. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
-| Bodies/attachments | M11 integrated and CI validated | M11 emits body payload records, unavailable body rows, and payload archive files where available. |
+| Bodies/attachments | M12 integration pending CI | M12 adds bounded subnode loading, attachment-table parsing from subnode blocks, and attachment payload generation. |
 | Batch orchestration | Implemented foundation and CI validated | Batch discovery, per-PST outputs, checkpoints, summaries, and resume-by-skip behaviour exist. |
 | Table/property parse reports | Implemented foundation and CI validated | Table and property parse diagnostics preserve existing APIs. |
 | Parser limits | Implemented foundation and CI validated | Explicit parser limits exist for traversal pages, block payload size, and subnode depth. |
-| Subnode references | Decode planning and CI validated | Bounded subnode decode planning exists with depth-limit status. |
+| Subnode references | M12 integration pending CI | M12 loads bounded subnode root blocks and reports decoded/failure counts. |
 | Snowflake/web UI/search | Future work | Out of v1 implementation until later roadmap phases. |
 
 ## Merged milestones
@@ -37,6 +37,7 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M9: Payload and Subnode Traversal | #81 | CI validated |
 | M10: Payload Wiring | #86 | CI validated |
 | M11: Extraction Path Integration | #91 | CI validated |
+| M12: Attachment Table and Subnode Integration | Pending | Pending CI |
 
 ## Latest validation
 
@@ -53,19 +54,19 @@ GitHub Actions validation has passed for the M1-M11 implementation set, includin
 
 ## Next milestone
 
-M12: Attachment Table and Subnode Integration.
+M13: Payload Fixture Expansion and Parser Compatibility.
 
-M12 should add:
+M13 should add:
 
-- Main processing-path integration for attachment table traversal.
-- Recursive subnode binary decoding.
-- Table-derived attachment payload support from PST nodes.
-- Deeper synthetic and public fixture coverage.
+- Broader synthetic fixture coverage for body and attachment payload paths.
+- Public/sanitized PST fixture validation where licensing and privacy allow it.
+- Parser compatibility diagnostics for subnode/table layouts not yet decoded.
+- Clear follow-up issues for remaining recursive attachment structures.
 
-M12 should not add Snowflake, search, or web UI work.
+M13 should not add Snowflake, search, or web UI work.
 
 ## Validation risk
 
-The M1-M11 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Parser-depth risk remains around recursive subnode decoding and attachment table traversal.
+The M1-M11 foundation has CI coverage at the unit, smoke, Docker, and fixture level. M12 improves attachment-table and subnode integration, but real-world attachment extraction still depends on more PST layout coverage and public/sanitized fixture validation.
 
 Before high-risk parser expansion, continue running the commands in [Validation Guide](../operations/validation-guide.md) and preserve fixture privacy guidance.
