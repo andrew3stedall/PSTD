@@ -42,6 +42,22 @@ pub struct CompatibilityTriageRecord {
     pub status: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DecoderBacklogItem {
+    pub run_id: String,
+    pub pst_id: String,
+    pub message_key: String,
+    pub message_node_id: Option<String>,
+    pub decoder_candidate_key: String,
+    pub category: String,
+    pub priority: String,
+    pub severity: String,
+    pub observed_count: usize,
+    pub source_triage_status: String,
+    pub recommended_action: String,
+    pub backlog_status: String,
+}
+
 impl CompatibilityTriageRecord {
     pub fn from_report(
         run_id: &str,
@@ -185,9 +201,65 @@ pub fn triage_observed_attachment_layouts(
     }
 }
 
+pub fn decoder_backlog_from_triage_records(
+    records: &[CompatibilityTriageRecord],
+) -> Vec<DecoderBacklogItem> {
+    let mut items = Vec::new();
+
+    for record in records {
+        for case in &record.cases {
+            if case.severity == "supported" {
+                continue;
+            }
+
+            items.push(DecoderBacklogItem {
+                run_id: record.run_id.clone(),
+                pst_id: record.pst_id.clone(),
+                message_key: record.message_key.clone(),
+                message_node_id: record.message_node_id.clone(),
+                decoder_candidate_key: decoder_candidate_key(&case.category, &case.status),
+                category: case.category.clone(),
+                priority: backlog_priority(&case.category, &case.severity).to_string(),
+                severity: case.severity.clone(),
+                observed_count: case.observed_count,
+                source_triage_status: record.status.clone(),
+                recommended_action: case.recommended_follow_up.clone(),
+                backlog_status: backlog_status(&case.severity).to_string(),
+            });
+        }
+    }
+
+    items
+}
+
+fn decoder_candidate_key(category: &str, status: &str) -> String {
+    format!("{category}:{status}")
+}
+
+fn backlog_priority(category: &str, severity: &str) -> &'static str {
+    match (category, severity) {
+        ("unsupported_subnode_layout", _) => "high",
+        ("unparseable_attachment_table", _) => "high",
+        ("attachment_rows_without_payloads", _) => "medium",
+        (_, "partial") => "medium",
+        _ => "low",
+    }
+}
+
+fn backlog_status(severity: &str) -> &'static str {
+    if severity == "partial" {
+        "payload_mapping_backlog_open"
+    } else {
+        "decoder_backlog_open"
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{triage_observed_attachment_layouts, CompatibilityTriageRecord};
+    use super::{
+        decoder_backlog_from_triage_records, triage_observed_attachment_layouts,
+        CompatibilityTriageRecord,
+    };
     use crate::pst::attachment_table::AttachmentSubnodeWiringReport;
     use crate::pst::primitives::{BlockId, ByteOffset};
     use crate::pst::subnodes::{SubnodeBlockLayout, SubnodeLayoutReport};
@@ -286,6 +358,52 @@ mod tests {
         assert_eq!(record.message_node_id.as_deref(), Some("node_1"));
         assert_eq!(record.status, "observed_layouts_supported");
         assert_eq!(record.cases.len(), 1);
+    }
+
+    #[test]
+    fn builds_decoder_backlog_from_non_supported_cases() {
+        let layout_report = layout_report(3, 1, 0, 2);
+        let attachment_report = attachment_report(3, 1, 2, Vec::new());
+        let report = triage_observed_attachment_layouts(&layout_report, &attachment_report);
+        let record = CompatibilityTriageRecord::from_report(
+            "run_123",
+            "pst_123",
+            "msg_123",
+            Some("node_1".to_string()),
+            report,
+        );
+
+        let backlog = decoder_backlog_from_triage_records(&[record]);
+
+        assert_eq!(backlog.len(), 3);
+        assert!(backlog
+            .iter()
+            .any(|item| item.category == "unsupported_subnode_layout"
+                && item.priority == "high"
+                && item.backlog_status == "decoder_backlog_open"));
+        assert!(backlog
+            .iter()
+            .any(|item| item.category == "unparseable_attachment_table"
+                && item.priority == "high"
+                && item.backlog_status == "decoder_backlog_open"));
+        assert!(backlog
+            .iter()
+            .any(|item| item.category == "attachment_rows_without_payloads"
+                && item.priority == "medium"
+                && item.backlog_status == "payload_mapping_backlog_open"));
+    }
+
+    #[test]
+    fn skips_supported_cases_in_decoder_backlog() {
+        let layout_report = layout_report(2, 1, 1, 0);
+        let attachment_report = attachment_report(2, 0, 0, Vec::new());
+        let report = triage_observed_attachment_layouts(&layout_report, &attachment_report);
+        let record =
+            CompatibilityTriageRecord::from_report("run_123", "pst_123", "msg_123", None, report);
+
+        let backlog = decoder_backlog_from_triage_records(&[record]);
+
+        assert!(backlog.is_empty());
     }
 
     fn layout_report(

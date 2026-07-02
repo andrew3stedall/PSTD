@@ -87,6 +87,11 @@
 - Compatibility triage records exported as `data/compatibility_triage.jsonl`.
 - Compatibility triage classification for compact attachment-table decoder hits.
 - Extraction status counters for fixture-backed decoder hits, compatibility triage records, and follow-up cases.
+- M17 compatibility triage reporting and decoder backlog milestone documentation.
+- Decoder backlog records derived from non-supported compatibility triage cases.
+- Decoder backlog priority mapping for parser and payload mapping work.
+- Decoder backlog records exported as `data/decoder_backlog.jsonl`.
+- Extraction status counter for decoder backlog items.
 
 ## Changed
 
@@ -107,6 +112,7 @@
 - Updated project status to reflect the M14 recursive subnode layout exploration slice and CI validation.
 - Updated project status to reflect the M15 observed layout triage slice and CI validation.
 - Updated project status to reflect the M16 fixture-backed decoder expansion slice and CI validation.
+- Updated project status to reflect the M17 triage reporting slice.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
@@ -119,6 +125,6 @@
 ## Notes
 
 - M1-M16 have passed GitHub Actions validation.
-- M16 adds one focused compact attachment-table decoder and exports compatibility triage JSONL.
+- M17 adds decoder backlog JSONL reporting derived from compatibility triage.
 - Extraction quality still depends on broader observed PST layout coverage and safe fixture validation.
 - Generated extraction outputs and local processing artefacts should not be committed unless intentionally sanitized and reviewed.

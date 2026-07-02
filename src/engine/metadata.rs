@@ -7,7 +7,10 @@ use crate::output::metadata::{
 use crate::pst::attachment_table::attachment_payloads_from_subnode_blocks;
 use crate::pst::attachments::{unavailable_attachment_record, AttachmentPayload};
 use crate::pst::bbt::BbtIndex;
-use crate::pst::compatibility::{triage_observed_attachment_layouts, CompatibilityTriageRecord};
+use crate::pst::compatibility::{
+    decoder_backlog_from_triage_records, triage_observed_attachment_layouts,
+    CompatibilityTriageRecord, DecoderBacklogItem,
+};
 use crate::pst::folder_tree::{root_folder_from_header, FolderInventoryRecord};
 use crate::pst::header::PstHeader;
 use crate::pst::limits::ParserLimits;
@@ -33,6 +36,7 @@ pub struct MetadataExtractionOutput {
     pub attachments: Vec<AttachmentRecord>,
     pub attachment_payloads: Vec<AttachmentPayload>,
     pub compatibility_triage: Vec<CompatibilityTriageRecord>,
+    pub decoder_backlog: Vec<DecoderBacklogItem>,
     pub manifest: Vec<ManifestRecord>,
     pub issues: Vec<StatusRecord>,
     pub folders_discovered: u64,
@@ -250,6 +254,8 @@ pub fn extract_metadata(
         }
     }
 
+    let decoder_backlog = decoder_backlog_from_triage_records(&compatibility_triage);
+
     let mut manifest = base_manifest(
         run_id,
         pst_id,
@@ -290,7 +296,7 @@ pub fn extract_metadata(
     let messages_discovered = nbt.entries.len() as u64;
     let messages_extracted = messages.len() as u64;
     let status = format!(
-        "{}; bbt_status={}; nbt_status={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; body_payloads={}; attachment_payloads={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}",
+        "{}; bbt_status={}; nbt_status={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; body_payloads={}; attachment_payloads={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}",
         metadata_status,
         bbt.status,
         nbt.status,
@@ -306,7 +312,8 @@ pub fn extract_metadata(
         attachment_table_parse_errors,
         fixture_backed_decoder_hits,
         compatibility_triage.len(),
-        compatibility_follow_up_count
+        compatibility_follow_up_count,
+        decoder_backlog.len()
     );
 
     Ok(MetadataExtractionOutput {
@@ -320,6 +327,7 @@ pub fn extract_metadata(
         attachments,
         attachment_payloads,
         compatibility_triage,
+        decoder_backlog,
         manifest,
         issues,
         folders_discovered,
@@ -476,6 +484,18 @@ fn base_manifest(
             status: "m16_compatibility_triage_output_available".to_string(),
             issue_count: 0,
         },
+        ManifestRecord {
+            run_id: run_id.to_string(),
+            pst_id: pst_id.to_string(),
+            message_key: None,
+            folder_key: None,
+            artefact_type: "decoder_backlog".to_string(),
+            archive_path: "data/decoder_backlog.jsonl".to_string(),
+            sha256: None,
+            size_bytes: None,
+            status: "m17_decoder_backlog_output_available".to_string(),
+            issue_count: 0,
+        },
     ]
 }
 
@@ -523,6 +543,7 @@ pub fn fallback_metadata(
         attachments: Vec::new(),
         attachment_payloads: Vec::new(),
         compatibility_triage: Vec::new(),
+        decoder_backlog: Vec::new(),
         manifest: Vec::new(),
         issues: vec![StatusRecord::info(
             run_id,

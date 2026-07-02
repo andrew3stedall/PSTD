@@ -79,6 +79,11 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         compatibility_triage.write_record(record)?;
     }
 
+    let mut decoder_backlog = JsonlBuffer::new();
+    for record in &metadata.decoder_backlog {
+        decoder_backlog.write_record(record)?;
+    }
+
     let mut manifest = JsonlBuffer::new();
     for record in &metadata.manifest {
         manifest.write_record(record)?;
@@ -113,6 +118,10 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     tar.append_bytes(
         &["data", "compatibility_triage.jsonl"],
         &compatibility_triage.into_bytes(),
+    )?;
+    tar.append_bytes(
+        &["data", "decoder_backlog.jsonl"],
+        &decoder_backlog.into_bytes(),
     )?;
     for payload in &metadata.body_payloads {
         append_archive_payload(&mut tar, &payload.record.archive_path, &payload.bytes)?;
