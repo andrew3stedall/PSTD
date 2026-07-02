@@ -255,7 +255,8 @@ mod tests {
         .references
         .remove(0);
 
-        let loaded = load_bounded_subnode_blocks(&reader, &bbt, &reference, 1, ParserLimits::default());
+        let loaded =
+            load_bounded_subnode_blocks(&reader, &bbt, &reference, 1, ParserLimits::default());
         assert_eq!(loaded.payloads.len(), 1);
         assert_eq!(loaded.payloads[0].bytes, b"subnode");
         assert_eq!(loaded.report.decoded_block_count, 1);
