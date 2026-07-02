@@ -398,7 +398,9 @@ mod tests {
         let layout_report = layout_report(2, 1, 1, 0);
         let attachment_report = attachment_report(2, 0, 0, Vec::new());
         let report = triage_observed_attachment_layouts(&layout_report, &attachment_report);
-        let record = CompatibilityTriageRecord::from_report("run_123", "pst_123", "msg_123", None, report);
+        let record = CompatibilityTriageRecord::from_report(
+            "run_123", "pst_123", "msg_123", None, report,
+        );
 
         let backlog = decoder_backlog_from_triage_records(&[record]);
 
