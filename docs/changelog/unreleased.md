@@ -100,7 +100,7 @@
 - Updated project status to reflect the M12 attachment subnode integration slice and CI validation.
 - Updated project status to reflect the M13 fixture compatibility slice and CI validation.
 - Updated project status to reflect the M14 recursive subnode layout exploration slice and CI validation.
-- Updated project status to reflect the M15 observed layout triage slice.
+- Updated project status to reflect the M15 observed layout triage slice and CI validation.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Expanded BBT/NBT status strings with traversal diagnostics used by inspect and extract status.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
@@ -112,7 +112,7 @@
 
 ## Notes
 
-- M1-M14 have passed GitHub Actions validation.
+- M1-M15 have passed GitHub Actions validation.
 - M15 adds compatibility triage for observed subnode and attachment-table layouts.
-- Real-world extraction quality still depends on observed PST layout coverage and public/sanitized fixture validation.
+- Extraction quality still depends on broader observed PST layout coverage and safe fixture validation.
 - Mailbox content, batch checkpoints, and extracted content must not be committed as fixtures unless explicitly sanitized.
