@@ -136,7 +136,10 @@ fn decode_attachment_block(
     if block.bytes.starts_with(COMPACT_ATTACHMENT_TABLE_MAGIC) {
         return decode_compact_attachment_table(message_key, &block.bytes, start_ordinal);
     }
-    if block.bytes.starts_with(UTF16_COMPACT_ATTACHMENT_TABLE_MAGIC) {
+    if block
+        .bytes
+        .starts_with(UTF16_COMPACT_ATTACHMENT_TABLE_MAGIC)
+    {
         return decode_utf16_compact_attachment_table(message_key, &block.bytes, start_ordinal);
     }
 
