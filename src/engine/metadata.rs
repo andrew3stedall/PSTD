@@ -267,11 +267,8 @@ pub fn extract_metadata(
     )];
     let decoder_issue_candidates =
         decoder_issue_candidates_from_backlog(run_id, pst_id, &decoder_backlog);
-    let decoder_candidate_selection = select_decoder_candidates_for_implementation(
-        run_id,
-        pst_id,
-        &decoder_issue_candidates,
-    );
+    let decoder_candidate_selection =
+        select_decoder_candidates_for_implementation(run_id, pst_id, &decoder_issue_candidates);
 
     let mut manifest = base_manifest(
         run_id,
