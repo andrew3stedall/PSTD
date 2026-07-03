@@ -13,11 +13,11 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
 | PST header parser | Implemented foundation and CI validated | Validates basic PST magic and version/variant summary. |
 | BBT/NBT parsing | Traversal expansion and CI validated | Bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards exist. |
-| Metadata processing | M19 candidate selection and CI validated | M19 adds selection records and counters to extraction status. |
+| Metadata processing | M20 focused decoder pending CI | M20 adds one focused attachment table decoder path with fallback-preserving tests. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
-| Bodies/attachments | M16 fixture-backed decoders and CI validated | M16 adds compact attachment-table decoder coverage with explicit missing-payload fallback. |
+| Bodies/attachments | M20 focused decoder pending CI | M20 adds UTF-16 compact attachment-table decoding for `CATW` rows. |
 | Batch orchestration | Implemented foundation and CI validated | Batch discovery, per-PST outputs, checkpoints, summaries, and resume-by-skip behaviour exist. |
-| Table/property parse reports | M19 candidate selection and CI validated | M19 ranks review candidates and adds scope, test, and fallback guidance. |
+| Table/property parse reports | M20 focused decoder pending CI | M20 keeps malformed compact rows on explicit parse-error fallback. |
 | Parser limits | Implemented foundation and CI validated | Explicit parser limits exist for traversal pages, block payload size, and subnode depth. |
 | Subnode references | M15 compatibility triage and CI validated | M15 summarizes observed subnode layout reports into supported, partial, and unsupported categories. |
 | Snowflake/web UI/search | Future work | Out of v1 implementation until later roadmap phases. |
@@ -45,6 +45,7 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M17: Compatibility Triage Reporting and Decoder Backlog | #121 | CI validated |
 | M18: Decoder Backlog Review Workflow | #126 | CI validated |
 | M19: Focused Decoder Candidate Selection | #131 | CI validated |
+| M20: Focused Candidate Implementation | Pending | Pending CI |
 
 ## Latest validation
 
@@ -61,19 +62,19 @@ GitHub Actions validation has passed for the M1-M19 implementation set, includin
 
 ## Next milestone
 
-M20: Focused Candidate Implementation.
+M21: Focused Decoder Evidence Expansion.
 
-M20 should add:
+M21 should add:
 
-- Implementation of one selected high-priority candidate from M19 output.
-- A focused regression test for the selected candidate.
+- Additional evidence for the next selected candidate.
+- A narrow regression fixture or synthetic buffer for that candidate.
+- Implementation only if the candidate is specific and testable.
 - Preservation of fallback behaviour for non-matching cases.
-- CI validation before merge.
 
-M20 should not add Snowflake, search, or web UI work.
+M21 should not add Snowflake, search, or web UI work.
 
 ## Validation risk
 
-The M1-M19 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
+The M1-M19 foundation has CI coverage at the unit, smoke, Docker, and fixture level. M20 adds one focused parser slice, but extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
 
 Before high-risk parser expansion, continue running the commands in [Validation Guide](../operations/validation-guide.md) and preserve fixture handling guidance.

@@ -22,17 +22,20 @@
 - M17 decoder backlog JSONL reporting.
 - M18 decoder backlog review workflow outputs.
 - M19 focused candidate selection outputs.
+- M20 focused attachment table decoder implementation.
 - `data/decoder_backlog_review.jsonl` output.
 - `data/decoder_issue_candidates.jsonl` output.
 - `data/decoder_candidate_selection.jsonl` output.
 - Review checklist guidance for issue candidates.
 - Selection scope, test, and fallback guidance for focused candidates.
 - Extraction status counters for candidate selections and selected candidates.
+- UTF-16 compact attachment table decoding for `CATW` rows.
+- Regression coverage for malformed `CATW` rows retaining explicit error status.
 
 ## Changed
 
-- Updated project status to reflect M1-M19 CI validation.
-- Updated documentation navigation for M19 milestone, implementation, issue plan, and operations guide.
+- Updated project status to reflect M1-M19 CI validation and M20 pending validation.
+- Updated documentation navigation for M20 milestone, implementation, and issue plan.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
 - Updated attachment status handling to distinguish missing subnode references, unavailable subnode blocks, table parse cases, tables without payloads, and extracted payloads.
@@ -44,5 +47,5 @@
 ## Notes
 
 - M1-M19 have passed GitHub Actions validation.
-- M19 adds selection workflow outputs derived from issue candidates.
+- M20 implements one focused selected parser candidate.
 - Parser quality still depends on broader observed layout coverage and reviewed validation inputs.
