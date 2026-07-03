@@ -47,6 +47,7 @@ This tree is organised by audience.
 | M17 | [Compatibility Triage Reporting and Decoder Backlog](milestones/pstd-v1-m17-triage-reporting-backlog.md) | TBD | [M17 issues](issues/pstd-v1-m17-ordered-issue-plan.md) | TBD |
 | M18 | [Decoder Backlog Review Workflow](milestones/pstd-v1-m18-backlog-review-workflow.md) | TBD | [M18 issues](issues/pstd-v1-m18-ordered-issue-plan.md) | TBD |
 | M19 | [Focused Candidate Selection](milestones/pstd-v1-m19-candidate-selection.md) | TBD | [M19 issues](issues/pstd-v1-m19-ordered-issue-plan.md) | TBD |
+| M20 | [Focused Candidate Implementation](milestones/pstd-v1-m20-focused-candidate-implementation.md) | TBD | [M20 issues](issues/pstd-v1-m20-ordered-issue-plan.md) | TBD |
 
 ## Engineering
 
@@ -72,6 +73,7 @@ This tree is organised by audience.
 - [M17 Triage Reporting Backlog Implementation Plan](engineering/pstd-v1-m17-triage-reporting-backlog-implementation-plan.md)
 - [M18 Backlog Review Workflow Implementation Plan](engineering/pstd-v1-m18-backlog-review-workflow-implementation-plan.md)
 - [M19 Candidate Selection Implementation Plan](engineering/pstd-v1-m19-candidate-selection-implementation-plan.md)
+- [M20 Focused Candidate Implementation Plan](engineering/pstd-v1-m20-focused-candidate-implementation-plan.md)
 
 ## Architecture and data
 
