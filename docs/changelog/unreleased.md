@@ -31,7 +31,7 @@
 
 ## Changed
 
-- Updated project status to reflect M1-M18 CI validation and M19 pending validation.
+- Updated project status to reflect M1-M19 CI validation.
 - Updated documentation navigation for M19 milestone, implementation, issue plan, and operations guide.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
@@ -43,6 +43,6 @@
 
 ## Notes
 
-- M1-M18 have passed GitHub Actions validation.
+- M1-M19 have passed GitHub Actions validation.
 - M19 adds selection workflow outputs derived from issue candidates.
 - Parser quality still depends on broader observed layout coverage and reviewed validation inputs.
