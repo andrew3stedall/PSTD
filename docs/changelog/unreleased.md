@@ -21,15 +21,18 @@
 - M16 fixture-backed decoder expansion.
 - M17 decoder backlog JSONL reporting.
 - M18 decoder backlog review workflow outputs.
+- M19 focused candidate selection outputs.
 - `data/decoder_backlog_review.jsonl` output.
 - `data/decoder_issue_candidates.jsonl` output.
-- Review checklist guidance for decoder issue candidates.
-- Extraction status counters for decoder issue candidates and review status.
+- `data/decoder_candidate_selection.jsonl` output.
+- Review checklist guidance for issue candidates.
+- Selection scope, test, and fallback guidance for focused candidates.
+- Extraction status counters for candidate selections and selected candidates.
 
 ## Changed
 
-- Updated project status to reflect M1-M18 CI validation.
-- Updated documentation navigation for M18 milestone, implementation, issue plan, and operations guide.
+- Updated project status to reflect M1-M18 CI validation and M19 pending validation.
+- Updated documentation navigation for M19 milestone, implementation, issue plan, and operations guide.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
 - Updated attachment status handling to distinguish missing subnode references, unavailable subnode blocks, table parse cases, tables without payloads, and extracted payloads.
@@ -41,5 +44,5 @@
 ## Notes
 
 - M1-M18 have passed GitHub Actions validation.
-- M18 adds review workflow outputs derived from decoder backlog rows.
+- M19 adds selection workflow outputs derived from issue candidates.
 - Parser quality still depends on broader observed layout coverage and reviewed validation inputs.
