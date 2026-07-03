@@ -267,7 +267,7 @@ fn decode_utf16_compact_attachment_table(
         ]) as usize;
         cursor += 8;
 
-        if filename_len % 2 != 0 || content_type_len % 2 != 0 {
+        if !filename_len.is_multiple_of(2) || !content_type_len.is_multiple_of(2) {
             return Err(format!(
                 "utf16 compact attachment table row {ordinal_offset} has odd string byte length"
             ));
