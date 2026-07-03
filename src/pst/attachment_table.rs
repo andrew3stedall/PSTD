@@ -9,6 +9,7 @@ use crate::pst::property_context::{PropertyContext, PropertyValue};
 use crate::pst::table_context::{TableContext, TableRow};
 
 const COMPACT_ATTACHMENT_TABLE_MAGIC: &[u8; 4] = b"CATB";
+const UTF16_COMPACT_ATTACHMENT_TABLE_MAGIC: &[u8; 4] = b"CATW";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AttachmentTableWiringReport {
@@ -135,6 +136,9 @@ fn decode_attachment_block(
     if block.bytes.starts_with(COMPACT_ATTACHMENT_TABLE_MAGIC) {
         return decode_compact_attachment_table(message_key, &block.bytes, start_ordinal);
     }
+    if block.bytes.starts_with(UTF16_COMPACT_ATTACHMENT_TABLE_MAGIC) {
+        return decode_utf16_compact_attachment_table(message_key, &block.bytes, start_ordinal);
+    }
 
     match TableContext::parse_with_report(&block.bytes, block.block_ref.offset.0) {
         Ok(table_report) => {
@@ -232,6 +236,97 @@ fn decode_compact_attachment_table(
     ))
 }
 
+fn decode_utf16_compact_attachment_table(
+    message_key: &str,
+    bytes: &[u8],
+    start_ordinal: usize,
+) -> Result<(Vec<AttachmentPayload>, AttachmentTableWiringReport), String> {
+    if bytes.len() < 8 {
+        return Err("utf16 compact attachment table buffer too short".to_string());
+    }
+
+    let row_count = u16::from_le_bytes([bytes[4], bytes[5]]) as usize;
+    let mut cursor = 8usize;
+    let mut payloads = Vec::new();
+    let mut missing_payload_count = 0usize;
+
+    for ordinal_offset in 0..row_count {
+        if cursor + 8 > bytes.len() {
+            return Err(format!(
+                "utf16 compact attachment table row {ordinal_offset} header truncated"
+            ));
+        }
+
+        let filename_len = u16::from_le_bytes([bytes[cursor], bytes[cursor + 1]]) as usize;
+        let content_type_len = u16::from_le_bytes([bytes[cursor + 2], bytes[cursor + 3]]) as usize;
+        let data_len = u32::from_le_bytes([
+            bytes[cursor + 4],
+            bytes[cursor + 5],
+            bytes[cursor + 6],
+            bytes[cursor + 7],
+        ]) as usize;
+        cursor += 8;
+
+        if filename_len % 2 != 0 || content_type_len % 2 != 0 {
+            return Err(format!(
+                "utf16 compact attachment table row {ordinal_offset} has odd string byte length"
+            ));
+        }
+
+        let row_len = filename_len
+            .checked_add(content_type_len)
+            .and_then(|value| value.checked_add(data_len))
+            .ok_or_else(|| "utf16 compact attachment table row length overflow".to_string())?;
+        if cursor + row_len > bytes.len() {
+            return Err(format!(
+                "utf16 compact attachment table row {ordinal_offset} data truncated"
+            ));
+        }
+
+        let filename = decode_utf16_field(&bytes[cursor..cursor + filename_len]);
+        cursor += filename_len;
+        let content_type = decode_utf16_field(&bytes[cursor..cursor + content_type_len]);
+        cursor += content_type_len;
+        let data = bytes[cursor..cursor + data_len].to_vec();
+        cursor += data_len;
+
+        if data.is_empty() {
+            missing_payload_count += 1;
+            continue;
+        }
+
+        payloads.push(attachment_payload(
+            message_key,
+            start_ordinal + ordinal_offset,
+            AttachmentMetadata {
+                filename_original: filename,
+                content_type,
+                is_inline: false,
+                content_id: None,
+            },
+            data,
+        ));
+    }
+
+    let status = if missing_payload_count == 0 {
+        "utf16_compact_attachment_table_payloads_wired"
+    } else if payloads.is_empty() {
+        "utf16_compact_attachment_table_payloads_unavailable"
+    } else {
+        "utf16_compact_attachment_table_payloads_partially_wired"
+    };
+
+    Ok((
+        payloads,
+        AttachmentTableWiringReport {
+            row_count,
+            payload_count: row_count.saturating_sub(missing_payload_count),
+            missing_payload_count,
+            status: status.to_string(),
+        },
+    ))
+}
+
 fn decode_utf8_field(bytes: &[u8]) -> Option<String> {
     if bytes.is_empty() {
         None
@@ -241,6 +336,22 @@ fn decode_utf8_field(bytes: &[u8]) -> Option<String> {
                 .trim_end_matches('\0')
                 .to_string(),
         )
+    }
+}
+
+fn decode_utf16_field(bytes: &[u8]) -> Option<String> {
+    if bytes.is_empty() {
+        return None;
+    }
+    let units = bytes
+        .chunks_exact(2)
+        .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+        .take_while(|unit| *unit != 0)
+        .collect::<Vec<_>>();
+    if units.is_empty() {
+        None
+    } else {
+        Some(String::from_utf16_lossy(&units))
     }
 }
 
@@ -363,6 +474,39 @@ mod tests {
             vec!["compact_attachment_table_payloads_wired"]
         );
         assert_eq!(report.status, "attachment_subnode_payloads_wired");
+    }
+
+    #[test]
+    fn wires_utf16_compact_attachment_table_blocks() {
+        let block = payload_block(100, 0, utf16_compact_attachment_table_buf());
+
+        let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &[block]);
+        assert_eq!(payloads.len(), 1);
+        assert_eq!(payloads[0].record.filename_safe, "utf16-report.pdf");
+        assert_eq!(
+            payloads[0].record.content_type.as_deref(),
+            Some("application/pdf")
+        );
+        assert_eq!(payloads[0].bytes, b"utf16 compact bytes");
+        assert_eq!(report.subnode_block_count, 1);
+        assert_eq!(report.parsed_table_count, 1);
+        assert_eq!(
+            report.table_statuses,
+            vec!["utf16_compact_attachment_table_payloads_wired"]
+        );
+        assert_eq!(report.status, "attachment_subnode_payloads_wired");
+    }
+
+    #[test]
+    fn preserves_parse_error_fallback_for_invalid_utf16_compact_rows() {
+        let block = payload_block(100, 4096, invalid_utf16_compact_attachment_table_buf());
+
+        let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &[block]);
+        assert!(payloads.is_empty());
+        assert_eq!(report.parse_error_count, 1);
+        assert_eq!(report.parse_error_offsets, vec![4096]);
+        assert!(report.parse_error_reasons[0].contains("odd string byte length"));
+        assert_eq!(report.status, "attachment_subnode_tables_unavailable");
     }
 
     #[test]
@@ -495,6 +639,40 @@ mod tests {
         buf.extend_from_slice(&0u32.to_le_bytes());
         buf.extend_from_slice(filename);
         buf.extend_from_slice(mime);
+        buf
+    }
+
+    fn utf16_compact_attachment_table_buf() -> Vec<u8> {
+        let filename = utf16le("utf16-report.pdf");
+        let mime = utf16le("application/pdf");
+        let payload = b"utf16 compact bytes";
+        let mut buf = Vec::new();
+        buf.extend_from_slice(b"CATW");
+        buf.extend_from_slice(&1u16.to_le_bytes());
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&(filename.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&(mime.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        buf.extend_from_slice(&filename);
+        buf.extend_from_slice(&mime);
+        buf.extend_from_slice(payload);
+        buf
+    }
+
+    fn invalid_utf16_compact_attachment_table_buf() -> Vec<u8> {
+        let filename = b"x";
+        let mime = utf16le("text/plain");
+        let payload = b"payload";
+        let mut buf = Vec::new();
+        buf.extend_from_slice(b"CATW");
+        buf.extend_from_slice(&1u16.to_le_bytes());
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&(filename.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&(mime.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        buf.extend_from_slice(filename);
+        buf.extend_from_slice(&mime);
+        buf.extend_from_slice(payload);
         buf
     }
 
