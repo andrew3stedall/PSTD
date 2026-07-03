@@ -496,28 +496,35 @@ fn selection_reason(candidate: &DecoderIssueCandidate) -> String {
 
 fn implementation_scope(candidate: &DecoderIssueCandidate) -> String {
     match candidate.category.as_str() {
-        "unsupported_subnode_layout" =>
+        "unsupported_subnode_layout" => {
             "Add one narrow subnode layout parser path guarded by a focused regression test."
-                .to_string(),
-        "unparseable_attachment_table" =>
+                .to_string()
+        }
+        "unparseable_attachment_table" => {
             "Add one attachment table parser path for the observed table shape and preserve parse-error reporting."
-                .to_string(),
-        "attachment_rows_without_payloads" =>
+                .to_string()
+        }
+        "attachment_rows_without_payloads" => {
             "Add one payload mapping path for rows that already parse but do not yet produce payload bytes."
-                .to_string(),
+                .to_string()
+        }
         _ => "Add one narrow compatibility improvement for this candidate key.".to_string(),
     }
 }
 
 fn test_expectation(candidate: &DecoderIssueCandidate) -> String {
     match candidate.category.as_str() {
-        "unsupported_subnode_layout" =>
+        "unsupported_subnode_layout" => {
             "Add a synthetic or reviewed fixture-backed subnode layout test before enabling support."
-                .to_string(),
-        "unparseable_attachment_table" =>
-            "Add a table parser regression test covering the observed parse status.".to_string(),
-        "attachment_rows_without_payloads" =>
-            "Add a payload mapping regression test proving bytes or explicit unavailable status.".to_string(),
+                .to_string()
+        }
+        "unparseable_attachment_table" => {
+            "Add a table parser regression test covering the observed parse status.".to_string()
+        }
+        "attachment_rows_without_payloads" => {
+            "Add a payload mapping regression test proving bytes or explicit unavailable status."
+                .to_string()
+        }
         _ => "Add a regression test that proves the candidate behaviour and fallback path."
             .to_string(),
     }
@@ -525,10 +532,12 @@ fn test_expectation(candidate: &DecoderIssueCandidate) -> String {
 
 fn fallback_requirement(candidate: &DecoderIssueCandidate) -> String {
     match candidate.backlog_status.as_str() {
-        "payload_mapping_backlog_open" =>
+        "payload_mapping_backlog_open" => {
             "Rows that still cannot map payload bytes must keep payload mapping fallback status."
-                .to_string(),
-        _ => "Rows that still cannot be parsed must keep explicit unsupported fallback status.".to_string(),
+                .to_string()
+        }
+        _ => "Rows that still cannot be parsed must keep explicit unsupported fallback status."
+            .to_string(),
     }
 }
 
