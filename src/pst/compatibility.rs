@@ -92,6 +92,25 @@ pub struct DecoderIssueCandidate {
     pub issue_status: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DecoderCandidateSelection {
+    pub run_id: String,
+    pub pst_id: String,
+    pub selection_rank: usize,
+    pub decoder_candidate_key: String,
+    pub category: String,
+    pub priority: String,
+    pub affected_message_count: usize,
+    pub observed_total: usize,
+    pub source_item_count: usize,
+    pub selection_status: String,
+    pub selection_reason: String,
+    pub recommended_next_step: String,
+    pub implementation_scope: String,
+    pub test_expectation: String,
+    pub fallback_requirement: String,
+}
+
 impl CompatibilityTriageRecord {
     pub fn from_report(
         run_id: &str,
@@ -380,6 +399,53 @@ pub fn decoder_issue_candidates_from_backlog(
     candidates
 }
 
+pub fn select_decoder_candidates_for_implementation(
+    run_id: &str,
+    pst_id: &str,
+    candidates: &[DecoderIssueCandidate],
+) -> Vec<DecoderCandidateSelection> {
+    let mut ordered = candidates.to_vec();
+    ordered.sort_by_key(|candidate| {
+        (
+            priority_rank(&candidate.priority),
+            std::cmp::Reverse(candidate.observed_total),
+            std::cmp::Reverse(candidate.affected_message_count),
+            candidate.decoder_candidate_key.clone(),
+        )
+    });
+
+    ordered
+        .iter()
+        .enumerate()
+        .map(|(index, candidate)| candidate_selection(run_id, pst_id, index + 1, candidate))
+        .collect()
+}
+
+fn candidate_selection(
+    run_id: &str,
+    pst_id: &str,
+    selection_rank: usize,
+    candidate: &DecoderIssueCandidate,
+) -> DecoderCandidateSelection {
+    DecoderCandidateSelection {
+        run_id: run_id.to_string(),
+        pst_id: pst_id.to_string(),
+        selection_rank,
+        decoder_candidate_key: candidate.decoder_candidate_key.clone(),
+        category: candidate.category.clone(),
+        priority: candidate.priority.clone(),
+        affected_message_count: candidate.affected_message_count,
+        observed_total: candidate.observed_total,
+        source_item_count: candidate.source_item_count,
+        selection_status: selection_status(candidate).to_string(),
+        selection_reason: selection_reason(candidate),
+        recommended_next_step: candidate.recommended_action.clone(),
+        implementation_scope: implementation_scope(candidate),
+        test_expectation: test_expectation(candidate),
+        fallback_requirement: fallback_requirement(candidate),
+    }
+}
+
 fn decoder_candidate_key(category: &str, status: &str) -> String {
     format!("{category}:{status}")
 }
@@ -407,6 +473,71 @@ fn priority_rank(priority: &str) -> u8 {
         "high" => 0,
         "medium" => 1,
         _ => 2,
+    }
+}
+
+fn selection_status(candidate: &DecoderIssueCandidate) -> &'static str {
+    match candidate.priority.as_str() {
+        "high" => "selected_for_next_planning",
+        "medium" => "hold_for_high_priority_review",
+        _ => "hold_for_more_evidence",
+    }
+}
+
+fn selection_reason(candidate: &DecoderIssueCandidate) -> String {
+    format!(
+        "priority={}; affected_messages={}; observed_total={}; source_items={}",
+        candidate.priority,
+        candidate.affected_message_count,
+        candidate.observed_total,
+        candidate.source_item_count
+    )
+}
+
+fn implementation_scope(candidate: &DecoderIssueCandidate) -> String {
+    match candidate.category.as_str() {
+        "unsupported_subnode_layout" => {
+            "Add one narrow subnode layout parser path guarded by a focused regression test."
+                .to_string()
+        }
+        "unparseable_attachment_table" => {
+            "Add one attachment table parser path for the observed table shape and preserve parse-error reporting."
+                .to_string()
+        }
+        "attachment_rows_without_payloads" => {
+            "Add one payload mapping path for rows that already parse but do not yet produce payload bytes."
+                .to_string()
+        }
+        _ => "Add one narrow compatibility improvement for this candidate key.".to_string(),
+    }
+}
+
+fn test_expectation(candidate: &DecoderIssueCandidate) -> String {
+    match candidate.category.as_str() {
+        "unsupported_subnode_layout" => {
+            "Add a synthetic or reviewed fixture-backed subnode layout test before enabling support."
+                .to_string()
+        }
+        "unparseable_attachment_table" => {
+            "Add a table parser regression test covering the observed parse status.".to_string()
+        }
+        "attachment_rows_without_payloads" => {
+            "Add a payload mapping regression test proving bytes or explicit unavailable status."
+                .to_string()
+        }
+        _ => "Add a regression test that proves the candidate behaviour and fallback path."
+            .to_string(),
+    }
+}
+
+fn fallback_requirement(candidate: &DecoderIssueCandidate) -> String {
+    match candidate.backlog_status.as_str() {
+        "payload_mapping_backlog_open" => {
+            "Rows that still cannot map payload bytes must keep payload mapping fallback status."
+                .to_string()
+        }
+        _ => "Rows that still cannot be parsed must keep explicit unsupported fallback status."
+            .to_string(),
     }
 }
 
@@ -445,8 +576,8 @@ fn review_checklist(item: &DecoderBacklogItem) -> Vec<String> {
 mod tests {
     use super::{
         decoder_backlog_from_triage_records, decoder_backlog_review_summary,
-        decoder_issue_candidates_from_backlog, triage_observed_attachment_layouts,
-        CompatibilityTriageRecord,
+        decoder_issue_candidates_from_backlog, select_decoder_candidates_for_implementation,
+        triage_observed_attachment_layouts, CompatibilityTriageRecord,
     };
     use crate::pst::attachment_table::AttachmentSubnodeWiringReport;
     use crate::pst::primitives::{BlockId, ByteOffset};
@@ -630,6 +761,32 @@ mod tests {
         assert!(candidates
             .iter()
             .any(|candidate| candidate.backlog_status == "payload_mapping_backlog_open"));
+    }
+
+    #[test]
+    fn selects_candidates_for_focused_planning() {
+        let backlog = sample_backlog();
+        let candidates = decoder_issue_candidates_from_backlog("run_123", "pst_123", &backlog);
+
+        let selections =
+            select_decoder_candidates_for_implementation("run_123", "pst_123", &candidates);
+
+        assert_eq!(selections.len(), 3);
+        assert_eq!(selections[0].selection_rank, 1);
+        assert_eq!(selections[0].priority, "high");
+        assert_eq!(selections[0].selection_status, "selected_for_next_planning");
+        assert!(selections[0].test_expectation.contains("test"));
+        assert!(selections[0].fallback_requirement.contains("fallback"));
+        assert!(selections
+            .iter()
+            .any(|selection| selection.selection_status == "hold_for_high_priority_review"));
+    }
+
+    #[test]
+    fn selects_no_candidates_for_empty_review() {
+        let selections = select_decoder_candidates_for_implementation("run_123", "pst_123", &[]);
+
+        assert!(selections.is_empty());
     }
 
     fn sample_backlog() -> Vec<super::DecoderBacklogItem> {

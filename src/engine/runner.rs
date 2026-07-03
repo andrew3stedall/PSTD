@@ -94,6 +94,11 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         decoder_issue_candidates.write_record(record)?;
     }
 
+    let mut decoder_candidate_selection = JsonlBuffer::new();
+    for record in &metadata.decoder_candidate_selection {
+        decoder_candidate_selection.write_record(record)?;
+    }
+
     let mut manifest = JsonlBuffer::new();
     for record in &metadata.manifest {
         manifest.write_record(record)?;
@@ -140,6 +145,10 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     tar.append_bytes(
         &["data", "decoder_issue_candidates.jsonl"],
         &decoder_issue_candidates.into_bytes(),
+    )?;
+    tar.append_bytes(
+        &["data", "decoder_candidate_selection.jsonl"],
+        &decoder_candidate_selection.into_bytes(),
     )?;
     for payload in &metadata.body_payloads {
         append_archive_payload(&mut tar, &payload.record.archive_path, &payload.bytes)?;
