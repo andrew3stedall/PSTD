@@ -49,6 +49,16 @@ This tree is organised by audience.
 | M19 | [Focused Candidate Selection](milestones/pstd-v1-m19-candidate-selection.md) | TBD | [M19 issues](issues/pstd-v1-m19-ordered-issue-plan.md) | TBD |
 | M20 | [Focused Candidate Implementation](milestones/pstd-v1-m20-focused-candidate-implementation.md) | TBD | [M20 issues](issues/pstd-v1-m20-ordered-issue-plan.md) | TBD |
 
+## Remaining v1 milestone tracking
+
+| Milestone | Tracking issue | Purpose |
+|---|---:|---|
+| M21: Focused Decoder Evidence Expansion | #136 | Select the next testable compatibility candidate and add focused evidence/coverage. |
+| M22: Body and Header Fidelity Expansion | #137 | Reduce body/header extraction gaps while preserving deterministic status reporting. |
+| M23: Attachment Payload Fidelity | #138 | Tighten attachment payload extraction and unsupported-layout reporting. |
+| M24: Batch Scale, Performance, and Corruption Hardening | #139 | Harden realistic batch operation, resume behaviour, progress reporting, and recoverable failures. |
+| M25: v1 Release Candidate and Operator Handoff | #141 | Close v1 with validation, documentation cleanup, and local/Docker operator handoff. |
+
 ## Engineering
 
 - [Developer Guide](engineering/developer-guide.md)
