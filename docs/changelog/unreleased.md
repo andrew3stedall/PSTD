@@ -34,7 +34,7 @@
 
 ## Changed
 
-- Updated project status to reflect M1-M19 CI validation and M20 pending validation.
+- Updated project status to reflect M1-M20 CI validation.
 - Updated documentation navigation for M20 milestone, implementation, and issue plan.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
@@ -46,6 +46,6 @@
 
 ## Notes
 
-- M1-M19 have passed GitHub Actions validation.
+- M1-M20 have passed GitHub Actions validation.
 - M20 implements one focused selected parser candidate.
 - Parser quality still depends on broader observed layout coverage and reviewed validation inputs.
