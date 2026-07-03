@@ -46,6 +46,7 @@ This tree is organised by audience.
 | M16 | [Fixture-Backed Decoder Expansion](milestones/pstd-v1-m16-fixture-backed-decoders.md) | TBD | [M16 issues](issues/pstd-v1-m16-ordered-issue-plan.md) | TBD |
 | M17 | [Compatibility Triage Reporting and Decoder Backlog](milestones/pstd-v1-m17-triage-reporting-backlog.md) | TBD | [M17 issues](issues/pstd-v1-m17-ordered-issue-plan.md) | TBD |
 | M18 | [Decoder Backlog Review Workflow](milestones/pstd-v1-m18-backlog-review-workflow.md) | TBD | [M18 issues](issues/pstd-v1-m18-ordered-issue-plan.md) | TBD |
+| M19 | [Focused Candidate Selection](milestones/pstd-v1-m19-candidate-selection.md) | TBD | [M19 issues](issues/pstd-v1-m19-ordered-issue-plan.md) | TBD |
 
 ## Engineering
 
@@ -70,6 +71,7 @@ This tree is organised by audience.
 - [M16 Fixture-Backed Decoder Implementation Plan](engineering/pstd-v1-m16-fixture-backed-decoders-implementation-plan.md)
 - [M17 Triage Reporting Backlog Implementation Plan](engineering/pstd-v1-m17-triage-reporting-backlog-implementation-plan.md)
 - [M18 Backlog Review Workflow Implementation Plan](engineering/pstd-v1-m18-backlog-review-workflow-implementation-plan.md)
+- [M19 Candidate Selection Implementation Plan](engineering/pstd-v1-m19-candidate-selection-implementation-plan.md)
 
 ## Architecture and data
 
@@ -80,6 +82,7 @@ This tree is organised by audience.
 
 - [Local Validation](operations/local-validation.md)
 - [Decoder Backlog Review Workflow](operations/decoder-backlog-review-workflow.md)
+- [Candidate Selection Workflow](operations/candidate-selection-workflow.md)
 - [Public and Sanitized Fixture Triage](operations/public-sanitized-fixture-triage.md)
 - [PSTD v1 Deferred Testing Plan](operations/pstd-v1-deferred-testing-plan.md)
 - [M2 Deferred Testing Plan](operations/pstd-v1-m2-deferred-testing-plan.md)
