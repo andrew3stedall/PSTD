@@ -9,15 +9,15 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Area | Status | Notes |
 |---|---|---|
 | Rust CLI | Implemented and CI validated | `pstd extract`, `pstd inspect`, `pstd batch`, and `pstd version` exist. |
-| Structured output contract | M19 candidate selection pending CI | M19 adds `data/decoder_candidate_selection.jsonl`. |
+| Structured output contract | M19 candidate selection and CI validated | M19 adds `data/decoder_candidate_selection.jsonl`. |
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
 | PST header parser | Implemented foundation and CI validated | Validates basic PST magic and version/variant summary. |
 | BBT/NBT parsing | Traversal expansion and CI validated | Bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards exist. |
-| Metadata processing | M19 candidate selection pending CI | M19 adds selection records and counters to extraction status. |
+| Metadata processing | M19 candidate selection and CI validated | M19 adds selection records and counters to extraction status. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
 | Bodies/attachments | M16 fixture-backed decoders and CI validated | M16 adds compact attachment-table decoder coverage with explicit missing-payload fallback. |
 | Batch orchestration | Implemented foundation and CI validated | Batch discovery, per-PST outputs, checkpoints, summaries, and resume-by-skip behaviour exist. |
-| Table/property parse reports | M19 candidate selection pending CI | M19 ranks review candidates and adds scope, test, and fallback guidance. |
+| Table/property parse reports | M19 candidate selection and CI validated | M19 ranks review candidates and adds scope, test, and fallback guidance. |
 | Parser limits | Implemented foundation and CI validated | Explicit parser limits exist for traversal pages, block payload size, and subnode depth. |
 | Subnode references | M15 compatibility triage and CI validated | M15 summarizes observed subnode layout reports into supported, partial, and unsupported categories. |
 | Snowflake/web UI/search | Future work | Out of v1 implementation until later roadmap phases. |
@@ -44,11 +44,11 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M16: Fixture-Backed Decoder Expansion | #116 | CI validated |
 | M17: Compatibility Triage Reporting and Decoder Backlog | #121 | CI validated |
 | M18: Decoder Backlog Review Workflow | #126 | CI validated |
-| M19: Focused Decoder Candidate Selection | Pending | Pending CI |
+| M19: Focused Decoder Candidate Selection | #131 | CI validated |
 
 ## Latest validation
 
-GitHub Actions validation has passed for the M1-M18 implementation set, including:
+GitHub Actions validation has passed for the M1-M19 implementation set, including:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -74,6 +74,6 @@ M20 should not add Snowflake, search, or web UI work.
 
 ## Validation risk
 
-The M1-M18 foundation has CI coverage at the unit, smoke, Docker, and fixture level. M19 adds candidate selection workflow outputs, but extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
+The M1-M19 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
 
 Before high-risk parser expansion, continue running the commands in [Validation Guide](../operations/validation-guide.md) and preserve fixture handling guidance.
