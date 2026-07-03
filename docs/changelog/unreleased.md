@@ -23,6 +23,7 @@
 - M18 decoder backlog review workflow outputs.
 - M19 focused candidate selection outputs.
 - M20 focused attachment table decoder implementation.
+- M21-M25 remaining v1 roadmap tracking issues.
 - `data/decoder_backlog_review.jsonl` output.
 - `data/decoder_issue_candidates.jsonl` output.
 - `data/decoder_candidate_selection.jsonl` output.
@@ -35,6 +36,8 @@
 ## Changed
 
 - Updated project status to reflect M1-M20 CI validation.
+- Replaced the stale early roadmap with a bounded post-M20 M21-M25 roadmap.
+- Updated README, PRD, documentation index, project status, and roadmap to agree that five v1 milestones remain after M20.
 - Updated documentation navigation for M20 milestone, implementation, and issue plan.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
@@ -48,4 +51,5 @@
 
 - M1-M20 have passed GitHub Actions validation.
 - M20 implements one focused selected parser candidate.
+- The remaining v1 implementation lane is M21-M25.
 - Parser quality still depends on broader observed layout coverage and reviewed validation inputs.
