@@ -6,7 +6,13 @@ This page lists the checks to run before treating PSTD as release-ready.
 
 ## Status
 
-M1-M24 are implemented through milestone branches and are expected to pass GitHub Actions CI before merge. Local validation should still be repeated before the v1 release candidate.
+M1-M25 are implemented through milestone branches and expected to pass GitHub Actions CI before merge. Local validation should still be repeated before using PSTD against non-fixture data.
+
+See also:
+
+- [v1 Release-Candidate Checklist](v1-release-candidate-checklist.md)
+- [Local and Docker Operator Handoff](local-docker-operator-handoff.md)
+- [Unsupported and Deferred Areas](v1-unsupported-deferred-areas.md)
 
 ## Commands
 
@@ -94,6 +100,10 @@ progress_path
 
 ## Failure handling
 
-When validation fails, fix the current baseline before adding a new milestone. Update docs if command behaviour or output shape changes.
+When validation fails, fix the current baseline before adding post-v1 implementation work. Update docs if command behaviour or output shape changes.
 
 For batch validation, inspect `batch_checkpoint.jsonl` and `batch_progress.jsonl` before deleting temporary output. These files should make failed, skipped, partial, and not-run PSTs visible without opening every per-PST output directory.
+
+## Release-candidate rule
+
+M25 CI is the required repo gate. Local and fixture validation remain recommended before using PSTD on important data because fixture coverage is evidence-driven and not exhaustive.

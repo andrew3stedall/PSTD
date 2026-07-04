@@ -7,6 +7,9 @@ This tree is organised by audience.
 | Need | Page |
 |---|---|
 | Current status | [Project Status](product/project-status.md) |
+| Release-candidate checklist | [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md) |
+| Local/Docker operator handoff | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
+| Unsupported/deferred areas | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
 | Developer onboarding | [Developer Guide](engineering/developer-guide.md) |
 | Code navigation | [Codebase Map](engineering/codebase-map.md) |
 | Architecture overview | [System Overview](architecture/system-overview.md) |
@@ -52,12 +55,15 @@ This tree is organised by audience.
 | M22 | [Body and Header Fidelity Expansion](milestones/pstd-v1-m22-body-header-fidelity-expansion.md) | TBD | [M22 issues](issues/pstd-v1-m22-ordered-issue-plan.md) | TBD |
 | M23 | [Attachment Payload Fidelity](milestones/pstd-v1-m23-attachment-payload-fidelity.md) | TBD | [M23 issues](issues/pstd-v1-m23-ordered-issue-plan.md) | TBD |
 | M24 | [Batch Scale, Performance, and Corruption Hardening](milestones/pstd-v1-m24-batch-hardening.md) | TBD | [M24 issues](issues/pstd-v1-m24-ordered-issue-plan.md) | TBD |
+| M25 | [Release Candidate and Operator Handoff](milestones/pstd-v1-m25-release-candidate-operator-handoff.md) | TBD | [M25 issues](issues/pstd-v1-m25-ordered-issue-plan.md) | TBD |
 
-## Remaining v1 milestone tracking
+## v1 release-candidate handoff
 
-| Milestone | Tracking issue | Purpose |
-|---|---:|---|
-| M25: v1 Release Candidate and Operator Handoff | #141 | Close v1 with validation, documentation cleanup, and local/Docker operator handoff. |
+| Need | Page |
+|---|---|
+| Final checklist | [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md) |
+| Local/Docker runbook | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
+| Unsupported/deferred boundary | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
 
 ## Engineering
 
@@ -88,6 +94,7 @@ This tree is organised by audience.
 - [M22 Body and Header Fidelity Expansion Plan](engineering/pstd-v1-m22-body-header-fidelity-expansion-plan.md)
 - [M23 Attachment Payload Fidelity Plan](engineering/pstd-v1-m23-attachment-payload-fidelity-plan.md)
 - [M24 Batch Hardening Plan](engineering/pstd-v1-m24-batch-hardening-plan.md)
+- [M25 Release Candidate Plan](engineering/pstd-v1-m25-release-candidate-plan.md)
 
 ## Architecture and data
 
@@ -97,6 +104,9 @@ This tree is organised by audience.
 ## Operations
 
 - [Local Validation](operations/local-validation.md)
+- [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md)
+- [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
+- [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md)
 - [Decoder Backlog Review Workflow](operations/decoder-backlog-review-workflow.md)
 - [Candidate Selection Workflow](operations/candidate-selection-workflow.md)
 - [Public and Sanitized Fixture Triage](operations/public-sanitized-fixture-triage.md)

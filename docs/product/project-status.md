@@ -8,8 +8,8 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 
 | Area | Status | Notes |
 |---|---|---|
-| Rust CLI | Implemented and CI validated | `pstd extract`, `pstd inspect`, `pstd batch`, and `pstd version` exist. |
-| Structured output contract | M24 batch hardening and CI pending | M24 adds batch-level discovered, attempted, completed, partial, failed, skipped, and not-run counters. |
+| Rust CLI | v1 release candidate and CI pending | `pstd extract`, `pstd inspect`, `pstd batch`, and `pstd version` exist. |
+| Structured output contract | v1 release candidate and CI pending | Single-PST and batch output contracts are documented for local/Docker operators. |
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
 | PST header parser | Implemented foundation and CI validated | Validates basic PST magic and version/variant summary. |
 | BBT/NBT parsing | Traversal expansion and CI validated | Bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards exist. |
@@ -17,11 +17,11 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
 | Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence. |
 | Attachments | M23 attachment fidelity and CI validated | M23 preserves metadata-only attachment rows, declared size, size status, method, and deferred embedded-message status. |
-| Batch orchestration | M24 batch hardening and CI pending | M24 adds root-level `batch_progress.jsonl`, expanded `batch_summary.json`, deterministic resume-by-skip context, partial-success classification, and not-run counts. |
-| Table/property parse reports | M23 attachment fidelity and CI validated | M23 keeps parsed attachment rows visible even when payload bytes are unavailable. |
+| Batch orchestration | M24 batch hardening and CI validated | M24 adds root-level `batch_progress.jsonl`, expanded `batch_summary.json`, deterministic resume-by-skip context, partial-success classification, and not-run counts. |
+| Release-candidate handoff | M25 and CI pending | M25 adds RC checklist, local/Docker operator handoff, and unsupported/deferred area docs. |
 | Parser limits | Implemented foundation and CI validated | Explicit parser limits exist for traversal pages, block payload size, and subnode depth. |
 | Subnode references | M15 compatibility triage and CI validated | M15 summarizes observed subnode layout reports into supported, partial, and unsupported categories. |
-| Snowflake/web UI/search | Future work | Out of v1 implementation until later roadmap phases. |
+| Snowflake/web UI/search | Post-v1 work | Out of the completed v1 implementation lane. |
 
 ## Merged milestones
 
@@ -50,13 +50,14 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M21: Focused Decoder Evidence Expansion | #160 | CI validated |
 | M22: Body and Header Fidelity Expansion | #166 | CI validated |
 | M23: Attachment Payload Fidelity | #171 | CI validated |
-| M24: Batch Scale, Performance, and Corruption Hardening | pending | CI pending |
+| M24: Batch Scale, Performance, and Corruption Hardening | #176 | CI validated |
+| M25: v1 Release Candidate and Operator Handoff | pending | CI pending |
 
 ## Latest validation
 
-GitHub Actions validation passed for M23 in PR #171. M24 validation is pending on the milestone PR.
+GitHub Actions validation passed for M24 in PR #176. M25 validation is pending on the milestone PR.
 
-Expected M24 validation includes:
+Expected M25 validation includes:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -69,27 +70,23 @@ Expected M24 validation includes:
 
 ## Remaining v1 milestones
 
-There is **one v1 milestone left after M24**.
+There are **no remaining planned v1 milestones after M25**.
 
-| Order | Milestone | Tracking issue | Purpose |
-|---:|---|---:|---|
-| 1 | M25: v1 Release Candidate and Operator Handoff | #141 | Close v1 with validation, documentation cleanup, and local/Docker operator handoff. |
+## Next phase
 
-## Next milestone
+Post-v1 Snowflake ingestion planning.
 
-M25: v1 Release Candidate and Operator Handoff.
+This should start with planning only:
 
-M25 should add:
+- Snowflake table and stage design.
+- Load validation model.
+- Mapping from v1 JSONL/TAR outputs to Snowflake objects.
+- Operational controls for fixture and production data.
 
-- Final validation review across Rust, Python wrapper, Docker, CLI smoke checks, and approved fixture checks.
-- Operator handoff documentation for local and Docker execution.
-- Explicit unsupported/deferred area review.
-- Final v1 release-candidate checklist.
-
-M25 should not add Snowflake, search, or web UI work.
+It should not backfill new v1 scope into the completed M1-M25 lane.
 
 ## Validation risk
 
-The M1-M24 foundation has CI coverage at the unit, smoke, Docker, and fixture level once M24 CI passes. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
+The M1-M25 foundation has CI coverage at the unit, smoke, Docker, and fixture level once M25 CI passes. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
 
 Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md) and preserve fixture handling guidance.
