@@ -36,6 +36,56 @@ fn pst_header_accepts_minimal_unicode_header() {
     assert_eq!(parsed.summary.format, "pst");
     assert_eq!(parsed.summary.version, Some(23));
     assert_eq!(parsed.summary.variant, "unicode");
+    assert_eq!(
+        parsed.summary.root_diagnostics.condition,
+        "root_pointers_absent"
+    );
+}
+
+#[test]
+fn pst_header_classifies_root_offsets_beyond_file_size() {
+    let mut header = vec![0u8; 64];
+    header[0..4].copy_from_slice(&PST_MAGIC);
+    header[8..10].copy_from_slice(b"SM");
+    header[10..12].copy_from_slice(&23u16.to_le_bytes());
+    header[48..56].copy_from_slice(&4_415_226_381_312u64.to_le_bytes());
+    header[56..64].copy_from_slice(&281_500_746_530_816u64.to_le_bytes());
+
+    let parsed = PstHeader::parse_bytes(&header, 271_360).unwrap();
+
+    assert_eq!(
+        parsed.summary.root_diagnostics.condition,
+        "root_offsets_out_of_bounds"
+    );
+    assert_eq!(
+        parsed.summary.root_diagnostics.bbt_root.condition,
+        "root_offset_beyond_file_size"
+    );
+    assert_eq!(
+        parsed.summary.root_diagnostics.nbt_root.condition,
+        "root_offset_beyond_file_size"
+    );
+    assert!(!parsed.summary.root_diagnostics.bbt_root.offset_in_bounds);
+    assert!(!parsed.summary.root_diagnostics.nbt_root.root_page_in_bounds);
+}
+
+#[test]
+fn pst_header_classifies_root_pages_in_bounds() {
+    let mut header = vec![0u8; 64];
+    header[0..4].copy_from_slice(&PST_MAGIC);
+    header[8..10].copy_from_slice(b"SM");
+    header[10..12].copy_from_slice(&23u16.to_le_bytes());
+    header[48..56].copy_from_slice(&1024u64.to_le_bytes());
+    header[56..64].copy_from_slice(&2048u64.to_le_bytes());
+
+    let parsed = PstHeader::parse_bytes(&header, 4096).unwrap();
+
+    assert_eq!(
+        parsed.summary.root_diagnostics.condition,
+        "root_pages_in_bounds"
+    );
+    assert!(parsed.summary.root_diagnostics.bbt_root.offset_in_bounds);
+    assert!(parsed.summary.root_diagnostics.nbt_root.root_page_in_bounds);
 }
 
 #[test]
