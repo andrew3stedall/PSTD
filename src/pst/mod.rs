@@ -4,6 +4,7 @@ pub mod bbt;
 pub mod binary;
 pub mod block;
 pub mod bth;
+#[path = "compatibility_m21.rs"]
 pub mod compatibility;
 pub mod folder_tree;
 pub mod folders;
