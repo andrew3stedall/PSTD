@@ -11,9 +11,9 @@
 
 ## Current roadmap position
 
-M1-M24 are implemented through milestone branches and intended for CI validation before merge. M24 hardens batch operation by making discovered, attempted, completed, partial, failed, skipped, and not-run PST counts explicit.
+M1-M25 are implemented through milestone branches and intended for CI validation before merge. M25 closes the planned v1 milestone lane with release-candidate checklist, local/Docker operator handoff, and unsupported/deferred area documentation.
 
-There is **one v1 milestone left after M24**.
+There are **no remaining planned v1 milestones after M25**.
 
 ## Roadmap overview
 
@@ -41,8 +41,8 @@ M20: Focused Candidate Implementation [implemented, CI validated]
 M21: Focused Decoder Evidence Expansion [implemented, CI validated]
 M22: Body and Header Fidelity Expansion [implemented, CI validated]
 M23: Attachment Payload Fidelity [implemented, CI validated]
-M24: Batch Scale, Performance, and Corruption Hardening [implemented, CI pending]
-M25: v1 Release Candidate and Operator Handoff [next, issue #141]
+M24: Batch Scale, Performance, and Corruption Hardening [implemented, CI validated]
+M25: v1 Release Candidate and Operator Handoff [implemented, CI pending]
 ```
 
 ## Completed milestone groups
@@ -52,29 +52,23 @@ M25: v1 Release Candidate and Operator Handoff [next, issue #141]
 | M1-M6 | Established the local/Docker extraction archive contract, Rust/Python CLI surface, PST binary primitives, metadata output, recipient/threading foundation, body/attachment output foundation, and batch orchestration. |
 | M7-M12 | Added parser depth diagnostics, bounded traversal, payload/subnode traversal, payload wiring, extraction path integration, and attachment table/subnode integration. |
 | M13-M24 | Added fixture compatibility coverage, recursive subnode layout exploration, observed-layout triage, fixture-backed decoder expansion, decoder backlog reporting, review workflow outputs, candidate selection outputs, one focused `CATW` attachment-table decoder, UTF-16 compact decoder evidence classification, Unicode HTML body extraction, transport-header metadata, attachment metadata fidelity, and hardened batch progress/status accounting. |
+| M25 | Added release-candidate checklist, local/Docker operator handoff, unsupported/deferred area review, and post-v1 planning boundary. |
 
-## Completed M24 milestone
-
-### M24: Batch Scale, Performance, and Corruption Hardening
-
-Tracking issue: #139.
-
-M24 improves batch operator diagnostics without adding distributed execution. It adds root-level `batch_progress.jsonl`, preserves discovered-vs-attempted totals, classifies partial-success PSTs, records not-run counts when fail-fast mode stops early, and expands `batch_summary.json` with explicit counters and checkpoint/progress paths.
-
-## Remaining v1 milestone
+## Completed M25 milestone
 
 ### M25: v1 Release Candidate and Operator Handoff
 
 Tracking issue: #141.
 
-Close the bounded v1 lane. Run or document the full validation gate, update operator docs, confirm remaining unsupported areas are explicit and non-blocking, and mark the first post-v1 phase as Snowflake ingestion planning.
+M25 closes the bounded v1 lane. It documents the final validation gate, local and Docker operating model, expected output review process, unsupported/deferred areas, and post-v1 boundary.
 
-## Future roadmap after v1
+## Post-v1 roadmap
 
 ```text
-V2: Snowflake ingestion
-V3: Search and review web application
-V4: Knowledge graph and LLM/RAG support
+Post-v1 Phase 1: Snowflake ingestion planning
+Post-v1 Phase 2: Snowflake ingestion implementation
+Post-v1 Phase 3: Search and review web application planning
+Post-v1 Phase 4: Semantic search, tagging, graph, and LLM/RAG planning
 ```
 
-These phases remain out of scope for the v1 implementation lane.
+These phases remain outside the completed v1 implementation lane.
