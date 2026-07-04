@@ -1,0 +1,129 @@
+name: Aspose PersonalStorage PST Test Run
+
+on:
+  push:
+    branches: [pstd-test-aspose-personalstorage-pst]
+  pull_request:
+    branches: [main]
+
+jobs:
+  aspose-personalstorage-pst-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build extractor
+        run: cargo build
+
+      - name: Download public PST fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pstd-public-fixtures /tmp/pstd-aspose-artifacts
+          url="https://raw.githubusercontent.com/aspose-email/Aspose.Email-for-Java/master/Examples/src/main/resources/outlook/PersonalStorage.pst"
+          echo "$url" > /tmp/pstd-aspose-artifacts/source-url.txt
+          curl --fail --location --show-error --silent "$url" -o /tmp/pstd-public-fixtures/aspose-personalstorage.pst
+          stat /tmp/pstd-public-fixtures/aspose-personalstorage.pst > /tmp/pstd-aspose-artifacts/fixture-stat.txt
+          sha256sum /tmp/pstd-public-fixtures/aspose-personalstorage.pst > /tmp/pstd-aspose-artifacts/fixture-sha256.txt
+
+      - name: Run PSTD commands
+        shell: bash
+        run: |
+          set -u -o pipefail
+          fixture="/tmp/pstd-public-fixtures/aspose-personalstorage.pst"
+          artifacts="/tmp/pstd-aspose-artifacts"
+          mkdir -p "$artifacts"
+
+          set +e
+          cargo run -- inspect --input "$fixture" --json > "$artifacts/inspect.json" 2> "$artifacts/inspect.stderr.txt"
+          inspect_exit=$?
+          cargo run -- extract --input "$fixture" --output /tmp/pstd-aspose-output > "$artifacts/extract.stdout.txt" 2> "$artifacts/extract.stderr.txt"
+          extract_exit=$?
+          cargo run -- batch --input "$fixture" --output /tmp/pstd-aspose-batch > "$artifacts/batch.stdout.txt" 2> "$artifacts/batch.stderr.txt"
+          batch_exit=$?
+          set -e
+
+          printf '{"inspect_exit":%s,"extract_exit":%s,"batch_exit":%s}\n' "$inspect_exit" "$extract_exit" "$batch_exit" > "$artifacts/command-exit-codes.json"
+          cp /tmp/pstd-aspose-output/run_summary.json "$artifacts/run_summary.json" 2>/dev/null || true
+          cp /tmp/pstd-aspose-batch/batch_summary.json "$artifacts/batch_summary.json" 2>/dev/null || true
+          head -n 200 /tmp/pstd-aspose-output/progress.jsonl > "$artifacts/progress.head.jsonl" 2>/dev/null || true
+          head -n 200 /tmp/pstd-aspose-batch/batch_progress.jsonl > "$artifacts/batch_progress.head.jsonl" 2>/dev/null || true
+          head -n 200 /tmp/pstd-aspose-batch/batch_checkpoint.jsonl > "$artifacts/batch_checkpoint.head.jsonl" 2>/dev/null || true
+
+          tarfile=$(find /tmp/pstd-aspose-output/archives -type f -name '*.tar' 2>/dev/null | head -n 1 || true)
+          if [[ -n "$tarfile" ]]; then
+            tar -tf "$tarfile" > "$artifacts/tar_listing.txt" || true
+          else
+            echo "No TAR archive was produced." > "$artifacts/no-tar-produced.txt"
+          fi
+
+          python3 - <<'PY' > "$artifacts/assessment.md"
+          import json
+          from pathlib import Path
+          root = Path('/tmp/pstd-aspose-artifacts')
+          def text(name):
+              p = root / name
+              return p.read_text(errors='replace').strip() if p.exists() else ''
+          def js(name):
+              try:
+                  return json.loads(text(name))
+              except Exception:
+                  return None
+          exits = js('command-exit-codes.json') or {}
+          inspect = js('inspect.json') or {}
+          summary = js('run_summary.json') or {}
+          batch = js('batch_summary.json') or {}
+          stat = text('fixture-stat.txt')
+          size = ''
+          for line in stat.splitlines():
+              if line.startswith('  Size:'):
+                  size = line.strip()
+                  break
+          folders = summary.get('folders_discovered') or 0
+          found = summary.get('messages_discovered') or 0
+          extracted = summary.get('messages_extracted') or 0
+          if extracted:
+              stage = 'messages_extracted'
+          elif found:
+              stage = 'messages_discovered'
+          elif folders:
+              stage = 'folders_discovered'
+          else:
+              stage = summary.get('status') or 'no_structured_summary'
+          print('# PSTD Aspose PersonalStorage PST CI Assessment')
+          print()
+          print(f'- Source: `{text("source-url.txt")}`')
+          print(f'- SHA256: `{text("fixture-sha256.txt")}`')
+          if size:
+              print(f'- Fixture stat: `{size}`')
+          print('- Known structure reference: Aspose example code loads `PersonalStorage.pst`, enumerates root subfolders, and documents one case with 17 search subfolders and 0 normal subfolders.')
+          print(f'- inspect_exit: `{exits.get("inspect_exit")}`')
+          print(f'- extract_exit: `{exits.get("extract_exit")}`')
+          print(f'- batch_exit: `{exits.get("batch_exit")}`')
+          print(f'- quality_stage: `{stage}`')
+          for k in ['status','folders_discovered','messages_discovered','messages_extracted','messages_not_extracted','attachments_extracted','attachments_not_extracted','tar_shards_written','bytes_read','bytes_written']:
+              if k in summary:
+                  print(f'- {k}: `{summary[k]}`')
+          for k in ['status','pst_discovered','pst_attempted','pst_completed','pst_partial','pst_failed','pst_skipped','pst_not_run']:
+              if k in batch:
+                  print(f'- batch_{k}: `{batch[k]}`')
+          listing = text('tar_listing.txt')
+          if listing:
+              print(f'- tar_entries: `{len(listing.splitlines())}`')
+          print()
+          print('## stderr excerpts')
+          for name in ['inspect.stderr.txt','extract.stderr.txt','batch.stderr.txt']:
+              value = text(name)
+              if value:
+                  print(f'### {name}')
+                  print('```text')
+                  print('\n'.join(value.splitlines()[-80:]))
+                  print('```')
+          PY
+
+      - name: Upload assessment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aspose-personalstorage-pst-assessment
+          path: /tmp/pstd-aspose-artifacts
