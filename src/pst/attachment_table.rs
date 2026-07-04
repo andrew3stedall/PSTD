@@ -50,7 +50,8 @@ pub fn attachment_payloads_from_table(
 
     for (ordinal, row) in table.rows.iter().enumerate() {
         let properties = property_context_from_table_row(row);
-        if let Some(payload) = attachment_payload_from_properties(message_key, ordinal, &properties) {
+        if let Some(payload) = attachment_payload_from_properties(message_key, ordinal, &properties)
+        {
             payloads.push(payload);
         } else {
             missing_payload_count += 1;
@@ -523,9 +524,15 @@ mod tests {
             Some("application/pdf")
         );
         assert_eq!(unavailable_records[0].declared_size_bytes, Some(42));
-        assert_eq!(unavailable_records[0].size_status, "payload_unavailable_declared_size_present");
+        assert_eq!(
+            unavailable_records[0].size_status,
+            "payload_unavailable_declared_size_present"
+        );
         assert_eq!(unavailable_records[0].attachment_method, Some(5));
-        assert_eq!(unavailable_records[0].extraction_status, "embedded_message_payload_deferred");
+        assert_eq!(
+            unavailable_records[0].extraction_status,
+            "embedded_message_payload_deferred"
+        );
         assert_eq!(report.missing_payload_count, 1);
         assert_eq!(report.status, "attachment_table_payloads_unavailable");
     }
@@ -585,7 +592,7 @@ mod tests {
             payloads[0].record.content_type.as_deref(),
             Some("application/pdf")
         );
-        assert_eq!(payloads[0].record.declared_size_bytes, Some(20));
+        assert_eq!(payloads[0].record.declared_size_bytes, Some(19));
         assert_eq!(payloads[0].record.size_status, "size_matched");
         assert_eq!(payloads[0].bytes, b"utf16 compact bytes");
         assert_eq!(report.subnode_block_count, 1);
@@ -620,10 +627,19 @@ mod tests {
         assert!(payloads.is_empty());
         assert_eq!(unavailable_records.len(), 1);
         assert_eq!(unavailable_records[0].filename_safe, "compact-missing.txt");
-        assert_eq!(unavailable_records[0].content_type.as_deref(), Some("text/plain"));
+        assert_eq!(
+            unavailable_records[0].content_type.as_deref(),
+            Some("text/plain")
+        );
         assert_eq!(unavailable_records[0].declared_size_bytes, Some(0));
-        assert_eq!(unavailable_records[0].size_status, "payload_unavailable_declared_size_present");
-        assert_eq!(unavailable_records[0].extraction_status, "attachment_payload_empty");
+        assert_eq!(
+            unavailable_records[0].size_status,
+            "payload_unavailable_declared_size_present"
+        );
+        assert_eq!(
+            unavailable_records[0].extraction_status,
+            "attachment_payload_empty"
+        );
         assert_eq!(report.parsed_table_count, 1);
         assert_eq!(report.missing_payload_count, 1);
         assert_eq!(
@@ -706,7 +722,9 @@ mod tests {
         buf.extend_from_slice(&((attachment_bytes.len() + filename.len()) as u16).to_le_bytes());
         buf.extend_from_slice(&(mime.len() as u16).to_le_bytes());
         buf.extend_from_slice(&PR_ATTACH_SIZE.to_le_bytes());
-        buf.extend_from_slice(&((attachment_bytes.len() + filename.len() + mime.len()) as u16).to_le_bytes());
+        buf.extend_from_slice(
+            &((attachment_bytes.len() + filename.len() + mime.len()) as u16).to_le_bytes(),
+        );
         buf.extend_from_slice(&(size.len() as u16).to_le_bytes());
         buf.extend_from_slice(&PR_ATTACH_METHOD.to_le_bytes());
         buf.extend_from_slice(
