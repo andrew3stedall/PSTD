@@ -2,7 +2,7 @@
 
 ## Status
 
-M1-M20 are implemented, merged to `main`, and CI validated. Five bounded v1 milestones remain after M20: M21-M25. This document defines the local/Docker v1 MVP only.
+M1-M21 are implemented through milestone branches and intended for CI validation before merge. Four bounded v1 milestones remain after M21: M22-M25. This document defines the local/Docker v1 MVP only.
 
 ## Problem
 
@@ -76,7 +76,6 @@ Speed of extracting and archiving emails from PST files.
 
 | Milestone | Tracking issue | PRD risk reduced |
 |---|---:|---|
-| M21: Focused Decoder Evidence Expansion | #136 | Reduces parser compatibility risk through evidence-backed decoder work. |
 | M22: Body and Header Fidelity Expansion | #137 | Reduces body/header completeness and status-reporting gaps. |
 | M23: Attachment Payload Fidelity | #138 | Reduces attachment payload completeness and unsupported-layout ambiguity. |
 | M24: Batch Scale, Performance, and Corruption Hardening | #139 | Reduces operational risk for local/Docker batch runs and recoverable failures. |
