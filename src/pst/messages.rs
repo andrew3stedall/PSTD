@@ -2,7 +2,7 @@ use sha2::{Digest, Sha256};
 
 use crate::output::ids;
 use crate::output::metadata::BodyRecord;
-use crate::pst::mapi::{MapiValue, PR_BODY, PR_HTML, PR_RTF_COMPRESSED};
+use crate::pst::mapi::{MapiValue, PR_BODY, PR_HTML, PR_HTML_STRING, PR_RTF_COMPRESSED};
 use crate::pst::property_context::PropertyContext;
 
 #[derive(Debug, Clone)]
@@ -23,6 +23,8 @@ pub fn body_payloads_from_properties(
 
     if let Some(html) = binary_property_bytes(properties, PR_HTML) {
         payloads.push(html_body_payload(message_key, &html));
+    } else if let Some(html) = properties.string_value(PR_HTML_STRING) {
+        payloads.push(html_string_body_payload(message_key, &html));
     }
 
     if let Some(rtf) = binary_property_bytes(properties, PR_RTF_COMPRESSED) {
@@ -38,6 +40,10 @@ pub fn text_body_payload(message_key: &str, text: &str) -> BodyPayload {
 
 pub fn html_body_payload(message_key: &str, html: &[u8]) -> BodyPayload {
     body_payload(message_key, "html", html.to_vec(), None)
+}
+
+pub fn html_string_body_payload(message_key: &str, html: &str) -> BodyPayload {
+    body_payload(message_key, "html", html.as_bytes().to_vec(), Some("utf-8"))
 }
 
 pub fn body_payload(
@@ -107,10 +113,10 @@ mod tests {
     use std::collections::HashMap;
 
     use super::{
-        body_extension, body_payloads_from_properties, html_body_payload, text_body_payload,
-        unavailable_body_record,
+        body_extension, body_payloads_from_properties, html_body_payload, html_string_body_payload,
+        text_body_payload, unavailable_body_record,
     };
-    use crate::pst::mapi::{MapiValue, PR_BODY, PR_HTML, PR_RTF_COMPRESSED};
+    use crate::pst::mapi::{MapiValue, PR_BODY, PR_HTML, PR_HTML_STRING, PR_RTF_COMPRESSED};
     use crate::pst::property_context::{PropertyContext, PropertyValue};
 
     #[test]
@@ -132,6 +138,16 @@ mod tests {
         assert_eq!(payload.record.archive_path, "bodies/msg_123.html");
         assert_eq!(payload.record.encoding, None);
         assert_eq!(payload.record.size_bytes, 12);
+    }
+
+    #[test]
+    fn builds_unicode_html_body_payload() {
+        let payload = html_string_body_payload("msg_123", "<p>Hello</p>");
+        assert_eq!(payload.record.body_type, "html");
+        assert_eq!(payload.record.archive_path, "bodies/msg_123.html");
+        assert_eq!(payload.record.encoding.as_deref(), Some("utf-8"));
+        assert_eq!(payload.record.size_bytes, 12);
+        assert_eq!(payload.bytes, b"<p>Hello</p>");
     }
 
     #[test]
@@ -163,6 +179,59 @@ mod tests {
         assert_eq!(payloads.len(), 2);
         assert_eq!(payloads[0].record.body_type, "text");
         assert_eq!(payloads[1].record.body_type, "html");
+    }
+
+    #[test]
+    fn builds_html_body_payload_from_unicode_property() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_HTML_STRING,
+            PropertyValue {
+                tag: PR_HTML_STRING,
+                name: "body_html_unicode".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("<p>Hello Unicode</p>".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext { values };
+
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        assert_eq!(payloads.len(), 1);
+        assert_eq!(payloads[0].record.body_type, "html");
+        assert_eq!(payloads[0].record.encoding.as_deref(), Some("utf-8"));
+        assert_eq!(payloads[0].bytes, b"<p>Hello Unicode</p>");
+    }
+
+    #[test]
+    fn prefers_binary_html_over_unicode_html_when_both_are_present() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_HTML,
+            PropertyValue {
+                tag: PR_HTML,
+                name: "body_html".to_string(),
+                raw: b"<p>Binary</p>".to_vec(),
+                decoded: Some(MapiValue::Binary(b"<p>Binary</p>".to_vec())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_HTML_STRING,
+            PropertyValue {
+                tag: PR_HTML_STRING,
+                name: "body_html_unicode".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("<p>Unicode</p>".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext { values };
+
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        assert_eq!(payloads.len(), 1);
+        assert_eq!(payloads[0].record.encoding, None);
+        assert_eq!(payloads[0].bytes, b"<p>Binary</p>");
     }
 
     #[test]

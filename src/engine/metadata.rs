@@ -401,6 +401,7 @@ fn candidate_message(
         received_at: None,
         created_at: None,
         modified_at: None,
+        transport_message_headers: None,
         internet_message_id: None,
         in_reply_to_id: None,
         conversation_index: None,

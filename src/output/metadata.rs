@@ -16,6 +16,7 @@ pub struct MessageRecord {
     pub received_at: Option<String>,
     pub created_at: Option<String>,
     pub modified_at: Option<String>,
+    pub transport_message_headers: Option<String>,
     pub internet_message_id: Option<String>,
     pub in_reply_to_id: Option<String>,
     pub conversation_index: Option<String>,

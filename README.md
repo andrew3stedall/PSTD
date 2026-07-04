@@ -2,7 +2,7 @@
 
 PSTD is a Rust-first PST email data extraction tool. The v1 command is `pstd`.
 
-The project is being built milestone-by-milestone through a phone-first GitHub workflow. M1-M21 are implemented, merged through milestone PRs, and designed for CI validation. Four v1 milestones remain after M21: M22-M25.
+The project is being built milestone-by-milestone through a phone-first GitHub workflow. M1-M22 are implemented through milestone PRs and designed for CI validation. Three v1 milestones remain after M22: M23-M25.
 
 ## Current status
 
@@ -10,8 +10,8 @@ The project is being built milestone-by-milestone through a phone-first GitHub w
 |---|---|---|
 | M1-M6 | Implemented and CI validated | Extraction archive contract, PST binary foundation, folder/metadata extraction, recipients/threading, bodies/attachments foundation, batch orchestration, and resume support. |
 | M7-M12 | Implemented and CI validated | Parser depth diagnostics, bounded traversal, payload/subnode traversal, payload wiring, extraction path integration, and attachment subnode integration. |
-| M13-M21 | Implemented and CI validated after milestone merge | Fixture compatibility coverage, recursive layout exploration, observed layout triage, fixture-backed decoder expansion, decoder backlog reporting, backlog review workflow, candidate selection, one focused candidate implementation, and UTF-16 compact decoder evidence classification. |
-| M22-M25 | Remaining v1 roadmap | Body/header fidelity, attachment payload fidelity, batch scale/corruption hardening, and v1 release-candidate handoff. |
+| M13-M22 | Implemented and CI validated after milestone merge | Fixture compatibility coverage, recursive layout exploration, observed layout triage, fixture-backed decoder expansion, decoder backlog reporting, backlog review workflow, candidate selection, focused candidate implementation, decoder evidence classification, Unicode HTML body extraction, and transport-header metadata. |
+| M23-M25 | Remaining v1 roadmap | Attachment payload fidelity, batch scale/corruption hardening, and v1 release-candidate handoff. |
 
 ## What works now
 
@@ -26,13 +26,12 @@ pstd batch --input <pst-file-or-directory> --output <output-dir>
 python -m pstd --help
 ```
 
-Current extraction outputs use structured TAR + JSONL records and explicit status fields. The implementation includes metadata, recipients, threading helpers, body and attachment output foundations, batch progress/checkpointing, parser diagnostics, compatibility triage outputs, decoder backlog review outputs, candidate selection outputs, focused compact attachment-table decoder coverage, and compatibility evidence classification for both `CATB` and `CATW` compact decoder status families.
+Current extraction outputs use structured TAR + JSONL records and explicit status fields. The implementation includes metadata, recipients, threading helpers, body and attachment output foundations, batch progress/checkpointing, parser diagnostics, compatibility triage outputs, decoder backlog review outputs, candidate selection outputs, focused compact attachment-table decoder coverage, compatibility evidence classification for both `CATB` and `CATW` compact decoder status families, Unicode HTML body extraction, and raw transport-header metadata when available.
 
 ## Remaining v1 milestones
 
 | Milestone | Tracking issue | Purpose |
 |---|---:|---|
-| M22: Body and Header Fidelity Expansion | #137 | Reduce body/header extraction gaps while preserving deterministic status reporting. |
 | M23: Attachment Payload Fidelity | #138 | Tighten attachment payload extraction and unsupported-layout reporting. |
 | M24: Batch Scale, Performance, and Corruption Hardening | #139 | Harden realistic batch operation, resume behaviour, progress reporting, and recoverable failures. |
 | M25: v1 Release Candidate and Operator Handoff | #141 | Close v1 with validation, documentation cleanup, and local/Docker operator handoff. |
