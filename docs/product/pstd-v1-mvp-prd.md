@@ -2,7 +2,7 @@
 
 ## Status
 
-M1-M22 are implemented through milestone branches and intended for CI validation before merge. Three bounded v1 milestones remain after M22: M23-M25. This document defines the local/Docker v1 MVP only.
+M1-M23 are implemented through milestone branches and intended for CI validation before merge. Two bounded v1 milestones remain after M23: M24-M25. This document defines the local/Docker v1 MVP only.
 
 ## Problem
 
@@ -76,7 +76,6 @@ Speed of extracting and archiving emails from PST files.
 
 | Milestone | Tracking issue | PRD risk reduced |
 |---|---:|---|
-| M23: Attachment Payload Fidelity | #138 | Reduces attachment payload completeness and unsupported-layout ambiguity. |
 | M24: Batch Scale, Performance, and Corruption Hardening | #139 | Reduces operational risk for local/Docker batch runs and recoverable failures. |
 | M25: v1 Release Candidate and Operator Handoff | #141 | Confirms validation, documentation, and operator handoff for v1. |
 
@@ -139,11 +138,12 @@ Capture where available:
 
 ## Required attachment fidelity
 
-- Extract attachment bytes as raw files inside TAR.
+- Extract attachment bytes as raw files inside TAR when available.
 - Preserve original filename in metadata.
 - Write safe deterministic archive filename.
-- Capture content type, extension, size, hash, inline flag, content ID, attachment order, and extraction status where available.
-- Preserve and identify attached emails where possible.
+- Capture content type, extension, extracted size, declared size, size status, hash, inline flag, content ID, attachment method, attachment order, and extraction status where available.
+- Preserve metadata-only rows for known attachments whose payload bytes are unavailable, empty, or deferred.
+- Preserve and identify attached emails where possible; embedded-message payload decoding remains deferred unless bytes are directly available through the current parser path.
 - Record failed attachments without failing the whole message when recoverable.
 
 ## Corruption behaviour

@@ -50,12 +50,12 @@ This tree is organised by audience.
 | M20 | [Focused Candidate Implementation](milestones/pstd-v1-m20-focused-candidate-implementation.md) | TBD | [M20 issues](issues/pstd-v1-m20-ordered-issue-plan.md) | TBD |
 | M21 | [Focused Decoder Evidence Expansion](milestones/pstd-v1-m21-focused-decoder-evidence-expansion.md) | TBD | [M21 issues](issues/pstd-v1-m21-ordered-issue-plan.md) | TBD |
 | M22 | [Body and Header Fidelity Expansion](milestones/pstd-v1-m22-body-header-fidelity-expansion.md) | TBD | [M22 issues](issues/pstd-v1-m22-ordered-issue-plan.md) | TBD |
+| M23 | [Attachment Payload Fidelity](milestones/pstd-v1-m23-attachment-payload-fidelity.md) | TBD | [M23 issues](issues/pstd-v1-m23-ordered-issue-plan.md) | TBD |
 
 ## Remaining v1 milestone tracking
 
 | Milestone | Tracking issue | Purpose |
 |---|---:|---|
-| M23: Attachment Payload Fidelity | #138 | Tighten attachment payload extraction and unsupported-layout reporting. |
 | M24: Batch Scale, Performance, and Corruption Hardening | #139 | Harden realistic batch operation, resume behaviour, progress reporting, and recoverable failures. |
 | M25: v1 Release Candidate and Operator Handoff | #141 | Close v1 with validation, documentation cleanup, and local/Docker operator handoff. |
 
@@ -86,6 +86,7 @@ This tree is organised by audience.
 - [M20 Focused Candidate Implementation Plan](engineering/pstd-v1-m20-focused-candidate-implementation-plan.md)
 - [M21 Focused Decoder Evidence Expansion Plan](engineering/pstd-v1-m21-focused-decoder-evidence-expansion-plan.md)
 - [M22 Body and Header Fidelity Expansion Plan](engineering/pstd-v1-m22-body-header-fidelity-expansion-plan.md)
+- [M23 Attachment Payload Fidelity Plan](engineering/pstd-v1-m23-attachment-payload-fidelity-plan.md)
 
 ## Architecture and data
 

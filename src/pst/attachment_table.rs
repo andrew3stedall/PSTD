@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
+use crate::output::metadata::AttachmentRecord;
 use crate::pst::attachments::{
-    attachment_payload, attachment_payload_from_properties, AttachmentMetadata, AttachmentPayload,
+    attachment_payload, attachment_payload_from_properties,
+    unavailable_attachment_record_from_metadata, unavailable_attachment_record_from_properties,
+    AttachmentMetadata, AttachmentPayload,
 };
 use crate::pst::mapi::{decode_value, property_def};
 use crate::pst::payload::PayloadBlock;
@@ -36,8 +39,13 @@ pub struct AttachmentSubnodeWiringReport {
 pub fn attachment_payloads_from_table(
     message_key: &str,
     table: &TableContext,
-) -> (Vec<AttachmentPayload>, AttachmentTableWiringReport) {
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    AttachmentTableWiringReport,
+) {
     let mut payloads = Vec::new();
+    let mut unavailable_records = Vec::new();
     let mut missing_payload_count = 0usize;
 
     for (ordinal, row) in table.rows.iter().enumerate() {
@@ -47,6 +55,12 @@ pub fn attachment_payloads_from_table(
             payloads.push(payload);
         } else {
             missing_payload_count += 1;
+            unavailable_records.push(unavailable_attachment_record_from_properties(
+                message_key,
+                ordinal,
+                &properties,
+                "attachment_payload_property_absent",
+            ));
         }
     }
 
@@ -65,14 +79,19 @@ pub fn attachment_payloads_from_table(
         status: status.to_string(),
     };
 
-    (payloads, report)
+    (payloads, unavailable_records, report)
 }
 
 pub fn attachment_payloads_from_subnode_blocks(
     message_key: &str,
     blocks: &[PayloadBlock],
-) -> (Vec<AttachmentPayload>, AttachmentSubnodeWiringReport) {
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    AttachmentSubnodeWiringReport,
+) {
     let mut payloads = Vec::new();
+    let mut unavailable_records = Vec::new();
     let mut parsed_table_count = 0usize;
     let mut parse_error_count = 0usize;
     let mut row_count = 0usize;
@@ -84,13 +103,14 @@ pub fn attachment_payloads_from_subnode_blocks(
 
     for block in blocks {
         match decode_attachment_block(message_key, block, next_ordinal) {
-            Ok((mut block_payloads, report)) => {
+            Ok((mut block_payloads, mut block_unavailable_records, report)) => {
                 parsed_table_count += 1;
                 table_statuses.push(report.status);
                 row_count += report.row_count;
                 missing_payload_count += report.missing_payload_count;
                 next_ordinal += report.row_count;
                 payloads.append(&mut block_payloads);
+                unavailable_records.append(&mut block_unavailable_records);
             }
             Err(reason) => {
                 parse_error_count += 1;
@@ -125,14 +145,21 @@ pub fn attachment_payloads_from_subnode_blocks(
         status: status.to_string(),
     };
 
-    (payloads, report)
+    (payloads, unavailable_records, report)
 }
 
 fn decode_attachment_block(
     message_key: &str,
     block: &PayloadBlock,
     start_ordinal: usize,
-) -> Result<(Vec<AttachmentPayload>, AttachmentTableWiringReport), String> {
+) -> Result<
+    (
+        Vec<AttachmentPayload>,
+        Vec<AttachmentRecord>,
+        AttachmentTableWiringReport,
+    ),
+    String,
+> {
     if block.bytes.starts_with(COMPACT_ATTACHMENT_TABLE_MAGIC) {
         return decode_compact_attachment_table(message_key, &block.bytes, start_ordinal);
     }
@@ -145,10 +172,10 @@ fn decode_attachment_block(
 
     match TableContext::parse_with_report(&block.bytes, block.block_ref.offset.0) {
         Ok(table_report) => {
-            let (payloads, mut report) =
+            let (payloads, unavailable_records, mut report) =
                 attachment_payloads_from_table(message_key, &table_report.context);
             report.status = table_report.status;
-            Ok((payloads, report))
+            Ok((payloads, unavailable_records, report))
         }
         Err(reason) => Err(reason.to_string()),
     }
@@ -158,7 +185,14 @@ fn decode_compact_attachment_table(
     message_key: &str,
     bytes: &[u8],
     start_ordinal: usize,
-) -> Result<(Vec<AttachmentPayload>, AttachmentTableWiringReport), String> {
+) -> Result<
+    (
+        Vec<AttachmentPayload>,
+        Vec<AttachmentRecord>,
+        AttachmentTableWiringReport,
+    ),
+    String,
+> {
     if bytes.len() < 8 {
         return Err("compact attachment table buffer too short".to_string());
     }
@@ -166,6 +200,7 @@ fn decode_compact_attachment_table(
     let row_count = u16::from_le_bytes([bytes[4], bytes[5]]) as usize;
     let mut cursor = 8usize;
     let mut payloads = Vec::new();
+    let mut unavailable_records = Vec::new();
     let mut missing_payload_count = 0usize;
 
     for ordinal_offset in 0..row_count {
@@ -202,20 +237,30 @@ fn decode_compact_attachment_table(
         let data = bytes[cursor..cursor + data_len].to_vec();
         cursor += data_len;
 
+        let metadata = AttachmentMetadata {
+            filename_original: filename,
+            content_type,
+            is_inline: false,
+            content_id: None,
+            attachment_method: None,
+            declared_size_bytes: Some(data_len as u64),
+        };
+
         if data.is_empty() {
             missing_payload_count += 1;
+            unavailable_records.push(unavailable_attachment_record_from_metadata(
+                message_key,
+                start_ordinal + ordinal_offset,
+                metadata,
+                "attachment_payload_empty",
+            ));
             continue;
         }
 
         payloads.push(attachment_payload(
             message_key,
             start_ordinal + ordinal_offset,
-            AttachmentMetadata {
-                filename_original: filename,
-                content_type,
-                is_inline: false,
-                content_id: None,
-            },
+            metadata,
             data,
         ));
     }
@@ -230,6 +275,7 @@ fn decode_compact_attachment_table(
 
     Ok((
         payloads,
+        unavailable_records,
         AttachmentTableWiringReport {
             row_count,
             payload_count: row_count.saturating_sub(missing_payload_count),
@@ -243,7 +289,14 @@ fn decode_utf16_compact_attachment_table(
     message_key: &str,
     bytes: &[u8],
     start_ordinal: usize,
-) -> Result<(Vec<AttachmentPayload>, AttachmentTableWiringReport), String> {
+) -> Result<
+    (
+        Vec<AttachmentPayload>,
+        Vec<AttachmentRecord>,
+        AttachmentTableWiringReport,
+    ),
+    String,
+> {
     if bytes.len() < 8 {
         return Err("utf16 compact attachment table buffer too short".to_string());
     }
@@ -251,6 +304,7 @@ fn decode_utf16_compact_attachment_table(
     let row_count = u16::from_le_bytes([bytes[4], bytes[5]]) as usize;
     let mut cursor = 8usize;
     let mut payloads = Vec::new();
+    let mut unavailable_records = Vec::new();
     let mut missing_payload_count = 0usize;
 
     for ordinal_offset in 0..row_count {
@@ -293,20 +347,30 @@ fn decode_utf16_compact_attachment_table(
         let data = bytes[cursor..cursor + data_len].to_vec();
         cursor += data_len;
 
+        let metadata = AttachmentMetadata {
+            filename_original: filename,
+            content_type,
+            is_inline: false,
+            content_id: None,
+            attachment_method: None,
+            declared_size_bytes: Some(data_len as u64),
+        };
+
         if data.is_empty() {
             missing_payload_count += 1;
+            unavailable_records.push(unavailable_attachment_record_from_metadata(
+                message_key,
+                start_ordinal + ordinal_offset,
+                metadata,
+                "attachment_payload_empty",
+            ));
             continue;
         }
 
         payloads.push(attachment_payload(
             message_key,
             start_ordinal + ordinal_offset,
-            AttachmentMetadata {
-                filename_original: filename,
-                content_type,
-                is_inline: false,
-                content_id: None,
-            },
+            metadata,
             data,
         ));
     }
@@ -321,6 +385,7 @@ fn decode_utf16_compact_attachment_table(
 
     Ok((
         payloads,
+        unavailable_records,
         AttachmentTableWiringReport {
             row_count,
             payload_count: row_count.saturating_sub(missing_payload_count),
@@ -394,7 +459,10 @@ pub fn property_context_from_table_row(row: &TableRow) -> PropertyContext {
 #[cfg(test)]
 mod tests {
     use super::{attachment_payloads_from_subnode_blocks, attachment_payloads_from_table};
-    use crate::pst::mapi::{PR_ATTACH_DATA_BIN, PR_ATTACH_LONG_FILENAME, PR_ATTACH_MIME_TAG};
+    use crate::pst::mapi::{
+        PR_ATTACH_DATA_BIN, PR_ATTACH_LONG_FILENAME, PR_ATTACH_METHOD, PR_ATTACH_MIME_TAG,
+        PR_ATTACH_SIZE,
+    };
     use crate::pst::payload::PayloadBlock;
     use crate::pst::primitives::{BlockId, BlockRef, ByteOffset};
     use crate::pst::table_context::{TableContext, TableRow};
@@ -409,17 +477,24 @@ mod tests {
                     (PR_ATTACH_DATA_BIN, b"attachment bytes".to_vec()),
                     (PR_ATTACH_LONG_FILENAME, utf16le("report.pdf")),
                     (PR_ATTACH_MIME_TAG, utf16le("application/pdf")),
+                    (PR_ATTACH_SIZE, 16i32.to_le_bytes().to_vec()),
+                    (PR_ATTACH_METHOD, 1i32.to_le_bytes().to_vec()),
                 ],
             }],
         };
 
-        let (payloads, report) = attachment_payloads_from_table("msg_123", &table);
+        let (payloads, unavailable_records, report) =
+            attachment_payloads_from_table("msg_123", &table);
         assert_eq!(payloads.len(), 1);
+        assert!(unavailable_records.is_empty());
         assert_eq!(payloads[0].record.filename_safe, "report.pdf");
         assert_eq!(
             payloads[0].record.content_type.as_deref(),
             Some("application/pdf")
         );
+        assert_eq!(payloads[0].record.declared_size_bytes, Some(16));
+        assert_eq!(payloads[0].record.size_status, "size_matched");
+        assert_eq!(payloads[0].record.attachment_method, Some(1));
         assert_eq!(payloads[0].bytes, b"attachment bytes");
         assert_eq!(report.row_count, 1);
         assert_eq!(report.payload_count, 1);
@@ -428,17 +503,39 @@ mod tests {
     }
 
     #[test]
-    fn reports_missing_attachment_payloads() {
+    fn reports_missing_attachment_payloads_with_metadata_records() {
         let table = TableContext {
             columns: Vec::new(),
             rows: vec![TableRow {
                 row_id: 0,
-                values: vec![(PR_ATTACH_LONG_FILENAME, utf16le("missing.pdf"))],
+                values: vec![
+                    (PR_ATTACH_LONG_FILENAME, utf16le("missing.pdf")),
+                    (PR_ATTACH_MIME_TAG, utf16le("application/pdf")),
+                    (PR_ATTACH_SIZE, 42i32.to_le_bytes().to_vec()),
+                    (PR_ATTACH_METHOD, 5i32.to_le_bytes().to_vec()),
+                ],
             }],
         };
 
-        let (payloads, report) = attachment_payloads_from_table("msg_123", &table);
+        let (payloads, unavailable_records, report) =
+            attachment_payloads_from_table("msg_123", &table);
         assert!(payloads.is_empty());
+        assert_eq!(unavailable_records.len(), 1);
+        assert_eq!(unavailable_records[0].filename_safe, "missing.pdf");
+        assert_eq!(
+            unavailable_records[0].content_type.as_deref(),
+            Some("application/pdf")
+        );
+        assert_eq!(unavailable_records[0].declared_size_bytes, Some(42));
+        assert_eq!(
+            unavailable_records[0].size_status,
+            "payload_unavailable_declared_size_present"
+        );
+        assert_eq!(unavailable_records[0].attachment_method, Some(5));
+        assert_eq!(
+            unavailable_records[0].extraction_status,
+            "embedded_message_payload_deferred"
+        );
         assert_eq!(report.missing_payload_count, 1);
         assert_eq!(report.status, "attachment_table_payloads_unavailable");
     }
@@ -447,8 +544,10 @@ mod tests {
     fn wires_attachment_payloads_from_subnode_table_blocks() {
         let block = payload_block(100, 0, table_buf());
 
-        let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &[block]);
+        let (payloads, unavailable_records, report) =
+            attachment_payloads_from_subnode_blocks("msg_123", &[block]);
         assert_eq!(payloads.len(), 1);
+        assert!(unavailable_records.is_empty());
         assert_eq!(payloads[0].record.filename_safe, "report.pdf");
         assert_eq!(payloads[0].bytes, b"attachment bytes");
         assert_eq!(report.subnode_block_count, 1);
@@ -462,13 +561,17 @@ mod tests {
     fn wires_compact_attachment_table_blocks() {
         let block = payload_block(100, 0, compact_attachment_table_buf());
 
-        let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &[block]);
+        let (payloads, unavailable_records, report) =
+            attachment_payloads_from_subnode_blocks("msg_123", &[block]);
         assert_eq!(payloads.len(), 1);
+        assert!(unavailable_records.is_empty());
         assert_eq!(payloads[0].record.filename_safe, "compact.txt");
         assert_eq!(
             payloads[0].record.content_type.as_deref(),
             Some("text/plain")
         );
+        assert_eq!(payloads[0].record.declared_size_bytes, Some(13));
+        assert_eq!(payloads[0].record.size_status, "size_matched");
         assert_eq!(payloads[0].bytes, b"compact bytes");
         assert_eq!(report.subnode_block_count, 1);
         assert_eq!(report.parsed_table_count, 1);
@@ -483,13 +586,17 @@ mod tests {
     fn wires_utf16_compact_attachment_table_blocks() {
         let block = payload_block(100, 0, utf16_compact_attachment_table_buf());
 
-        let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &[block]);
+        let (payloads, unavailable_records, report) =
+            attachment_payloads_from_subnode_blocks("msg_123", &[block]);
         assert_eq!(payloads.len(), 1);
+        assert!(unavailable_records.is_empty());
         assert_eq!(payloads[0].record.filename_safe, "utf16-report.pdf");
         assert_eq!(
             payloads[0].record.content_type.as_deref(),
             Some("application/pdf")
         );
+        assert_eq!(payloads[0].record.declared_size_bytes, Some(19));
+        assert_eq!(payloads[0].record.size_status, "size_matched");
         assert_eq!(payloads[0].bytes, b"utf16 compact bytes");
         assert_eq!(report.subnode_block_count, 1);
         assert_eq!(report.parsed_table_count, 1);
@@ -504,8 +611,10 @@ mod tests {
     fn preserves_parse_error_fallback_for_invalid_utf16_compact_rows() {
         let block = payload_block(100, 4096, invalid_utf16_compact_attachment_table_buf());
 
-        let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &[block]);
+        let (payloads, unavailable_records, report) =
+            attachment_payloads_from_subnode_blocks("msg_123", &[block]);
         assert!(payloads.is_empty());
+        assert!(unavailable_records.is_empty());
         assert_eq!(report.parse_error_count, 1);
         assert_eq!(report.parse_error_offsets, vec![4096]);
         assert!(report.parse_error_reasons[0].contains("odd string byte length"));
@@ -513,11 +622,27 @@ mod tests {
     }
 
     #[test]
-    fn reports_compact_attachment_table_missing_payloads() {
+    fn reports_compact_attachment_table_missing_payloads_with_metadata_records() {
         let block = payload_block(100, 0, compact_attachment_table_missing_payload_buf());
 
-        let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &[block]);
+        let (payloads, unavailable_records, report) =
+            attachment_payloads_from_subnode_blocks("msg_123", &[block]);
         assert!(payloads.is_empty());
+        assert_eq!(unavailable_records.len(), 1);
+        assert_eq!(unavailable_records[0].filename_safe, "compact-missing.txt");
+        assert_eq!(
+            unavailable_records[0].content_type.as_deref(),
+            Some("text/plain")
+        );
+        assert_eq!(unavailable_records[0].declared_size_bytes, Some(0));
+        assert_eq!(
+            unavailable_records[0].size_status,
+            "payload_unavailable_declared_size_present"
+        );
+        assert_eq!(
+            unavailable_records[0].extraction_status,
+            "attachment_payload_empty"
+        );
         assert_eq!(report.parsed_table_count, 1);
         assert_eq!(report.missing_payload_count, 1);
         assert_eq!(
@@ -531,8 +656,10 @@ mod tests {
     fn reports_unparseable_subnode_table_blocks() {
         let block = payload_block(100, 4096, vec![1, 2, 3]);
 
-        let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &[block]);
+        let (payloads, unavailable_records, report) =
+            attachment_payloads_from_subnode_blocks("msg_123", &[block]);
         assert!(payloads.is_empty());
+        assert!(unavailable_records.is_empty());
         assert_eq!(report.parse_error_count, 1);
         assert_eq!(report.parse_error_offsets, vec![4096]);
         assert_eq!(report.parse_error_reasons.len(), 1);
@@ -548,8 +675,11 @@ mod tests {
             payload_block(102, 16384, missing_payload_table_buf()),
         ];
 
-        let (payloads, report) = attachment_payloads_from_subnode_blocks("msg_123", &blocks);
+        let (payloads, unavailable_records, report) =
+            attachment_payloads_from_subnode_blocks("msg_123", &blocks);
         assert_eq!(payloads.len(), 1);
+        assert_eq!(unavailable_records.len(), 1);
+        assert_eq!(unavailable_records[0].filename_safe, "missing.pdf");
         assert_eq!(report.subnode_block_count, 3);
         assert_eq!(report.parsed_table_count, 2);
         assert_eq!(report.parse_error_count, 1);
@@ -577,9 +707,12 @@ mod tests {
         let attachment_bytes = b"attachment bytes";
         let filename = utf16le_fixed("report.pdf", 24);
         let mime = utf16le_fixed("application/pdf", 32);
-        let row_width = attachment_bytes.len() + filename.len() + mime.len();
+        let size = 16i32.to_le_bytes();
+        let method = 1i32.to_le_bytes();
+        let row_width =
+            attachment_bytes.len() + filename.len() + mime.len() + size.len() + method.len();
         let mut buf = Vec::new();
-        buf.extend_from_slice(&3u16.to_le_bytes());
+        buf.extend_from_slice(&5u16.to_le_bytes());
         buf.extend_from_slice(&1u16.to_le_bytes());
         buf.extend_from_slice(&(row_width as u16).to_le_bytes());
         buf.extend_from_slice(&0u16.to_le_bytes());
@@ -592,9 +725,22 @@ mod tests {
         buf.extend_from_slice(&PR_ATTACH_MIME_TAG.to_le_bytes());
         buf.extend_from_slice(&((attachment_bytes.len() + filename.len()) as u16).to_le_bytes());
         buf.extend_from_slice(&(mime.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&PR_ATTACH_SIZE.to_le_bytes());
+        buf.extend_from_slice(
+            &((attachment_bytes.len() + filename.len() + mime.len()) as u16).to_le_bytes(),
+        );
+        buf.extend_from_slice(&(size.len() as u16).to_le_bytes());
+        buf.extend_from_slice(&PR_ATTACH_METHOD.to_le_bytes());
+        buf.extend_from_slice(
+            &((attachment_bytes.len() + filename.len() + mime.len() + size.len()) as u16)
+                .to_le_bytes(),
+        );
+        buf.extend_from_slice(&(method.len() as u16).to_le_bytes());
         buf.extend_from_slice(attachment_bytes);
         buf.extend_from_slice(&filename);
         buf.extend_from_slice(&mime);
+        buf.extend_from_slice(&size);
+        buf.extend_from_slice(&method);
         buf
     }
 

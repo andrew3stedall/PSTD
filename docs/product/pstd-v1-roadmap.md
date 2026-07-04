@@ -11,9 +11,9 @@
 
 ## Current roadmap position
 
-M1-M22 are implemented through milestone branches and intended for CI validation before merge. M22 reduces reachable body/header fidelity gaps by supporting Unicode HTML bodies and surfacing raw transport headers.
+M1-M23 are implemented through milestone branches and intended for CI validation before merge. M23 reduces attachment fidelity gaps by preserving metadata-only attachment rows and declared size/method information.
 
-There are **three v1 milestones left after M22**.
+There are **two v1 milestones left after M23**.
 
 ## Roadmap overview
 
@@ -39,9 +39,9 @@ M18: Decoder Backlog Review Workflow [implemented, CI validated]
 M19: Focused Decoder Candidate Selection [implemented, CI validated]
 M20: Focused Candidate Implementation [implemented, CI validated]
 M21: Focused Decoder Evidence Expansion [implemented, CI validated]
-M22: Body and Header Fidelity Expansion [implemented, CI pending]
-M23: Attachment Payload Fidelity [next, issue #138]
-M24: Batch Scale, Performance, and Corruption Hardening [planned, issue #139]
+M22: Body and Header Fidelity Expansion [implemented, CI validated]
+M23: Attachment Payload Fidelity [implemented, CI pending]
+M24: Batch Scale, Performance, and Corruption Hardening [next, issue #139]
 M25: v1 Release Candidate and Operator Handoff [planned, issue #141]
 ```
 
@@ -51,23 +51,17 @@ M25: v1 Release Candidate and Operator Handoff [planned, issue #141]
 |---|---|
 | M1-M6 | Established the local/Docker extraction archive contract, Rust/Python CLI surface, PST binary primitives, metadata output, recipient/threading foundation, body/attachment output foundation, and batch orchestration. |
 | M7-M12 | Added parser depth diagnostics, bounded traversal, payload/subnode traversal, payload wiring, extraction path integration, and attachment table/subnode integration. |
-| M13-M22 | Added fixture compatibility coverage, recursive subnode layout exploration, observed-layout triage, fixture-backed decoder expansion, decoder backlog reporting, review workflow outputs, candidate selection outputs, one focused `CATW` attachment-table decoder, UTF-16 compact decoder evidence classification, Unicode HTML body extraction, and transport-header metadata. |
+| M13-M23 | Added fixture compatibility coverage, recursive subnode layout exploration, observed-layout triage, fixture-backed decoder expansion, decoder backlog reporting, review workflow outputs, candidate selection outputs, one focused `CATW` attachment-table decoder, UTF-16 compact decoder evidence classification, Unicode HTML body extraction, transport-header metadata, and attachment metadata fidelity for missing/deferred payload rows. |
 
-## Completed M22 milestone
-
-### M22: Body and Header Fidelity Expansion
-
-Tracking issue: #137.
-
-M22 selected two reachable fidelity gaps instead of a broad parser rewrite. It adds Unicode/string HTML body extraction for `PR_HTML_STRING`, preserves binary HTML precedence, and surfaces `PR_TRANSPORT_MESSAGE_HEADERS` on message records when available.
-
-## Remaining v1 milestones
+## Completed M23 milestone
 
 ### M23: Attachment Payload Fidelity
 
 Tracking issue: #138.
 
-Tighten attachment payload extraction and status reporting. Keep `CATB`, `CATW`, Unicode body, and transport-header behaviour covered, improve supported payload layouts where evidence is strong, and explicitly document embedded message attachment support as supported, partial, or deferred.
+M23 selected a metadata-preservation slice rather than broad attachment parser expansion. It adds declared size, size status, and attachment method fields; emits metadata-only attachment records for parsed rows without payload bytes; preserves `CATB` and `CATW` extracted payload behaviour; and marks embedded-message payload absence as deferred.
+
+## Remaining v1 milestones
 
 ### M24: Batch Scale, Performance, and Corruption Hardening
 
