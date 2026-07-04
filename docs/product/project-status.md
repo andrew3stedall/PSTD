@@ -9,16 +9,16 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Area | Status | Notes |
 |---|---|---|
 | Rust CLI | Implemented and CI validated | `pstd extract`, `pstd inspect`, `pstd batch`, and `pstd version` exist. |
-| Structured output contract | M22 body/header fidelity and CI validated | M22 adds Unicode HTML body extraction and transport-header metadata to the message output contract. |
+| Structured output contract | M23 attachment fidelity and CI pending | M23 adds declared attachment size, size status, attachment method, and metadata-only unavailable rows. |
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
 | PST header parser | Implemented foundation and CI validated | Validates basic PST magic and version/variant summary. |
 | BBT/NBT parsing | Traversal expansion and CI validated | Bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards exist. |
 | Metadata processing | M22 body/header fidelity and CI validated | M22 surfaces `PR_TRANSPORT_MESSAGE_HEADERS` on message records when present. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
 | Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence. |
-| Attachments | M21 decoder evidence and CI validated; fidelity expansion remains | M20 adds UTF-16 compact attachment-table decoding for `CATW` rows; M21 makes `CATW` status evidence visible in compatibility triage; M23 is reserved for broader attachment payload fidelity. |
+| Attachments | M23 attachment fidelity and CI pending | M23 preserves metadata-only attachment rows, declared size, size status, method, and deferred embedded-message status. |
 | Batch orchestration | Implemented foundation and CI validated; hardening remains | Batch discovery, per-PST outputs, checkpoints, summaries, and resume-by-skip behaviour exist; M24 is reserved for scale/corruption hardening. |
-| Table/property parse reports | M22 body/header fidelity and CI validated | M22 keeps missing headers and body properties on explicit fallback/absence paths. |
+| Table/property parse reports | M23 attachment fidelity and CI pending | M23 keeps parsed attachment rows visible even when payload bytes are unavailable. |
 | Parser limits | Implemented foundation and CI validated | Explicit parser limits exist for traversal pages, block payload size, and subnode depth. |
 | Subnode references | M15 compatibility triage and CI validated | M15 summarizes observed subnode layout reports into supported, partial, and unsupported categories. |
 | Snowflake/web UI/search | Future work | Out of v1 implementation until later roadmap phases. |
@@ -49,10 +49,13 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M20: Focused Candidate Implementation | #135 | CI validated |
 | M21: Focused Decoder Evidence Expansion | #160 | CI validated |
 | M22: Body and Header Fidelity Expansion | #166 | CI validated |
+| M23: Attachment Payload Fidelity | pending | CI pending |
 
 ## Latest validation
 
-GitHub Actions validation is expected to pass for the M22 implementation commit in PR #166 before merge. M22 validation includes:
+GitHub Actions validation passed for M22 in PR #166. M23 validation is pending on the milestone PR.
+
+Expected M23 validation includes:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -65,29 +68,28 @@ GitHub Actions validation is expected to pass for the M22 implementation commit 
 
 ## Remaining v1 milestones
 
-There are **three v1 milestones left after M22**.
+There are **two v1 milestones left after M23**.
 
 | Order | Milestone | Tracking issue | Purpose |
 |---:|---|---:|---|
-| 1 | M23: Attachment Payload Fidelity | #138 | Tighten attachment payload extraction and unsupported-layout reporting. |
-| 2 | M24: Batch Scale, Performance, and Corruption Hardening | #139 | Harden realistic batch operation, resume behaviour, progress reporting, and recoverable failures. |
-| 3 | M25: v1 Release Candidate and Operator Handoff | #141 | Close v1 with validation, documentation cleanup, and local/Docker operator handoff. |
+| 1 | M24: Batch Scale, Performance, and Corruption Hardening | #139 | Harden realistic batch operation, resume behaviour, progress reporting, and recoverable failures. |
+| 2 | M25: v1 Release Candidate and Operator Handoff | #141 | Close v1 with validation, documentation cleanup, and local/Docker operator handoff. |
 
 ## Next milestone
 
-M23: Attachment Payload Fidelity.
+M24: Batch Scale, Performance, and Corruption Hardening.
 
-M23 should add:
+M24 should add:
 
-- Review of supported and unsupported attachment payload statuses.
-- Narrow improvements to attachment payload extraction where the parser can already reach bytes.
-- Explicit embedded-message attachment support status.
-- Focused regression tests around attachment status transitions.
+- Review of batch discovery, progress, checkpoint, summary, and resume-by-skip behaviour.
+- Narrow hardening for corrupt input and partial-success reporting.
+- Operator diagnostics for local and Docker batch runs.
+- Focused regression tests around recoverable failures and resume/status outputs.
 
-M23 should not add Snowflake, search, or web UI work.
+M24 should not add Snowflake, search, or web UI work.
 
 ## Validation risk
 
-The M1-M22 foundation has CI coverage at the unit, smoke, Docker, and fixture level once M22 CI passes. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
+The M1-M23 foundation has CI coverage at the unit, smoke, Docker, and fixture level once M23 CI passes. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
 
 Before high-risk parser expansion, continue running the commands in [Validation Guide](../operations/validation-guide.md) and preserve fixture handling guidance.
