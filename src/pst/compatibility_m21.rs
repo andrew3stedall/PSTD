@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 #[path = "compatibility.rs"]
 mod legacy;
 
