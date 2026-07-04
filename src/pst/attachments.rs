@@ -3,9 +3,8 @@ use sha2::{Digest, Sha256};
 use crate::output::ids;
 use crate::output::metadata::AttachmentRecord;
 use crate::pst::mapi::{
-    MapiValue, PR_ATTACHMENT_HIDDEN, PR_ATTACH_CONTENT_ID, PR_ATTACH_DATA_BIN,
-    PR_ATTACH_FILENAME, PR_ATTACH_LONG_FILENAME, PR_ATTACH_METHOD, PR_ATTACH_MIME_TAG,
-    PR_ATTACH_SIZE,
+    MapiValue, PR_ATTACHMENT_HIDDEN, PR_ATTACH_CONTENT_ID, PR_ATTACH_DATA_BIN, PR_ATTACH_FILENAME,
+    PR_ATTACH_LONG_FILENAME, PR_ATTACH_METHOD, PR_ATTACH_MIME_TAG, PR_ATTACH_SIZE,
 };
 use crate::pst::property_context::PropertyContext;
 
@@ -120,7 +119,10 @@ fn attachment_record(
     let payload_bytes = bytes.unwrap_or(&[]);
     let sha256 = sha256_hex(payload_bytes);
     let size_bytes = payload_bytes.len() as u64;
-    let size_status = size_status(metadata.declared_size_bytes, bytes.map(|value| value.len() as u64));
+    let size_status = size_status(
+        metadata.declared_size_bytes,
+        bytes.map(|value| value.len() as u64),
+    );
 
     AttachmentRecord {
         message_key: message_key.to_string(),
@@ -163,11 +165,7 @@ pub fn safe_filename(filename: Option<&str>, ordinal: usize) -> String {
         .trim_matches('_')
         .to_string();
 
-    if safe.is_empty() {
-        fallback
-    } else {
-        safe
-    }
+    if safe.is_empty() { fallback } else { safe }
 }
 
 pub fn file_extension(filename: &str) -> Option<String> {
@@ -418,9 +416,18 @@ mod tests {
 
         assert_eq!(record.filename_safe, "missing.pdf");
         assert_eq!(record.declared_size_bytes, Some(42));
-        assert_eq!(record.size_status, "payload_unavailable_declared_size_present");
-        assert_eq!(record.attachment_method, Some(ATTACH_METHOD_EMBEDDED_MESSAGE));
-        assert_eq!(record.extraction_status, "embedded_message_payload_deferred");
+        assert_eq!(
+            record.size_status,
+            "payload_unavailable_declared_size_present"
+        );
+        assert_eq!(
+            record.attachment_method,
+            Some(ATTACH_METHOD_EMBEDDED_MESSAGE)
+        );
+        assert_eq!(
+            record.extraction_status,
+            "embedded_message_payload_deferred"
+        );
     }
 
     #[test]
