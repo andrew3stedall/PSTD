@@ -9,16 +9,16 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Area | Status | Notes |
 |---|---|---|
 | Rust CLI | Implemented and CI validated | `pstd extract`, `pstd inspect`, `pstd batch`, and `pstd version` exist. |
-| Structured output contract | M23 attachment fidelity and CI pending | M23 adds declared attachment size, size status, attachment method, and metadata-only unavailable rows. |
+| Structured output contract | M24 batch hardening and CI pending | M24 adds batch-level discovered, attempted, completed, partial, failed, skipped, and not-run counters. |
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
 | PST header parser | Implemented foundation and CI validated | Validates basic PST magic and version/variant summary. |
 | BBT/NBT parsing | Traversal expansion and CI validated | Bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards exist. |
 | Metadata processing | M22 body/header fidelity and CI validated | M22 surfaces `PR_TRANSPORT_MESSAGE_HEADERS` on message records when present. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
 | Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence. |
-| Attachments | M23 attachment fidelity and CI pending | M23 preserves metadata-only attachment rows, declared size, size status, method, and deferred embedded-message status. |
-| Batch orchestration | Implemented foundation and CI validated; hardening remains | Batch discovery, per-PST outputs, checkpoints, summaries, and resume-by-skip behaviour exist; M24 is reserved for scale/corruption hardening. |
-| Table/property parse reports | M23 attachment fidelity and CI pending | M23 keeps parsed attachment rows visible even when payload bytes are unavailable. |
+| Attachments | M23 attachment fidelity and CI validated | M23 preserves metadata-only attachment rows, declared size, size status, method, and deferred embedded-message status. |
+| Batch orchestration | M24 batch hardening and CI pending | M24 adds root-level `batch_progress.jsonl`, expanded `batch_summary.json`, deterministic resume-by-skip context, partial-success classification, and not-run counts. |
+| Table/property parse reports | M23 attachment fidelity and CI validated | M23 keeps parsed attachment rows visible even when payload bytes are unavailable. |
 | Parser limits | Implemented foundation and CI validated | Explicit parser limits exist for traversal pages, block payload size, and subnode depth. |
 | Subnode references | M15 compatibility triage and CI validated | M15 summarizes observed subnode layout reports into supported, partial, and unsupported categories. |
 | Snowflake/web UI/search | Future work | Out of v1 implementation until later roadmap phases. |
@@ -49,13 +49,14 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M20: Focused Candidate Implementation | #135 | CI validated |
 | M21: Focused Decoder Evidence Expansion | #160 | CI validated |
 | M22: Body and Header Fidelity Expansion | #166 | CI validated |
-| M23: Attachment Payload Fidelity | pending | CI pending |
+| M23: Attachment Payload Fidelity | #171 | CI validated |
+| M24: Batch Scale, Performance, and Corruption Hardening | pending | CI pending |
 
 ## Latest validation
 
-GitHub Actions validation passed for M22 in PR #166. M23 validation is pending on the milestone PR.
+GitHub Actions validation passed for M23 in PR #171. M24 validation is pending on the milestone PR.
 
-Expected M23 validation includes:
+Expected M24 validation includes:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -68,28 +69,27 @@ Expected M23 validation includes:
 
 ## Remaining v1 milestones
 
-There are **two v1 milestones left after M23**.
+There is **one v1 milestone left after M24**.
 
 | Order | Milestone | Tracking issue | Purpose |
 |---:|---|---:|---|
-| 1 | M24: Batch Scale, Performance, and Corruption Hardening | #139 | Harden realistic batch operation, resume behaviour, progress reporting, and recoverable failures. |
-| 2 | M25: v1 Release Candidate and Operator Handoff | #141 | Close v1 with validation, documentation cleanup, and local/Docker operator handoff. |
+| 1 | M25: v1 Release Candidate and Operator Handoff | #141 | Close v1 with validation, documentation cleanup, and local/Docker operator handoff. |
 
 ## Next milestone
 
-M24: Batch Scale, Performance, and Corruption Hardening.
+M25: v1 Release Candidate and Operator Handoff.
 
-M24 should add:
+M25 should add:
 
-- Review of batch discovery, progress, checkpoint, summary, and resume-by-skip behaviour.
-- Narrow hardening for corrupt input and partial-success reporting.
-- Operator diagnostics for local and Docker batch runs.
-- Focused regression tests around recoverable failures and resume/status outputs.
+- Final validation review across Rust, Python wrapper, Docker, CLI smoke checks, and approved fixture checks.
+- Operator handoff documentation for local and Docker execution.
+- Explicit unsupported/deferred area review.
+- Final v1 release-candidate checklist.
 
-M24 should not add Snowflake, search, or web UI work.
+M25 should not add Snowflake, search, or web UI work.
 
 ## Validation risk
 
-The M1-M23 foundation has CI coverage at the unit, smoke, Docker, and fixture level once M23 CI passes. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
+The M1-M24 foundation has CI coverage at the unit, smoke, Docker, and fixture level once M24 CI passes. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
 
-Before high-risk parser expansion, continue running the commands in [Validation Guide](../operations/validation-guide.md) and preserve fixture handling guidance.
+Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md) and preserve fixture handling guidance.
