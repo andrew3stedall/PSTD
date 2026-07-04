@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::output::metadata::AttachmentRecord;
 use crate::pst::attachments::{
-    attachment_metadata_from_properties, attachment_payload, attachment_payload_from_properties,
+    attachment_payload, attachment_payload_from_properties,
     unavailable_attachment_record_from_metadata, unavailable_attachment_record_from_properties,
     AttachmentMetadata, AttachmentPayload,
 };
