@@ -1,0 +1,163 @@
+name: Real PST Test Run
+
+on:
+  push:
+    branches: [pstd-v1-real-pst-test-run]
+
+jobs:
+  real-pst-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build extractor
+        run: cargo build
+
+      - name: Run real PST fixture smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          fixture=$(find . -type f -iname '*.pst' | head -n 1 || true)
+          mkdir -p /tmp/pstd-real-pst-artifacts
+          if [[ -z "$fixture" ]]; then
+            echo "No .pst fixture found in repository." | tee /tmp/pstd-real-pst-artifacts/no-fixture.txt
+            exit 0
+          fi
+
+          echo "$fixture" | tee /tmp/pstd-real-pst-artifacts/fixture-path.txt
+          stat "$fixture" > /tmp/pstd-real-pst-artifacts/fixture-stat.txt
+
+          cargo run -- inspect --input "$fixture" --json > /tmp/pstd-real-pst-artifacts/inspect.json
+          cargo run -- extract --input "$fixture" --output /tmp/pstd-real-pst-output > /tmp/pstd-real-pst-artifacts/extract.stdout.txt
+          cargo run -- batch --input "$fixture" --output /tmp/pstd-real-pst-batch > /tmp/pstd-real-pst-artifacts/batch.stdout.txt
+
+          cp /tmp/pstd-real-pst-output/run_summary.json /tmp/pstd-real-pst-artifacts/run_summary.json || true
+          cp /tmp/pstd-real-pst-batch/batch_summary.json /tmp/pstd-real-pst-artifacts/batch_summary.json || true
+          head -n 50 /tmp/pstd-real-pst-output/progress.jsonl > /tmp/pstd-real-pst-artifacts/progress.head.jsonl || true
+          head -n 50 /tmp/pstd-real-pst-batch/batch_progress.jsonl > /tmp/pstd-real-pst-artifacts/batch_progress.head.jsonl || true
+          head -n 50 /tmp/pstd-real-pst-batch/batch_checkpoint.jsonl > /tmp/pstd-real-pst-artifacts/batch_checkpoint.head.jsonl || true
+
+          tarfile=$(find /tmp/pstd-real-pst-output/archives -type f -name '*.tar' | head -n 1 || true)
+          if [[ -n "$tarfile" ]]; then
+            tar -tf "$tarfile" > /tmp/pstd-real-pst-artifacts/tar_listing.txt
+            mkdir -p /tmp/pstd-real-pst-artifacts/previews
+
+            cat > /tmp/redact_preview.py <<'PY'
+          import json
+          import sys
+
+          sensitive_name_parts = [
+              "subject",
+              "sender",
+              "recipient",
+              "display_name",
+              "email",
+              "address",
+              "smtp",
+              "reply",
+              "headers",
+              "filename",
+              "path",
+              "internet_message_id",
+              "conversation",
+              "reference",
+              "body",
+              "content_id",
+          ]
+
+          def redact_value(value):
+              if value is None or isinstance(value, (bool, int, float)):
+                  return value
+              if isinstance(value, str):
+                  return f"<redacted:{len(value)} chars>"
+              if isinstance(value, list):
+                  return [redact_value(item) for item in value[:3]]
+              if isinstance(value, dict):
+                  return {k: redact_value(v) for k, v in value.items()}
+              return "<redacted>"
+
+          def sanitize(obj):
+              if not isinstance(obj, dict):
+                  return redact_value(obj)
+              clean = {}
+              for key, value in obj.items():
+                  lower = key.lower()
+                  if any(part in lower for part in sensitive_name_parts):
+                      clean[key] = redact_value(value)
+                  else:
+                      clean[key] = value
+              return clean
+
+          count = 0
+          for line in sys.stdin:
+              line = line.strip()
+              if not line:
+                  continue
+              try:
+                  obj = json.loads(line)
+              except Exception:
+                  print("<unparseable>")
+                  continue
+              print(json.dumps(sanitize(obj), sort_keys=True))
+              count += 1
+              if count >= 5:
+                  break
+          PY
+
+            for entry in _pstfast/summary.json _pstfast/manifest.jsonl _pstfast/errors.jsonl _pstfast/folder_inventory.jsonl data/folders.jsonl data/messages.jsonl data/recipients.jsonl data/message_references.jsonl data/bodies.jsonl data/attachments.jsonl data/selected_mapi_properties.jsonl; do
+              safe_name=$(echo "$entry" | tr '/.' '__')
+              if tar -tf "$tarfile" | grep -Fxq "$entry"; then
+                tar -xOf "$tarfile" "$entry" | python3 /tmp/redact_preview.py > "/tmp/pstd-real-pst-artifacts/previews/${safe_name}.preview.jsonl" || true
+              else
+                echo "missing: $entry" > "/tmp/pstd-real-pst-artifacts/previews/${safe_name}.missing.txt"
+              fi
+            done
+          fi
+
+          python3 - <<'PY' > /tmp/pstd-real-pst-artifacts/assessment.md
+          import json
+          from pathlib import Path
+
+          root = Path('/tmp/pstd-real-pst-artifacts')
+          def load(name):
+              path = root / name
+              if not path.exists():
+                  return None
+              try:
+                  return json.loads(path.read_text())
+              except Exception:
+                  return None
+
+          inspect = load('inspect.json')
+          summary = load('run_summary.json')
+          batch = load('batch_summary.json')
+
+          print('# PSTD Real PST Test Assessment')
+          print()
+          fixture = (root / 'fixture-path.txt').read_text().strip() if (root / 'fixture-path.txt').exists() else '<none>'
+          print(f'- Fixture: `{fixture}`')
+          if inspect:
+              print(f'- Inspect status: `{inspect.get("status", "unknown")}`')
+              print(f'- PST format/version: `{inspect.get("format", inspect.get("pst_format", "unknown"))}`')
+          if summary:
+              for key in ['status','folders_discovered','messages_discovered','messages_extracted','messages_not_extracted','attachments_extracted','attachments_not_extracted','tar_shards_written','bytes_read','bytes_written']:
+                  if key in summary:
+                      print(f'- {key}: `{summary[key]}`')
+          if batch:
+              for key in ['status','pst_discovered','pst_attempted','pst_completed','pst_partial','pst_failed','pst_skipped','pst_not_run']:
+                  if key in batch:
+                      print(f'- batch_{key}: `{batch[key]}`')
+          print()
+          print('## Notes')
+          print()
+          print('- Raw message text, bodies, attachment bytes, file paths, and addresses are not uploaded in this artifact.')
+          print('- Preview files redact likely sensitive string fields and show only the first five rows per JSONL output.')
+          PY
+
+      - name: Upload redacted assessment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-pst-redacted-assessment
+          path: /tmp/pstd-real-pst-artifacts
