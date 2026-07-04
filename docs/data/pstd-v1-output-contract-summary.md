@@ -6,6 +6,12 @@ Define the v1 structured archive contract at a level that implementation agents 
 
 This summary updates the earlier repo reference from an EML-centred shape toward the v1 structured TAR contract. EML may be generated later, but it is not the default canonical output for v1.
 
+## Release-candidate status
+
+M25 completes the planned v1 milestone lane. The v1 output contract is release-candidate ready for local/Docker extraction once M25 CI passes and the milestone PR is merged.
+
+The contract remains evidence-driven: unsupported or uncommon PST layouts should produce explicit statuses rather than silent success.
+
 ## Default output strategy
 
 ```text
@@ -434,7 +440,7 @@ Progress rows include the batch ID, event type, timestamp, optional PST path/out
 
 EML is not the v1 canonical output. Future generated download is supported by storing enough structured metadata, body content, headers, and attachments to reconstruct a display-equivalent `.eml` later.
 
-If legal/archive-grade byte-for-byte fidelity becomes required, a later milestone must add raw MIME/EML preservation or richer raw property capture.
+If exact-preservation archive behaviour becomes required, a later milestone must add raw MIME/EML preservation or richer raw property capture.
 
 ## Error and completeness status
 
@@ -479,3 +485,7 @@ EMAIL_TAG
 ```
 
 Future search and graph work should consume these outputs. They should not require reparsing the source PST files.
+
+## Post-v1 boundary
+
+Snowflake ingestion is the first post-v1 planning phase. The v1 output contract should be treated as the source for that planning rather than expanding the v1 milestone lane.
