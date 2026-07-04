@@ -157,7 +157,10 @@ mod tests {
             &properties,
         );
 
-        assert_eq!(message.transport_message_headers.as_deref(), Some("Message-ID: <abc@example.com>\r\nFrom: sender@example.com"));
+        assert_eq!(
+            message.transport_message_headers.as_deref(),
+            Some("Message-ID: <abc@example.com>\r\nFrom: sender@example.com")
+        );
         assert_eq!(message.normalized_subject.as_deref(), Some("hello"));
     }
 
