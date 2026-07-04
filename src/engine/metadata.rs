@@ -153,11 +153,14 @@ pub fn extract_metadata(
                                 loaded_subnodes.report.recursive_child_decode_count;
                             subnode_unsupported_layouts +=
                                 loaded_subnodes.layout_report.unsupported_layout_count;
-                            let (mut loaded_attachments, attachment_report) =
-                                attachment_payloads_from_subnode_blocks(
-                                    &message.message_key,
-                                    &loaded_subnodes.payloads,
-                                );
+                            let (
+                                mut loaded_attachments,
+                                mut unavailable_attachment_records,
+                                attachment_report,
+                            ) = attachment_payloads_from_subnode_blocks(
+                                &message.message_key,
+                                &loaded_subnodes.payloads,
+                            );
                             attachment_table_parse_errors += attachment_report.parse_error_count;
                             let triage_report = triage_observed_attachment_layouts(
                                 &loaded_subnodes.layout_report,
@@ -175,6 +178,9 @@ pub fn extract_metadata(
                                 triage_report,
                             ));
 
+                            let attachment_record_count =
+                                loaded_attachments.len() + unavailable_attachment_records.len();
+
                             if loaded_attachments.is_empty() {
                                 let status = format!(
                                     "{}; {}; {}; {}",
@@ -184,12 +190,17 @@ pub fn extract_metadata(
                                     triage_status
                                 );
                                 message.attachment_status = status.clone();
-                                attachments.push(unavailable_attachment_record(
-                                    &message.message_key,
-                                    0,
-                                    None,
-                                    &status,
-                                ));
+                                message.attachment_count = attachment_record_count as u64;
+                                if unavailable_attachment_records.is_empty() {
+                                    attachments.push(unavailable_attachment_record(
+                                        &message.message_key,
+                                        0,
+                                        None,
+                                        &status,
+                                    ));
+                                } else {
+                                    attachments.append(&mut unavailable_attachment_records);
+                                }
                                 issues.push(StatusRecord::info(
                                     run_id,
                                     "m16_attachment_layout_triage",
@@ -199,7 +210,7 @@ pub fn extract_metadata(
                                     ),
                                 ));
                             } else {
-                                message.attachment_count = loaded_attachments.len() as u64;
+                                message.attachment_count = attachment_record_count as u64;
                                 message.attachment_status = format!(
                                     "{}; {}; {}",
                                     loaded_subnodes.report.status,
@@ -211,6 +222,7 @@ pub fn extract_metadata(
                                     attachments.push(payload.record.clone());
                                     attachment_payloads.push(payload);
                                 }
+                                attachments.append(&mut unavailable_attachment_records);
                             }
                         } else {
                             message.attachment_status =
@@ -315,12 +327,13 @@ pub fn extract_metadata(
         .filter(|selection| selection.selection_status == "selected_for_next_planning")
         .count();
     let status = format!(
-        "{}; bbt_status={}; nbt_status={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; body_payloads={}; attachment_payloads={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
+        "{}; bbt_status={}; nbt_status={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; m23_status=attachment_metadata_fidelity; body_payloads={}; attachment_payloads={}; attachment_records={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
         metadata_status,
         bbt.status,
         nbt.status,
         body_payloads.len(),
         attachment_payloads.len(),
+        attachments.len(),
         subnode_report.subnode_reference_count,
         subnode_plans.len(),
         subnode_decode_attempts,
@@ -496,7 +509,7 @@ fn base_manifest(
             archive_path: "data/attachments.jsonl".to_string(),
             sha256: None,
             size_bytes: None,
-            status: "m14_recursive_subnode_layout_output_available".to_string(),
+            status: "m23_attachment_metadata_fidelity_output_available".to_string(),
             issue_count: 0,
         },
         ManifestRecord {
