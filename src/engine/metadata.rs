@@ -140,7 +140,9 @@ pub fn extract_metadata(
                     }
 
                     if message.has_attachments {
-                        if let Some(reference) = subnode_reference_for_entry(&subnode_report.references, entry) {
+                        if let Some(reference) =
+                            subnode_reference_for_entry(&subnode_report.references, entry)
+                        {
                             subnode_decode_attempts += 1;
                             let loaded_subnodes =
                                 load_recursive_subnode_blocks(&reader, &bbt, reference, 1, limits);
@@ -161,7 +163,8 @@ pub fn extract_metadata(
                                 &loaded_subnodes.layout_report,
                                 &attachment_report,
                             );
-                            fixture_backed_decoder_hits += triage_report.fixture_backed_decoder_count;
+                            fixture_backed_decoder_hits +=
+                                triage_report.fixture_backed_decoder_count;
                             compatibility_follow_up_count += triage_report.follow_up_issue_count;
                             let triage_status = triage_report.status.clone();
                             compatibility_triage.push(CompatibilityTriageRecord::from_report(
@@ -199,7 +202,9 @@ pub fn extract_metadata(
                                 message.attachment_count = loaded_attachments.len() as u64;
                                 message.attachment_status = format!(
                                     "{}; {}; {}",
-                                    loaded_subnodes.report.status, attachment_report.status, triage_status
+                                    loaded_subnodes.report.status,
+                                    attachment_report.status,
+                                    triage_status
                                 );
                                 message.extraction_status = "metadata_and_payload".to_string();
                                 for payload in loaded_attachments.drain(..) {
@@ -218,7 +223,8 @@ pub fn extract_metadata(
                             ));
                         }
                     } else {
-                        message.attachment_status = "attachment_payload_property_absent".to_string();
+                        message.attachment_status =
+                            "attachment_payload_property_absent".to_string();
                     }
 
                     message.metadata_status = format!(
@@ -243,7 +249,10 @@ pub fn extract_metadata(
                     issues.push(StatusRecord::info(
                         run_id,
                         "m11_node_payload_unavailable",
-                        format!("Node payload status for node_{:x}: {reason}", entry.node_id.0),
+                        format!(
+                            "Node payload status for node_{:x}: {reason}",
+                            entry.node_id.0
+                        ),
                     ));
                 }
             }
