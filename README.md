@@ -2,39 +2,55 @@
 
 PSTD is a Rust-first PST email data extraction tool. The v1 command is `pstd`.
 
-The project is being built milestone-by-milestone through a phone-first GitHub workflow. M1, M2, and M3 are implemented on `main`, but local validation has not yet been run.
+The project is being built milestone-by-milestone through a phone-first GitHub workflow. M1-M20 are implemented, merged to `main`, and CI validated. Five v1 milestones remain after M20: M21-M25.
 
 ## Current status
 
-| Milestone | Status | Delivered |
+| Milestone range | Status | Delivered / purpose |
 |---|---|---|
-| M1: Extraction Foundation and Archive Contract | Implemented, validation deferred | Rust CLI, TAR/JSONL writers, output records, Python wrapper, Docker scaffold |
-| M2: PST Binary Foundation | Implemented, validation deferred | Bounded byte reader, PST header parser, typed primitives, BBT/NBT skeletons, `pstd inspect` |
-| M3: Folder and Metadata Extraction | Implemented, validation deferred | Logical metadata layer, heap/BTH/property/table scaffolds, metadata-only archive output |
-| M4: Recipients, Threading, and Address Resolution | Next | Recipient rows, reference rows, conversation fields, address resolution |
+| M1-M6 | Implemented and CI validated | Extraction archive contract, PST binary foundation, folder/metadata extraction, recipients/threading, bodies/attachments foundation, batch orchestration, and resume support. |
+| M7-M12 | Implemented and CI validated | Parser depth diagnostics, bounded traversal, payload/subnode traversal, payload wiring, extraction path integration, and attachment subnode integration. |
+| M13-M20 | Implemented and CI validated | Fixture compatibility coverage, recursive layout exploration, observed layout triage, fixture-backed decoder expansion, decoder backlog reporting, backlog review workflow, candidate selection, and one focused candidate implementation. |
+| M21-M25 | Remaining v1 roadmap | Decoder evidence expansion, body/header fidelity, attachment payload fidelity, batch scale/corruption hardening, and v1 release-candidate handoff. |
 
 ## What works now
 
-The repository contains an initial `pstd` command and parser scaffolding for:
+The repository contains the `pstd` command and supporting Rust/Python/Docker scaffolding for:
 
 ```text
+pstd version
 pstd inspect --input <pst-file>
 pstd inspect --input <pst-file> --json
-pstd extract --input <pst-file> --output <output-dir> --manifest-only
+pstd extract --input <pst-file> --output <output-dir>
+pstd batch --input <pst-file-or-directory> --output <output-dir>
+python -m pstd --help
 ```
 
-The current extraction path is metadata-only. It writes structured TAR + JSONL output and records unsupported or incomplete areas explicitly.
+Current extraction outputs use structured TAR + JSONL records and explicit status fields. The implementation includes metadata, recipients, threading helpers, body and attachment output foundations, batch progress/checkpointing, parser diagnostics, compatibility triage outputs, decoder backlog review outputs, candidate selection outputs, and focused compact attachment-table decoder coverage.
 
-## What is not implemented yet
+## Remaining v1 milestones
 
-- Full recipient extraction.
-- Full threading extraction.
-- Email body extraction.
-- Attachment extraction.
-- Snowflake loading.
-- Search or web UI.
+| Milestone | Tracking issue | Purpose |
+|---|---:|---|
+| M21: Focused Decoder Evidence Expansion | #136 | Select the next testable compatibility candidate and add focused evidence/coverage. |
+| M22: Body and Header Fidelity Expansion | #137 | Reduce body/header extraction gaps while preserving deterministic status reporting. |
+| M23: Attachment Payload Fidelity | #138 | Tighten attachment payload extraction and unsupported-layout reporting. |
+| M24: Batch Scale, Performance, and Corruption Hardening | #139 | Harden realistic batch operation, resume behaviour, progress reporting, and recoverable failures. |
+| M25: v1 Release Candidate and Operator Handoff | #141 | Close v1 with validation, documentation cleanup, and local/Docker operator handoff. |
 
-## Required local validation
+## Out of scope for v1
+
+- Snowflake ingestion.
+- Snowpark Container Services deployment.
+- Search or semantic search.
+- Embeddings.
+- Knowledge graph construction.
+- React/web UI.
+- Tagging UI or tagging storage.
+- Byte-for-byte legal/archive preservation.
+- External PST parsing libraries.
+
+## Required validation gate
 
 Run before treating the current implementation as release-ready:
 
@@ -42,12 +58,20 @@ Run before treating the current implementation as release-ready:
 cargo fmt --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all
-pstd --help
-pstd inspect --help
-pstd inspect --input <approved-small-fixture.pst>
-pstd extract --input <approved-small-fixture.pst> --output <tmp-output> --manifest-only
+cargo run -- --help
+cargo run -- version
+cargo run -- inspect --help
+cargo run -- batch --help
 python -m pstd --help
 docker build -t pstd:local -f docker/Dockerfile .
+```
+
+For approved fixtures only:
+
+```text
+cargo run -- inspect --input <approved-small-fixture.pst>
+cargo run -- extract --input <approved-small-fixture.pst> --output <tmp-output>
+cargo run -- batch --input <approved-fixture-directory-or-file> --output <tmp-output>
 ```
 
 Do not commit private PST files. Use synthetic byte fixtures in tests and approved small PST fixtures only in local or secure fixture storage.
@@ -55,10 +79,10 @@ Do not commit private PST files. Use synthetic byte fixtures in tests and approv
 ## Start here
 
 - [Documentation index](docs/README.md)
+- [Project status](docs/product/project-status.md)
+- [PSTD v1 Roadmap](docs/product/pstd-v1-roadmap.md)
 - [Developer guide](docs/engineering/developer-guide.md)
 - [Codebase map](docs/engineering/codebase-map.md)
 - [System overview](docs/architecture/system-overview.md)
 - [Validation guide](docs/operations/validation-guide.md)
 - [Wiki home](docs/wiki/README.md)
-- [Project status](docs/product/project-status.md)
-- [PSTD v1 Roadmap](docs/product/pstd-v1-roadmap.md)

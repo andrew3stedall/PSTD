@@ -2,7 +2,7 @@
 
 ## Status
 
-Planning package for review. This document defines the local/Docker v1 MVP only.
+M1-M20 are implemented, merged to `main`, and CI validated. Five bounded v1 milestones remain after M20: M21-M25. This document defines the local/Docker v1 MVP only.
 
 ## Problem
 
@@ -71,6 +71,16 @@ Speed of extracting and archiving emails from PST files.
 - PST-level checkpointing.
 - Live console progress and JSONL progress logs.
 - Deferred local testing documentation.
+
+### Remaining v1 milestone coverage
+
+| Milestone | Tracking issue | PRD risk reduced |
+|---|---:|---|
+| M21: Focused Decoder Evidence Expansion | #136 | Reduces parser compatibility risk through evidence-backed decoder work. |
+| M22: Body and Header Fidelity Expansion | #137 | Reduces body/header completeness and status-reporting gaps. |
+| M23: Attachment Payload Fidelity | #138 | Reduces attachment payload completeness and unsupported-layout ambiguity. |
+| M24: Batch Scale, Performance, and Corruption Hardening | #139 | Reduces operational risk for local/Docker batch runs and recoverable failures. |
+| M25: v1 Release Candidate and Operator Handoff | #141 | Confirms validation, documentation, and operator handoff for v1. |
 
 ### Out of scope for v1
 
@@ -152,9 +162,9 @@ Continue on error by default. A corrupt message, folder, attachment, or body sho
 
 Future PSTD phases may load outputs into Snowflake for keyword search, semantic search, tagging, web review, generated email downloads, and possible knowledge graph or LLM/RAG workflows. V1 must preserve stable IDs and output contracts so those later phases do not need to reparse raw PST files.
 
-## Open questions
+## Resolved and remaining product questions
 
-- Exact v1 Rust crate name and binary name: `pstd` or `pstfast`.
-- Whether v1 should implement optional minimal EML reconstruction or defer it entirely.
-- Whether ANSI PST support is required in v1 or should be logged as unsupported until encountered.
-- Whether full MAPI property dump mode is required for audit/debug mode in v1.
+- The v1 Rust crate and binary name is `pstd`.
+- EML reconstruction remains deferred from the canonical v1 output path; structured TAR + JSONL + body files + attachment files remains the v1 contract.
+- ANSI PST support should remain explicitly statused as unsupported until evidence requires a focused milestone.
+- Full MAPI property dump mode remains optional audit/debug work unless a later fixture-backed issue proves it is needed for v1 fidelity.

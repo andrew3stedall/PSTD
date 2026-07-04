@@ -9,14 +9,15 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Area | Status | Notes |
 |---|---|---|
 | Rust CLI | Implemented and CI validated | `pstd extract`, `pstd inspect`, `pstd batch`, and `pstd version` exist. |
-| Structured output contract | M19 candidate selection and CI validated | M19 adds `data/decoder_candidate_selection.jsonl`. |
+| Structured output contract | M20 focused decoder and CI validated | M17-M20 add decoder backlog, review, candidate selection, and focused selected-candidate outputs. |
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
 | PST header parser | Implemented foundation and CI validated | Validates basic PST magic and version/variant summary. |
 | BBT/NBT parsing | Traversal expansion and CI validated | Bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards exist. |
 | Metadata processing | M20 focused decoder and CI validated | M20 adds one focused attachment table decoder path with fallback-preserving tests. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
-| Bodies/attachments | M20 focused decoder and CI validated | M20 adds UTF-16 compact attachment-table decoding for `CATW` rows. |
-| Batch orchestration | Implemented foundation and CI validated | Batch discovery, per-PST outputs, checkpoints, summaries, and resume-by-skip behaviour exist. |
+| Bodies/headers | Implemented foundation; fidelity expansion remains | M22 is reserved for body/header fidelity gaps and status/error tightening. |
+| Attachments | M20 focused decoder and CI validated; fidelity expansion remains | M20 adds UTF-16 compact attachment-table decoding for `CATW` rows; M23 is reserved for broader attachment payload fidelity. |
+| Batch orchestration | Implemented foundation and CI validated; hardening remains | Batch discovery, per-PST outputs, checkpoints, summaries, and resume-by-skip behaviour exist; M24 is reserved for scale/corruption hardening. |
 | Table/property parse reports | M20 focused decoder and CI validated | M20 keeps malformed compact rows on explicit parse-error fallback. |
 | Parser limits | Implemented foundation and CI validated | Explicit parser limits exist for traversal pages, block payload size, and subnode depth. |
 | Subnode references | M15 compatibility triage and CI validated | M15 summarizes observed subnode layout reports into supported, partial, and unsupported categories. |
@@ -49,7 +50,7 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 
 ## Latest validation
 
-GitHub Actions validation has passed for the M1-M20 implementation set, including:
+GitHub Actions validation passed for the M20 implementation commit in PR #135. The M1-M20 implementation set includes:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -60,16 +61,29 @@ GitHub Actions validation has passed for the M1-M20 implementation set, includin
 - CLI smoke checks, including `pstd batch --help`.
 - Fixture discovery, inspect, and metadata extract when a PST fixture is present.
 
+## Remaining v1 milestones
+
+There are **five v1 milestones left after M20**.
+
+| Order | Milestone | Tracking issue | Purpose |
+|---:|---|---:|---|
+| 1 | M21: Focused Decoder Evidence Expansion | #136 | Select the next testable compatibility candidate and add focused evidence/coverage. |
+| 2 | M22: Body and Header Fidelity Expansion | #137 | Reduce body/header extraction gaps while preserving deterministic status reporting. |
+| 3 | M23: Attachment Payload Fidelity | #138 | Tighten attachment payload extraction and unsupported-layout reporting. |
+| 4 | M24: Batch Scale, Performance, and Corruption Hardening | #139 | Harden realistic batch operation, resume behaviour, progress reporting, and recoverable failures. |
+| 5 | M25: v1 Release Candidate and Operator Handoff | #141 | Close v1 with validation, documentation cleanup, and local/Docker operator handoff. |
+
 ## Next milestone
 
 M21: Focused Decoder Evidence Expansion.
 
 M21 should add:
 
-- Additional evidence for the next selected candidate.
+- Evidence review for the next selected candidate.
 - A narrow regression fixture or synthetic buffer for that candidate.
 - Implementation only if the candidate is specific and testable.
 - Preservation of fallback behaviour for non-matching cases.
+- Clear handoff on whether more decoder work remains before M22.
 
 M21 should not add Snowflake, search, or web UI work.
 
