@@ -68,18 +68,22 @@ pub struct PstRootDiagnostics {
 }
 
 impl PstRootDiagnostics {
-    pub fn from_offsets(file_size: u64, bbt_root_offset: Option<u64>, nbt_root_offset: Option<u64>) -> Self {
+    pub fn from_offsets(
+        file_size: u64,
+        bbt_root_offset: Option<u64>,
+        nbt_root_offset: Option<u64>,
+    ) -> Self {
         let bbt_root = PstRootPointerDiagnostic::classify("bbt_root", bbt_root_offset, file_size);
         let nbt_root = PstRootPointerDiagnostic::classify("nbt_root", nbt_root_offset, file_size);
         let condition = classify_root_pair(&bbt_root, &nbt_root);
         let recommendation = match condition.as_str() {
             "root_offsets_out_of_bounds" => {
-                "Verify header root-field offsets, endian handling, and fixture completeness before folder/message traversal."
+                "Verify root offsets, endian handling, and fixture completeness before traversal."
             }
             "root_pages_truncated" => {
                 "Treat this fixture as possibly truncated unless header decoding proves otherwise."
             }
-            "root_pages_in_bounds" => "Root pages are safe to attempt BBT/NBT traversal.",
+            "root_pages_in_bounds" => "Root pages are safe to attempt traversal.",
             "root_pointers_absent" => "Root pointers are absent; classify as header-only until another root source is supported.",
             _ => "Review individual root pointer diagnostics before parser-quality work continues.",
         }
