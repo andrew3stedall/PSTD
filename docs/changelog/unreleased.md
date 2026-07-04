@@ -26,10 +26,13 @@
 - M21 focused decoder evidence expansion.
 - M22 body and header fidelity expansion.
 - M23 attachment payload fidelity expansion.
+- M24 batch scale, performance, and corruption hardening.
 - M21-M25 remaining v1 roadmap tracking issues.
 - `data/decoder_backlog_review.jsonl` output.
 - `data/decoder_issue_candidates.jsonl` output.
 - `data/decoder_candidate_selection.jsonl` output.
+- `batch_progress.jsonl` output for root-level batch operator progress events.
+- Batch summary counters for discovered, attempted, completed, partial, failed, skipped, and not-run PST files.
 - Review checklist guidance for issue candidates.
 - Selection scope, test, and fallback guidance for focused candidates.
 - Extraction status counters for candidate selections and selected candidates.
@@ -42,13 +45,14 @@
 - Regression coverage for `CATW` fixture-backed decoder evidence classification.
 - Regression coverage for Unicode HTML body extraction and transport-header metadata.
 - Regression coverage for attachment metadata-only rows and declared-size status handling.
+- Regression coverage for batch counter aggregation and partial-success status classification.
 
 ## Changed
 
-- Updated project status to reflect M1-M23 implementation status.
+- Updated project status to reflect M1-M24 implementation status.
 - Replaced the stale early roadmap with a bounded post-M20 M21-M25 roadmap.
-- Updated README, PRD, documentation index, project status, and roadmap to agree that two v1 milestones remain after M23.
-- Updated documentation navigation for M23 milestone, implementation, and issue plan.
+- Updated README, PRD, documentation index, project status, and roadmap to agree that one v1 milestone remains after M24.
+- Updated documentation navigation for M24 milestone, implementation, and issue plan.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
 - Updated attachment status handling to distinguish missing subnode references, unavailable subnode blocks, table parse cases, tables without payloads, and extracted payloads.
@@ -57,6 +61,8 @@
 - Updated HTML body extraction to prefer binary HTML when both binary and Unicode HTML properties are present.
 - Updated attachment output contract to preserve metadata for known rows even when payload bytes are unavailable.
 - Updated compact attachment table missing-payload handling to emit unavailable records rather than counters only.
+- Updated batch CLI output to print discovered, attempted, completed, partial, failed, skipped, and not-run counters.
+- Updated batch fail-fast handling to preserve discovered totals and report not-run PST files.
 
 ## Removed
 
@@ -64,11 +70,12 @@
 
 ## Notes
 
-- M1-M22 have passed GitHub Actions validation.
-- M23 validation is pending on the milestone PR.
+- M1-M23 have passed GitHub Actions validation.
+- M24 validation is pending on the milestone PR.
 - M20 implements one focused selected parser candidate.
 - M21 keeps parser expansion narrow and only expands evidence classification for the M20 `CATW` decoder.
 - M22 keeps body/header fidelity narrow and only expands already-reachable body/header properties.
 - M23 keeps attachment fidelity narrow and preserves already-reachable attachment metadata for unavailable/deferred payloads.
-- The remaining v1 implementation lane is M24-M25.
+- M24 keeps batch hardening local/Docker focused and does not add distributed orchestration.
+- The remaining v1 implementation lane is M25.
 - Parser quality still depends on broader observed layout coverage and reviewed validation inputs.
