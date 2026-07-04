@@ -9,16 +9,16 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Area | Status | Notes |
 |---|---|---|
 | Rust CLI | Implemented and CI validated | `pstd extract`, `pstd inspect`, `pstd batch`, and `pstd version` exist. |
-| Structured output contract | M22 body/header fidelity and CI pending | M22 adds Unicode HTML body extraction and transport-header metadata to the message output contract. |
+| Structured output contract | M22 body/header fidelity and CI validated | M22 adds Unicode HTML body extraction and transport-header metadata to the message output contract. |
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
 | PST header parser | Implemented foundation and CI validated | Validates basic PST magic and version/variant summary. |
 | BBT/NBT parsing | Traversal expansion and CI validated | Bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards exist. |
-| Metadata processing | M22 body/header fidelity and CI pending | M22 surfaces `PR_TRANSPORT_MESSAGE_HEADERS` on message records when present. |
+| Metadata processing | M22 body/header fidelity and CI validated | M22 surfaces `PR_TRANSPORT_MESSAGE_HEADERS` on message records when present. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
-| Bodies/headers | M22 body/header fidelity and CI pending | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence. |
+| Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence. |
 | Attachments | M21 decoder evidence and CI validated; fidelity expansion remains | M20 adds UTF-16 compact attachment-table decoding for `CATW` rows; M21 makes `CATW` status evidence visible in compatibility triage; M23 is reserved for broader attachment payload fidelity. |
 | Batch orchestration | Implemented foundation and CI validated; hardening remains | Batch discovery, per-PST outputs, checkpoints, summaries, and resume-by-skip behaviour exist; M24 is reserved for scale/corruption hardening. |
-| Table/property parse reports | M22 body/header fidelity and CI pending | M22 keeps missing headers and body properties on explicit fallback/absence paths. |
+| Table/property parse reports | M22 body/header fidelity and CI validated | M22 keeps missing headers and body properties on explicit fallback/absence paths. |
 | Parser limits | Implemented foundation and CI validated | Explicit parser limits exist for traversal pages, block payload size, and subnode depth. |
 | Subnode references | M15 compatibility triage and CI validated | M15 summarizes observed subnode layout reports into supported, partial, and unsupported categories. |
 | Snowflake/web UI/search | Future work | Out of v1 implementation until later roadmap phases. |
@@ -48,13 +48,11 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M19: Focused Decoder Candidate Selection | #131 | CI validated |
 | M20: Focused Candidate Implementation | #135 | CI validated |
 | M21: Focused Decoder Evidence Expansion | #160 | CI validated |
-| M22: Body and Header Fidelity Expansion | pending | CI pending |
+| M22: Body and Header Fidelity Expansion | #166 | CI validated |
 
 ## Latest validation
 
-GitHub Actions validation passed for M21 in PR #160. M22 validation is pending on the milestone PR.
-
-Expected M22 validation includes:
+GitHub Actions validation is expected to pass for the M22 implementation commit in PR #166 before merge. M22 validation includes:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
