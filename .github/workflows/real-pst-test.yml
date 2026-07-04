@@ -3,6 +3,8 @@ name: Real PST Test Run
 on:
   push:
     branches: [pstd-v1-real-pst-test-run]
+  pull_request:
+    branches: [main]
 
 jobs:
   real-pst-test:
