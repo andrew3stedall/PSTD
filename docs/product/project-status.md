@@ -8,17 +8,17 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 
 | Area | Status | Notes |
 |---|---|---|
-| Rust CLI | v1 release candidate and CI pending | `pstd extract`, `pstd inspect`, `pstd batch`, and `pstd version` exist. |
-| Structured output contract | v1 release candidate and CI pending | Single-PST and batch output contracts are documented for local/Docker operators. |
+| Rust CLI | v1 release candidate and CI validated | `pstd extract`, `pstd inspect`, `pstd batch`, and `pstd version` exist. |
+| Structured output contract | v1 release candidate and CI validated | Single-PST and batch output contracts are documented for local/Docker operators. |
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
-| PST header parser | Implemented foundation and CI validated | Validates basic PST magic and version/variant summary. |
+| PST header parser | PQ1 diagnostics in progress | Validates PST magic and version/variant summary; PQ1 adds safe root-bound diagnostics for real-PST failures. |
 | BBT/NBT parsing | Traversal expansion and CI validated | Bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards exist. |
 | Metadata processing | M22 body/header fidelity and CI validated | M22 surfaces `PR_TRANSPORT_MESSAGE_HEADERS` on message records when present. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
 | Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence. |
 | Attachments | M23 attachment fidelity and CI validated | M23 preserves metadata-only attachment rows, declared size, size status, method, and deferred embedded-message status. |
 | Batch orchestration | M24 batch hardening and CI validated | M24 adds root-level `batch_progress.jsonl`, expanded `batch_summary.json`, deterministic resume-by-skip context, partial-success classification, and not-run counts. |
-| Release-candidate handoff | M25 and CI pending | M25 adds RC checklist, local/Docker operator handoff, and unsupported/deferred area docs. |
+| Release-candidate handoff | M25 and CI validated | M25 adds RC checklist, local/Docker operator handoff, and unsupported/deferred area docs. |
 | Parser limits | Implemented foundation and CI validated | Explicit parser limits exist for traversal pages, block payload size, and subnode depth. |
 | Subnode references | M15 compatibility triage and CI validated | M15 summarizes observed subnode layout reports into supported, partial, and unsupported categories. |
 | Snowflake/web UI/search | Post-v1 work | Out of the completed v1 implementation lane. |
@@ -45,19 +45,19 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M16: Fixture-Backed Decoder Expansion | #116 | CI validated |
 | M17: Compatibility Triage Reporting and Decoder Backlog | #121 | CI validated |
 | M18: Decoder Backlog Review Workflow | #126 | CI validated |
-| M19: Focused Decoder Candidate Selection | #131 | CI validated |
+| M19: Focused Candidate Selection | #131 | CI validated |
 | M20: Focused Candidate Implementation | #135 | CI validated |
 | M21: Focused Decoder Evidence Expansion | #160 | CI validated |
 | M22: Body and Header Fidelity Expansion | #166 | CI validated |
 | M23: Attachment Payload Fidelity | #171 | CI validated |
 | M24: Batch Scale, Performance, and Corruption Hardening | #176 | CI validated |
-| M25: v1 Release Candidate and Operator Handoff | pending | CI pending |
+| M25: v1 Release Candidate and Operator Handoff | #180 | CI validated |
 
 ## Latest validation
 
-GitHub Actions validation passed for M24 in PR #176. M25 validation is pending on the milestone PR.
+GitHub Actions validation passed for M25 in PR #180. PQ1 is the current post-v1 parser-quality diagnostic lane.
 
-Expected M25 validation includes:
+Expected PQ1 validation includes:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -65,18 +65,24 @@ Expected M25 validation includes:
 - Rust formatting with `cargo fmt --check`.
 - Python wrapper install and `python -m pstd --help`.
 - Docker image build.
-- CLI smoke checks, including `pstd batch --help`.
+- CLI smoke checks, including `pstd inspect --help`.
 - Fixture discovery, inspect, and metadata extract when a PST fixture is present.
 
 ## Remaining v1 milestones
 
 There are **no remaining planned v1 milestones after M25**.
 
-## Next phase
+## Current post-v1 blocker
 
-Post-v1 Snowflake ingestion planning.
+PQ1 root decode diagnostics.
 
-This should start with planning only:
+PQ1 should happen before Snowflake ingestion implementation because recent public PST tests could not safely traverse root B-trees. The immediate parser-quality need is to classify whether a fixture is incomplete/unsupported or whether header/root-field decoding needs correction.
+
+## Next phase after PQ1
+
+Post-v1 Snowflake ingestion planning can resume once parser-quality evidence is clear enough to decide what extraction outputs are ready to load.
+
+Planning should cover:
 
 - Snowflake table and stage design.
 - Load validation model.
@@ -87,6 +93,6 @@ It should not backfill new v1 scope into the completed M1-M25 lane.
 
 ## Validation risk
 
-The M1-M25 foundation has CI coverage at the unit, smoke, Docker, and fixture level once M25 CI passes. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
+The M1-M25 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
 
-Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md) and preserve fixture handling guidance.
+Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md) and preserve fixture handling guidance. For root traversal failures, start with [PQ1 Root Decode Diagnostics](../operations/pq1-root-decode-diagnostics.md).
