@@ -2,6 +2,11 @@
 
 ## Added
 
+- PQ1 root decode diagnostics for safe real-PST parser-quality assessment.
+- `header.root_diagnostics` in inspect JSON with file size, root page size, per-root bounds checks, condition names, and recommendation text.
+- `root_diagnostic_condition` at the inspect-summary level.
+- Regression coverage for root offsets that decode beyond file size.
+- PQ1 operations documentation for interpreting root diagnostic conditions.
 - PSTD v1 planning package, milestone documentation, engineering guides, operations guides, and repo skills.
 - M1 extraction foundation and structured archive contract.
 - M2 PST binary foundation.
@@ -53,7 +58,8 @@
 
 ## Changed
 
-- Updated project status to reflect M1-M25 implementation status.
+- Updated project status to reflect M1-M25 implementation status and PQ1 as the current post-v1 parser-quality blocker.
+- Updated inspect output to expose root diagnostics before tree traversal succeeds.
 - Replaced the stale early roadmap with a bounded M1-M25 v1 milestone lane and post-v1 Snowflake ingestion planning boundary.
 - Updated README, PRD, documentation index, project status, and roadmap to agree that the planned v1 milestone lane is complete after M25.
 - Updated documentation navigation for M25 milestone, implementation, issue plan, release-candidate checklist, operator handoff, and unsupported/deferred areas.
@@ -61,7 +67,7 @@
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
 - Updated attachment status handling to distinguish missing subnode references, unavailable subnode blocks, table parse cases, tables without payloads, and extracted payloads.
 - Updated compatibility triage evidence classification so `CATB` and `CATW` compact attachment-table statuses both count as fixture-backed decoder evidence.
-- Updated message output contract to preserve raw transport headers when available.
+- Updated message output contract to preserve transport headers when available.
 - Updated HTML body extraction to prefer binary HTML when both binary and Unicode HTML properties are present.
 - Updated attachment output contract to preserve metadata for known rows even when payload bytes are unavailable.
 - Updated compact attachment table missing-payload handling to emit unavailable records rather than counters only.
@@ -75,8 +81,8 @@
 
 ## Notes
 
-- M1-M24 have passed GitHub Actions validation.
-- M25 validation is pending on the milestone PR.
+- M1-M25 have passed GitHub Actions validation.
+- PQ1 does not claim full extraction-quality resolution; it makes root traversal blockers explicit and measurable.
 - M20 implements one focused selected parser candidate.
 - M21 keeps parser expansion narrow and only expands evidence classification for the M20 `CATW` decoder.
 - M22 keeps body/header fidelity narrow and only expands already-reachable body/header properties.
