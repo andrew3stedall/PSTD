@@ -5,6 +5,117 @@ use crate::pst::reader::PstByteReader;
 
 pub const PST_HEADER_MIN_BYTES: usize = 64;
 pub const PST_MAGIC: [u8; 4] = [0x21, 0x42, 0x44, 0x4e];
+pub const PST_ROOT_PAGE_SIZE_BYTES: u64 = 512;
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PstRootPointerDiagnostic {
+    pub name: String,
+    pub offset: Option<u64>,
+    pub file_size: u64,
+    pub offset_in_bounds: bool,
+    pub root_page_in_bounds: bool,
+    pub bytes_beyond_file_size: Option<u64>,
+    pub condition: String,
+}
+
+impl PstRootPointerDiagnostic {
+    pub fn classify(name: impl Into<String>, offset: Option<u64>, file_size: u64) -> Self {
+        let name = name.into();
+        let (offset_in_bounds, root_page_in_bounds, bytes_beyond_file_size, condition) =
+            match offset {
+                None => (false, false, None, "root_pointer_absent".to_string()),
+                Some(value) if value >= file_size => (
+                    false,
+                    false,
+                    Some(value.saturating_sub(file_size)),
+                    "root_offset_beyond_file_size".to_string(),
+                ),
+                Some(value) => {
+                    let page_end = value.saturating_add(PST_ROOT_PAGE_SIZE_BYTES);
+                    if page_end > file_size {
+                        (
+                            true,
+                            false,
+                            Some(page_end.saturating_sub(file_size)),
+                            "root_page_truncated".to_string(),
+                        )
+                    } else {
+                        (true, true, None, "root_page_in_bounds".to_string())
+                    }
+                }
+            };
+
+        Self {
+            name,
+            offset,
+            file_size,
+            offset_in_bounds,
+            root_page_in_bounds,
+            bytes_beyond_file_size,
+            condition,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PstRootDiagnostics {
+    pub file_size: u64,
+    pub root_page_size_bytes: u64,
+    pub bbt_root: PstRootPointerDiagnostic,
+    pub nbt_root: PstRootPointerDiagnostic,
+    pub condition: String,
+    pub recommendation: String,
+}
+
+impl PstRootDiagnostics {
+    pub fn from_offsets(file_size: u64, bbt_root_offset: Option<u64>, nbt_root_offset: Option<u64>) -> Self {
+        let bbt_root = PstRootPointerDiagnostic::classify("bbt_root", bbt_root_offset, file_size);
+        let nbt_root = PstRootPointerDiagnostic::classify("nbt_root", nbt_root_offset, file_size);
+        let condition = classify_root_pair(&bbt_root, &nbt_root);
+        let recommendation = match condition.as_str() {
+            "root_offsets_out_of_bounds" => {
+                "Verify header root-field offsets, endian handling, and fixture completeness before folder/message traversal."
+            }
+            "root_pages_truncated" => {
+                "Treat this fixture as possibly truncated unless header decoding proves otherwise."
+            }
+            "root_pages_in_bounds" => "Root pages are safe to attempt BBT/NBT traversal.",
+            "root_pointers_absent" => "Root pointers are absent; classify as header-only until another root source is supported.",
+            _ => "Review individual root pointer diagnostics before parser-quality work continues.",
+        }
+        .to_string();
+
+        Self {
+            file_size,
+            root_page_size_bytes: PST_ROOT_PAGE_SIZE_BYTES,
+            bbt_root,
+            nbt_root,
+            condition,
+            recommendation,
+        }
+    }
+}
+
+fn classify_root_pair(
+    bbt_root: &PstRootPointerDiagnostic,
+    nbt_root: &PstRootPointerDiagnostic,
+) -> String {
+    let bbt_condition = bbt_root.condition.as_str();
+    let nbt_condition = nbt_root.condition.as_str();
+    if bbt_condition == "root_pointer_absent" && nbt_condition == "root_pointer_absent" {
+        "root_pointers_absent".to_string()
+    } else if bbt_condition == "root_offset_beyond_file_size"
+        || nbt_condition == "root_offset_beyond_file_size"
+    {
+        "root_offsets_out_of_bounds".to_string()
+    } else if bbt_condition == "root_page_truncated" || nbt_condition == "root_page_truncated" {
+        "root_pages_truncated".to_string()
+    } else if bbt_condition == "root_page_in_bounds" && nbt_condition == "root_page_in_bounds" {
+        "root_pages_in_bounds".to_string()
+    } else {
+        "root_diagnostics_partial".to_string()
+    }
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PstHeaderSummary {
@@ -17,6 +128,7 @@ pub struct PstHeaderSummary {
     pub variant: String,
     pub bbt_root_offset: Option<u64>,
     pub nbt_root_offset: Option<u64>,
+    pub root_diagnostics: PstRootDiagnostics,
 }
 
 #[derive(Debug, Clone)]
@@ -62,6 +174,8 @@ impl PstHeader {
                 offset: ByteOffset(offset),
             }),
         };
+        let root_diagnostics =
+            PstRootDiagnostics::from_offsets(file_size, bbt_root_offset, nbt_root_offset);
 
         let summary = PstHeaderSummary {
             format: "pst".to_string(),
@@ -77,6 +191,7 @@ impl PstHeader {
             variant: format!("{:?}", variant).to_lowercase(),
             bbt_root_offset,
             nbt_root_offset,
+            root_diagnostics,
         };
 
         Ok(Self {
