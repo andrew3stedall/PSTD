@@ -184,7 +184,7 @@ status
 
 ### `data/attachments.jsonl`
 
-One row per attachment.
+One row per attachment metadata record. Rows may represent extracted attachment bytes, unavailable payloads, empty payloads, or deferred embedded-message payloads.
 
 Important fields:
 
@@ -196,9 +196,12 @@ filename_safe
 content_type
 extension
 size_bytes
+declared_size_bytes
+size_status
 sha256
 is_inline
 content_id
+attachment_method
 ordinal
 archive_path
 extraction_status
@@ -328,11 +331,12 @@ status
 ## Body and attachment storage rules
 
 - Do not base64 encode attachments into JSON.
-- Write attachment bytes as raw TAR entries.
+- Write attachment bytes as raw TAR entries when payloads are extracted.
+- Preserve attachment metadata rows even when payload bytes are unavailable or deferred.
 - Preserve text and HTML bodies as files where available.
 - Preserve raw transport headers on `data/messages.jsonl` when available.
-- Record hashes and byte sizes for future validation.
-- Record missing or failed extraction explicitly.
+- Record hashes, byte sizes, declared sizes, size status, and attachment methods for future validation.
+- Record missing, failed, empty, or deferred extraction explicitly.
 
 ## EML policy
 
