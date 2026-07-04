@@ -18,13 +18,12 @@ PST
   -> diagnostics and summaries
 ```
 
-## Output root shape
+## Single-PST output root shape
 
 ```text
 <output-root>/
   run_summary.json
   progress.jsonl
-  checkpoint.sqlite
 
   archives/
     <pst_id>_000001.tar
@@ -32,6 +31,21 @@ PST
 
   logs/
     run_errors.jsonl
+```
+
+## Batch output root shape
+
+```text
+<batch-output-root>/
+  batch_summary.json
+  batch_checkpoint.jsonl
+  batch_progress.jsonl
+
+  <safe-pst-output-dir>/
+    run_summary.json
+    progress.jsonl
+    archives/
+      <pst_id>_000001.tar
 ```
 
 ## TAR shard shape
@@ -328,6 +342,76 @@ throughput_mb_per_second
 status
 ```
 
+## Batch summary and progress files
+
+### `batch_summary.json`
+
+One JSON document per batch run.
+
+Important fields:
+
+```text
+batch_id
+started_at
+finished_at
+duration_seconds
+input_root
+output_root
+pst_total
+pst_discovered
+pst_attempted
+pst_completed
+pst_partial
+pst_failed
+pst_skipped
+pst_not_run
+continue_on_error
+status
+operator_message
+checkpoint_path
+progress_path
+items
+```
+
+Each item includes:
+
+```text
+pst_path
+pst_output
+status
+run_id
+pst_id
+started_at
+finished_at
+duration_seconds
+messages_discovered
+messages_extracted
+messages_not_extracted
+attachments_extracted
+attachments_not_extracted
+tar_shards_written
+bytes_written
+output_exists
+message
+```
+
+### `batch_checkpoint.jsonl`
+
+Append-only checkpoint stream with one `BatchItemSummary` row per PST that was processed, skipped, or failed before the batch stopped.
+
+### `batch_progress.jsonl`
+
+Append-only operator progress stream. Event types include:
+
+```text
+batch_started
+pst_started
+pst_finished
+batch_finished
+```
+
+Progress rows include the batch ID, event type, timestamp, optional PST path/output path, optional item status, aggregate counters, and a human-readable message.
+
 ## Body and attachment storage rules
 
 - Do not base64 encode attachments into JSON.
@@ -337,6 +421,14 @@ status
 - Preserve raw transport headers on `data/messages.jsonl` when available.
 - Record hashes, byte sizes, declared sizes, size status, and attachment methods for future validation.
 - Record missing, failed, empty, or deferred extraction explicitly.
+
+## Batch operation rules
+
+- Keep discovered PST counts separate from attempted PST counts.
+- Count skipped existing outputs separately from completed or partial extraction attempts.
+- Count not-run PSTs when fail-fast mode stops before all discovered files are attempted.
+- Use `partial_success` for successful extraction attempts with recoverable message, attachment, or metadata gaps.
+- Keep batch output deterministic so reruns can skip existing per-PST output directories unless `--overwrite` is set.
 
 ## EML policy
 
@@ -358,6 +450,8 @@ missing
 unsupported
 skipped_unsupported_type
 skipped_corrupt
+skipped_completed
+failed_stopped_early
 ```
 
 Recommended completeness fields:
