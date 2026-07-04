@@ -227,7 +227,12 @@ fn run_batch_item(config: &BatchConfig, pst_path: &Path, item_output: &Path) -> 
     let timer = Instant::now();
 
     if is_completed(item_output) && !config.overwrite {
-        return skipped_item_summary(pst_path, item_output, item_started, timer.elapsed().as_secs_f64());
+        return skipped_item_summary(
+            pst_path,
+            item_output,
+            item_started,
+            timer.elapsed().as_secs_f64(),
+        );
     }
 
     let extract_config = ExtractConfig {
@@ -537,7 +542,10 @@ fn append_checkpoint(path: &Path, item: &BatchItemSummary) -> PstdResult<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let mut file = fs::OpenOptions::new().create(true).append(true).open(path)?;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
     writeln!(file, "{}", serde_json::to_string(item)?)?;
     Ok(())
 }
@@ -547,7 +555,10 @@ fn write_batch_progress(path: &Path, event: &BatchProgressEvent) -> PstdResult<(
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
-    let mut file = fs::OpenOptions::new().create(true).append(true).open(path)?;
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
     writeln!(file, "{}", serde_json::to_string(event)?)?;
     Ok(())
 }
@@ -611,7 +622,10 @@ mod tests {
         let items = vec![item("completed"), item("partial_success")];
         let counters = counters_from_items(&items, 2);
 
-        assert_eq!(batch_status(&counters, true), "completed_with_partial_success");
+        assert_eq!(
+            batch_status(&counters, true),
+            "completed_with_partial_success"
+        );
     }
 
     fn item(status: &str) -> BatchItemSummary {
