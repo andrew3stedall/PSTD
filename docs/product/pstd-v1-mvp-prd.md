@@ -2,7 +2,7 @@
 
 ## Status
 
-M1-M23 are implemented through milestone branches and intended for CI validation before merge. Two bounded v1 milestones remain after M23: M24-M25. This document defines the local/Docker v1 MVP only.
+M1-M24 are implemented through milestone branches and intended for CI validation before merge. One bounded v1 milestone remains after M24: M25. This document defines the local/Docker v1 MVP only.
 
 ## Problem
 
@@ -70,13 +70,13 @@ Speed of extracting and archiving emails from PST files.
 - Batch processing across multiple PST files.
 - PST-level checkpointing.
 - Live console progress and JSONL progress logs.
+- Batch-level progress logs, checkpoints, summary counters, and deterministic resume-by-skip behaviour.
 - Deferred local testing documentation.
 
 ### Remaining v1 milestone coverage
 
 | Milestone | Tracking issue | PRD risk reduced |
 |---|---:|---|
-| M24: Batch Scale, Performance, and Corruption Hardening | #139 | Reduces operational risk for local/Docker batch runs and recoverable failures. |
 | M25: v1 Release Candidate and Operator Handoff | #141 | Confirms validation, documentation, and operator handoff for v1. |
 
 ### Out of scope for v1
@@ -146,15 +146,26 @@ Capture where available:
 - Preserve and identify attached emails where possible; embedded-message payload decoding remains deferred unless bytes are directly available through the current parser path.
 - Record failed attachments without failing the whole message when recoverable.
 
+## Required batch fidelity
+
+- Preserve discovered PST counts separately from attempted PST counts.
+- Distinguish completed, partial, failed, skipped, and not-run PSTs.
+- Write `batch_checkpoint.jsonl` as a per-PST append-only checkpoint stream.
+- Write `batch_progress.jsonl` as a root-level operator progress stream.
+- Write `batch_summary.json` with checkpoint/progress paths and aggregate counters.
+- Keep resume-by-skip deterministic unless `--overwrite` is set.
+
 ## Corruption behaviour
 
-Continue on error by default. A corrupt message, folder, attachment, or body should not stop unrelated recoverable extraction. Final statuses must distinguish:
+Continue on error by default. A corrupt message, folder, attachment, body, or PST should not stop unrelated recoverable extraction when continue-on-error mode is enabled. Final statuses must distinguish:
 
 - `success`
 - `partial_success`
 - `failed`
 - `skipped_unsupported_type`
 - `skipped_corrupt`
+- `skipped_completed`
+- `failed_stopped_early`
 
 ## Future context
 
