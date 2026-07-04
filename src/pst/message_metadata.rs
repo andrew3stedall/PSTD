@@ -3,7 +3,7 @@ use crate::output::metadata::MessageRecord;
 use crate::pst::mapi::{
     PR_CONVERSATION_INDEX, PR_CONVERSATION_TOPIC, PR_HASATTACH, PR_INTERNET_MESSAGE_ID,
     PR_IN_REPLY_TO_ID, PR_MESSAGE_DELIVERY_TIME, PR_SENDER_ADDRTYPE, PR_SENDER_EMAIL_ADDRESS,
-    PR_SENDER_NAME, PR_SUBJECT,
+    PR_SENDER_NAME, PR_SUBJECT, PR_TRANSPORT_MESSAGE_HEADERS,
 };
 use crate::pst::primitives::NodeId;
 use crate::pst::property_context::PropertyContext;
@@ -52,6 +52,7 @@ pub fn message_from_properties(
         received_at: properties.string_value(PR_MESSAGE_DELIVERY_TIME),
         created_at: None,
         modified_at: None,
+        transport_message_headers: properties.string_value(PR_TRANSPORT_MESSAGE_HEADERS),
         internet_message_id,
         in_reply_to_id,
         conversation_index,
@@ -93,6 +94,7 @@ pub fn status_row(
         received_at: None,
         created_at: None,
         modified_at: None,
+        transport_message_headers: None,
         internet_message_id: None,
         in_reply_to_id: None,
         conversation_index: None,
@@ -107,5 +109,69 @@ pub fn status_row(
         body_status: "deferred_to_m5".to_string(),
         attachment_status: "deferred_to_m5".to_string(),
         extraction_status: "metadata_only_status".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use super::{message_from_properties, status_row};
+    use crate::pst::mapi::{MapiValue, PR_SUBJECT, PR_TRANSPORT_MESSAGE_HEADERS};
+    use crate::pst::primitives::NodeId;
+    use crate::pst::property_context::{PropertyContext, PropertyValue};
+
+    #[test]
+    fn surfaces_transport_message_headers_when_present() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_SUBJECT,
+            PropertyValue {
+                tag: PR_SUBJECT,
+                name: "subject".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("Re: Hello".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_TRANSPORT_MESSAGE_HEADERS,
+            PropertyValue {
+                tag: PR_TRANSPORT_MESSAGE_HEADERS,
+                name: "transport_message_headers".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String(
+                    "Message-ID: <abc@example.com>\r\nFrom: sender@example.com".to_string(),
+                )),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext { values };
+
+        let message = message_from_properties(
+            "run_123",
+            "pst_123",
+            "folder_123",
+            "/Inbox",
+            NodeId(42),
+            &properties,
+        );
+
+        assert_eq!(message.transport_message_headers.as_deref(), Some("Message-ID: <abc@example.com>\r\nFrom: sender@example.com"));
+        assert_eq!(message.normalized_subject.as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn leaves_transport_headers_absent_for_status_rows() {
+        let message = status_row(
+            "run_123",
+            "pst_123",
+            "folder_123",
+            "/Inbox",
+            "metadata_root_only",
+        );
+
+        assert_eq!(message.transport_message_headers, None);
+        assert_eq!(message.item_type, "metadata_status");
     }
 }
