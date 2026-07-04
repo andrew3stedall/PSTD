@@ -1,0 +1,231 @@
+name: Libyal Outlook PST Test Run
+
+on:
+  push:
+    branches: [pstd-test-libyal-outlook-pst]
+  pull_request:
+    branches: [main]
+
+jobs:
+  libyal-outlook-pst-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build extractor
+        run: cargo build
+
+      - name: Download public libyal Outlook PST
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pstd-public-fixtures /tmp/pstd-libyal-artifacts
+          url="https://raw.githubusercontent.com/libyal/testdata/refs/heads/main/pst/outlook.pst"
+          echo "$url" > /tmp/pstd-libyal-artifacts/source-url.txt
+          curl --fail --location --show-error --silent "$url" -o /tmp/pstd-public-fixtures/libyal-outlook.pst
+          stat /tmp/pstd-public-fixtures/libyal-outlook.pst > /tmp/pstd-libyal-artifacts/fixture-stat.txt
+          sha256sum /tmp/pstd-public-fixtures/libyal-outlook.pst > /tmp/pstd-libyal-artifacts/fixture-sha256.txt
+
+      - name: Run PSTD against libyal Outlook PST
+        shell: bash
+        run: |
+          set -u -o pipefail
+          fixture="/tmp/pstd-public-fixtures/libyal-outlook.pst"
+          artifacts="/tmp/pstd-libyal-artifacts"
+          mkdir -p "$artifacts"
+
+          set +e
+          cargo run -- inspect --input "$fixture" --json > "$artifacts/inspect.json" 2> "$artifacts/inspect.stderr.txt"
+          inspect_exit=$?
+          cargo run -- extract --input "$fixture" --output /tmp/pstd-libyal-output > "$artifacts/extract.stdout.txt" 2> "$artifacts/extract.stderr.txt"
+          extract_exit=$?
+          cargo run -- batch --input "$fixture" --output /tmp/pstd-libyal-batch > "$artifacts/batch.stdout.txt" 2> "$artifacts/batch.stderr.txt"
+          batch_exit=$?
+          set -e
+
+          cat > "$artifacts/command-exit-codes.json" <<JSON
+          {"inspect_exit": $inspect_exit, "extract_exit": $extract_exit, "batch_exit": $batch_exit}
+          JSON
+
+          cp /tmp/pstd-libyal-output/run_summary.json "$artifacts/run_summary.json" 2>/dev/null || true
+          cp /tmp/pstd-libyal-batch/batch_summary.json "$artifacts/batch_summary.json" 2>/dev/null || true
+          head -n 100 /tmp/pstd-libyal-output/progress.jsonl > "$artifacts/progress.head.jsonl" 2>/dev/null || true
+          head -n 100 /tmp/pstd-libyal-batch/batch_progress.jsonl > "$artifacts/batch_progress.head.jsonl" 2>/dev/null || true
+          head -n 100 /tmp/pstd-libyal-batch/batch_checkpoint.jsonl > "$artifacts/batch_checkpoint.head.jsonl" 2>/dev/null || true
+
+          tarfile=$(find /tmp/pstd-libyal-output/archives -type f -name '*.tar' 2>/dev/null | head -n 1 || true)
+          if [[ -n "$tarfile" ]]; then
+            tar -tf "$tarfile" > "$artifacts/tar_listing.txt" || true
+            mkdir -p "$artifacts/previews"
+
+            cat > /tmp/redact_preview.py <<'PY'
+          import json
+          import sys
+
+          sensitive_name_parts = [
+              "subject",
+              "sender",
+              "recipient",
+              "display_name",
+              "email",
+              "address",
+              "smtp",
+              "reply",
+              "headers",
+              "filename",
+              "path",
+              "internet_message_id",
+              "conversation",
+              "reference",
+              "body",
+              "content_id",
+          ]
+
+          def redact_value(value):
+              if value is None or isinstance(value, (bool, int, float)):
+                  return value
+              if isinstance(value, str):
+                  return f"<redacted:{len(value)} chars>"
+              if isinstance(value, list):
+                  return [redact_value(item) for item in value[:5]]
+              if isinstance(value, dict):
+                  return {k: redact_value(v) for k, v in value.items()}
+              return "<redacted>"
+
+          def sanitize(obj):
+              if not isinstance(obj, dict):
+                  return redact_value(obj)
+              clean = {}
+              for key, value in obj.items():
+                  lower = key.lower()
+                  if any(part in lower for part in sensitive_name_parts):
+                      clean[key] = redact_value(value)
+                  else:
+                      clean[key] = value
+              return clean
+
+          count = 0
+          for line in sys.stdin:
+              line = line.strip()
+              if not line:
+                  continue
+              try:
+                  obj = json.loads(line)
+              except Exception:
+                  print("<unparseable>")
+                  continue
+              print(json.dumps(sanitize(obj), sort_keys=True))
+              count += 1
+              if count >= 10:
+                  break
+          PY
+
+            for entry in _pstfast/summary.json _pstfast/manifest.jsonl _pstfast/errors.jsonl _pstfast/folder_inventory.jsonl data/folders.jsonl data/messages.jsonl data/recipients.jsonl data/message_references.jsonl data/bodies.jsonl data/attachments.jsonl data/selected_mapi_properties.jsonl; do
+              safe_name=$(echo "$entry" | tr '/.' '__')
+              if tar -tf "$tarfile" | grep -Fxq "$entry"; then
+                tar -xOf "$tarfile" "$entry" | python3 /tmp/redact_preview.py > "$artifacts/previews/${safe_name}.preview.jsonl" || true
+              else
+                echo "missing: $entry" > "$artifacts/previews/${safe_name}.missing.txt"
+              fi
+            done
+          else
+            echo "No TAR archive was produced." > "$artifacts/no-tar-produced.txt"
+          fi
+
+          python3 - <<'PY' > "$artifacts/assessment.md"
+          import json
+          from pathlib import Path
+
+          root = Path('/tmp/pstd-libyal-artifacts')
+
+          def read_text(name):
+              path = root / name
+              return path.read_text(errors='replace').strip() if path.exists() else ''
+
+          def load_json(name):
+              text = read_text(name)
+              if not text:
+                  return None
+              try:
+                  return json.loads(text)
+              except Exception:
+                  return None
+
+          exits = load_json('command-exit-codes.json') or {}
+          inspect = load_json('inspect.json')
+          summary = load_json('run_summary.json')
+          batch = load_json('batch_summary.json')
+          stat = read_text('fixture-stat.txt')
+          size = ''
+          for line in stat.splitlines():
+              if line.startswith('  Size:'):
+                  size = line.strip()
+                  break
+
+          def value(obj, *names):
+              if not isinstance(obj, dict):
+                  return None
+              for name in names:
+                  if name in obj:
+                      return obj[name]
+              return None
+
+          folders = value(summary, 'folders_discovered')
+          messages_discovered = value(summary, 'messages_discovered')
+          messages_extracted = value(summary, 'messages_extracted')
+          attachments_extracted = value(summary, 'attachments_extracted')
+          status = value(summary, 'status')
+
+          if messages_extracted and messages_extracted > 0:
+              quality_stage = 'messages_extracted'
+          elif messages_discovered and messages_discovered > 0:
+              quality_stage = 'messages_discovered_not_extracted'
+          elif folders and folders > 0:
+              quality_stage = 'folders_discovered'
+          elif status:
+              quality_stage = str(status)
+          else:
+              quality_stage = 'no_structured_summary'
+
+          print('# PSTD libyal Outlook PST CI Assessment')
+          print()
+          print('- Source: `https://raw.githubusercontent.com/libyal/testdata/refs/heads/main/pst/outlook.pst`')
+          print(f'- Fixture SHA256: `{read_text("fixture-sha256.txt")}`')
+          if size:
+              print(f'- Fixture stat: `{size}`')
+          print(f'- inspect_exit: `{exits.get("inspect_exit")}`')
+          print(f'- extract_exit: `{exits.get("extract_exit")}`')
+          print(f'- batch_exit: `{exits.get("batch_exit")}`')
+          print(f'- quality_stage: `{quality_stage}`')
+          if inspect:
+              print(f'- inspect_status: `{value(inspect, "status")}`')
+              print(f'- inspect_format: `{value(inspect, "format", "pst_format")}`')
+          if summary:
+              for key in ['status','folders_discovered','messages_discovered','messages_extracted','messages_not_extracted','attachments_extracted','attachments_not_extracted','tar_shards_written','bytes_read','bytes_written']:
+                  if key in summary:
+                      print(f'- {key}: `{summary[key]}`')
+          if batch:
+              for key in ['status','pst_discovered','pst_attempted','pst_completed','pst_partial','pst_failed','pst_skipped','pst_not_run']:
+                  if key in batch:
+                      print(f'- batch_{key}: `{batch[key]}`')
+          print()
+          print('## stderr excerpts')
+          for name in ['inspect.stderr.txt', 'extract.stderr.txt', 'batch.stderr.txt']:
+              text = read_text(name)
+              if text:
+                  print(f'### {name}')
+                  print('```text')
+                  print('\n'.join(text.splitlines()[-80:]))
+                  print('```')
+          print()
+          print('## Notes')
+          print('- Raw bodies, attachments, and TAR files are not uploaded.')
+          print('- Preview files include redacted first rows only.')
+          PY
+
+      - name: Upload redacted assessment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libyal-outlook-pst-redacted-assessment
+          path: /tmp/pstd-libyal-artifacts
