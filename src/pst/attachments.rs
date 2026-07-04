@@ -165,7 +165,11 @@ pub fn safe_filename(filename: Option<&str>, ordinal: usize) -> String {
         .trim_matches('_')
         .to_string();
 
-    if safe.is_empty() { fallback } else { safe }
+    if safe.is_empty() {
+        fallback
+    } else {
+        safe
+    }
 }
 
 pub fn file_extension(filename: &str) -> Option<String> {
