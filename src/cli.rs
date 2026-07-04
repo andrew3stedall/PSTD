@@ -146,8 +146,15 @@ pub fn run() -> i32 {
             match run_batch(config) {
                 Ok(summary) => {
                     println!(
-                        "PSTD batch completed: {} completed, {} failed, {} skipped",
-                        summary.pst_completed, summary.pst_failed, summary.pst_skipped
+                        "PSTD batch {status}: discovered={discovered}, attempted={attempted}, completed={completed}, partial={partial}, failed={failed}, skipped={skipped}, not_run={not_run}",
+                        status = summary.status,
+                        discovered = summary.pst_discovered,
+                        attempted = summary.pst_attempted,
+                        completed = summary.pst_completed,
+                        partial = summary.pst_partial,
+                        failed = summary.pst_failed,
+                        skipped = summary.pst_skipped,
+                        not_run = summary.pst_not_run,
                     );
                     if summary.pst_failed == 0 {
                         0
