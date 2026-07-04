@@ -48,12 +48,12 @@ This tree is organised by audience.
 | M18 | [Decoder Backlog Review Workflow](milestones/pstd-v1-m18-backlog-review-workflow.md) | TBD | [M18 issues](issues/pstd-v1-m18-ordered-issue-plan.md) | TBD |
 | M19 | [Focused Candidate Selection](milestones/pstd-v1-m19-candidate-selection.md) | TBD | [M19 issues](issues/pstd-v1-m19-ordered-issue-plan.md) | TBD |
 | M20 | [Focused Candidate Implementation](milestones/pstd-v1-m20-focused-candidate-implementation.md) | TBD | [M20 issues](issues/pstd-v1-m20-ordered-issue-plan.md) | TBD |
+| M21 | [Focused Decoder Evidence Expansion](milestones/pstd-v1-m21-focused-decoder-evidence-expansion.md) | TBD | [M21 issues](issues/pstd-v1-m21-ordered-issue-plan.md) | TBD |
 
 ## Remaining v1 milestone tracking
 
 | Milestone | Tracking issue | Purpose |
 |---|---:|---|
-| M21: Focused Decoder Evidence Expansion | #136 | Select the next testable compatibility candidate and add focused evidence/coverage. |
 | M22: Body and Header Fidelity Expansion | #137 | Reduce body/header extraction gaps while preserving deterministic status reporting. |
 | M23: Attachment Payload Fidelity | #138 | Tighten attachment payload extraction and unsupported-layout reporting. |
 | M24: Batch Scale, Performance, and Corruption Hardening | #139 | Harden realistic batch operation, resume behaviour, progress reporting, and recoverable failures. |
@@ -84,6 +84,7 @@ This tree is organised by audience.
 - [M18 Backlog Review Workflow Implementation Plan](engineering/pstd-v1-m18-backlog-review-workflow-implementation-plan.md)
 - [M19 Candidate Selection Implementation Plan](engineering/pstd-v1-m19-candidate-selection-implementation-plan.md)
 - [M20 Focused Candidate Implementation Plan](engineering/pstd-v1-m20-focused-candidate-implementation-plan.md)
+- [M21 Focused Decoder Evidence Expansion Plan](engineering/pstd-v1-m21-focused-decoder-evidence-expansion-plan.md)
 
 ## Architecture and data
 
