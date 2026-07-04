@@ -115,6 +115,7 @@ sent_at
 received_at
 created_at
 modified_at
+transport_message_headers
 internet_message_id
 in_reply_to_id
 conversation_index
@@ -329,6 +330,7 @@ status
 - Do not base64 encode attachments into JSON.
 - Write attachment bytes as raw TAR entries.
 - Preserve text and HTML bodies as files where available.
+- Preserve raw transport headers on `data/messages.jsonl` when available.
 - Record hashes and byte sizes for future validation.
 - Record missing or failed extraction explicitly.
 
