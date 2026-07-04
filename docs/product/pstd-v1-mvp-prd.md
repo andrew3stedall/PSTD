@@ -2,7 +2,7 @@
 
 ## Status
 
-M1-M24 are implemented through milestone branches and intended for CI validation before merge. One bounded v1 milestone remains after M24: M25. This document defines the local/Docker v1 MVP only.
+M1-M25 are implemented through milestone branches and intended for CI validation before merge. The bounded v1 milestone lane is complete after M25. This document defines the local/Docker v1 MVP only.
 
 ## Problem
 
@@ -71,17 +71,21 @@ Speed of extracting and archiving emails from PST files.
 - PST-level checkpointing.
 - Live console progress and JSONL progress logs.
 - Batch-level progress logs, checkpoints, summary counters, and deterministic resume-by-skip behaviour.
-- Deferred local testing documentation.
+- Release-candidate checklist and local/Docker operator handoff.
+- Unsupported/deferred area documentation.
 
-### Remaining v1 milestone coverage
+### v1 milestone coverage
 
-| Milestone | Tracking issue | PRD risk reduced |
-|---|---:|---|
-| M25: v1 Release Candidate and Operator Handoff | #141 | Confirms validation, documentation, and operator handoff for v1. |
+| Milestone range | PRD risk reduced |
+|---|---|
+| M1-M6 | Core CLI, output archive contract, PST binary foundation, metadata, recipients/threading, body/attachment foundations, and batch orchestration. |
+| M7-M12 | Parser depth, traversal, payload/subnode handling, payload wiring, extraction integration, and attachment subnode integration. |
+| M13-M24 | Fixture compatibility, observed layout triage, decoder workflow, body/header fidelity, attachment fidelity, and batch hardening. |
+| M25 | Release-candidate validation, operator handoff, unsupported/deferred boundary, and post-v1 planning boundary. |
 
 ### Out of scope for v1
 
-- Snowflake ingestion.
+- Snowflake ingestion implementation.
 - Snowpark Container Services deployment.
 - React, Vite, Bun, or web UI.
 - Keyword search implementation.
@@ -89,15 +93,15 @@ Speed of extracting and archiving emails from PST files.
 - Embeddings.
 - Knowledge graph construction.
 - Email tagging UI or storage.
-- Byte-for-byte legal/archive preservation.
+- Exact-preservation audit archive mode.
 - Using external PST parsing libraries.
 - Secrets, billing, deployment, production access, or destructive data behaviour.
 
 ## Output strategy
 
-PSTD v1 should not use EML as the default canonical output. The default output is structured TAR + JSONL + body files + attachment files.
+PSTD v1 does not use EML as the default canonical output. The default output is structured TAR + JSONL + body files + attachment files.
 
-EML generation may be added later as an optional compatibility or download reconstruction feature, but the v1 archive contract should avoid converting PST to EML only to parse EML again for Snowflake later.
+EML generation may be added later as an optional compatibility or download reconstruction feature, but the v1 archive contract avoids converting PST to EML only to parse EML again for Snowflake later.
 
 ## Required metadata fidelity
 
@@ -169,7 +173,9 @@ Continue on error by default. A corrupt message, folder, attachment, body, or PS
 
 ## Future context
 
-Future PSTD phases may load outputs into Snowflake for keyword search, semantic search, tagging, web review, generated email downloads, and possible knowledge graph or LLM/RAG workflows. V1 must preserve stable IDs and output contracts so those later phases do not need to reparse raw PST files.
+Future PSTD phases may load outputs into Snowflake for keyword search, semantic search, tagging, web review, generated email downloads, and possible knowledge graph or LLM/RAG workflows. V1 preserves stable IDs and output contracts so those later phases do not need to reparse raw PST files.
+
+Post-v1 should begin with Snowflake ingestion planning.
 
 ## Resolved and remaining product questions
 
