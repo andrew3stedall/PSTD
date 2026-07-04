@@ -163,7 +163,10 @@ fn decode_attachment_block(
     if block.bytes.starts_with(COMPACT_ATTACHMENT_TABLE_MAGIC) {
         return decode_compact_attachment_table(message_key, &block.bytes, start_ordinal);
     }
-    if block.bytes.starts_with(UTF16_COMPACT_ATTACHMENT_TABLE_MAGIC) {
+    if block
+        .bytes
+        .starts_with(UTF16_COMPACT_ATTACHMENT_TABLE_MAGIC)
+    {
         return decode_utf16_compact_attachment_table(message_key, &block.bytes, start_ordinal);
     }
 
@@ -706,7 +709,8 @@ mod tests {
         let mime = utf16le_fixed("application/pdf", 32);
         let size = 16i32.to_le_bytes();
         let method = 1i32.to_le_bytes();
-        let row_width = attachment_bytes.len() + filename.len() + mime.len() + size.len() + method.len();
+        let row_width =
+            attachment_bytes.len() + filename.len() + mime.len() + size.len() + method.len();
         let mut buf = Vec::new();
         buf.extend_from_slice(&5u16.to_le_bytes());
         buf.extend_from_slice(&1u16.to_le_bytes());
