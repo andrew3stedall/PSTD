@@ -7,6 +7,9 @@ This tree is organised by audience.
 | Need | Page |
 |---|---|
 | Current status | [Project Status](product/project-status.md) |
+| Release-candidate checklist | [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md) |
+| Local/Docker operator handoff | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
+| Unsupported/deferred areas | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
 | Developer onboarding | [Developer Guide](engineering/developer-guide.md) |
 | Code navigation | [Codebase Map](engineering/codebase-map.md) |
 | Architecture overview | [System Overview](architecture/system-overview.md) |
@@ -52,12 +55,15 @@ This tree is organised by audience.
 | M22 | [Body and Header Fidelity Expansion](milestones/pstd-v1-m22-body-header-fidelity-expansion.md) | TBD | [M22 issues](issues/pstd-v1-m22-ordered-issue-plan.md) | TBD |
 | M23 | [Attachment Payload Fidelity](milestones/pstd-v1-m23-attachment-payload-fidelity.md) | TBD | [M23 issues](issues/pstd-v1-m23-ordered-issue-plan.md) | TBD |
 | M24 | [Batch Scale, Performance, and Corruption Hardening](milestones/pstd-v1-m24-batch-hardening.md) | TBD | [M24 issues](issues/pstd-v1-m24-ordered-issue-plan.md) | TBD |
+| M25 | [Release Candidate and Operator Handoff](milestones/pstd-v1-m25-release-candidate-operator-handoff.md) | TBD | [M25 issues](issues/pstd-v1-m25-ordered-issue-plan.md) | TBD |
 
-## Remaining v1 milestone tracking
+## v1 release-candidate handoff
 
-| Milestone | Tracking issue | Purpose |
-|---|---:|---|
-| M25: v1 Release Candidate and Operator Handoff | #141 | Close v1 with validation, documentation cleanup, and local/Docker operator handoff. |
+| Need | Page |
+|---|---|
+| Final checklist | [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md) |
+| Local/Docker runbook | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
+| Unsupported/deferred boundary | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
 
 ## Engineering
 
@@ -74,20 +80,21 @@ This tree is organised by audience.
 - [M8 Traversal Expansion Implementation Plan](engineering/pstd-v1-m8-traversal-expansion-implementation-plan.md)
 - [M9 Payload and Subnode Traversal Implementation Plan](engineering/pstd-v1-m9-payload-subnode-traversal-implementation-plan.md)
 - [M10 Payload Wiring Implementation Plan](engineering/pstd-v1-m10-payload-wiring-implementation-plan.md)
-- [M11 Extraction Integration Implementation Plan](engineering/pstd-v1-m11-extraction-integration-implementation-plan.md)
-- [M12 Attachment Subnode Integration Implementation Plan](engineering/pstd-v1-m12-attachment-subnode-integration-implementation-plan.md)
+- [M11 Extraction Integration Implementation Plan](engineering/pstd-v1-m11-extraction-integration.md)
+- [M12 Attachment Subnode Integration Implementation Plan](engineering/pstd-v1-m12-attachment-subnode-integration-plan.md)
 - [M13 Fixture Compatibility Implementation Plan](engineering/pstd-v1-m13-fixtures-compatibility-implementation-plan.md)
 - [M14 Recursive Subnode Layout Implementation Plan](engineering/pstd-v1-m14-recursive-subnode-layouts-implementation-plan.md)
 - [M15 Observed Layout Triage Implementation Plan](engineering/pstd-v1-m15-observed-layout-triage-implementation-plan.md)
 - [M16 Fixture-Backed Decoder Implementation Plan](engineering/pstd-v1-m16-fixture-backed-decoders-implementation-plan.md)
 - [M17 Triage Reporting Backlog Implementation Plan](engineering/pstd-v1-m17-triage-reporting-backlog-implementation-plan.md)
-- [M18 Backlog Review Workflow Implementation Plan](engineering/pstd-v1-m18-backlog-review-workflow-implementation-plan.md)
-- [M19 Candidate Selection Implementation Plan](engineering/pstd-v1-m19-candidate-selection-implementation-plan.md)
-- [M20 Focused Candidate Implementation Plan](engineering/pstd-v1-m20-focused-candidate-implementation-plan.md)
+- [M18 Backlog Review Workflow Implementation Plan](engineering/pstd-v1-m18-backlog-review-workflow.md)
+- [M19 Candidate Selection Implementation Plan](engineering/pstd-v1-m19-candidate-selection.md)
+- [M20 Focused Candidate Implementation Plan](engineering/pstd-v1-m20-focused-candidate-implementation.md)
 - [M21 Focused Decoder Evidence Expansion Plan](engineering/pstd-v1-m21-focused-decoder-evidence-expansion-plan.md)
 - [M22 Body and Header Fidelity Expansion Plan](engineering/pstd-v1-m22-body-header-fidelity-expansion-plan.md)
 - [M23 Attachment Payload Fidelity Plan](engineering/pstd-v1-m23-attachment-payload-fidelity-plan.md)
 - [M24 Batch Hardening Plan](engineering/pstd-v1-m24-batch-hardening-plan.md)
+- [M25 Release Candidate Plan](engineering/pstd-v1-m25-release-candidate-plan.md)
 
 ## Architecture and data
 
@@ -97,6 +104,9 @@ This tree is organised by audience.
 ## Operations
 
 - [Local Validation](operations/local-validation.md)
+- [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md)
+- [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
+- [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md)
 - [Decoder Backlog Review Workflow](operations/decoder-backlog-review-workflow.md)
 - [Candidate Selection Workflow](operations/candidate-selection-workflow.md)
 - [Public and Sanitized Fixture Triage](operations/public-sanitized-fixture-triage.md)
