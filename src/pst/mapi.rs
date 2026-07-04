@@ -48,6 +48,7 @@ pub const PR_RECIPIENT_ADDRTYPE: u32 = 0x3002_001f;
 pub const PR_SMTP_ADDRESS: u32 = 0x39fe_001f;
 pub const PR_BODY: u32 = 0x1000_001f;
 pub const PR_RTF_COMPRESSED: u32 = 0x1009_0102;
+pub const PR_HTML_STRING: u32 = 0x1013_001f;
 pub const PR_HTML: u32 = 0x1013_0102;
 pub const PR_ATTACH_DATA_BIN: u32 = 0x3701_0102;
 pub const PR_ATTACH_FILENAME: u32 = 0x3704_001f;
@@ -208,6 +209,11 @@ pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
         tag: PR_RTF_COMPRESSED,
         name: "body_rtf_compressed",
         value_type: MapiValueType::Binary,
+    },
+    MapiPropertyDef {
+        tag: PR_HTML_STRING,
+        name: "body_html_unicode",
+        value_type: MapiValueType::String,
     },
     MapiPropertyDef {
         tag: PR_HTML,
