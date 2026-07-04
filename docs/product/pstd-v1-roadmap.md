@@ -11,9 +11,9 @@
 
 ## Current roadmap position
 
-M1-M20 are implemented, merged to `main`, and CI validated. The stale early roadmap that listed M4 as next has been superseded by the bounded post-M20 roadmap below.
+M1-M21 are implemented through milestone branches and intended for CI validation before merge. M21 closes the immediate post-M20 decoder evidence gap by classifying `CATW` status output as fixture-backed evidence.
 
-There are **five v1 milestones left after M20**.
+There are **four v1 milestones left after M21**.
 
 ## Roadmap overview
 
@@ -38,8 +38,8 @@ M17: Compatibility Triage Reporting and Decoder Backlog [implemented, CI validat
 M18: Decoder Backlog Review Workflow [implemented, CI validated]
 M19: Focused Decoder Candidate Selection [implemented, CI validated]
 M20: Focused Candidate Implementation [implemented, CI validated]
-M21: Focused Decoder Evidence Expansion [next, issue #136]
-M22: Body and Header Fidelity Expansion [planned, issue #137]
+M21: Focused Decoder Evidence Expansion [implemented, CI pending]
+M22: Body and Header Fidelity Expansion [next, issue #137]
 M23: Attachment Payload Fidelity [planned, issue #138]
 M24: Batch Scale, Performance, and Corruption Hardening [planned, issue #139]
 M25: v1 Release Candidate and Operator Handoff [planned, issue #141]
@@ -51,15 +51,17 @@ M25: v1 Release Candidate and Operator Handoff [planned, issue #141]
 |---|---|
 | M1-M6 | Established the local/Docker extraction archive contract, Rust/Python CLI surface, PST binary primitives, metadata output, recipient/threading foundation, body/attachment output foundation, and batch orchestration. |
 | M7-M12 | Added parser depth diagnostics, bounded traversal, payload/subnode traversal, payload wiring, extraction path integration, and attachment table/subnode integration. |
-| M13-M20 | Added fixture compatibility coverage, recursive subnode layout exploration, observed-layout triage, fixture-backed decoder expansion, decoder backlog reporting, review workflow outputs, candidate selection outputs, and one focused `CATW` attachment-table decoder. |
+| M13-M21 | Added fixture compatibility coverage, recursive subnode layout exploration, observed-layout triage, fixture-backed decoder expansion, decoder backlog reporting, review workflow outputs, candidate selection outputs, one focused `CATW` attachment-table decoder, and UTF-16 compact decoder evidence classification. |
 
-## Remaining v1 milestones
+## Completed M21 milestone
 
 ### M21: Focused Decoder Evidence Expansion
 
 Tracking issue: #136.
 
-Select the next testable decoder candidate using the M18/M19 review outputs. Add focused evidence and regression coverage before changing parser behaviour. Implementation should proceed only when the candidate has a specific input shape and a clear fallback requirement.
+M21 selected a small post-M20 evidence gap rather than a broad parser rewrite. M20 added `CATW` / `utf16_compact_attachment_table_*` statuses, but compatibility triage only counted `compact_attachment_table_*` statuses as fixture-backed decoder evidence. M21 classifies both `CATB` and `CATW` compact decoder status families as supported fixture-backed evidence and keeps fallback statuses unchanged.
+
+## Remaining v1 milestones
 
 ### M22: Body and Header Fidelity Expansion
 
