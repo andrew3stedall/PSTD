@@ -21,7 +21,7 @@ pub struct InspectSummary {
 impl InspectSummary {
     pub fn to_human_text(&self) -> String {
         format!(
-            "PSTD inspect\ninput: {}\nfile_size: {}\nformat: {}\nvariant: {}\nversion: {:?}\nheader_status: {}\nroot_diagnostic_condition: {}\nbbt_status: {}\nbbt_entries: {}\nnbt_status: {}\nnbt_entries: {}",
+            "PSTD inspect\ninput: {}\nfile_size: {}\nformat: {}\nvariant: {}\nversion: {:?}\nheader_status: {}\nroot_diagnostic_condition: {}\nroot_selected_source: {:?}\nroot_candidate_count: {}\nbbt_status: {}\nbbt_entries: {}\nnbt_status: {}\nnbt_entries: {}",
             self.input_path,
             self.file_size,
             self.header.format,
@@ -29,6 +29,8 @@ impl InspectSummary {
             self.header.version,
             self.header.parser_status,
             self.root_diagnostic_condition,
+            self.header.root_diagnostics.selected_source,
+            self.header.root_diagnostics.candidate_count,
             self.bbt_status,
             self.bbt_entries,
             self.nbt_status,
