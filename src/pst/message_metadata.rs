@@ -2,7 +2,7 @@ use crate::output::ids;
 use crate::output::metadata::MessageRecord;
 use crate::pst::mapi::{
     PR_CONVERSATION_INDEX, PR_CONVERSATION_TOPIC, PR_CONVERSATION_TOPIC_A, PR_HASATTACH,
-    PR_IN_REPLY_TO_ID, PR_IN_REPLY_TO_ID_A, PR_INTERNET_MESSAGE_ID, PR_INTERNET_MESSAGE_ID_A,
+    PR_INTERNET_MESSAGE_ID, PR_INTERNET_MESSAGE_ID_A, PR_IN_REPLY_TO_ID, PR_IN_REPLY_TO_ID_A,
     PR_MESSAGE_DELIVERY_TIME, PR_SENDER_ADDRTYPE, PR_SENDER_ADDRTYPE_A, PR_SENDER_EMAIL_ADDRESS,
     PR_SENDER_EMAIL_ADDRESS_A, PR_SENDER_NAME, PR_SENDER_NAME_A, PR_SUBJECT, PR_SUBJECT_A,
     PR_TRANSPORT_MESSAGE_HEADERS, PR_TRANSPORT_MESSAGE_HEADERS_A,
@@ -54,15 +54,14 @@ pub fn message_from_properties(
         sender_name: properties.first_string_value(&[PR_SENDER_NAME, PR_SENDER_NAME_A]),
         sender_email: sender_email.clone(),
         sender_raw_address: sender_email,
-        sender_address_type: properties.first_string_value(&[PR_SENDER_ADDRTYPE, PR_SENDER_ADDRTYPE_A]),
+        sender_address_type: properties
+            .first_string_value(&[PR_SENDER_ADDRTYPE, PR_SENDER_ADDRTYPE_A]),
         sent_at: None,
         received_at: properties.string_value(PR_MESSAGE_DELIVERY_TIME),
         created_at: None,
         modified_at: None,
-        transport_message_headers: properties.first_string_value(&[
-            PR_TRANSPORT_MESSAGE_HEADERS,
-            PR_TRANSPORT_MESSAGE_HEADERS_A,
-        ]),
+        transport_message_headers: properties
+            .first_string_value(&[PR_TRANSPORT_MESSAGE_HEADERS, PR_TRANSPORT_MESSAGE_HEADERS_A]),
         internet_message_id,
         in_reply_to_id,
         conversation_index,
@@ -196,7 +195,9 @@ mod tests {
                 tag: PR_TRANSPORT_MESSAGE_HEADERS_A,
                 name: "transport_message_headers".to_string(),
                 raw: Vec::new(),
-                decoded: Some(MapiValue::String("Message-ID: <alias@example.com>".to_string())),
+                decoded: Some(MapiValue::String(
+                    "Message-ID: <alias@example.com>".to_string(),
+                )),
                 status: "selected".to_string(),
             },
         );
