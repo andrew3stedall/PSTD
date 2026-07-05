@@ -12,7 +12,7 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Structured output contract | v1 release candidate and CI validated | Single-PST and batch output contracts are documented for local/Docker operators. |
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
 | PST header parser | PQ2 candidate selection | Validates PST magic and version/variant summary; PQ2 selects safe root candidates for traversal when available. |
-| BBT/NBT parsing | Traversal expansion and CI validated | Bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards exist. |
+| BBT/NBT parsing | PQ3 index entry decoding | PQ3 corrects B-tree page metadata offsets, internal child references, and page diagnostics. |
 | Metadata processing | M22 body/header fidelity and CI validated | M22 surfaces `PR_TRANSPORT_MESSAGE_HEADERS` on message records when present. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
 | Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence. |
@@ -21,7 +21,7 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Release-candidate handoff | M25 and CI validated | M25 adds RC checklist, local/Docker operator handoff, and unsupported/deferred area docs. |
 | Parser limits | Implemented foundation and CI validated | Explicit parser limits exist for traversal pages, block payload size, and subnode depth. |
 | Subnode references | M15 compatibility triage and CI validated | M15 summarizes observed subnode layout reports into supported, partial, and unsupported categories. |
-| Snowflake/web UI/search | Post-v1 work | Out of the completed v1 implementation lane. |
+| Snowflake/web UI/search | Parked | Not active until PST conversion coverage is reliable. |
 
 ## Merged milestones
 
@@ -53,12 +53,13 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M24: Batch Scale, Performance, and Corruption Hardening | #176 | CI validated |
 | M25: v1 Release Candidate and Operator Handoff | #180 | CI validated |
 | PQ1: Root Decode Diagnostics | #188 | CI validated |
+| PQ2: Root Decode Candidate Selection | #193 | CI validated |
 
 ## Latest validation
 
-GitHub Actions validation passed for PQ1 in PR #188. PQ2 is the current post-v1 parser-quality lane.
+GitHub Actions validation passed for PQ2 in PR #193. PQ3 is the current conversion-quality lane.
 
-Expected PQ2 validation includes:
+Expected PQ3 validation includes:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -73,22 +74,27 @@ Expected PQ2 validation includes:
 
 There are **no remaining planned v1 milestones after M25**.
 
-## Current post-v1 blocker
+## Current active blocker
 
-PQ2 root candidate selection.
+PQ3 index entry decoding.
 
-PQ2 should happen before Snowflake ingestion implementation because PSTD must decide whether a root candidate is safe for traversal before downstream extraction quality can be trusted.
+The current focus is solely PST conversion coverage. The immediate question is whether selected BBT/NBT root pages can produce decoded entries and page diagnostics.
 
-## Next phase after PQ2
+## Active conversion coverage roadmap
 
-PQ3 fixture-backed root traversal validation.
+1. PQ3: index page entry decoding.
+2. PQ4: folder hierarchy discovery.
+3. PQ5: message table discovery.
+4. PQ6: property context and body coverage.
+5. PQ7: attachment and recipient coverage.
+6. PQ8: fixture corpus and ground-truth comparison.
 
-PQ3 should use selected safe root candidates to validate BBT/NBT traversal against public or sanitized fixtures and decide whether folder/message extraction can proceed for each fixture class.
+## Parked work
 
-Snowflake ingestion planning can resume once parser-quality evidence is clear enough to decide what extraction outputs are ready to load.
+Snowflake ingestion, UI, search, analytics loading, and other downstream work are parked until PST conversion coverage is reliable and measured against public or sanitized fixtures.
 
 ## Validation risk
 
 The M1-M25 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
 
-Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For root traversal decisions, start with [PQ2 Root Candidate Selection](../operations/pq2-root-candidate-selection.md).
+Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For current page-level traversal decisions, start with [PQ3 Index Entry Decoding](../operations/pq3-index-entry-decoding.md).
