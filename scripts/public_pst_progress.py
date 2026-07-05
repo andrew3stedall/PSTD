@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""Create a compact public PST fixture progress summary for milestone CI artifacts."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+from typing import Any
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--progress-dir", required=True)
+    args = parser.parse_args()
+
+    progress_dir = Path(args.progress_dir)
+    inspect = load_json(progress_dir / "inspect.json")
+    run = load_json(progress_dir / "run_summary.json")
+    fixture = (progress_dir / "fixture_path.txt").read_text(encoding="utf-8").strip()
+    fixture_size = int((progress_dir / "fixture_size_bytes.txt").read_text(encoding="utf-8"))
+
+    summary = {
+        "fixture": fixture,
+        "fixture_size_bytes": fixture_size,
+        "root_diagnostic_condition": inspect.get("root_diagnostic_condition"),
+        "root_selected_source": inspect.get("header", {})
+        .get("root_diagnostics", {})
+        .get("selected_source"),
+        "root_candidate_count": inspect.get("header", {})
+        .get("root_diagnostics", {})
+        .get("candidate_count"),
+        "bbt_status": inspect.get("bbt_status"),
+        "bbt_entries": inspect.get("bbt_entries"),
+        "bbt_pages_diagnosed": len(inspect.get("bbt_page_diagnostics", [])),
+        "nbt_status": inspect.get("nbt_status"),
+        "nbt_entries": inspect.get("nbt_entries"),
+        "nbt_pages_diagnosed": len(inspect.get("nbt_page_diagnostics", [])),
+        "extract_status": run.get("status"),
+        "folders_discovered": run.get("folders_discovered"),
+        "messages_discovered": run.get("messages_discovered"),
+        "messages_extracted": run.get("messages_extracted"),
+        "attachments_extracted": run.get("attachments_extracted"),
+        "tar_shards_written": run.get("tar_shards_written"),
+        "bytes_written": run.get("bytes_written"),
+    }
+
+    (progress_dir / "progress_summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+    lines = ["# Public PST Progress Artifact", "", "| Metric | Value |", "|---|---|"]
+    for key, value in summary.items():
+        lines.append(f"| `{key}` | `{value}` |")
+    (progress_dir / "progress_summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
