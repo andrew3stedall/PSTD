@@ -4,8 +4,18 @@ use crate::pst::primitives::{ByteOffset, PageRef, PstVariant, RootPointers};
 use crate::pst::reader::PstByteReader;
 
 pub const PST_HEADER_MIN_BYTES: usize = 64;
+pub const PST_HEADER_ROOT_CANDIDATE_BYTES: usize = 248;
 pub const PST_MAGIC: [u8; 4] = [0x21, 0x42, 0x44, 0x4e];
 pub const PST_ROOT_PAGE_SIZE_BYTES: u64 = 512;
+
+const LEGACY_NBT_ROOT_OFFSET_FIELD: usize = 48;
+const LEGACY_BBT_ROOT_OFFSET_FIELD: usize = 56;
+const UNICODE_ROOT_BASE_OFFSET: usize = 180;
+const UNICODE_ROOT_NBT_BREF_OFFSET: usize = UNICODE_ROOT_BASE_OFFSET + 36;
+const UNICODE_ROOT_BBT_BREF_OFFSET: usize = UNICODE_ROOT_BASE_OFFSET + 52;
+const BREF_IB_OFFSET: usize = 8;
+const UNICODE_NBT_ROOT_OFFSET_FIELD: usize = UNICODE_ROOT_NBT_BREF_OFFSET + BREF_IB_OFFSET;
+const UNICODE_BBT_ROOT_OFFSET_FIELD: usize = UNICODE_ROOT_BBT_BREF_OFFSET + BREF_IB_OFFSET;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PstRootPointerDiagnostic {
@@ -58,32 +68,76 @@ impl PstRootPointerDiagnostic {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PstRootCandidateDiagnostic {
+    pub source: String,
+    pub bbt_root: PstRootPointerDiagnostic,
+    pub nbt_root: PstRootPointerDiagnostic,
+    pub selectable_for_traversal: bool,
+    pub condition: String,
+}
+
+impl PstRootCandidateDiagnostic {
+    pub fn from_offsets(
+        source: impl Into<String>,
+        file_size: u64,
+        bbt_root_offset: Option<u64>,
+        nbt_root_offset: Option<u64>,
+    ) -> Self {
+        let source = source.into();
+        let bbt_root = PstRootPointerDiagnostic::classify("bbt_root", bbt_root_offset, file_size);
+        let nbt_root = PstRootPointerDiagnostic::classify("nbt_root", nbt_root_offset, file_size);
+        let condition = classify_root_pair(&bbt_root, &nbt_root);
+        let selectable_for_traversal = condition == "root_pages_in_bounds";
+
+        Self {
+            source,
+            bbt_root,
+            nbt_root,
+            selectable_for_traversal,
+            condition,
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PstRootDiagnostics {
     pub file_size: u64,
     pub root_page_size_bytes: u64,
     pub bbt_root: PstRootPointerDiagnostic,
     pub nbt_root: PstRootPointerDiagnostic,
     pub condition: String,
+    pub selected_source: Option<String>,
+    pub candidate_count: usize,
+    pub candidates: Vec<PstRootCandidateDiagnostic>,
     pub recommendation: String,
 }
 
 impl PstRootDiagnostics {
-    pub fn from_offsets(
-        file_size: u64,
-        bbt_root_offset: Option<u64>,
-        nbt_root_offset: Option<u64>,
-    ) -> Self {
-        let bbt_root = PstRootPointerDiagnostic::classify("bbt_root", bbt_root_offset, file_size);
-        let nbt_root = PstRootPointerDiagnostic::classify("nbt_root", nbt_root_offset, file_size);
-        let condition = classify_root_pair(&bbt_root, &nbt_root);
+    pub fn from_candidates(file_size: u64, candidates: Vec<PstRootCandidateDiagnostic>) -> Self {
+        let selected = candidates
+            .iter()
+            .find(|candidate| candidate.selectable_for_traversal);
+        let display_candidate = selected
+            .or_else(|| candidates.first())
+            .cloned()
+            .unwrap_or_else(|| {
+                PstRootCandidateDiagnostic::from_offsets("none", file_size, None, None)
+            });
+        let condition = selected
+            .map(|candidate| candidate.condition.clone())
+            .unwrap_or_else(|| classify_unusable_candidates(&candidates));
+        let selected_source = selected.map(|candidate| candidate.source.clone());
         let recommendation = match condition.as_str() {
+            "root_pages_in_bounds" => "Selected root pages are safe to attempt traversal.",
+            "root_candidates_unusable" => {
+                "No decoded root candidate pair is safe for traversal; classify the fixture or add a decoder candidate."
+            }
             "root_offsets_out_of_bounds" => {
                 "Verify root offsets, endian handling, and fixture completeness before traversal."
             }
             "root_pages_truncated" => {
                 "Treat this fixture as possibly truncated unless header decoding proves otherwise."
             }
-            "root_pages_in_bounds" => "Root pages are safe to attempt traversal.",
             "root_pointers_absent" => "Root pointers are absent; classify as header-only until another root source is supported.",
             _ => "Review individual root pointer diagnostics before parser-quality work continues.",
         }
@@ -92,11 +146,47 @@ impl PstRootDiagnostics {
         Self {
             file_size,
             root_page_size_bytes: PST_ROOT_PAGE_SIZE_BYTES,
-            bbt_root,
-            nbt_root,
+            bbt_root: display_candidate.bbt_root,
+            nbt_root: display_candidate.nbt_root,
             condition,
+            selected_source,
+            candidate_count: candidates.len(),
+            candidates,
             recommendation,
         }
+    }
+
+    pub fn from_offsets(
+        file_size: u64,
+        bbt_root_offset: Option<u64>,
+        nbt_root_offset: Option<u64>,
+    ) -> Self {
+        Self::from_candidates(
+            file_size,
+            vec![PstRootCandidateDiagnostic::from_offsets(
+                "legacy_header_fields",
+                file_size,
+                bbt_root_offset,
+                nbt_root_offset,
+            )],
+        )
+    }
+}
+
+fn classify_unusable_candidates(candidates: &[PstRootCandidateDiagnostic]) -> String {
+    if candidates.is_empty()
+        || candidates
+            .iter()
+            .all(|candidate| candidate.condition == "root_pointers_absent")
+    {
+        "root_pointers_absent".to_string()
+    } else if candidates
+        .iter()
+        .any(|candidate| candidate.condition == "root_pages_truncated")
+    {
+        "root_pages_truncated".to_string()
+    } else {
+        "root_candidates_unusable".to_string()
     }
 }
 
@@ -144,7 +234,7 @@ pub struct PstHeader {
 
 impl PstHeader {
     pub fn parse(reader: &PstByteReader) -> PstdResult<Self> {
-        let header_bytes = reader.read_prefix(PST_HEADER_MIN_BYTES)?;
+        let header_bytes = reader.read_prefix(PST_HEADER_ROOT_CANDIDATE_BYTES)?;
         Self::parse_bytes(&header_bytes, reader.file_size())
     }
 
@@ -168,18 +258,32 @@ impl PstHeader {
             _ => PstVariant::Unknown,
         };
 
-        let bbt_root_offset = read_optional_offset(buf, 56)?;
-        let nbt_root_offset = read_optional_offset(buf, 48)?;
+        let legacy_bbt_root_offset = read_optional_offset(buf, LEGACY_BBT_ROOT_OFFSET_FIELD)?;
+        let legacy_nbt_root_offset = read_optional_offset(buf, LEGACY_NBT_ROOT_OFFSET_FIELD)?;
+        let candidates = build_root_candidates(
+            buf,
+            file_size,
+            variant,
+            legacy_bbt_root_offset,
+            legacy_nbt_root_offset,
+        )?;
+        let root_diagnostics = PstRootDiagnostics::from_candidates(file_size, candidates);
+        let selected_bbt_root_offset = root_diagnostics
+            .selected_source
+            .as_ref()
+            .and(root_diagnostics.bbt_root.offset);
+        let selected_nbt_root_offset = root_diagnostics
+            .selected_source
+            .as_ref()
+            .and(root_diagnostics.nbt_root.offset);
         let roots = RootPointers {
-            bbt_root: bbt_root_offset.map(|offset| PageRef {
+            bbt_root: selected_bbt_root_offset.map(|offset| PageRef {
                 offset: ByteOffset(offset),
             }),
-            nbt_root: nbt_root_offset.map(|offset| PageRef {
+            nbt_root: selected_nbt_root_offset.map(|offset| PageRef {
                 offset: ByteOffset(offset),
             }),
         };
-        let root_diagnostics =
-            PstRootDiagnostics::from_offsets(file_size, bbt_root_offset, nbt_root_offset);
 
         let summary = PstHeaderSummary {
             format: "pst".to_string(),
@@ -193,8 +297,8 @@ impl PstHeader {
             magic_client: Some(magic_client),
             version: Some(version),
             variant: format!("{:?}", variant).to_lowercase(),
-            bbt_root_offset,
-            nbt_root_offset,
+            bbt_root_offset: selected_bbt_root_offset,
+            nbt_root_offset: selected_nbt_root_offset,
             root_diagnostics,
         };
 
@@ -204,6 +308,36 @@ impl PstHeader {
             roots,
         })
     }
+}
+
+fn build_root_candidates(
+    buf: &[u8],
+    file_size: u64,
+    variant: PstVariant,
+    legacy_bbt_root_offset: Option<u64>,
+    legacy_nbt_root_offset: Option<u64>,
+) -> PstdResult<Vec<PstRootCandidateDiagnostic>> {
+    let mut candidates = Vec::new();
+    if variant == PstVariant::Unicode {
+        let unicode_bbt_root_offset = read_optional_offset(buf, UNICODE_BBT_ROOT_OFFSET_FIELD)?;
+        let unicode_nbt_root_offset = read_optional_offset(buf, UNICODE_NBT_ROOT_OFFSET_FIELD)?;
+        if unicode_bbt_root_offset.is_some() || unicode_nbt_root_offset.is_some() {
+            candidates.push(PstRootCandidateDiagnostic::from_offsets(
+                "unicode_root_bref_offsets",
+                file_size,
+                unicode_bbt_root_offset,
+                unicode_nbt_root_offset,
+            ));
+        }
+    }
+
+    candidates.push(PstRootCandidateDiagnostic::from_offsets(
+        "legacy_header_fields",
+        file_size,
+        legacy_bbt_root_offset,
+        legacy_nbt_root_offset,
+    ));
+    Ok(candidates)
 }
 
 fn read_optional_offset(buf: &[u8], start: usize) -> PstdResult<Option<u64>> {

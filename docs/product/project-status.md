@@ -11,7 +11,7 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Rust CLI | v1 release candidate and CI validated | `pstd extract`, `pstd inspect`, `pstd batch`, and `pstd version` exist. |
 | Structured output contract | v1 release candidate and CI validated | Single-PST and batch output contracts are documented for local/Docker operators. |
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
-| PST header parser | PQ1 diagnostics in progress | Validates PST magic and version/variant summary; PQ1 adds safe root-bound diagnostics for real-PST failures. |
+| PST header parser | PQ2 candidate selection | Validates PST magic and version/variant summary; PQ2 selects safe root candidates for traversal when available. |
 | BBT/NBT parsing | Traversal expansion and CI validated | Bounded internal-to-leaf traversal, child-page counts, traversal-error counts, and repeated-offset guards exist. |
 | Metadata processing | M22 body/header fidelity and CI validated | M22 surfaces `PR_TRANSPORT_MESSAGE_HEADERS` on message records when present. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
@@ -52,12 +52,13 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M23: Attachment Payload Fidelity | #171 | CI validated |
 | M24: Batch Scale, Performance, and Corruption Hardening | #176 | CI validated |
 | M25: v1 Release Candidate and Operator Handoff | #180 | CI validated |
+| PQ1: Root Decode Diagnostics | #188 | CI validated |
 
 ## Latest validation
 
-GitHub Actions validation passed for M25 in PR #180. PQ1 is the current post-v1 parser-quality diagnostic lane.
+GitHub Actions validation passed for PQ1 in PR #188. PQ2 is the current post-v1 parser-quality lane.
 
-Expected PQ1 validation includes:
+Expected PQ2 validation includes:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -74,25 +75,20 @@ There are **no remaining planned v1 milestones after M25**.
 
 ## Current post-v1 blocker
 
-PQ1 root decode diagnostics.
+PQ2 root candidate selection.
 
-PQ1 should happen before Snowflake ingestion implementation because recent public PST tests could not safely traverse root B-trees. The immediate parser-quality need is to classify whether a fixture is incomplete/unsupported or whether header/root-field decoding needs correction.
+PQ2 should happen before Snowflake ingestion implementation because PSTD must decide whether a root candidate is safe for traversal before downstream extraction quality can be trusted.
 
-## Next phase after PQ1
+## Next phase after PQ2
 
-Post-v1 Snowflake ingestion planning can resume once parser-quality evidence is clear enough to decide what extraction outputs are ready to load.
+PQ3 fixture-backed root traversal validation.
 
-Planning should cover:
+PQ3 should use selected safe root candidates to validate BBT/NBT traversal against public or sanitized fixtures and decide whether folder/message extraction can proceed for each fixture class.
 
-- Snowflake table and stage design.
-- Load validation model.
-- Mapping from v1 JSONL/TAR outputs to Snowflake objects.
-- Operational controls for fixture and production data.
-
-It should not backfill new v1 scope into the completed M1-M25 lane.
+Snowflake ingestion planning can resume once parser-quality evidence is clear enough to decide what extraction outputs are ready to load.
 
 ## Validation risk
 
 The M1-M25 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
 
-Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md) and preserve fixture handling guidance. For root traversal failures, start with [PQ1 Root Decode Diagnostics](../operations/pq1-root-decode-diagnostics.md).
+Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For root traversal decisions, start with [PQ2 Root Candidate Selection](../operations/pq2-root-candidate-selection.md).

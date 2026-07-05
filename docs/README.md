@@ -9,6 +9,7 @@ This tree is organised by audience.
 | Current status | [Project Status](product/project-status.md) |
 | Release-candidate checklist | [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md) |
 | Local/Docker operator handoff | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
+| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md) |
 | PQ1 root diagnostics | [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md) |
 | Unsupported/deferred areas | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
 | Developer onboarding | [Developer Guide](engineering/developer-guide.md) |
@@ -54,9 +55,11 @@ This tree is organised by audience.
 | M20 | [Focused Candidate Implementation](milestones/pstd-v1-m20-focused-candidate-implementation.md) | TBD | [M20 issues](issues/pstd-v1-m20-ordered-issue-plan.md) | TBD |
 | M21 | [Focused Decoder Evidence Expansion](milestones/pstd-v1-m21-focused-decoder-evidence-expansion.md) | TBD | [M21 issues](issues/pstd-v1-m21-ordered-issue-plan.md) | TBD |
 | M22 | [Body and Header Fidelity Expansion](milestones/pstd-v1-m22-body-header-fidelity-expansion.md) | TBD | [M22 issues](issues/pstd-v1-m22-ordered-issue-plan.md) | TBD |
-| M23 | [Attachment Payload Fidelity](milestones/pstd-v1-m23-attachment-payload-fidelity.md) | TBD | [M23 issues](issues/pstd-v1-m23-attachment-payload-fidelity.md) | TBD |
+| M23 | [Attachment Payload Fidelity](milestones/pstd-v1-m23-attachment-payload-fidelity.md) | TBD | [M23 issues](issues/pstd-v1-m23-ordered-issue-plan.md) | TBD |
 | M24 | [Batch Scale, Performance, and Corruption Hardening](milestones/pstd-v1-m24-batch-hardening.md) | TBD | [M24 issues](issues/pstd-v1-m24-ordered-issue-plan.md) | TBD |
 | M25 | [Release Candidate and Operator Handoff](milestones/pstd-v1-m25-release-candidate-operator-handoff.md) | TBD | [M25 issues](issues/pstd-v1-m25-ordered-issue-plan.md) | TBD |
+| PQ1 | [Root Decode Diagnostics](milestones/pq1-root-decode-diagnostics.md) | TBD | [PQ1 issues](issues/pq1-root-decode-diagnostics-issue-plan.md) | TBD |
+| PQ2 | [Root Decode Candidate Selection](milestones/pq2-root-decode-candidate-selection.md) | TBD | [PQ2 issues](issues/pq2-root-decode-candidate-selection-issue-plan.md) | TBD |
 
 ## v1 release-candidate handoff
 
@@ -65,6 +68,7 @@ This tree is organised by audience.
 | Final checklist | [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md) |
 | Local/Docker runbook | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
 | Unsupported/deferred boundary | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
+| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md) |
 | PQ1 root diagnostics | [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md) |
 
 ## Engineering
@@ -106,6 +110,7 @@ This tree is organised by audience.
 ## Operations
 
 - [Local Validation](operations/local-validation.md)
+- [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md)
 - [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md)
 - [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md)
 - [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
