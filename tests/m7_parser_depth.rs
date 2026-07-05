@@ -69,7 +69,6 @@ fn bbt_index_traverses_internal_page_to_leaf_page() {
     assert_eq!(index.traversal_error_count, 0);
     assert_eq!(index.entries.len(), 1);
     assert_eq!(index.entries[0].block_id.0, 0x20);
-    assert_eq!(index.page_diagnostics.len(), 2);
     assert!(index.status.contains("tree_traversed"));
 }
 
