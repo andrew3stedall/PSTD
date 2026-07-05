@@ -93,6 +93,19 @@ This tree is organised by audience.
 - [M10 Payload Wiring Implementation Plan](engineering/pstd-v1-m10-payload-wiring-implementation-plan.md)
 - [M11 Extraction Integration Implementation Plan](engineering/pstd-v1-m11-extraction-integration-implementation-plan.md)
 - [M12 Attachment Subnode Integration Implementation Plan](engineering/pstd-v1-m12-attachment-subnode-integration-implementation-plan.md)
+- [M13 Fixture Compatibility Implementation Plan](engineering/pstd-v1-m13-fixtures-compatibility-implementation-plan.md)
+- [M14 Recursive Subnode Layout Implementation Plan](engineering/pstd-v1-m14-recursive-subnode-layouts-implementation-plan.md)
+- [M15 Observed Layout Triage Implementation Plan](engineering/pstd-v1-m15-observed-layout-triage-implementation-plan.md)
+- [M16 Fixture-Backed Decoder Implementation Plan](engineering/pstd-v1-m16-fixture-backed-decoders-implementation-plan.md)
+- [M17 Triage Reporting Backlog Implementation Plan](engineering/pstd-v1-m17-triage-reporting-backlog-implementation-plan.md)
+- [M18 Backlog Review Workflow Implementation Plan](engineering/pstd-v1-m18-backlog-review-workflow-implementation-plan.md)
+- [M19 Candidate Selection Implementation Plan](engineering/pstd-v1-m19-candidate-selection-plan.md)
+- [M20 Focused Candidate Implementation Plan](engineering/pstd-v1-m20-focused-candidate-implementation-plan.md)
+- [M21 Focused Decoder Evidence Expansion Plan](engineering/pstd-v1-m21-focused-decoder-evidence-expansion-plan.md)
+- [M22 Body and Header Fidelity Expansion Plan](engineering/pstd-v1-m22-body-header-fidelity-expansion-plan.md)
+- [M23 Attachment Payload Fidelity Plan](engineering/pstd-v1-m23-attachment-payload-fidelity-plan.md)
+- [M24 Batch Hardening Plan](engineering/pstd-v1-m24-batch-hardening-plan.md)
+- [M25 Release Candidate Plan](engineering/pstd-v1-m25-release-candidate-plan.md)
 
 ## Architecture and data
 
@@ -113,6 +126,8 @@ This tree is organised by audience.
 - [Candidate Selection Workflow](operations/candidate-selection-workflow.md)
 - [Public and Sanitized Fixture Triage](operations/public-sanitized-fixture-triage.md)
 - [PSTD v1 Deferred Testing Plan](operations/pstd-v1-deferred-testing-plan.md)
+- [M2 Deferred Testing Plan](operations/pstd-v1-m2-deferred-testing-plan.md)
+- [M3 Deferred Testing Plan](operations/pstd-v1-m3-deferred-testing-plan.md)
 
 ## Decisions
 
