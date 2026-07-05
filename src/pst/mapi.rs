@@ -82,6 +82,25 @@ pub const PR_ATTACH_CONTENT_ID_A: u32 = 0x3712_001e;
 pub const PR_ATTACH_SIZE: u32 = 0x0e20_0003;
 pub const PR_ATTACHMENT_HIDDEN: u32 = 0x7ffe_000b;
 
+const KNOWN_VALUE_TYPE_CODES: &[u16] = &[
+    0x0002, // PtypInteger16
+    0x0003, // PtypInteger32
+    0x0005, // PtypFloating64
+    0x000b, // PtypBoolean
+    0x0014, // PtypInteger64
+    0x001e, // PtypString8
+    0x001f, // PtypString
+    0x0040, // PtypTime
+    0x0048, // PtypGuid
+    0x0102, // PtypBinary
+    0x1002, // PtypMultipleInteger16
+    0x1003, // PtypMultipleInteger32
+    0x101e, // PtypMultipleString8
+    0x101f, // PtypMultipleString
+    0x1040, // PtypMultipleTime
+    0x1102, // PtypMultipleBinary
+];
+
 pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
     MapiPropertyDef {
         tag: PR_SUBJECT,
@@ -304,6 +323,18 @@ pub fn property_def(tag: u32) -> Option<MapiPropertyDef> {
         .or_else(|| string8_property_def(tag))
 }
 
+pub fn property_value_type_code(tag: u32) -> u16 {
+    (tag & 0xffff) as u16
+}
+
+pub fn has_known_value_type(tag: u32) -> bool {
+    KNOWN_VALUE_TYPE_CODES.contains(&property_value_type_code(tag))
+}
+
+pub fn byte_swapped_tag(tag: u32) -> u32 {
+    tag.swap_bytes()
+}
+
 fn string8_property_def(tag: u32) -> Option<MapiPropertyDef> {
     let name = match tag {
         PR_SUBJECT_A => "subject",
@@ -399,7 +430,10 @@ pub fn value_summary(value: &MapiValue) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{decode_value, property_def, MapiValue, MapiValueType, PR_BODY_A, PR_SUBJECT_A};
+    use super::{
+        byte_swapped_tag, decode_value, has_known_value_type, property_def, MapiValue,
+        MapiValueType, PR_BODY_A, PR_SUBJECT, PR_SUBJECT_A,
+    };
 
     #[test]
     fn maps_string8_aliases_to_selected_property_defs() {
@@ -410,6 +444,13 @@ mod tests {
         let body = property_def(PR_BODY_A).unwrap();
         assert_eq!(body.name, "body_text");
         assert_eq!(body.value_type, MapiValueType::String8);
+    }
+
+    #[test]
+    fn identifies_known_property_value_types() {
+        assert!(has_known_value_type(PR_SUBJECT));
+        assert!(!has_known_value_type(0x001f_0037));
+        assert_eq!(byte_swapped_tag(0x1f00_3700), PR_SUBJECT);
     }
 
     #[test]
