@@ -24,6 +24,10 @@ PQ6 is bounded to issues #263 through #267.
 - Extraction status includes PQ6 counters for property, body payload, and body fallback coverage.
 - PQ6 documentation records what this milestone does and does not solve.
 
+## Public fixture result
+
+The checked-in public PST fixture has one true message candidate. PQ6 confirms that its property context loads, but the currently selected MAPI property dictionary maps 0 of the 74 parsed properties into selected fields. Body payload coverage remains 0 because no supported body property is selected.
+
 ## Explicit non-goals
 
 - Attachment payload expansion.
@@ -33,4 +37,4 @@ PQ6 is bounded to issues #263 through #267.
 
 ## Next milestone
 
-PQ7 should target attachment and recipient coverage after PQ6 establishes the message/property/body baseline.
+PQ7 should target selected property dictionary expansion for the public fixture before attachment and recipient expansion. The immediate conversion blocker is not absence of a property context; it is that the parsed property tags are not yet mapped into useful selected MAPI fields.
