@@ -268,7 +268,10 @@ mod tests {
             message_table_node_type(hierarchy_table.node_id),
             Some(MessageTableNodeType::HierarchyTable)
         );
-        assert_eq!(owner_folder_node_identity(contents_table.node_id), "node_22");
+        assert_eq!(
+            owner_folder_node_identity(contents_table.node_id),
+            "node_22"
+        );
     }
 
     #[test]
