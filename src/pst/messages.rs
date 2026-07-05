@@ -51,7 +51,8 @@ pub fn body_coverage_report(
     properties: &PropertyContext,
     payloads: &[BodyPayload],
 ) -> BodyCoverageReport {
-    let text_property_present = properties.value(PR_BODY).is_some() || properties.value(PR_BODY_A).is_some();
+    let text_property_present =
+        properties.value(PR_BODY).is_some() || properties.value(PR_BODY_A).is_some();
     let html_property_present = properties.value(PR_HTML).is_some()
         || properties.value(PR_HTML_STRING).is_some()
         || properties.value(PR_HTML_STRING_A).is_some();
@@ -187,8 +188,7 @@ mod tests {
         html_string_body_payload, text_body_payload, unavailable_body_record,
     };
     use crate::pst::mapi::{
-        MapiValue, PR_BODY, PR_BODY_A, PR_HTML, PR_HTML_STRING, PR_HTML_STRING_A,
-        PR_RTF_COMPRESSED,
+        MapiValue, PR_BODY, PR_BODY_A, PR_HTML, PR_HTML_STRING, PR_HTML_STRING_A, PR_RTF_COMPRESSED,
     };
     use crate::pst::property_context::{PropertyContext, PropertyValue};
 
