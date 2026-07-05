@@ -16,7 +16,7 @@ Folder discovery now uses the low node-type bits from decoded NBT node IDs:
 | `0x03` | search folder candidate |
 | anything else | not a folder candidate |
 
-For each folder candidate, extraction attempts to load the node property context. When the property context is available, PQ4 uses selected properties such as `PR_DISPLAY_NAME`, `PR_CONTENT_COUNT`, and `PR_CONTENT_UNREAD` to populate the folder and inventory rows. When the property context is unavailable, PQ4 still emits a deterministic node-derived row and records a recoverable status issue.
+For each folder candidate, extraction attempts to load the node property context. When the property context is available, PQ4 uses selected properties such as `PR_DISPLAY_NAME` and `PR_CONTENT_COUNT` to populate the folder and inventory rows. When the property context is unavailable, PQ4 still emits a deterministic node-derived row and records a recoverable status issue.
 
 ## Output behaviour
 
