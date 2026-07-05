@@ -2,6 +2,11 @@
 
 ## Added
 
+- PQ2 root candidate selection for post-v1 parser-quality work.
+- Root candidate diagnostics in inspect JSON, including `selected_source`, `candidate_count`, and `candidates[]`.
+- Later Unicode root BREF offset candidate evaluation.
+- Regression coverage for safe later-root selection and no usable candidate pairs.
+- PQ2 operations documentation, milestone summary, and issue plan.
 - PQ1 root decode diagnostics for safe real-PST parser-quality assessment.
 - `header.root_diagnostics` in inspect JSON with file size, root page size, per-root bounds checks, condition names, and recommendation text.
 - `root_diagnostic_condition` at the inspect-summary level.
@@ -58,6 +63,9 @@
 
 ## Changed
 
+- Updated root traversal setup to use selected safe root candidates only.
+- Updated inspect text output to show selected root source and candidate count.
+- Updated project status to identify PQ2 as the current post-v1 parser-quality lane and PQ3 as the next step.
 - Updated project status to reflect M1-M25 implementation status and PQ1 as the current post-v1 parser-quality blocker.
 - Updated inspect output to expose root diagnostics before tree traversal succeeds.
 - Replaced the stale early roadmap with a bounded M1-M25 v1 milestone lane and post-v1 Snowflake ingestion planning boundary.
@@ -81,7 +89,8 @@
 
 ## Notes
 
-- M1-M25 have passed GitHub Actions validation.
+- M1-M25 and PQ1 have passed GitHub Actions validation.
+- PQ2 selects only root candidates whose BBT and NBT pages are fully in bounds.
 - PQ1 does not claim full extraction-quality resolution; it makes root traversal blockers explicit and measurable.
 - M20 implements one focused selected parser candidate.
 - M21 keeps parser expansion narrow and only expands evidence classification for the M20 `CATW` decoder.
