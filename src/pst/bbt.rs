@@ -1,7 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate::error::{PstdError, PstdResult};
-use crate::pst::binary::{u16_le_at, u32_le_at, u64_le_at, u8_at};
+use crate::pst::binary::{u16_le_at, u64_le_at, u8_at};
 use crate::pst::limits::ParserLimits;
 use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, PageRef};
 use crate::pst::reader::PstByteReader;
