@@ -64,7 +64,8 @@ impl PropertyContext {
                 skipped_key_count += 1;
                 continue;
             }
-            let raw_tag = u32::from_le_bytes([entry.key[0], entry.key[1], entry.key[2], entry.key[3]]);
+            let raw_tag =
+                u32::from_le_bytes([entry.key[0], entry.key[1], entry.key[2], entry.key[3]]);
             let interpreted = interpret_property_tag(raw_tag);
             if interpreted.is_plausible {
                 plausible_property_tag_count += 1;
