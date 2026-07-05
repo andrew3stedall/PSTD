@@ -12,7 +12,7 @@ This tree is organised by audience.
 | PQ5 message table discovery | [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md) |
 | PQ4 folder hierarchy discovery | [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md) |
 | PQ3 index entry decoding | [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md) |
-| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-decode-candidate-selection.md) |
+| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md) |
 | PQ1 root diagnostics | [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md) |
 | Release-candidate checklist | [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md) |
 | Local/Docker operator handoff | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
@@ -82,7 +82,7 @@ This tree is organised by audience.
 | PQ5 message table discovery | [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md) |
 | PQ4 folder hierarchy discovery | [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md) |
 | PQ3 index entry decoding | [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md) |
-| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-decode-candidate-selection.md) |
+| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md) |
 | PQ1 root diagnostics | [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md) |
 
 ## Engineering
@@ -99,9 +99,9 @@ This tree is organised by audience.
 - [M7 Parser Depth Hardening Implementation Plan](engineering/pstd-v1-m7-parser-depth-hardening-implementation-plan.md)
 - [M8 Traversal Expansion Implementation Plan](engineering/pstd-v1-m8-traversal-expansion-implementation-plan.md)
 - [M9 Payload and Subnode Traversal Implementation Plan](engineering/pstd-v1-m9-payload-subnode-traversal-implementation-plan.md)
-- [M10 Payload Wiring Implementation Plan](engineering/pstd-v1-m10-payload-wiring.md)
-- [M11 Extraction Integration Implementation Plan](engineering/pstd-v1-m11-extraction-integration.md)
-- [M12 Attachment Subnode Integration Implementation Plan](engineering/pstd-v1-m12-attachment-subnode-integration.md)
+- [M10 Payload Wiring Implementation Plan](engineering/pstd-v1-m10-payload-wiring-implementation-plan.md)
+- [M11 Extraction Integration Implementation Plan](engineering/pstd-v1-m11-extraction-integration-implementation-plan.md)
+- [M12 Attachment Subnode Integration Implementation Plan](engineering/pstd-v1-m12-attachment-subnode-integration-implementation-plan.md)
 - [M13 Fixture Compatibility Implementation Plan](engineering/pstd-v1-m13-fixtures-compatibility-implementation-plan.md)
 - [M14 Recursive Subnode Layout Implementation Plan](engineering/pstd-v1-m14-recursive-subnode-layouts-implementation-plan.md)
 - [M15 Observed Layout Triage Implementation Plan](engineering/pstd-v1-m15-observed-layout-triage-implementation-plan.md)
@@ -129,7 +129,7 @@ This tree is organised by audience.
 - [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md)
 - [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md)
 - [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md)
-- [PQ2 Root Candidate Selection](operations/pq2-root-decode-candidate-selection.md)
+- [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md)
 - [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md)
 - [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md)
 - [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
