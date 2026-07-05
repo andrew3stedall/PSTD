@@ -14,7 +14,8 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | PST header parser | PQ2 candidate selection | Validates PST magic and version/variant summary; PQ2 selects safe root candidates for traversal when available. |
 | BBT/NBT parsing | PQ3 index entry decoding | PQ3 corrects B-tree page metadata offsets, internal child references, and page diagnostics. |
 | Folder hierarchy | PQ4 folder hierarchy discovery | PQ4 classifies decoded normal/search folder NBT entries, emits folder rows, and records folder discovery counters. |
-| Metadata processing | PQ4 folder hierarchy discovery | Message extraction still uses NBT metadata candidates; PQ5 must add message table and folder-message membership fidelity. |
+| Message table discovery | PQ5 message table discovery | PQ5 classifies normal/associated message NBT entries separately from folder/table nodes and records message-table evidence counters. |
+| Metadata processing | PQ5 message table discovery | Message extraction no longer emits every decoded NBT entry as a message row; full table row membership remains a later quality milestone. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
 | Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence. |
 | Attachments | M23 attachment fidelity and CI validated | M23 preserves metadata-only attachment rows, declared size, size status, method, and deferred embedded-message status. |
@@ -56,11 +57,12 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | PQ1: Root Decode Diagnostics | #188 | CI validated |
 | PQ2: Root Decode Candidate Selection | #193 | CI validated |
 | PQ3: Index Entry Decoding | #199 | CI validated |
-| PQ4: Folder Hierarchy Discovery | #247 | CI validated before merge |
+| PQ4: Folder Hierarchy Discovery | #247 | CI validated |
+| PQ5: Message Table Discovery | TBD | PR validation pending |
 
 ## Latest validation
 
-GitHub Actions validation passed for PQ4 in PR #247. The `public-pst-progress` artifact from CI #179 shows the checked-in public PST fixture now emits 11 folders, 63 messages, and 0 attachments.
+GitHub Actions validation passed for PQ4 in PR #247. PQ5 is the current conversion-quality lane.
 
 Expected PQ5 validation includes:
 
@@ -81,11 +83,11 @@ There are **no remaining planned v1 milestones after M25**.
 
 PQ5 message table discovery.
 
-The current focus is solely PST conversion coverage. The immediate question is whether decoded folders can be connected to message table membership instead of treating raw NBT entries as message metadata candidates.
+The current focus is solely PST conversion coverage. The immediate question is whether decoded NBT entries can be split into true message candidates and table/folder evidence instead of treating raw NBT entries as message metadata candidates.
 
 ## Active conversion coverage roadmap
 
-1. PQ5: message table discovery and folder-message membership.
+1. PQ5: message table discovery and folder-message membership evidence.
 2. PQ6: property context and body coverage.
 3. PQ7: attachment and recipient coverage.
 4. PQ8: fixture corpus and ground-truth comparison.
@@ -98,4 +100,4 @@ Snowflake ingestion, UI, search, analytics loading, and other downstream work ar
 
 The M1-M25 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
 
-Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For current folder-level traversal decisions, start with [PQ4 Folder Hierarchy Discovery](../operations/pq4-folder-hierarchy-discovery.md).
+Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For current message-level traversal decisions, start with [PQ5 Message Table Discovery](../operations/pq5-message-table-discovery.md).
