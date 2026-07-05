@@ -8,6 +8,7 @@ This tree is organised by audience.
 |---|---|
 | Current status | [Project Status](product/project-status.md) |
 | Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
+| PQ7 selected property dictionary | [PQ7 Selected Property Dictionary Expansion](operations/pq7-selected-property-dictionary.md) |
 | PQ6 property and body coverage | [PQ6 Property and Body Coverage](operations/pq6-property-body-coverage.md) |
 | PQ5 message table discovery | [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md) |
 | PQ4 folder hierarchy discovery | [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md) |
@@ -49,7 +50,7 @@ This tree is organised by audience.
 | M9 | [Payload and Subnode Traversal](milestones/pstd-v1-m9-payload-subnode-traversal.md) | TBD | [M9 issues](issues/pstd-v1-m9-ordered-issue-plan.md) | TBD |
 | M10 | [Payload Wiring](milestones/pstd-v1-m10-payload-wiring.md) | TBD | [M10 issues](issues/pstd-v1-m10-ordered-issue-plan.md) | TBD |
 | M11 | [Extraction Path Integration](milestones/pstd-v1-m11-extraction-integration.md) | TBD | [M11 issues](issues/pstd-v1-m11-ordered-issue-plan.md) | TBD |
-| M12 | [Attachment Table and Subnode Integration](milestones/pstd-v1-m12-attachment-subnode-integration.md) | TBD | [M12 issues](issues/pstd-v1-m12-ordered-issue-plan.md) | TBD |
+| M12 | [Attachment Table and Subnode Integration](milestones/pstd-v1-m12-attachment-subnode-integration.md) | TBD | [M12 issues](issues/pstd-v1-m12-attachment-subnode-integration.md) | TBD |
 | M13 | [Payload Fixture Expansion and Parser Compatibility](milestones/pstd-v1-m13-fixtures-compatibility.md) | TBD | [M13 issues](issues/pstd-v1-m13-ordered-issue-plan.md) | TBD |
 | M14 | [Recursive Subnode Layout Exploration](milestones/pstd-v1-m14-recursive-subnode-layouts.md) | TBD | [M14 issues](issues/pstd-v1-m14-ordered-issue-plan.md) | TBD |
 | M15 | [Observed Layout Compatibility and Public Fixture Triage](milestones/pstd-v1-m15-observed-layout-triage.md) | TBD | [M15 issues](issues/pstd-v1-m15-ordered-issue-plan.md) | TBD |
@@ -69,6 +70,7 @@ This tree is organised by audience.
 | PQ4 | [Folder Hierarchy Discovery](milestones/pq4-folder-hierarchy-discovery.md) | TBD | Issues #201-#207 | TBD |
 | PQ5 | [Message Table Discovery](milestones/pq5-message-table-discovery.md) | TBD | Issues #248-#261 | TBD |
 | PQ6 | [Property and Body Coverage](milestones/pq6-property-body-coverage.md) | TBD | Issues #263-#267 | TBD |
+| PQ7 | [Selected Property Dictionary Expansion](milestones/pq7-selected-property-dictionary.md) | TBD | Issues #269-#273 | TBD |
 
 ## v1 release-candidate handoff
 
@@ -78,6 +80,7 @@ This tree is organised by audience.
 | Local/Docker runbook | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
 | Unsupported/deferred boundary | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
 | Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
+| PQ7 selected property dictionary | [PQ7 Selected Property Dictionary Expansion](operations/pq7-selected-property-dictionary.md) |
 | PQ6 property and body coverage | [PQ6 Property and Body Coverage](operations/pq6-property-body-coverage.md) |
 | PQ5 message table discovery | [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md) |
 | PQ4 folder hierarchy discovery | [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md) |
@@ -125,6 +128,7 @@ This tree is organised by audience.
 
 - [Local Validation](operations/local-validation.md)
 - [Public PST Progress Log](operations/public-pst-progress-log.md)
+- [PQ7 Selected Property Dictionary Expansion](operations/pq7-selected-property-dictionary.md)
 - [PQ6 Property and Body Coverage](operations/pq6-property-body-coverage.md)
 - [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md)
 - [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md)

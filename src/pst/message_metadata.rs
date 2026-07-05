@@ -1,9 +1,11 @@
 use crate::output::ids;
 use crate::output::metadata::MessageRecord;
 use crate::pst::mapi::{
-    PR_CONVERSATION_INDEX, PR_CONVERSATION_TOPIC, PR_HASATTACH, PR_INTERNET_MESSAGE_ID,
-    PR_IN_REPLY_TO_ID, PR_MESSAGE_DELIVERY_TIME, PR_SENDER_ADDRTYPE, PR_SENDER_EMAIL_ADDRESS,
-    PR_SENDER_NAME, PR_SUBJECT, PR_TRANSPORT_MESSAGE_HEADERS,
+    PR_CONVERSATION_INDEX, PR_CONVERSATION_TOPIC, PR_CONVERSATION_TOPIC_A, PR_HASATTACH,
+    PR_INTERNET_MESSAGE_ID, PR_INTERNET_MESSAGE_ID_A, PR_IN_REPLY_TO_ID, PR_IN_REPLY_TO_ID_A,
+    PR_MESSAGE_DELIVERY_TIME, PR_SENDER_ADDRTYPE, PR_SENDER_ADDRTYPE_A, PR_SENDER_EMAIL_ADDRESS,
+    PR_SENDER_EMAIL_ADDRESS_A, PR_SENDER_NAME, PR_SENDER_NAME_A, PR_SUBJECT, PR_SUBJECT_A,
+    PR_TRANSPORT_MESSAGE_HEADERS, PR_TRANSPORT_MESSAGE_HEADERS_A,
 };
 use crate::pst::primitives::NodeId;
 use crate::pst::property_context::PropertyContext;
@@ -18,11 +20,13 @@ pub fn message_from_properties(
     properties: &PropertyContext,
 ) -> MessageRecord {
     let message_identity = format!("node_{:x}", node_id.0);
-    let subject = properties.string_value(PR_SUBJECT);
-    let internet_message_id = properties.string_value(PR_INTERNET_MESSAGE_ID);
-    let in_reply_to_id = properties.string_value(PR_IN_REPLY_TO_ID);
+    let subject = properties.first_string_value(&[PR_SUBJECT, PR_SUBJECT_A]);
+    let internet_message_id =
+        properties.first_string_value(&[PR_INTERNET_MESSAGE_ID, PR_INTERNET_MESSAGE_ID_A]);
+    let in_reply_to_id = properties.first_string_value(&[PR_IN_REPLY_TO_ID, PR_IN_REPLY_TO_ID_A]);
     let conversation_index = properties.string_value(PR_CONVERSATION_INDEX);
-    let conversation_topic = properties.string_value(PR_CONVERSATION_TOPIC);
+    let conversation_topic =
+        properties.first_string_value(&[PR_CONVERSATION_TOPIC, PR_CONVERSATION_TOPIC_A]);
     let has_attachments = properties
         .string_value(PR_HASATTACH)
         .map(|value| value == "true" || value == "1")
@@ -35,6 +39,9 @@ pub fn message_from_properties(
         conversation_index.as_deref(),
     );
 
+    let sender_email =
+        properties.first_string_value(&[PR_SENDER_EMAIL_ADDRESS, PR_SENDER_EMAIL_ADDRESS_A]);
+
     MessageRecord {
         run_id: run_id.to_string(),
         pst_id: pst_id.to_string(),
@@ -44,15 +51,17 @@ pub fn message_from_properties(
         folder_path: folder_path.to_string(),
         item_type: "message_metadata".to_string(),
         subject: subject.clone(),
-        sender_name: properties.string_value(PR_SENDER_NAME),
-        sender_email: properties.string_value(PR_SENDER_EMAIL_ADDRESS),
-        sender_raw_address: properties.string_value(PR_SENDER_EMAIL_ADDRESS),
-        sender_address_type: properties.string_value(PR_SENDER_ADDRTYPE),
+        sender_name: properties.first_string_value(&[PR_SENDER_NAME, PR_SENDER_NAME_A]),
+        sender_email: sender_email.clone(),
+        sender_raw_address: sender_email,
+        sender_address_type: properties
+            .first_string_value(&[PR_SENDER_ADDRTYPE, PR_SENDER_ADDRTYPE_A]),
         sent_at: None,
         received_at: properties.string_value(PR_MESSAGE_DELIVERY_TIME),
         created_at: None,
         modified_at: None,
-        transport_message_headers: properties.string_value(PR_TRANSPORT_MESSAGE_HEADERS),
+        transport_message_headers: properties
+            .first_string_value(&[PR_TRANSPORT_MESSAGE_HEADERS, PR_TRANSPORT_MESSAGE_HEADERS_A]),
         internet_message_id,
         in_reply_to_id,
         conversation_index,
@@ -117,7 +126,10 @@ mod tests {
     use std::collections::HashMap;
 
     use super::{message_from_properties, status_row};
-    use crate::pst::mapi::{MapiValue, PR_SUBJECT, PR_TRANSPORT_MESSAGE_HEADERS};
+    use crate::pst::mapi::{
+        MapiValue, PR_SUBJECT, PR_SUBJECT_A, PR_TRANSPORT_MESSAGE_HEADERS,
+        PR_TRANSPORT_MESSAGE_HEADERS_A,
+    };
     use crate::pst::primitives::NodeId;
     use crate::pst::property_context::{PropertyContext, PropertyValue};
 
@@ -162,6 +174,50 @@ mod tests {
             Some("Message-ID: <abc@example.com>\r\nFrom: sender@example.com")
         );
         assert_eq!(message.normalized_subject.as_deref(), Some("hello"));
+    }
+
+    #[test]
+    fn surfaces_string8_alias_metadata_when_present() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_SUBJECT_A,
+            PropertyValue {
+                tag: PR_SUBJECT_A,
+                name: "subject".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("Re: Alias".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_TRANSPORT_MESSAGE_HEADERS_A,
+            PropertyValue {
+                tag: PR_TRANSPORT_MESSAGE_HEADERS_A,
+                name: "transport_message_headers".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String(
+                    "Message-ID: <alias@example.com>".to_string(),
+                )),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext { values };
+
+        let message = message_from_properties(
+            "run_123",
+            "pst_123",
+            "folder_123",
+            "/Inbox",
+            NodeId(42),
+            &properties,
+        );
+
+        assert_eq!(message.subject.as_deref(), Some("Re: Alias"));
+        assert_eq!(message.normalized_subject.as_deref(), Some("alias"));
+        assert_eq!(
+            message.transport_message_headers.as_deref(),
+            Some("Message-ID: <alias@example.com>")
+        );
     }
 
     #[test]
