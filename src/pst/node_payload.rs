@@ -128,6 +128,7 @@ mod tests {
             traversal_error_count: 0,
             duplicate_entry_count: 0,
             truncated_entry_count: 0,
+            page_diagnostics: Vec::new(),
             status: "test".to_string(),
         }
     }
