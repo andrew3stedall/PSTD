@@ -69,7 +69,7 @@ pub struct MessageTableCandidate {
     pub status: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct MessageTableDiscovery {
     pub message_candidates: Vec<NbtEntry>,
     pub table_candidates: Vec<MessageTableCandidate>,
