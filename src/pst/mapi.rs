@@ -3,6 +3,7 @@ use crate::error::{PstdError, PstdResult};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum MapiValueType {
     String,
+    String8,
     Integer32,
     Integer64,
     Boolean,
@@ -19,11 +20,17 @@ pub struct MapiPropertyDef {
 }
 
 pub const PR_SUBJECT: u32 = 0x0037_001f;
+pub const PR_SUBJECT_A: u32 = 0x0037_001e;
 pub const PR_MESSAGE_CLASS: u32 = 0x001a_001f;
+pub const PR_MESSAGE_CLASS_A: u32 = 0x001a_001e;
 pub const PR_SENDER_NAME: u32 = 0x0c1a_001f;
+pub const PR_SENDER_NAME_A: u32 = 0x0c1a_001e;
 pub const PR_SENDER_EMAIL_ADDRESS: u32 = 0x0c1f_001f;
+pub const PR_SENDER_EMAIL_ADDRESS_A: u32 = 0x0c1f_001e;
 pub const PR_SENDER_ADDRTYPE: u32 = 0x0c1e_001f;
+pub const PR_SENDER_ADDRTYPE_A: u32 = 0x0c1e_001e;
 pub const PR_SENT_REPRESENTING_EMAIL_ADDRESS: u32 = 0x0065_001f;
+pub const PR_SENT_REPRESENTING_EMAIL_ADDRESS_A: u32 = 0x0065_001e;
 pub const PR_CLIENT_SUBMIT_TIME: u32 = 0x0039_0040;
 pub const PR_MESSAGE_DELIVERY_TIME: u32 = 0x0e06_0040;
 pub const PR_CREATION_TIME: u32 = 0x3007_0040;
@@ -33,29 +40,45 @@ pub const PR_MESSAGE_FLAGS: u32 = 0x0e07_0003;
 pub const PR_MESSAGE_SIZE: u32 = 0x0e08_0003;
 pub const PR_HASATTACH: u32 = 0x0e1b_000b;
 pub const PR_DISPLAY_NAME: u32 = 0x3001_001f;
+pub const PR_DISPLAY_NAME_A: u32 = 0x3001_001e;
 pub const PR_CONTENT_COUNT: u32 = 0x3602_0003;
 pub const PR_CONTENT_UNREAD: u32 = 0x3603_0003;
 pub const PR_TRANSPORT_MESSAGE_HEADERS: u32 = 0x007d_001f;
+pub const PR_TRANSPORT_MESSAGE_HEADERS_A: u32 = 0x007d_001e;
 pub const PR_INTERNET_MESSAGE_ID: u32 = 0x1035_001f;
+pub const PR_INTERNET_MESSAGE_ID_A: u32 = 0x1035_001e;
 pub const PR_IN_REPLY_TO_ID: u32 = 0x1042_001f;
+pub const PR_IN_REPLY_TO_ID_A: u32 = 0x1042_001e;
 pub const PR_INTERNET_REFERENCES: u32 = 0x1039_001f;
+pub const PR_INTERNET_REFERENCES_A: u32 = 0x1039_001e;
 pub const PR_CONVERSATION_TOPIC: u32 = 0x0070_001f;
+pub const PR_CONVERSATION_TOPIC_A: u32 = 0x0070_001e;
 pub const PR_CONVERSATION_INDEX: u32 = 0x0071_0102;
 pub const PR_RECIPIENT_TYPE: u32 = 0x0c15_0003;
 pub const PR_RECIPIENT_DISPLAY_NAME: u32 = 0x5ff6_001f;
+pub const PR_RECIPIENT_DISPLAY_NAME_A: u32 = 0x5ff6_001e;
 pub const PR_RECIPIENT_EMAIL_ADDRESS: u32 = 0x3003_001f;
+pub const PR_RECIPIENT_EMAIL_ADDRESS_A: u32 = 0x3003_001e;
 pub const PR_RECIPIENT_ADDRTYPE: u32 = 0x3002_001f;
+pub const PR_RECIPIENT_ADDRTYPE_A: u32 = 0x3002_001e;
 pub const PR_SMTP_ADDRESS: u32 = 0x39fe_001f;
+pub const PR_SMTP_ADDRESS_A: u32 = 0x39fe_001e;
 pub const PR_BODY: u32 = 0x1000_001f;
+pub const PR_BODY_A: u32 = 0x1000_001e;
 pub const PR_RTF_COMPRESSED: u32 = 0x1009_0102;
 pub const PR_HTML_STRING: u32 = 0x1013_001f;
+pub const PR_HTML_STRING_A: u32 = 0x1013_001e;
 pub const PR_HTML: u32 = 0x1013_0102;
 pub const PR_ATTACH_DATA_BIN: u32 = 0x3701_0102;
 pub const PR_ATTACH_FILENAME: u32 = 0x3704_001f;
+pub const PR_ATTACH_FILENAME_A: u32 = 0x3704_001e;
 pub const PR_ATTACH_METHOD: u32 = 0x3705_0003;
 pub const PR_ATTACH_LONG_FILENAME: u32 = 0x3707_001f;
+pub const PR_ATTACH_LONG_FILENAME_A: u32 = 0x3707_001e;
 pub const PR_ATTACH_MIME_TAG: u32 = 0x370e_001f;
+pub const PR_ATTACH_MIME_TAG_A: u32 = 0x370e_001e;
 pub const PR_ATTACH_CONTENT_ID: u32 = 0x3712_001f;
+pub const PR_ATTACH_CONTENT_ID_A: u32 = 0x3712_001e;
 pub const PR_ATTACH_SIZE: u32 = 0x0e20_0003;
 pub const PR_ATTACHMENT_HIDDEN: u32 = 0x7ffe_000b;
 
@@ -278,6 +301,41 @@ pub fn property_def(tag: u32) -> Option<MapiPropertyDef> {
         .iter()
         .copied()
         .find(|def| def.tag == tag)
+        .or_else(|| string8_property_def(tag))
+}
+
+fn string8_property_def(tag: u32) -> Option<MapiPropertyDef> {
+    let name = match tag {
+        PR_SUBJECT_A => "subject",
+        PR_MESSAGE_CLASS_A => "message_class",
+        PR_SENDER_NAME_A => "sender_name",
+        PR_SENDER_EMAIL_ADDRESS_A => "sender_email_address",
+        PR_SENDER_ADDRTYPE_A => "sender_address_type",
+        PR_SENT_REPRESENTING_EMAIL_ADDRESS_A => "sent_representing_email_address",
+        PR_DISPLAY_NAME_A => "display_name",
+        PR_TRANSPORT_MESSAGE_HEADERS_A => "transport_message_headers",
+        PR_INTERNET_MESSAGE_ID_A => "internet_message_id",
+        PR_IN_REPLY_TO_ID_A => "in_reply_to_id",
+        PR_INTERNET_REFERENCES_A => "internet_references",
+        PR_CONVERSATION_TOPIC_A => "conversation_topic",
+        PR_RECIPIENT_DISPLAY_NAME_A => "recipient_display_name",
+        PR_RECIPIENT_EMAIL_ADDRESS_A => "recipient_email_address",
+        PR_RECIPIENT_ADDRTYPE_A => "recipient_address_type",
+        PR_SMTP_ADDRESS_A => "smtp_address",
+        PR_BODY_A => "body_text",
+        PR_HTML_STRING_A => "body_html_unicode",
+        PR_ATTACH_FILENAME_A => "attachment_filename",
+        PR_ATTACH_LONG_FILENAME_A => "attachment_long_filename",
+        PR_ATTACH_MIME_TAG_A => "attachment_mime_tag",
+        PR_ATTACH_CONTENT_ID_A => "attachment_content_id",
+        _ => return None,
+    };
+
+    Some(MapiPropertyDef {
+        tag,
+        name,
+        value_type: MapiValueType::String8,
+    })
 }
 
 pub fn decode_value(value_type: MapiValueType, raw: &[u8]) -> PstdResult<MapiValue> {
@@ -289,6 +347,12 @@ pub fn decode_value(value_type: MapiValueType, raw: &[u8]) -> PstdResult<MapiVal
                 .take_while(|value| *value != 0)
                 .collect();
             Ok(MapiValue::String(String::from_utf16_lossy(&utf16)))
+        }
+        MapiValueType::String8 => {
+            let nul_index = raw.iter().position(|byte| *byte == 0).unwrap_or(raw.len());
+            Ok(MapiValue::String(
+                String::from_utf8_lossy(&raw[..nul_index]).to_string(),
+            ))
         }
         MapiValueType::Integer32 => {
             if raw.len() < 4 {
@@ -330,5 +394,30 @@ pub fn value_summary(value: &MapiValue) -> String {
         MapiValue::FileTime(value) => value.clone(),
         MapiValue::Binary(value) => format!("{} bytes", value.len()),
         MapiValue::Unknown(value) => format!("{} bytes unknown", value.len()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{decode_value, property_def, MapiValue, MapiValueType, PR_BODY_A, PR_SUBJECT_A};
+
+    #[test]
+    fn maps_string8_aliases_to_selected_property_defs() {
+        let subject = property_def(PR_SUBJECT_A).unwrap();
+        assert_eq!(subject.name, "subject");
+        assert_eq!(subject.value_type, MapiValueType::String8);
+
+        let body = property_def(PR_BODY_A).unwrap();
+        assert_eq!(body.name, "body_text");
+        assert_eq!(body.value_type, MapiValueType::String8);
+    }
+
+    #[test]
+    fn decodes_string8_values() {
+        let value = decode_value(MapiValueType::String8, b"Hello\0ignored").unwrap();
+        match value {
+            MapiValue::String(value) => assert_eq!(value, "Hello"),
+            other => panic!("unexpected decoded value: {other:?}"),
+        }
     }
 }
