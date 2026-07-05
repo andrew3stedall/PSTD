@@ -214,7 +214,8 @@ pub fn extract_metadata(
                     );
                     let loaded_body_payloads =
                         body_payloads_from_properties(&message.message_key, &loaded.properties);
-                    let body_report = body_coverage_report(&loaded.properties, &loaded_body_payloads);
+                    let body_report =
+                        body_coverage_report(&loaded.properties, &loaded_body_payloads);
                     if body_report.supported_body_property_count > 0 {
                         pq6_body_supported_property_messages += 1;
                     }
