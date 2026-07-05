@@ -2,6 +2,10 @@
 
 ## Added
 
+- PQ3 index entry decoding for PST conversion coverage.
+- Page-level diagnostics in inspect JSON for BBT and NBT traversal.
+- Regression coverage for B-tree page metadata, internal child references, and leaf entries.
+- PQ3 operations documentation, milestone summary, and issue plan.
 - PQ2 root candidate selection for post-v1 parser-quality work.
 - Root candidate diagnostics in inspect JSON, including `selected_source`, `candidate_count`, and `candidates[]`.
 - Later Unicode root BREF offset candidate evaluation.
@@ -38,39 +42,20 @@
 - M23 attachment payload fidelity expansion.
 - M24 batch scale, performance, and corruption hardening.
 - M25 v1 release-candidate and operator handoff.
-- M21-M25 remaining v1 roadmap tracking issues.
-- `data/decoder_backlog_review.jsonl` output.
-- `data/decoder_issue_candidates.jsonl` output.
-- `data/decoder_candidate_selection.jsonl` output.
-- `batch_progress.jsonl` output for root-level batch operator progress events.
-- Batch summary counters for discovered, attempted, completed, partial, failed, skipped, and not-run PST files.
-- v1 release-candidate checklist.
-- Local and Docker operator handoff runbook.
-- Unsupported and deferred area documentation.
-- Review checklist guidance for issue candidates.
-- Selection scope, test, and fallback guidance for focused candidates.
-- Extraction status counters for candidate selections and selected candidates.
-- UTF-16 compact attachment table decoding for `CATW` rows.
-- Unicode/string HTML body extraction for reachable `PR_HTML` string properties.
-- `transport_message_headers` on message records when `PR_TRANSPORT_MESSAGE_HEADERS` is available.
-- Attachment record fields for declared size, size status, and attachment method.
-- Metadata-only attachment records for unavailable, empty, or deferred payload rows.
-- Regression coverage for malformed `CATW` rows retaining explicit error status.
-- Regression coverage for `CATW` fixture-backed decoder evidence classification.
-- Regression coverage for Unicode HTML body extraction and transport-header metadata.
-- Regression coverage for attachment metadata-only rows and declared-size status handling.
-- Regression coverage for batch counter aggregation and partial-success status classification.
 
 ## Changed
 
+- Updated BBT and NBT page parsing to read B-tree metadata from byte offsets 488 through 491.
+- Updated internal-page traversal to use child BREF offsets.
+- Updated leaf-page decoding to read entries from the page body starting at byte 0.
+- Updated inspect output to show BBT and NBT page diagnostic counts and JSON arrays.
+- Updated project status to park downstream loading until PST conversion coverage is reliable.
 - Updated root traversal setup to use selected safe root candidates only.
 - Updated inspect text output to show selected root source and candidate count.
 - Updated project status to identify PQ2 as the current post-v1 parser-quality lane and PQ3 as the next step.
 - Updated project status to reflect M1-M25 implementation status and PQ1 as the current post-v1 parser-quality blocker.
 - Updated inspect output to expose root diagnostics before tree traversal succeeds.
-- Replaced the stale early roadmap with a bounded M1-M25 v1 milestone lane and post-v1 Snowflake ingestion planning boundary.
-- Updated README, PRD, documentation index, project status, and roadmap to agree that the planned v1 milestone lane is complete after M25.
-- Updated documentation navigation for M25 milestone, implementation, issue plan, release-candidate checklist, operator handoff, and unsupported/deferred areas.
+- Replaced the stale early roadmap with a bounded M1-M25 v1 milestone lane.
 - Expanded CLI CI coverage to include `pstd batch --help`.
 - Updated summaries to count extracted attachment payloads rather than only attachment metadata rows.
 - Updated attachment status handling to distinguish missing subnode references, unavailable subnode blocks, table parse cases, tables without payloads, and extracted payloads.
@@ -81,7 +66,6 @@
 - Updated compact attachment table missing-payload handling to emit unavailable records rather than counters only.
 - Updated batch CLI output to print discovered, attempted, completed, partial, failed, skipped, and not-run counters.
 - Updated batch fail-fast handling to preserve discovered totals and report not-run PST files.
-- Updated output contract notes to describe the v1 release-candidate boundary and post-v1 planning handoff.
 
 ## Removed
 
@@ -89,13 +73,8 @@
 
 ## Notes
 
-- M1-M25 and PQ1 have passed GitHub Actions validation.
+- M1-M25, PQ1, and PQ2 have passed GitHub Actions validation.
+- The active roadmap is now conversion coverage only; downstream loading is parked.
+- PQ3 targets index page entry decoding, not folder/message/body/attachment completion.
 - PQ2 selects only root candidates whose BBT and NBT pages are fully in bounds.
 - PQ1 does not claim full extraction-quality resolution; it makes root traversal blockers explicit and measurable.
-- M20 implements one focused selected parser candidate.
-- M21 keeps parser expansion narrow and only expands evidence classification for the M20 `CATW` decoder.
-- M22 keeps body/header fidelity narrow and only expands already-reachable body/header properties.
-- M23 keeps attachment fidelity narrow and preserves already-reachable attachment metadata for unavailable/deferred payloads.
-- M24 keeps batch hardening local/Docker focused and does not add distributed orchestration.
-- M25 closes the planned v1 milestone lane once CI passes and the PR is merged.
-- Parser quality still depends on broader observed layout coverage and reviewed validation inputs.
