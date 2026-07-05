@@ -600,7 +600,9 @@ fn candidate_message(
         has_html_body: false,
         has_attachments: false,
         attachment_count: 0,
-        metadata_status: format!("node_property_context_unavailable; pq5_status={membership_status}"),
+        metadata_status: format!(
+            "node_property_context_unavailable; pq5_status={membership_status}"
+        ),
         threading_status: "threading_metadata_not_attempted".to_string(),
         body_status: "node_property_context_unavailable".to_string(),
         attachment_status: "node_property_context_unavailable".to_string(),
