@@ -48,6 +48,7 @@ Each milestone row should record:
 
 | Date | Milestone / PR | Commit or run | Fixture | Root condition | BBT entries | NBT entries | Folders | Messages | Attachments | Status | Notes |
 |---|---|---|---|---|---:|---:|---:|---:|---:|---|---|
+| 2026-07-05 | PQ4 / #247 | CI #179 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 63 | 0 | `metadata_candidates_from_node_index; pq4_status=decoded_folder_candidates` | Progress: decoded 10 folder candidates, loaded properties for all 10, and moved folder output from root-only to 11 folder rows. Next blocker is PQ5 message table discovery and folder-message membership; body and attachment payload counts remain unchanged. |
 | 2026-07-05 | PQ3 baseline / #200 | CI #173 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 1 | 63 | 0 | `metadata_candidates_from_node_index` | First structured baseline after PQ3: BBT/NBT traversal works, messages are discovered/extracted as metadata candidates, and the next blocker is folder/message fidelity plus body and attachment payload coverage. |
 | 2026-07-05 | PQ3 / #199 | CI #171 | `tests/fixtures/pst/sample.pst` | Captured by CLI smoke only | n/a | n/a | n/a | n/a | n/a | CI fixture inspect/extract passed | Full structured public-PST artifact was added immediately after PQ3 so future milestones can log comparable metrics. |
 
