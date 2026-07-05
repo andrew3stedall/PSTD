@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::ids;
 use crate::output::metadata::{
@@ -19,6 +21,7 @@ use crate::pst::folder_tree::{
 use crate::pst::header::PstHeader;
 use crate::pst::limits::ParserLimits;
 use crate::pst::message_metadata::{message_from_properties, status_row};
+use crate::pst::message_table::{classify_message_candidate, discover_message_tables};
 use crate::pst::messages::{body_payloads_from_properties, unavailable_body_record, BodyPayload};
 use crate::pst::nbt::{NbtEntry, NbtIndex};
 use crate::pst::node_payload::load_node_property_context;
@@ -56,6 +59,7 @@ pub struct MetadataExtractionOutput {
 struct FolderDiscoveryOutput {
     folders: Vec<FolderRecord>,
     inventory: Vec<FolderInventoryRecord>,
+    folder_key_by_node_identity: HashMap<String, String>,
     issues: Vec<StatusRecord>,
     candidate_count: usize,
     property_loaded_count: usize,
@@ -99,7 +103,7 @@ pub fn extract_metadata(
     let metadata_status = if nbt.entries.is_empty() {
         "metadata_root_only".to_string()
     } else {
-        "metadata_candidates_from_node_index".to_string()
+        "metadata_candidates_from_message_nodes".to_string()
     };
 
     let folder_discovery = discover_folder_hierarchy(
@@ -127,6 +131,34 @@ pub fn extract_metadata(
     folder_inventory.push(root_inventory.clone());
     folder_inventory.extend(folder_discovery.inventory.clone());
 
+    let message_table_discovery =
+        discover_message_tables(&nbt, &folder_discovery.folder_key_by_node_identity);
+    let message_membership_status = message_table_discovery.message_membership_status();
+
+    if !nbt.entries.is_empty() {
+        let non_message_entries = nbt
+            .entries
+            .len()
+            .saturating_sub(message_table_discovery.message_candidate_count());
+        if non_message_entries > 0 {
+            issues.push(StatusRecord::info(
+                run_id,
+                "pq5_non_message_nbt_entries_excluded",
+                format!(
+                    "Excluded {non_message_entries} decoded NBT entries from message output because they are not normal or associated message nodes."
+                ),
+            ));
+        }
+        issues.push(StatusRecord::info(
+            run_id,
+            "pq5_message_membership_status",
+            format!(
+                "Message table discovery status: {}; {}",
+                message_table_discovery.status, message_membership_status
+            ),
+        ));
+    }
+
     if nbt.entries.is_empty() {
         messages.push(status_row(
             run_id,
@@ -141,8 +173,16 @@ pub fn extract_metadata(
             "Folder root was emitted, but node index entries were unavailable for message metadata.",
         ));
     } else {
-        for entry in nbt.entries.iter().take(1000) {
+        for entry in message_table_discovery.message_candidates.iter().take(1000) {
             let message_key = ids::message_key(pst_id, &node_identity(entry));
+            let candidate_status = classify_message_candidate(entry)
+                .map(|candidate| {
+                    format!(
+                        "{}; {}",
+                        candidate.membership_status, message_membership_status
+                    )
+                })
+                .unwrap_or_else(|| message_membership_status.clone());
             match load_node_property_context(&reader, &bbt, entry, limits) {
                 Ok(loaded) => {
                     let mut message = message_from_properties(
@@ -278,8 +318,8 @@ pub fn extract_metadata(
                     }
 
                     message.metadata_status = format!(
-                        "property_context_loaded; property_count={}",
-                        loaded.property_report.parsed_property_count
+                        "property_context_loaded; property_count={}; pq5_status={}",
+                        loaded.property_report.parsed_property_count, candidate_status
                     );
                     messages.push(message);
                 }
@@ -290,6 +330,7 @@ pub fn extract_metadata(
                         &root_folder.folder_key,
                         &root_folder.folder_path,
                         entry,
+                        &candidate_status,
                     ));
                     bodies.push(unavailable_body_record(
                         &message_key,
@@ -357,7 +398,7 @@ pub fn extract_metadata(
     }
 
     let folders_discovered = folders.len() as u64;
-    let messages_discovered = nbt.entries.len() as u64;
+    let messages_discovered = message_table_discovery.message_candidate_count() as u64;
     let messages_extracted = messages.len() as u64;
     let backlog_review_status = decoder_backlog_review[0].review_status.clone();
     let selected_candidate_count = decoder_candidate_selection
@@ -365,7 +406,7 @@ pub fn extract_metadata(
         .filter(|selection| selection.selection_status == "selected_for_next_planning")
         .count();
     let status = format!(
-        "{}; bbt_status={}; nbt_status={}; pq4_status={}; pq4_folder_candidates={}; pq4_folder_property_loaded={}; pq4_folder_property_unavailable={}; folders_discovered={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; m23_status=attachment_metadata_fidelity; body_payloads={}; attachment_payloads={}; attachment_records={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
+        "{}; bbt_status={}; nbt_status={}; pq4_status={}; pq4_folder_candidates={}; pq4_folder_property_loaded={}; pq4_folder_property_unavailable={}; pq5_status={}; pq5_message_candidates={}; pq5_table_candidates={}; pq5_linked_tables={}; pq5_unlinked_tables={}; folders_discovered={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; m23_status=attachment_metadata_fidelity; body_payloads={}; attachment_payloads={}; attachment_records={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
         metadata_status,
         bbt.status,
         nbt.status,
@@ -373,6 +414,11 @@ pub fn extract_metadata(
         folder_discovery.candidate_count,
         folder_discovery.property_loaded_count,
         folder_discovery.property_unavailable_count,
+        message_membership_status,
+        message_table_discovery.message_candidate_count(),
+        message_table_discovery.table_candidates.len(),
+        message_table_discovery.linked_table_count,
+        message_table_discovery.unlinked_table_count,
         folders_discovered,
         body_payloads.len(),
         attachment_payloads.len(),
@@ -430,6 +476,7 @@ fn discover_folder_hierarchy(
 ) -> FolderDiscoveryOutput {
     let mut folders = Vec::new();
     let mut inventory = Vec::new();
+    let mut folder_key_by_node_identity = HashMap::new();
     let mut issues = Vec::new();
     let mut candidate_count = 0usize;
     let mut property_loaded_count = 0usize;
@@ -451,6 +498,10 @@ fn discover_folder_hierarchy(
                     Some(root_folder_key.to_string()),
                     Some(&loaded.properties),
                 );
+                if let Some(node_identity) = &folder.folder_node_id {
+                    folder_key_by_node_identity
+                        .insert(node_identity.clone(), folder.folder_key.clone());
+                }
                 folders.push(folder);
                 inventory.push(record);
             }
@@ -462,6 +513,10 @@ fn discover_folder_hierarchy(
                     Some(root_folder_key.to_string()),
                     None,
                 );
+                if let Some(node_identity) = &folder.folder_node_id {
+                    folder_key_by_node_identity
+                        .insert(node_identity.clone(), folder.folder_key.clone());
+                }
                 folders.push(folder);
                 inventory.push(record);
                 issues.push(StatusRecord::info(
@@ -487,6 +542,7 @@ fn discover_folder_hierarchy(
     FolderDiscoveryOutput {
         folders,
         inventory,
+        folder_key_by_node_identity,
         issues,
         candidate_count,
         property_loaded_count,
@@ -514,6 +570,7 @@ fn candidate_message(
     folder_key: &str,
     folder_path: &str,
     entry: &NbtEntry,
+    membership_status: &str,
 ) -> MessageRecord {
     let message_identity = node_identity(entry);
     MessageRecord {
@@ -543,7 +600,9 @@ fn candidate_message(
         has_html_body: false,
         has_attachments: false,
         attachment_count: 0,
-        metadata_status: "node_property_context_unavailable".to_string(),
+        metadata_status: format!(
+            "node_property_context_unavailable; pq5_status={membership_status}"
+        ),
         threading_status: "threading_metadata_not_attempted".to_string(),
         body_status: "node_property_context_unavailable".to_string(),
         attachment_status: "node_property_context_unavailable".to_string(),
