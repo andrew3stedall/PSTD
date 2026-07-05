@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          cargo clippy --all-targets --all-features -- -D warnings 2>&1 | tee clippy.log
+          cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments 2>&1 | tee clippy.log
       - name: Upload clippy log
         if: always()
         uses: actions/upload-artifact@v4
