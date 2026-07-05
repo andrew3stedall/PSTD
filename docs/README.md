@@ -8,6 +8,7 @@ This tree is organised by audience.
 |---|---|
 | Current status | [Project Status](product/project-status.md) |
 | Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
+| PQ6 property and body coverage | [PQ6 Property and Body Coverage](operations/pq6-property-body-coverage.md) |
 | PQ5 message table discovery | [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md) |
 | PQ4 folder hierarchy discovery | [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md) |
 | PQ3 index entry decoding | [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md) |
@@ -67,6 +68,7 @@ This tree is organised by audience.
 | PQ3 | [Index Entry Decoding](milestones/pq3-index-entry-decoding.md) | TBD | [PQ3 issues](issues/pq3-index-entry-decoding-issue-plan.md) | TBD |
 | PQ4 | [Folder Hierarchy Discovery](milestones/pq4-folder-hierarchy-discovery.md) | TBD | Issues #201-#207 | TBD |
 | PQ5 | [Message Table Discovery](milestones/pq5-message-table-discovery.md) | TBD | Issues #248-#261 | TBD |
+| PQ6 | [Property and Body Coverage](milestones/pq6-property-body-coverage.md) | TBD | Issues #263-#267 | TBD |
 
 ## v1 release-candidate handoff
 
@@ -76,6 +78,7 @@ This tree is organised by audience.
 | Local/Docker runbook | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
 | Unsupported/deferred boundary | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
 | Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
+| PQ6 property and body coverage | [PQ6 Property and Body Coverage](operations/pq6-property-body-coverage.md) |
 | PQ5 message table discovery | [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md) |
 | PQ4 folder hierarchy discovery | [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md) |
 | PQ3 index entry decoding | [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md) |
@@ -122,6 +125,7 @@ This tree is organised by audience.
 
 - [Local Validation](operations/local-validation.md)
 - [Public PST Progress Log](operations/public-pst-progress-log.md)
+- [PQ6 Property and Body Coverage](operations/pq6-property-body-coverage.md)
 - [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md)
 - [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md)
 - [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md)

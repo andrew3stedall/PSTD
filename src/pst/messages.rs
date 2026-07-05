@@ -11,6 +11,17 @@ pub struct BodyPayload {
     pub bytes: Vec<u8>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BodyCoverageReport {
+    pub text_property_present: bool,
+    pub html_property_present: bool,
+    pub rtf_property_present: bool,
+    pub supported_body_property_count: usize,
+    pub extracted_payload_count: usize,
+    pub fallback_record_count: usize,
+    pub status: String,
+}
+
 pub fn body_payloads_from_properties(
     message_key: &str,
     properties: &PropertyContext,
@@ -32,6 +43,48 @@ pub fn body_payloads_from_properties(
     }
 
     payloads
+}
+
+pub fn body_coverage_report(
+    properties: &PropertyContext,
+    payloads: &[BodyPayload],
+) -> BodyCoverageReport {
+    let text_property_present = properties.value(PR_BODY).is_some();
+    let html_property_present =
+        properties.value(PR_HTML).is_some() || properties.value(PR_HTML_STRING).is_some();
+    let rtf_property_present = properties.value(PR_RTF_COMPRESSED).is_some();
+    let supported_body_property_count = [
+        text_property_present,
+        html_property_present,
+        rtf_property_present,
+    ]
+    .iter()
+    .filter(|present| **present)
+    .count();
+    let extracted_payload_count = payloads.len();
+    let fallback_record_count = usize::from(extracted_payload_count == 0);
+    let status = if extracted_payload_count > 0 {
+        format!(
+            "body_payload_extracted; payloads={extracted_payload_count}; supported_body_properties={supported_body_property_count}; body_types={}",
+            body_type_summary(payloads)
+        )
+    } else if supported_body_property_count > 0 {
+        format!(
+            "body_payload_properties_present_but_unusable; supported_body_properties={supported_body_property_count}"
+        )
+    } else {
+        "body_payload_property_absent; supported_body_properties=0".to_string()
+    };
+
+    BodyCoverageReport {
+        text_property_present,
+        html_property_present,
+        rtf_property_present,
+        supported_body_property_count,
+        extracted_payload_count,
+        fallback_record_count,
+        status,
+    }
 }
 
 pub fn text_body_payload(message_key: &str, text: &str) -> BodyPayload {
@@ -93,6 +146,20 @@ pub fn body_extension(body_type: &str) -> &'static str {
     }
 }
 
+fn body_type_summary(payloads: &[BodyPayload]) -> String {
+    let mut body_types = payloads
+        .iter()
+        .map(|payload| payload.record.body_type.as_str())
+        .collect::<Vec<_>>();
+    body_types.sort_unstable();
+    body_types.dedup();
+    if body_types.is_empty() {
+        "none".to_string()
+    } else {
+        body_types.join(",")
+    }
+}
+
 fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u8>> {
     let value = properties.value(tag)?;
     match value.decoded.as_ref() {
@@ -113,8 +180,8 @@ mod tests {
     use std::collections::HashMap;
 
     use super::{
-        body_extension, body_payloads_from_properties, html_body_payload, html_string_body_payload,
-        text_body_payload, unavailable_body_record,
+        body_coverage_report, body_extension, body_payloads_from_properties, html_body_payload,
+        html_string_body_payload, text_body_payload, unavailable_body_record,
     };
     use crate::pst::mapi::{MapiValue, PR_BODY, PR_HTML, PR_HTML_STRING, PR_RTF_COMPRESSED};
     use crate::pst::property_context::{PropertyContext, PropertyValue};
@@ -275,6 +342,74 @@ mod tests {
         assert_eq!(payloads[1].record.archive_path, "bodies/msg_123.html");
         assert_eq!(payloads[2].record.archive_path, "bodies/msg_123.rtf");
         assert_eq!(payloads[2].bytes, b"{\\rtf1 synthetic}");
+    }
+
+    #[test]
+    fn reports_extracted_body_coverage() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_BODY,
+            PropertyValue {
+                tag: PR_BODY,
+                name: "body_text".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("Hello".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext { values };
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        let report = body_coverage_report(&properties, &payloads);
+
+        assert!(report.text_property_present);
+        assert_eq!(report.supported_body_property_count, 1);
+        assert_eq!(report.extracted_payload_count, 1);
+        assert_eq!(report.fallback_record_count, 0);
+        assert_eq!(
+            report.status,
+            "body_payload_extracted; payloads=1; supported_body_properties=1; body_types=text"
+        );
+    }
+
+    #[test]
+    fn reports_absent_body_coverage() {
+        let properties = PropertyContext::default();
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        let report = body_coverage_report(&properties, &payloads);
+
+        assert_eq!(report.supported_body_property_count, 0);
+        assert_eq!(report.extracted_payload_count, 0);
+        assert_eq!(report.fallback_record_count, 1);
+        assert_eq!(
+            report.status,
+            "body_payload_property_absent; supported_body_properties=0"
+        );
+    }
+
+    #[test]
+    fn reports_unusable_body_properties() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_BODY,
+            PropertyValue {
+                tag: PR_BODY,
+                name: "body_text".to_string(),
+                raw: Vec::new(),
+                decoded: None,
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext { values };
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        let report = body_coverage_report(&properties, &payloads);
+
+        assert_eq!(report.supported_body_property_count, 1);
+        assert_eq!(report.extracted_payload_count, 0);
+        assert_eq!(report.fallback_record_count, 1);
+        assert_eq!(
+            report.status,
+            "body_payload_properties_present_but_unusable; supported_body_properties=1"
+        );
     }
 
     #[test]

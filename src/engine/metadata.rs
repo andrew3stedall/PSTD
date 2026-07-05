@@ -22,7 +22,9 @@ use crate::pst::header::PstHeader;
 use crate::pst::limits::ParserLimits;
 use crate::pst::message_metadata::{message_from_properties, status_row};
 use crate::pst::message_table::{classify_message_candidate, discover_message_tables};
-use crate::pst::messages::{body_payloads_from_properties, unavailable_body_record, BodyPayload};
+use crate::pst::messages::{
+    body_coverage_report, body_payloads_from_properties, unavailable_body_record, BodyPayload,
+};
 use crate::pst::nbt::{NbtEntry, NbtIndex};
 use crate::pst::node_payload::load_node_property_context;
 use crate::pst::reader::PstByteReader;
@@ -96,6 +98,18 @@ pub fn extract_metadata(
     let mut attachment_table_parse_errors = 0usize;
     let mut fixture_backed_decoder_hits = 0usize;
     let mut compatibility_follow_up_count = 0usize;
+    let mut pq6_property_loaded_messages = 0usize;
+    let mut pq6_property_unavailable_messages = 0usize;
+    let mut pq6_selected_property_count = 0usize;
+    let mut pq6_unknown_property_count = 0usize;
+    let mut pq6_decode_error_count = 0usize;
+    let mut pq6_body_supported_property_messages = 0usize;
+    let mut pq6_body_payload_messages = 0usize;
+    let mut pq6_body_payload_records = 0usize;
+    let mut pq6_body_fallback_records = 0usize;
+    let mut pq6_text_body_property_messages = 0usize;
+    let mut pq6_html_body_property_messages = 0usize;
+    let mut pq6_rtf_body_property_messages = 0usize;
 
     let subnode_report = subnode_references_from_index(&nbt);
     let subnode_plans = subnode_decode_plans(&subnode_report.references, limits);
@@ -185,6 +199,11 @@ pub fn extract_metadata(
                 .unwrap_or_else(|| message_membership_status.clone());
             match load_node_property_context(&reader, &bbt, entry, limits) {
                 Ok(loaded) => {
+                    pq6_property_loaded_messages += 1;
+                    pq6_selected_property_count += loaded.property_report.selected_property_count;
+                    pq6_unknown_property_count += loaded.property_report.unknown_property_count;
+                    pq6_decode_error_count += loaded.property_report.decode_error_count;
+
                     let mut message = message_from_properties(
                         run_id,
                         pst_id,
@@ -195,21 +214,39 @@ pub fn extract_metadata(
                     );
                     let loaded_body_payloads =
                         body_payloads_from_properties(&message.message_key, &loaded.properties);
+                    let body_report =
+                        body_coverage_report(&loaded.properties, &loaded_body_payloads);
+                    if body_report.supported_body_property_count > 0 {
+                        pq6_body_supported_property_messages += 1;
+                    }
+                    if body_report.text_property_present {
+                        pq6_text_body_property_messages += 1;
+                    }
+                    if body_report.html_property_present {
+                        pq6_html_body_property_messages += 1;
+                    }
+                    if body_report.rtf_property_present {
+                        pq6_rtf_body_property_messages += 1;
+                    }
+                    pq6_body_payload_records += body_report.extracted_payload_count;
+                    pq6_body_fallback_records += body_report.fallback_record_count;
+
                     if loaded_body_payloads.is_empty() {
-                        message.body_status = "body_payload_property_absent".to_string();
+                        message.body_status = body_report.status.clone();
                         bodies.push(unavailable_body_record(
                             &message.message_key,
                             "text",
-                            "body_payload_property_absent",
+                            &body_report.status,
                         ));
                     } else {
+                        pq6_body_payload_messages += 1;
                         message.has_text_body = loaded_body_payloads
                             .iter()
                             .any(|payload| payload.record.body_type == "text");
                         message.has_html_body = loaded_body_payloads
                             .iter()
                             .any(|payload| payload.record.body_type == "html");
-                        message.body_status = "body_payload_extracted".to_string();
+                        message.body_status = body_report.status;
                         message.extraction_status = "metadata_and_payload".to_string();
                         for payload in loaded_body_payloads {
                             bodies.push(payload.record.clone());
@@ -318,12 +355,18 @@ pub fn extract_metadata(
                     }
 
                     message.metadata_status = format!(
-                        "property_context_loaded; property_count={}; pq5_status={}",
-                        loaded.property_report.parsed_property_count, candidate_status
+                        "property_context_loaded; property_count={}; selected_properties={}; unknown_properties={}; decode_errors={}; pq5_status={}",
+                        loaded.property_report.parsed_property_count,
+                        loaded.property_report.selected_property_count,
+                        loaded.property_report.unknown_property_count,
+                        loaded.property_report.decode_error_count,
+                        candidate_status
                     );
                     messages.push(message);
                 }
                 Err(reason) => {
+                    pq6_property_unavailable_messages += 1;
+                    pq6_body_fallback_records += 1;
                     messages.push(candidate_message(
                         run_id,
                         pst_id,
@@ -348,6 +391,17 @@ pub fn extract_metadata(
                 }
             }
         }
+    }
+
+    let pq6_status = format!(
+        "property_body_coverage; property_loaded_messages={pq6_property_loaded_messages}; property_unavailable_messages={pq6_property_unavailable_messages}; selected_properties={pq6_selected_property_count}; unknown_properties={pq6_unknown_property_count}; decode_errors={pq6_decode_error_count}; body_supported_property_messages={pq6_body_supported_property_messages}; body_payload_messages={pq6_body_payload_messages}; body_payload_records={pq6_body_payload_records}; body_fallback_records={pq6_body_fallback_records}; text_body_property_messages={pq6_text_body_property_messages}; html_body_property_messages={pq6_html_body_property_messages}; rtf_body_property_messages={pq6_rtf_body_property_messages}"
+    );
+    if message_table_discovery.message_candidate_count() > 0 {
+        issues.push(StatusRecord::info(
+            run_id,
+            "pq6_property_body_coverage",
+            format!("PQ6 property/body coverage status: {pq6_status}"),
+        ));
     }
 
     let decoder_backlog = decoder_backlog_from_triage_records(&compatibility_triage);
@@ -406,7 +460,7 @@ pub fn extract_metadata(
         .filter(|selection| selection.selection_status == "selected_for_next_planning")
         .count();
     let status = format!(
-        "{}; bbt_status={}; nbt_status={}; pq4_status={}; pq4_folder_candidates={}; pq4_folder_property_loaded={}; pq4_folder_property_unavailable={}; pq5_status={}; pq5_message_candidates={}; pq5_table_candidates={}; pq5_linked_tables={}; pq5_unlinked_tables={}; folders_discovered={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; m23_status=attachment_metadata_fidelity; body_payloads={}; attachment_payloads={}; attachment_records={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
+        "{}; bbt_status={}; nbt_status={}; pq4_status={}; pq4_folder_candidates={}; pq4_folder_property_loaded={}; pq4_folder_property_unavailable={}; pq5_status={}; pq5_message_candidates={}; pq5_table_candidates={}; pq5_linked_tables={}; pq5_unlinked_tables={}; pq6_status={}; folders_discovered={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; m23_status=attachment_metadata_fidelity; body_payloads={}; attachment_payloads={}; attachment_records={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
         metadata_status,
         bbt.status,
         nbt.status,
@@ -419,6 +473,7 @@ pub fn extract_metadata(
         message_table_discovery.table_candidates.len(),
         message_table_discovery.linked_table_count,
         message_table_discovery.unlinked_table_count,
+        pq6_status,
         folders_discovered,
         body_payloads.len(),
         attachment_payloads.len(),
