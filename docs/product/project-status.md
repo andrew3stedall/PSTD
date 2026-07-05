@@ -15,9 +15,10 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | BBT/NBT parsing | PQ3 index entry decoding | PQ3 corrects B-tree page metadata offsets, internal child references, and page diagnostics. |
 | Folder hierarchy | PQ4 folder hierarchy discovery | PQ4 classifies decoded normal/search folder NBT entries, emits folder rows, and records folder discovery counters. |
 | Message table discovery | PQ5 message table discovery | PQ5 classifies normal/associated message NBT entries separately from folder/table nodes and records message-table evidence counters. |
-| Metadata processing | PQ5 message table discovery | Message extraction no longer emits every decoded NBT entry as a message row; full table row membership remains a later quality milestone. |
+| Property/body coverage | PQ6 property and body coverage | PQ6 records property-context coverage and body payload/fallback counters for true message candidates. |
+| Metadata processing | PQ6 property and body coverage | Message extraction no longer emits every decoded NBT entry as a message row; PQ6 adds property/body coverage evidence for the true candidate set. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
-| Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence. |
+| Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence; PQ6 adds coverage counters and fallback statuses. |
 | Attachments | M23 attachment fidelity and CI validated | M23 preserves metadata-only attachment rows, declared size, size status, method, and deferred embedded-message status. |
 | Batch orchestration | M24 batch hardening and CI validated | M24 adds root-level `batch_progress.jsonl`, expanded `batch_summary.json`, deterministic resume-by-skip context, partial-success classification, and not-run counts. |
 | Release-candidate handoff | M25 and CI validated | M25 adds RC checklist, local/Docker operator handoff, and unsupported/deferred area docs. |
@@ -58,11 +59,12 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | PQ2: Root Decode Candidate Selection | #193 | CI validated |
 | PQ3: Index Entry Decoding | #199 | CI validated |
 | PQ4: Folder Hierarchy Discovery | #247 | CI validated |
-| PQ5: Message Table Discovery | #262 | CI validated before merge |
+| PQ5: Message Table Discovery | #262 | CI validated |
+| PQ6: Property and Body Coverage | TBD | PR validation pending |
 
 ## Latest validation
 
-GitHub Actions validation passed for PQ5 in PR #262. The `public-pst-progress` artifact from CI #186 shows the checked-in public PST fixture now emits 11 folders, 1 message candidate, and 0 attachments. PQ5 also identifies 11 table candidates, with 8 linked to decoded folder candidates and 3 unlinked.
+GitHub Actions validation passed for PQ5 in PR #262. The `public-pst-progress` artifact from CI #186 shows the checked-in public PST fixture emits 11 folders, 1 message candidate, and 0 attachments. PQ5 also identifies 11 table candidates, with 8 linked to decoded folder candidates and 3 unlinked.
 
 Expected PQ6 validation includes:
 
@@ -99,4 +101,4 @@ Snowflake ingestion, UI, search, analytics loading, and other downstream work ar
 
 The M1-M25 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
 
-Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For current message-level traversal decisions, start with [PQ5 Message Table Discovery](../operations/pq5-message-table-discovery.md).
+Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For current property/body coverage decisions, start with [PQ6 Property and Body Coverage](../operations/pq6-property-body-coverage.md).
