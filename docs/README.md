@@ -7,6 +7,7 @@ This tree is organised by audience.
 | Need | Page |
 |---|---|
 | Current status | [Project Status](product/project-status.md) |
+| Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
 | PQ3 index entry decoding | [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md) |
 | PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md) |
 | PQ1 root diagnostics | [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md) |
@@ -70,6 +71,7 @@ This tree is organised by audience.
 | Final checklist | [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md) |
 | Local/Docker runbook | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
 | Unsupported/deferred boundary | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
+| Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
 | PQ3 index entry decoding | [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md) |
 | PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md) |
 | PQ1 root diagnostics | [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md) |
@@ -113,6 +115,7 @@ This tree is organised by audience.
 ## Operations
 
 - [Local Validation](operations/local-validation.md)
+- [Public PST Progress Log](operations/public-pst-progress-log.md)
 - [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md)
 - [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md)
 - [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md)

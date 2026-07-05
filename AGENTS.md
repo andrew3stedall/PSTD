@@ -114,7 +114,10 @@ Execution skills:
 7. Record tests that could not be run.
 8. Update docs.
 9. Open a milestone PR.
-10. Merge when the user explicitly asks.
+10. Wait for CI to complete.
+11. Inspect the `public-pst-progress` CI artifact and update `docs/operations/public-pst-progress-log.md` with the checked-in public PST result.
+12. Include the latest public PST result and delta in the final milestone report.
+13. Merge when the user explicitly asks.
 
 ## Planning rules
 
@@ -133,6 +136,7 @@ Every PR must include:
 - Scope.
 - Files changed.
 - Tests or validation performed.
+- Public PST progress result, when a fixture is available.
 - Tests or validation deferred.
 - Documentation updated.
 - Data impact.

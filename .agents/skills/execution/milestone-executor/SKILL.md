@@ -31,6 +31,8 @@ Build an approved PSTD milestone or epic as a coherent body of work, rather than
 
 Local testing may be deferred until the user has Codex running on a laptop. When tests are not run, record that clearly in the PR and list the commands that should be run later.
 
+GitHub Actions CI is the normal validation gate for milestone PRs. After CI is green, inspect the `public-pst-progress` artifact and record the checked-in public PST fixture outcome in `docs/operations/public-pst-progress-log.md` before treating the milestone as complete.
+
 ## Stop conditions
 
 Stop and report when:
@@ -42,4 +44,4 @@ Stop and report when:
 
 ## Output
 
-Return implementation summary, files changed, issues covered, deferred tests, docs changed, and follow-up work.
+Return implementation summary, files changed, issues covered, validation performed, public PST progress result, deferred tests, docs changed, and follow-up work.

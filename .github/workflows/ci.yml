@@ -61,14 +61,31 @@ jobs:
       - name: Find fixture
         id: fixture
         run: |
-          fixture=$(find . -type f -iname '*.pst' | head -n 1 || true)
+          fixture=$(find . -type f -iname '*.pst' | sort | head -n 1 || true)
           echo "fixture=$fixture" >> "$GITHUB_OUTPUT"
-      - name: Inspect fixture
+      - name: Public PST progress fixture
         if: steps.fixture.outputs.fixture != ''
-        run: cargo run -- inspect --input "${{ steps.fixture.outputs.fixture }}"
-      - name: Extract fixture metadata
-        if: steps.fixture.outputs.fixture != ''
-        run: cargo run -- extract --input "${{ steps.fixture.outputs.fixture }}" --output /tmp/pstd-ci-output --manifest-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="${{ steps.fixture.outputs.fixture }}"
+          progress_dir="/tmp/pstd-public-pst-progress"
+          output_dir="/tmp/pstd-public-pst-output"
+          mkdir -p "$progress_dir"
+          echo "$fixture" > "$progress_dir/fixture_path.txt"
+          stat -c '%s' "$fixture" > "$progress_dir/fixture_size_bytes.txt"
+          cargo run -- inspect --input "$fixture" --json > "$progress_dir/inspect.json"
+          cargo run -- extract --input "$fixture" --output "$output_dir" --manifest-only --overwrite
+          cp "$output_dir/run_summary.json" "$progress_dir/run_summary.json"
+          find "$output_dir" -maxdepth 4 -type f | sort > "$progress_dir/output_files.txt"
+          python scripts/public_pst_progress.py --progress-dir "$progress_dir"
+      - name: Upload public PST progress artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-pst-progress
+          path: /tmp/pstd-public-pst-progress
+          if-no-files-found: ignore
 
   python:
     runs-on: ubuntu-latest

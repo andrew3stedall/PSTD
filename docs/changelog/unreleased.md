@@ -2,6 +2,9 @@
 
 ## Added
 
+- CI `public-pst-progress` artifact for milestone-level checked-in public PST fixture tracking.
+- `scripts/public_pst_progress.py` to summarise public PST inspect and extract results.
+- Public PST progress log and milestone completion reporting template.
 - PQ3 index entry decoding for PST conversion coverage.
 - Page-level diagnostics in inspect JSON for BBT and NBT traversal.
 - Regression coverage for B-tree page metadata, internal child references, and leaf entries.
@@ -45,6 +48,8 @@
 
 ## Changed
 
+- Updated milestone execution instructions to require public PST progress logging after each completed milestone.
+- Updated PR/final-report standards to include public PST result and delta when a fixture is available.
 - Updated BBT and NBT page parsing to read B-tree metadata from byte offsets 488 through 491.
 - Updated internal-page traversal to use child BREF offsets.
 - Updated leaf-page decoding to read entries from the page body starting at byte 0.
@@ -73,6 +78,7 @@
 
 ## Notes
 
+- Every completed milestone should now rerun and log the checked-in public PST fixture.
 - M1-M25, PQ1, and PQ2 have passed GitHub Actions validation.
 - The active roadmap is now conversion coverage only; downstream loading is parked.
 - PQ3 targets index page entry decoding, not folder/message/body/attachment completion.
