@@ -24,6 +24,12 @@ PQ7 is bounded to issues #269 through #273.
 - Body extraction checks Unicode and String8 aliases for text and HTML-string body properties.
 - Property-context reports include sorted unknown property-tag IDs for follow-up parser work.
 
+## Public fixture result
+
+The checked-in public PST fixture did not gain selected properties from the String8 alias expansion. The true message candidate still reports 0 selected properties, 74 unknown properties, 0 body payload records, and 1 body fallback row.
+
+This is useful negative evidence: String8 alias support is now present, but the public fixture's selected-property gap is elsewhere.
+
 ## Explicit non-goals
 
 - Attachment payload expansion.
@@ -33,4 +39,4 @@ PQ7 is bounded to issues #269 through #273.
 
 ## Next milestone
 
-The next milestone should be chosen from the measured PQ7 public fixture result. If selected property coverage remains low, PQ8 should focus on lower-level property-context layout fidelity. If selected coverage improves enough to expose body, attachment, or recipient evidence, PQ8 should target that next measured gap.
+PQ8 should focus on lower-level property-context layout/tag interpretation. Body, attachment, and recipient expansion should wait until useful properties from the true public-fixture message candidate are selected.
