@@ -185,11 +185,6 @@ fn classify_unusable_candidates(candidates: &[PstRootCandidateDiagnostic]) -> St
         .any(|candidate| candidate.condition == "root_pages_truncated")
     {
         "root_pages_truncated".to_string()
-    } else if candidates
-        .iter()
-        .any(|candidate| candidate.condition == "root_offsets_out_of_bounds")
-    {
-        "root_candidates_unusable".to_string()
     } else {
         "root_candidates_unusable".to_string()
     }
@@ -276,11 +271,11 @@ impl PstHeader {
         let selected_bbt_root_offset = root_diagnostics
             .selected_source
             .as_ref()
-            .and_then(|_| root_diagnostics.bbt_root.offset);
+            .and(root_diagnostics.bbt_root.offset);
         let selected_nbt_root_offset = root_diagnostics
             .selected_source
             .as_ref()
-            .and_then(|_| root_diagnostics.nbt_root.offset);
+            .and(root_diagnostics.nbt_root.offset);
         let roots = RootPointers {
             bbt_root: selected_bbt_root_offset.map(|offset| PageRef {
                 offset: ByteOffset(offset),
