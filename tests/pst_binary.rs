@@ -40,6 +40,10 @@ fn pst_header_accepts_minimal_unicode_header() {
         parsed.summary.root_diagnostics.condition,
         "root_pointers_absent"
     );
+    assert_eq!(parsed.summary.root_diagnostics.candidate_count, 1);
+    assert!(parsed.summary.root_diagnostics.selected_source.is_none());
+    assert!(parsed.roots.bbt_root.is_none());
+    assert!(parsed.roots.nbt_root.is_none());
 }
 
 #[test]
@@ -55,6 +59,10 @@ fn pst_header_classifies_root_offsets_beyond_file_size() {
 
     assert_eq!(
         parsed.summary.root_diagnostics.condition,
+        "root_candidates_unusable"
+    );
+    assert_eq!(
+        parsed.summary.root_diagnostics.candidates[0].condition,
         "root_offsets_out_of_bounds"
     );
     assert_eq!(
@@ -67,6 +75,9 @@ fn pst_header_classifies_root_offsets_beyond_file_size() {
     );
     assert!(!parsed.summary.root_diagnostics.bbt_root.offset_in_bounds);
     assert!(!parsed.summary.root_diagnostics.nbt_root.root_page_in_bounds);
+    assert!(parsed.summary.root_diagnostics.selected_source.is_none());
+    assert!(parsed.roots.bbt_root.is_none());
+    assert!(parsed.roots.nbt_root.is_none());
 }
 
 #[test]
@@ -84,8 +95,74 @@ fn pst_header_classifies_root_pages_in_bounds() {
         parsed.summary.root_diagnostics.condition,
         "root_pages_in_bounds"
     );
+    assert_eq!(
+        parsed.summary.root_diagnostics.selected_source.as_deref(),
+        Some("legacy_header_fields")
+    );
+    assert_eq!(parsed.summary.bbt_root_offset, Some(2048));
+    assert_eq!(parsed.summary.nbt_root_offset, Some(1024));
+    assert_eq!(parsed.roots.bbt_root.unwrap().offset.0, 2048);
+    assert_eq!(parsed.roots.nbt_root.unwrap().offset.0, 1024);
     assert!(parsed.summary.root_diagnostics.bbt_root.offset_in_bounds);
     assert!(parsed.summary.root_diagnostics.nbt_root.root_page_in_bounds);
+}
+
+#[test]
+fn pst_header_selects_later_unicode_root_candidate_when_legacy_is_impossible() {
+    let mut header = vec![0u8; 248];
+    header[0..4].copy_from_slice(&PST_MAGIC);
+    header[8..10].copy_from_slice(b"SM");
+    header[10..12].copy_from_slice(&23u16.to_le_bytes());
+    header[48..56].copy_from_slice(&4_415_226_381_312u64.to_le_bytes());
+    header[56..64].copy_from_slice(&281_500_746_530_816u64.to_le_bytes());
+    header[224..232].copy_from_slice(&1024u64.to_le_bytes());
+    header[240..248].copy_from_slice(&2048u64.to_le_bytes());
+
+    let parsed = PstHeader::parse_bytes(&header, 4096).unwrap();
+
+    assert_eq!(
+        parsed.summary.root_diagnostics.condition,
+        "root_pages_in_bounds"
+    );
+    assert_eq!(
+        parsed.summary.root_diagnostics.selected_source.as_deref(),
+        Some("unicode_root_bref_offsets")
+    );
+    assert_eq!(parsed.summary.root_diagnostics.candidate_count, 2);
+    assert_eq!(
+        parsed.summary.root_diagnostics.candidates[0].source,
+        "unicode_root_bref_offsets"
+    );
+    assert_eq!(
+        parsed.summary.root_diagnostics.candidates[1].condition,
+        "root_offsets_out_of_bounds"
+    );
+    assert_eq!(parsed.summary.bbt_root_offset, Some(2048));
+    assert_eq!(parsed.summary.nbt_root_offset, Some(1024));
+    assert_eq!(parsed.roots.bbt_root.unwrap().offset.0, 2048);
+    assert_eq!(parsed.roots.nbt_root.unwrap().offset.0, 1024);
+}
+
+#[test]
+fn pst_header_keeps_roots_unavailable_when_no_candidate_pair_is_usable() {
+    let mut header = vec![0u8; 248];
+    header[0..4].copy_from_slice(&PST_MAGIC);
+    header[8..10].copy_from_slice(b"SM");
+    header[10..12].copy_from_slice(&23u16.to_le_bytes());
+    header[48..56].copy_from_slice(&4_415_226_381_312u64.to_le_bytes());
+    header[56..64].copy_from_slice(&281_500_746_530_816u64.to_le_bytes());
+    header[224..232].copy_from_slice(&512u64.to_le_bytes());
+    header[240..248].copy_from_slice(&1024u64.to_le_bytes());
+
+    let parsed = PstHeader::parse_bytes(&header, 1200).unwrap();
+
+    assert_eq!(
+        parsed.summary.root_diagnostics.condition,
+        "root_pages_truncated"
+    );
+    assert!(parsed.summary.root_diagnostics.selected_source.is_none());
+    assert!(parsed.roots.bbt_root.is_none());
+    assert!(parsed.roots.nbt_root.is_none());
 }
 
 #[test]
