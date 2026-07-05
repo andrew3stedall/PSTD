@@ -13,7 +13,9 @@ use crate::pst::compatibility::{
     triage_observed_attachment_layouts, CompatibilityTriageRecord, DecoderBacklogItem,
     DecoderBacklogReviewSummary, DecoderCandidateSelection, DecoderIssueCandidate,
 };
-use crate::pst::folder_tree::{root_folder_from_header, FolderInventoryRecord};
+use crate::pst::folder_tree::{
+    folder_from_nbt_candidate, is_folder_candidate, root_folder_from_header, FolderInventoryRecord,
+};
 use crate::pst::header::PstHeader;
 use crate::pst::limits::ParserLimits;
 use crate::pst::message_metadata::{message_from_properties, status_row};
@@ -50,6 +52,17 @@ pub struct MetadataExtractionOutput {
     pub status: String,
 }
 
+#[derive(Debug, Clone)]
+struct FolderDiscoveryOutput {
+    folders: Vec<FolderRecord>,
+    inventory: Vec<FolderInventoryRecord>,
+    issues: Vec<StatusRecord>,
+    candidate_count: usize,
+    property_loaded_count: usize,
+    property_unavailable_count: usize,
+    status: String,
+}
+
 pub fn extract_metadata(
     input_path: &str,
     run_id: &str,
@@ -61,7 +74,7 @@ pub fn extract_metadata(
     let bbt = BbtIndex::load_root_with_limits(&reader, header.roots.bbt_root, limits)?;
     let nbt = NbtIndex::load_root_with_limits(&reader, header.roots.nbt_root, limits)?;
 
-    let (root_folder, root_inventory) = root_folder_from_header(pst_id, &header);
+    let (mut root_folder, mut root_inventory) = root_folder_from_header(pst_id, &header);
     let mut messages = Vec::new();
     let mut issues = Vec::new();
     let recipients: Vec<RecipientRecord> = Vec::new();
@@ -88,6 +101,31 @@ pub fn extract_metadata(
     } else {
         "metadata_candidates_from_node_index".to_string()
     };
+
+    let folder_discovery = discover_folder_hierarchy(
+        &reader,
+        &bbt,
+        &nbt,
+        limits,
+        run_id,
+        pst_id,
+        &root_folder.folder_key,
+    );
+    issues.extend(folder_discovery.issues.clone());
+    let discovered_child_folders = folder_discovery.folders.len() as u64;
+    root_folder.child_folder_count = Some(discovered_child_folders);
+    root_inventory.child_folder_count = Some(discovered_child_folders);
+    root_folder.status = format!("{}; {}", root_folder.status, folder_discovery.status);
+    root_inventory.inventory_status = format!(
+        "{}; {}",
+        root_inventory.inventory_status, folder_discovery.status
+    );
+    let mut folders = Vec::with_capacity(1 + folder_discovery.folders.len());
+    folders.push(root_folder.clone());
+    folders.extend(folder_discovery.folders.clone());
+    let mut folder_inventory = Vec::with_capacity(1 + folder_discovery.inventory.len());
+    folder_inventory.push(root_inventory.clone());
+    folder_inventory.extend(folder_discovery.inventory.clone());
 
     if nbt.entries.is_empty() {
         messages.push(status_row(
@@ -318,7 +356,7 @@ pub fn extract_metadata(
         });
     }
 
-    let folders_discovered = 1;
+    let folders_discovered = folders.len() as u64;
     let messages_discovered = nbt.entries.len() as u64;
     let messages_extracted = messages.len() as u64;
     let backlog_review_status = decoder_backlog_review[0].review_status.clone();
@@ -327,10 +365,15 @@ pub fn extract_metadata(
         .filter(|selection| selection.selection_status == "selected_for_next_planning")
         .count();
     let status = format!(
-        "{}; bbt_status={}; nbt_status={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; m23_status=attachment_metadata_fidelity; body_payloads={}; attachment_payloads={}; attachment_records={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
+        "{}; bbt_status={}; nbt_status={}; pq4_status={}; pq4_folder_candidates={}; pq4_folder_property_loaded={}; pq4_folder_property_unavailable={}; folders_discovered={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; m23_status=attachment_metadata_fidelity; body_payloads={}; attachment_payloads={}; attachment_records={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
         metadata_status,
         bbt.status,
         nbt.status,
+        folder_discovery.status,
+        folder_discovery.candidate_count,
+        folder_discovery.property_loaded_count,
+        folder_discovery.property_unavailable_count,
+        folders_discovered,
         body_payloads.len(),
         attachment_payloads.len(),
         attachments.len(),
@@ -353,8 +396,8 @@ pub fn extract_metadata(
     );
 
     Ok(MetadataExtractionOutput {
-        folders: vec![root_folder],
-        folder_inventory: vec![root_inventory],
+        folders,
+        folder_inventory,
         messages,
         recipients,
         message_references,
@@ -374,6 +417,82 @@ pub fn extract_metadata(
         messages_extracted,
         status,
     })
+}
+
+fn discover_folder_hierarchy(
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    nbt: &NbtIndex,
+    limits: ParserLimits,
+    run_id: &str,
+    pst_id: &str,
+    root_folder_key: &str,
+) -> FolderDiscoveryOutput {
+    let mut folders = Vec::new();
+    let mut inventory = Vec::new();
+    let mut issues = Vec::new();
+    let mut candidate_count = 0usize;
+    let mut property_loaded_count = 0usize;
+    let mut property_unavailable_count = 0usize;
+
+    for entry in nbt
+        .entries
+        .iter()
+        .filter(|entry| is_folder_candidate(entry))
+        .take(1000)
+    {
+        candidate_count += 1;
+        match load_node_property_context(reader, bbt, entry, limits) {
+            Ok(loaded) => {
+                property_loaded_count += 1;
+                let (folder, record) = folder_from_nbt_candidate(
+                    pst_id,
+                    entry,
+                    Some(root_folder_key.to_string()),
+                    Some(&loaded.properties),
+                );
+                folders.push(folder);
+                inventory.push(record);
+            }
+            Err(reason) => {
+                property_unavailable_count += 1;
+                let (folder, record) = folder_from_nbt_candidate(
+                    pst_id,
+                    entry,
+                    Some(root_folder_key.to_string()),
+                    None,
+                );
+                folders.push(folder);
+                inventory.push(record);
+                issues.push(StatusRecord::info(
+                    run_id,
+                    "pq4_folder_property_context_unavailable",
+                    format!(
+                        "Folder candidate property context unavailable for node_{:x}: {reason}",
+                        entry.node_id.0
+                    ),
+                ));
+            }
+        }
+    }
+
+    let status = if candidate_count == 0 {
+        "root_only_no_decoded_folder_candidates".to_string()
+    } else {
+        format!(
+            "decoded_folder_candidates; candidates={candidate_count}; property_loaded={property_loaded_count}; property_unavailable={property_unavailable_count}"
+        )
+    };
+
+    FolderDiscoveryOutput {
+        folders,
+        inventory,
+        issues,
+        candidate_count,
+        property_loaded_count,
+        property_unavailable_count,
+        status,
+    }
 }
 
 fn node_identity(entry: &NbtEntry) -> String {
