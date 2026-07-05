@@ -1,7 +1,7 @@
 use crate::output::ids;
 use crate::output::metadata::FolderRecord;
 use crate::pst::header::PstHeader;
-use crate::pst::mapi::{PR_CONTENT_COUNT, PR_CONTENT_UNREAD, PR_DISPLAY_NAME};
+use crate::pst::mapi::{PR_CONTENT_COUNT, PR_DISPLAY_NAME};
 use crate::pst::nbt::NbtEntry;
 use crate::pst::primitives::NodeId;
 use crate::pst::property_context::PropertyContext;
@@ -123,9 +123,6 @@ pub fn folder_from_nbt_candidate(
     let item_count = properties
         .and_then(|values| values.string_value(PR_CONTENT_COUNT))
         .and_then(|value| value.parse::<u64>().ok());
-    let unread_count = properties
-        .and_then(|values| values.string_value(PR_CONTENT_UNREAD))
-        .and_then(|value| value.parse::<u64>().ok());
     let folder_path = format!("/{}", safe_folder_path_segment(&folder_name));
     let property_status = if properties.is_some() {
         "property_context_loaded"
@@ -150,7 +147,7 @@ pub fn folder_from_nbt_candidate(
         folder_path,
         item_count_total: item_count,
         item_count_email: item_count,
-        item_count_unknown: unread_count,
+        item_count_unknown: None,
         child_folder_count: None,
         inventory_status: status,
     };
@@ -229,13 +226,17 @@ mod tests {
         let search_folder = entry(0x43);
         let message = entry(0x24);
 
-        assert_eq!(folder_node_type(normal_folder.node_id), Some(FolderNodeType::NormalFolder));
-        assert_eq!(folder_node_type(search_folder.node_id), Some(FolderNodeType::SearchFolder));
+        assert_eq!(
+            folder_node_type(normal_folder.node_id),
+            Some(FolderNodeType::NormalFolder)
+        );
+        assert_eq!(
+            folder_node_type(search_folder.node_id),
+            Some(FolderNodeType::SearchFolder)
+        );
         assert_eq!(folder_node_type(message.node_id), None);
         assert_eq!(
-            classify_folder_candidate(&normal_folder)
-                .unwrap()
-                .status,
+            classify_folder_candidate(&normal_folder).unwrap().status,
             "folder_candidate_from_nbt; node_type=normal_folder"
         );
         assert!(classify_folder_candidate(&message).is_none());
