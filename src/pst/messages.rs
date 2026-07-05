@@ -2,7 +2,9 @@ use sha2::{Digest, Sha256};
 
 use crate::output::ids;
 use crate::output::metadata::BodyRecord;
-use crate::pst::mapi::{MapiValue, PR_BODY, PR_HTML, PR_HTML_STRING, PR_RTF_COMPRESSED};
+use crate::pst::mapi::{
+    MapiValue, PR_BODY, PR_BODY_A, PR_HTML, PR_HTML_STRING, PR_HTML_STRING_A, PR_RTF_COMPRESSED,
+};
 use crate::pst::property_context::PropertyContext;
 
 #[derive(Debug, Clone)]
@@ -28,13 +30,13 @@ pub fn body_payloads_from_properties(
 ) -> Vec<BodyPayload> {
     let mut payloads = Vec::new();
 
-    if let Some(text) = properties.string_value(PR_BODY) {
+    if let Some(text) = properties.first_string_value(&[PR_BODY, PR_BODY_A]) {
         payloads.push(text_body_payload(message_key, &text));
     }
 
     if let Some(html) = binary_property_bytes(properties, PR_HTML) {
         payloads.push(html_body_payload(message_key, &html));
-    } else if let Some(html) = properties.string_value(PR_HTML_STRING) {
+    } else if let Some(html) = properties.first_string_value(&[PR_HTML_STRING, PR_HTML_STRING_A]) {
         payloads.push(html_string_body_payload(message_key, &html));
     }
 
@@ -49,9 +51,10 @@ pub fn body_coverage_report(
     properties: &PropertyContext,
     payloads: &[BodyPayload],
 ) -> BodyCoverageReport {
-    let text_property_present = properties.value(PR_BODY).is_some();
-    let html_property_present =
-        properties.value(PR_HTML).is_some() || properties.value(PR_HTML_STRING).is_some();
+    let text_property_present = properties.value(PR_BODY).is_some() || properties.value(PR_BODY_A).is_some();
+    let html_property_present = properties.value(PR_HTML).is_some()
+        || properties.value(PR_HTML_STRING).is_some()
+        || properties.value(PR_HTML_STRING_A).is_some();
     let rtf_property_present = properties.value(PR_RTF_COMPRESSED).is_some();
     let supported_body_property_count = [
         text_property_present,
@@ -183,7 +186,10 @@ mod tests {
         body_coverage_report, body_extension, body_payloads_from_properties, html_body_payload,
         html_string_body_payload, text_body_payload, unavailable_body_record,
     };
-    use crate::pst::mapi::{MapiValue, PR_BODY, PR_HTML, PR_HTML_STRING, PR_RTF_COMPRESSED};
+    use crate::pst::mapi::{
+        MapiValue, PR_BODY, PR_BODY_A, PR_HTML, PR_HTML_STRING, PR_HTML_STRING_A,
+        PR_RTF_COMPRESSED,
+    };
     use crate::pst::property_context::{PropertyContext, PropertyValue};
 
     #[test]
@@ -246,6 +252,42 @@ mod tests {
         assert_eq!(payloads.len(), 2);
         assert_eq!(payloads[0].record.body_type, "text");
         assert_eq!(payloads[1].record.body_type, "html");
+    }
+
+    #[test]
+    fn builds_body_payloads_from_string8_alias_properties() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_BODY_A,
+            PropertyValue {
+                tag: PR_BODY_A,
+                name: "body_text".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("Hello alias".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_HTML_STRING_A,
+            PropertyValue {
+                tag: PR_HTML_STRING_A,
+                name: "body_html_unicode".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("<p>Alias</p>".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext { values };
+
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        let report = body_coverage_report(&properties, &payloads);
+
+        assert_eq!(payloads.len(), 2);
+        assert_eq!(payloads[0].record.body_type, "text");
+        assert_eq!(payloads[1].record.body_type, "html");
+        assert!(report.text_property_present);
+        assert!(report.html_property_present);
+        assert_eq!(report.supported_body_property_count, 2);
     }
 
     #[test]
