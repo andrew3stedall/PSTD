@@ -232,7 +232,6 @@ pub struct BbtIndex {
     pub traversal_error_count: u64,
     pub duplicate_entry_count: u64,
     pub truncated_entry_count: u64,
-    pub page_diagnostics: Vec<BbtPageDiagnostic>,
     pub status: String,
 }
 
@@ -241,23 +240,40 @@ impl BbtIndex {
         Self::load_root_with_limits(reader, root, ParserLimits::default())
     }
 
+    pub fn load_root_with_diagnostics(
+        reader: &PstByteReader,
+        root: Option<PageRef>,
+    ) -> PstdResult<(Self, Vec<BbtPageDiagnostic>)> {
+        Self::load_root_with_limits_and_diagnostics(reader, root, ParserLimits::default())
+    }
+
     pub fn load_root_with_limits(
         reader: &PstByteReader,
         root: Option<PageRef>,
         limits: ParserLimits,
     ) -> PstdResult<Self> {
+        Self::load_root_with_limits_and_diagnostics(reader, root, limits).map(|(index, _)| index)
+    }
+
+    fn load_root_with_limits_and_diagnostics(
+        reader: &PstByteReader,
+        root: Option<PageRef>,
+        limits: ParserLimits,
+    ) -> PstdResult<(Self, Vec<BbtPageDiagnostic>)> {
         let Some(root_ref) = root else {
-            return Ok(Self {
-                root,
-                entries: Vec::new(),
-                parsed_pages: 0,
-                discovered_child_pages: 0,
-                traversal_error_count: 0,
-                duplicate_entry_count: 0,
-                truncated_entry_count: 0,
-                page_diagnostics: Vec::new(),
-                status: "root_unavailable".to_string(),
-            });
+            return Ok((
+                Self {
+                    root,
+                    entries: Vec::new(),
+                    parsed_pages: 0,
+                    discovered_child_pages: 0,
+                    traversal_error_count: 0,
+                    duplicate_entry_count: 0,
+                    truncated_entry_count: 0,
+                    status: "root_unavailable".to_string(),
+                },
+                Vec::new(),
+            ));
         };
 
         if root_ref.offset.0 >= reader.file_size() {
@@ -335,17 +351,19 @@ impl BbtIndex {
             limits.max_btree_pages
         );
 
-        Ok(Self {
-            root,
-            entries,
-            parsed_pages,
-            discovered_child_pages,
-            traversal_error_count,
-            duplicate_entry_count,
-            truncated_entry_count,
+        Ok((
+            Self {
+                root,
+                entries,
+                parsed_pages,
+                discovered_child_pages,
+                traversal_error_count,
+                duplicate_entry_count,
+                truncated_entry_count,
+                status,
+            },
             page_diagnostics,
-            status,
-        })
+        ))
     }
 
     pub fn lookup(&self, block_id: BlockId) -> Option<BlockRef> {
