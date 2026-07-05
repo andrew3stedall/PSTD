@@ -58,13 +58,13 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | PQ2: Root Decode Candidate Selection | #193 | CI validated |
 | PQ3: Index Entry Decoding | #199 | CI validated |
 | PQ4: Folder Hierarchy Discovery | #247 | CI validated |
-| PQ5: Message Table Discovery | TBD | PR validation pending |
+| PQ5: Message Table Discovery | #262 | CI validated before merge |
 
 ## Latest validation
 
-GitHub Actions validation passed for PQ4 in PR #247. PQ5 is the current conversion-quality lane.
+GitHub Actions validation passed for PQ5 in PR #262. The `public-pst-progress` artifact from CI #186 shows the checked-in public PST fixture now emits 11 folders, 1 message candidate, and 0 attachments. PQ5 also identifies 11 table candidates, with 8 linked to decoded folder candidates and 3 unlinked.
 
-Expected PQ5 validation includes:
+Expected PQ6 validation includes:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -81,16 +81,15 @@ There are **no remaining planned v1 milestones after M25**.
 
 ## Current active blocker
 
-PQ5 message table discovery.
+PQ6 property context and body coverage.
 
-The current focus is solely PST conversion coverage. The immediate question is whether decoded NBT entries can be split into true message candidates and table/folder evidence instead of treating raw NBT entries as message metadata candidates.
+The current focus is solely PST conversion coverage. After PQ5, the public fixture message count is based on decoded message-like nodes rather than raw NBT enumeration. The immediate question is how many true message candidates have usable property contexts, headers, and body payloads.
 
 ## Active conversion coverage roadmap
 
-1. PQ5: message table discovery and folder-message membership evidence.
-2. PQ6: property context and body coverage.
-3. PQ7: attachment and recipient coverage.
-4. PQ8: fixture corpus and ground-truth comparison.
+1. PQ6: property context and body coverage.
+2. PQ7: attachment and recipient coverage.
+3. PQ8: fixture corpus and ground-truth comparison.
 
 ## Parked work
 
