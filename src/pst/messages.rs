@@ -50,8 +50,8 @@ pub fn body_coverage_report(
     payloads: &[BodyPayload],
 ) -> BodyCoverageReport {
     let text_property_present = properties.value(PR_BODY).is_some();
-    let html_property_present = properties.value(PR_HTML).is_some()
-        || properties.value(PR_HTML_STRING).is_some();
+    let html_property_present =
+        properties.value(PR_HTML).is_some() || properties.value(PR_HTML_STRING).is_some();
     let rtf_property_present = properties.value(PR_RTF_COMPRESSED).is_some();
     let supported_body_property_count = [
         text_property_present,
