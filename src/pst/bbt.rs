@@ -1,11 +1,17 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate::error::{PstdError, PstdResult};
-use crate::pst::binary::{u32_le_at, u64_le_at, u8_at};
+use crate::pst::binary::{u16_le_at, u64_le_at, u8_at};
 use crate::pst::limits::ParserLimits;
 use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, PageRef};
 use crate::pst::reader::PstByteReader;
 use crate::pst::trailer::PageTrailer;
+
+const BT_PAGE_ENTRY_AREA_BYTES: usize = 488;
+const BT_PAGE_ENTRY_COUNT_OFFSET: usize = 488;
+const BT_PAGE_ENTRY_CAPACITY_OFFSET: usize = 489;
+const BT_PAGE_ENTRY_SIZE_OFFSET: usize = 490;
+const BT_PAGE_LEVEL_OFFSET: usize = 491;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BbtEntry {
@@ -31,9 +37,24 @@ pub struct BbtChildPageRef {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BbtPageDiagnostic {
+    pub source_offset: u64,
+    pub entry_count: u8,
+    pub entry_capacity: u8,
+    pub entry_size: u8,
+    pub parsed_entry_count: usize,
+    pub truncated_entry_count: usize,
+    pub page_type: Option<u8>,
+    pub page_level: u8,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BbtPage {
     pub source_offset: u64,
     pub entry_count: u8,
+    pub entry_capacity: u8,
+    pub entry_size: u8,
     pub parsed_entry_count: usize,
     pub truncated_entry_count: usize,
     pub page_type: Option<u8>,
@@ -52,43 +73,89 @@ impl BbtPage {
                 "BBT page too short",
             ));
         }
-
-        let entry_count = u8_at(page, 0, source_offset)?;
-        let entry_size = 24usize;
-        let entries_start = 4usize;
-        let data_end = page.len().saturating_sub(PageTrailer::LEN);
-        let capacity = data_end.saturating_sub(entries_start) / entry_size;
-        let entries_to_parse = (entry_count as usize).min(capacity);
-        let truncated_entry_count = (entry_count as usize).saturating_sub(entries_to_parse);
-        let mut entries = Vec::new();
-
-        for idx in 0..entries_to_parse {
-            let start = entries_start + idx * entry_size;
-            let block_id = BlockId(u64_le_at(page, start, source_offset)?);
-            let offset = ByteOffset(u64_le_at(page, start + 8, source_offset)?);
-            let size = u32_le_at(page, start + 16, source_offset)? as u64;
-            entries.push(BbtEntry {
-                block_id,
-                offset,
-                size,
-            });
+        if page.len() < 512 {
+            return Err(PstdError::pst_parse(
+                Some(source_offset),
+                "BBT page shorter than 512 bytes",
+            ));
         }
 
+        let entry_count = u8_at(page, BT_PAGE_ENTRY_COUNT_OFFSET, source_offset)?;
+        let entry_capacity = u8_at(page, BT_PAGE_ENTRY_CAPACITY_OFFSET, source_offset)?;
+        let entry_size = u8_at(page, BT_PAGE_ENTRY_SIZE_OFFSET, source_offset)?;
+        let page_level = u8_at(page, BT_PAGE_LEVEL_OFFSET, source_offset)?;
         let trailer = PageTrailer::parse_from_page(page, source_offset).ok();
         let page_type = trailer.as_ref().map(|value| value.page_type);
-        let page_level = trailer.as_ref().map(|value| value.page_level);
-        let child_page_refs = if page_level.unwrap_or(0) > 0 {
-            entries
-                .iter()
-                .map(|entry| BbtChildPageRef {
-                    block_id: entry.block_id,
-                    offset: entry.offset,
-                })
-                .collect()
+
+        if entry_size == 0 {
+            return Ok(Self::unsupported(
+                source_offset,
+                entry_count,
+                entry_capacity,
+                entry_size,
+                page_type,
+                page_level,
+                trailer,
+                "unsupported_zero_entry_size",
+            ));
+        }
+
+        let capacity_by_size = BT_PAGE_ENTRY_AREA_BYTES / entry_size as usize;
+        let entries_to_parse = (entry_count as usize)
+            .min(entry_capacity as usize)
+            .min(capacity_by_size);
+        let truncated_entry_count = (entry_count as usize).saturating_sub(entries_to_parse);
+        let mut entries = Vec::new();
+        let mut child_page_refs = Vec::new();
+
+        for idx in 0..entries_to_parse {
+            let start = idx * entry_size as usize;
+            if page_level > 0 {
+                if entry_size < 24 {
+                    return Ok(Self::unsupported(
+                        source_offset,
+                        entry_count,
+                        entry_capacity,
+                        entry_size,
+                        page_type,
+                        page_level,
+                        trailer,
+                        "unsupported_internal_entry_size",
+                    ));
+                }
+                let block_id = BlockId(u64_le_at(page, start + 8, source_offset)?);
+                let offset = ByteOffset(u64_le_at(page, start + 16, source_offset)?);
+                child_page_refs.push(BbtChildPageRef { block_id, offset });
+            } else {
+                if entry_size < 20 {
+                    return Ok(Self::unsupported(
+                        source_offset,
+                        entry_count,
+                        entry_capacity,
+                        entry_size,
+                        page_type,
+                        page_level,
+                        trailer,
+                        "unsupported_leaf_entry_size",
+                    ));
+                }
+                let block_id = BlockId(u64_le_at(page, start, source_offset)?);
+                let offset = ByteOffset(u64_le_at(page, start + 8, source_offset)?);
+                let size = u16_le_at(page, start + 16, source_offset)? as u64;
+                entries.push(BbtEntry {
+                    block_id,
+                    offset,
+                    size,
+                });
+            }
+        }
+
+        let parsed_entry_count = if page_level > 0 {
+            child_page_refs.len()
         } else {
-            Vec::new()
+            entries.len()
         };
-        let status = match (truncated_entry_count == 0, page_level.unwrap_or(0) > 0) {
+        let status = match (truncated_entry_count == 0, page_level > 0) {
             (true, true) => "complete_internal".to_string(),
             (true, false) => "complete_leaf".to_string(),
             (false, true) => "truncated_internal_entries".to_string(),
@@ -98,10 +165,12 @@ impl BbtPage {
         Ok(Self {
             source_offset,
             entry_count,
-            parsed_entry_count: entries.len(),
+            entry_capacity,
+            entry_size,
+            parsed_entry_count,
             truncated_entry_count,
             page_type,
-            page_level,
+            page_level: Some(page_level),
             entries,
             child_page_refs,
             trailer,
@@ -109,8 +178,48 @@ impl BbtPage {
         })
     }
 
+    fn unsupported(
+        source_offset: u64,
+        entry_count: u8,
+        entry_capacity: u8,
+        entry_size: u8,
+        page_type: Option<u8>,
+        page_level: u8,
+        trailer: Option<PageTrailer>,
+        status: &str,
+    ) -> Self {
+        Self {
+            source_offset,
+            entry_count,
+            entry_capacity,
+            entry_size,
+            parsed_entry_count: 0,
+            truncated_entry_count: entry_count as usize,
+            page_type,
+            page_level: Some(page_level),
+            entries: Vec::new(),
+            child_page_refs: Vec::new(),
+            trailer,
+            status: status.to_string(),
+        }
+    }
+
     pub fn is_internal(&self) -> bool {
         self.page_level.unwrap_or(0) > 0
+    }
+
+    pub fn diagnostic(&self) -> BbtPageDiagnostic {
+        BbtPageDiagnostic {
+            source_offset: self.source_offset,
+            entry_count: self.entry_count,
+            entry_capacity: self.entry_capacity,
+            entry_size: self.entry_size,
+            parsed_entry_count: self.parsed_entry_count,
+            truncated_entry_count: self.truncated_entry_count,
+            page_type: self.page_type,
+            page_level: self.page_level.unwrap_or(0),
+            status: self.status.clone(),
+        }
     }
 }
 
@@ -131,22 +240,40 @@ impl BbtIndex {
         Self::load_root_with_limits(reader, root, ParserLimits::default())
     }
 
+    pub fn load_root_with_diagnostics(
+        reader: &PstByteReader,
+        root: Option<PageRef>,
+    ) -> PstdResult<(Self, Vec<BbtPageDiagnostic>)> {
+        Self::load_root_with_limits_and_diagnostics(reader, root, ParserLimits::default())
+    }
+
     pub fn load_root_with_limits(
         reader: &PstByteReader,
         root: Option<PageRef>,
         limits: ParserLimits,
     ) -> PstdResult<Self> {
+        Self::load_root_with_limits_and_diagnostics(reader, root, limits).map(|(index, _)| index)
+    }
+
+    fn load_root_with_limits_and_diagnostics(
+        reader: &PstByteReader,
+        root: Option<PageRef>,
+        limits: ParserLimits,
+    ) -> PstdResult<(Self, Vec<BbtPageDiagnostic>)> {
         let Some(root_ref) = root else {
-            return Ok(Self {
-                root,
-                entries: Vec::new(),
-                parsed_pages: 0,
-                discovered_child_pages: 0,
-                traversal_error_count: 0,
-                duplicate_entry_count: 0,
-                truncated_entry_count: 0,
-                status: "root_unavailable".to_string(),
-            });
+            return Ok((
+                Self {
+                    root,
+                    entries: Vec::new(),
+                    parsed_pages: 0,
+                    discovered_child_pages: 0,
+                    traversal_error_count: 0,
+                    duplicate_entry_count: 0,
+                    truncated_entry_count: 0,
+                    status: "root_unavailable".to_string(),
+                },
+                Vec::new(),
+            ));
         };
 
         if root_ref.offset.0 >= reader.file_size() {
@@ -161,6 +288,7 @@ impl BbtIndex {
         let mut discovered_child_pages = 0u64;
         let mut traversal_error_count = 0u64;
         let mut truncated_entry_count = 0u64;
+        let mut page_diagnostics = Vec::new();
         let mut seen_offsets = HashSet::new();
         let mut queue = VecDeque::from([root_ref]);
 
@@ -191,6 +319,7 @@ impl BbtIndex {
 
             parsed_pages += 1;
             truncated_entry_count += parsed.truncated_entry_count as u64;
+            page_diagnostics.push(parsed.diagnostic());
 
             if parsed.is_internal() {
                 for child in parsed.child_page_refs {
@@ -222,16 +351,19 @@ impl BbtIndex {
             limits.max_btree_pages
         );
 
-        Ok(Self {
-            root,
-            entries,
-            parsed_pages,
-            discovered_child_pages,
-            traversal_error_count,
-            duplicate_entry_count,
-            truncated_entry_count,
-            status,
-        })
+        Ok((
+            Self {
+                root,
+                entries,
+                parsed_pages,
+                discovered_child_pages,
+                traversal_error_count,
+                duplicate_entry_count,
+                truncated_entry_count,
+                status,
+            },
+            page_diagnostics,
+        ))
     }
 
     pub fn lookup(&self, block_id: BlockId) -> Option<BlockRef> {

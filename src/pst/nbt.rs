@@ -7,6 +7,12 @@ use crate::pst::primitives::{BlockId, ByteOffset, NodeId, PageRef};
 use crate::pst::reader::PstByteReader;
 use crate::pst::trailer::PageTrailer;
 
+const BT_PAGE_ENTRY_AREA_BYTES: usize = 488;
+const BT_PAGE_ENTRY_COUNT_OFFSET: usize = 488;
+const BT_PAGE_ENTRY_CAPACITY_OFFSET: usize = 489;
+const BT_PAGE_ENTRY_SIZE_OFFSET: usize = 490;
+const BT_PAGE_LEVEL_OFFSET: usize = 491;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NbtEntry {
     pub node_id: NodeId,
@@ -21,9 +27,24 @@ pub struct NbtChildPageRef {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct NbtPageDiagnostic {
+    pub source_offset: u64,
+    pub entry_count: u8,
+    pub entry_capacity: u8,
+    pub entry_size: u8,
+    pub parsed_entry_count: usize,
+    pub truncated_entry_count: usize,
+    pub page_type: Option<u8>,
+    pub page_level: u8,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NbtPage {
     pub source_offset: u64,
     pub entry_count: u8,
+    pub entry_capacity: u8,
+    pub entry_size: u8,
     pub parsed_entry_count: usize,
     pub truncated_entry_count: usize,
     pub page_type: Option<u8>,
@@ -42,48 +63,94 @@ impl NbtPage {
                 "node page too short",
             ));
         }
-
-        let entry_count = u8_at(page, 0, source_offset)?;
-        let mut entries = Vec::new();
-        let entry_size = 32usize;
-        let entries_start = 4usize;
-        let data_end = page.len().saturating_sub(PageTrailer::LEN);
-        let capacity = data_end.saturating_sub(entries_start) / entry_size;
-        let entries_to_parse = (entry_count as usize).min(capacity);
-        let truncated_entry_count = (entry_count as usize).saturating_sub(entries_to_parse);
-
-        for idx in 0..entries_to_parse {
-            let start = entries_start + idx * entry_size;
-            let node_id = NodeId(u64_le_at(page, start, source_offset)?);
-            let data_block_id = BlockId(u64_le_at(page, start + 8, source_offset)?);
-            let raw_subnode = u64_le_at(page, start + 16, source_offset)?;
-            let subnode_block_id = if raw_subnode == 0 {
-                None
-            } else {
-                Some(BlockId(raw_subnode))
-            };
-            entries.push(NbtEntry {
-                node_id,
-                data_block_id,
-                subnode_block_id,
-            });
+        if page.len() < 512 {
+            return Err(PstdError::pst_parse(
+                Some(source_offset),
+                "node page shorter than 512 bytes",
+            ));
         }
 
+        let entry_count = u8_at(page, BT_PAGE_ENTRY_COUNT_OFFSET, source_offset)?;
+        let entry_capacity = u8_at(page, BT_PAGE_ENTRY_CAPACITY_OFFSET, source_offset)?;
+        let entry_size = u8_at(page, BT_PAGE_ENTRY_SIZE_OFFSET, source_offset)?;
+        let page_level = u8_at(page, BT_PAGE_LEVEL_OFFSET, source_offset)?;
         let trailer = PageTrailer::parse_from_page(page, source_offset).ok();
         let page_type = trailer.as_ref().map(|value| value.page_type);
-        let page_level = trailer.as_ref().map(|value| value.page_level);
-        let child_page_refs = if page_level.unwrap_or(0) > 0 {
-            entries
-                .iter()
-                .map(|entry| NbtChildPageRef {
-                    node_id: entry.node_id,
-                    offset: ByteOffset(entry.data_block_id.0),
-                })
-                .collect()
+
+        if entry_size == 0 {
+            return Ok(Self::unsupported(
+                source_offset,
+                entry_count,
+                entry_capacity,
+                entry_size,
+                page_type,
+                page_level,
+                trailer,
+                "zero_entry_size",
+            ));
+        }
+
+        let capacity_by_size = BT_PAGE_ENTRY_AREA_BYTES / entry_size as usize;
+        let entries_to_parse = (entry_count as usize)
+            .min(entry_capacity as usize)
+            .min(capacity_by_size);
+        let truncated_entry_count = (entry_count as usize).saturating_sub(entries_to_parse);
+        let mut entries = Vec::new();
+        let mut child_page_refs = Vec::new();
+
+        for idx in 0..entries_to_parse {
+            let start = idx * entry_size as usize;
+            if page_level > 0 {
+                if entry_size < 24 {
+                    return Ok(Self::unsupported(
+                        source_offset,
+                        entry_count,
+                        entry_capacity,
+                        entry_size,
+                        page_type,
+                        page_level,
+                        trailer,
+                        "small_internal_entry",
+                    ));
+                }
+                let node_id = NodeId(u64_le_at(page, start, source_offset)?);
+                let offset = ByteOffset(u64_le_at(page, start + 16, source_offset)?);
+                child_page_refs.push(NbtChildPageRef { node_id, offset });
+            } else {
+                if entry_size < 24 {
+                    return Ok(Self::unsupported(
+                        source_offset,
+                        entry_count,
+                        entry_capacity,
+                        entry_size,
+                        page_type,
+                        page_level,
+                        trailer,
+                        "small_leaf_entry",
+                    ));
+                }
+                let node_id = NodeId(u64_le_at(page, start, source_offset)?);
+                let data_block_id = BlockId(u64_le_at(page, start + 8, source_offset)?);
+                let raw_subnode = u64_le_at(page, start + 16, source_offset)?;
+                let subnode_block_id = if raw_subnode == 0 {
+                    None
+                } else {
+                    Some(BlockId(raw_subnode))
+                };
+                entries.push(NbtEntry {
+                    node_id,
+                    data_block_id,
+                    subnode_block_id,
+                });
+            }
+        }
+
+        let parsed_entry_count = if page_level > 0 {
+            child_page_refs.len()
         } else {
-            Vec::new()
+            entries.len()
         };
-        let status = match (truncated_entry_count == 0, page_level.unwrap_or(0) > 0) {
+        let status = match (truncated_entry_count == 0, page_level > 0) {
             (true, true) => "complete_internal".to_string(),
             (true, false) => "complete_leaf".to_string(),
             (false, true) => "truncated_internal_entries".to_string(),
@@ -93,10 +160,12 @@ impl NbtPage {
         Ok(Self {
             source_offset,
             entry_count,
-            parsed_entry_count: entries.len(),
+            entry_capacity,
+            entry_size,
+            parsed_entry_count,
             truncated_entry_count,
             page_type,
-            page_level,
+            page_level: Some(page_level),
             entries,
             child_page_refs,
             trailer,
@@ -104,8 +173,48 @@ impl NbtPage {
         })
     }
 
+    fn unsupported(
+        source_offset: u64,
+        entry_count: u8,
+        entry_capacity: u8,
+        entry_size: u8,
+        page_type: Option<u8>,
+        page_level: u8,
+        trailer: Option<PageTrailer>,
+        status: &str,
+    ) -> Self {
+        Self {
+            source_offset,
+            entry_count,
+            entry_capacity,
+            entry_size,
+            parsed_entry_count: 0,
+            truncated_entry_count: entry_count as usize,
+            page_type,
+            page_level: Some(page_level),
+            entries: Vec::new(),
+            child_page_refs: Vec::new(),
+            trailer,
+            status: status.to_string(),
+        }
+    }
+
     pub fn is_internal(&self) -> bool {
         self.page_level.unwrap_or(0) > 0
+    }
+
+    pub fn diagnostic(&self) -> NbtPageDiagnostic {
+        NbtPageDiagnostic {
+            source_offset: self.source_offset,
+            entry_count: self.entry_count,
+            entry_capacity: self.entry_capacity,
+            entry_size: self.entry_size,
+            parsed_entry_count: self.parsed_entry_count,
+            truncated_entry_count: self.truncated_entry_count,
+            page_type: self.page_type,
+            page_level: self.page_level.unwrap_or(0),
+            status: self.status.clone(),
+        }
     }
 }
 
@@ -118,6 +227,7 @@ pub struct NbtIndex {
     pub traversal_error_count: u64,
     pub duplicate_entry_count: u64,
     pub truncated_entry_count: u64,
+    pub page_diagnostics: Vec<NbtPageDiagnostic>,
     pub status: String,
 }
 
@@ -140,6 +250,7 @@ impl NbtIndex {
                 traversal_error_count: 0,
                 duplicate_entry_count: 0,
                 truncated_entry_count: 0,
+                page_diagnostics: Vec::new(),
                 status: "root_unavailable".to_string(),
             });
         };
@@ -155,6 +266,7 @@ impl NbtIndex {
         let mut discovered_child_pages = 0u64;
         let mut traversal_error_count = 0u64;
         let mut truncated_entry_count = 0u64;
+        let mut page_diagnostics = Vec::new();
         let mut seen_offsets = HashSet::new();
         let mut queue = VecDeque::from([root_ref]);
 
@@ -184,6 +296,7 @@ impl NbtIndex {
 
             parsed_pages += 1;
             truncated_entry_count += parsed.truncated_entry_count as u64;
+            page_diagnostics.push(parsed.diagnostic());
 
             if parsed.is_internal() {
                 for child in parsed.child_page_refs {
@@ -223,6 +336,7 @@ impl NbtIndex {
             traversal_error_count,
             duplicate_entry_count,
             truncated_entry_count,
+            page_diagnostics,
             status,
         })
     }

@@ -9,14 +9,15 @@ use tempfile::NamedTempFile;
 #[test]
 fn bbt_page_reports_complete_parse_diagnostics() {
     let mut page = empty_page();
-    page[0] = 1;
-    write_u64(&mut page, 4, 0x100);
-    write_u64(&mut page, 12, 1024);
-    write_u32(&mut page, 20, 128);
-    write_trailer(&mut page, 0x80, 0);
+    write_u64(&mut page, 0, 0x100);
+    write_u64(&mut page, 8, 1024);
+    write_u16(&mut page, 16, 128);
+    write_bt_page_metadata(&mut page, 1, 20, 24, 0, 0x80);
 
     let parsed = BbtPage::parse(&page, 4096).unwrap();
     assert_eq!(parsed.entry_count, 1);
+    assert_eq!(parsed.entry_capacity, 20);
+    assert_eq!(parsed.entry_size, 24);
     assert_eq!(parsed.parsed_entry_count, 1);
     assert_eq!(parsed.truncated_entry_count, 0);
     assert_eq!(parsed.page_type, Some(0x80));
@@ -31,8 +32,7 @@ fn bbt_page_reports_complete_parse_diagnostics() {
 #[test]
 fn bbt_page_reports_truncated_entries() {
     let mut page = empty_page();
-    page[0] = 21;
-    write_trailer(&mut page, 0x80, 0);
+    write_bt_page_metadata(&mut page, 21, 20, 24, 0, 0x80);
 
     let parsed = BbtPage::parse(&page, 0).unwrap();
     assert_eq!(parsed.entry_count, 21);
@@ -44,18 +44,16 @@ fn bbt_page_reports_truncated_entries() {
 #[test]
 fn bbt_index_traverses_internal_page_to_leaf_page() {
     let mut root = empty_page();
-    root[0] = 1;
-    write_u64(&mut root, 4, 0x10);
-    write_u64(&mut root, 12, 512);
-    write_u32(&mut root, 20, 0);
-    write_trailer(&mut root, 0x80, 1);
+    write_u64(&mut root, 0, 0x10);
+    write_u64(&mut root, 8, 0x99);
+    write_u64(&mut root, 16, 512);
+    write_bt_page_metadata(&mut root, 1, 20, 24, 1, 0x80);
 
     let mut leaf = empty_page();
-    leaf[0] = 1;
-    write_u64(&mut leaf, 4, 0x20);
-    write_u64(&mut leaf, 12, 2048);
-    write_u32(&mut leaf, 20, 256);
-    write_trailer(&mut leaf, 0x80, 0);
+    write_u64(&mut leaf, 0, 0x20);
+    write_u64(&mut leaf, 8, 2048);
+    write_u16(&mut leaf, 16, 256);
+    write_bt_page_metadata(&mut leaf, 1, 20, 24, 0, 0x80);
 
     let reader = reader_with_pages([root, leaf].concat());
     let index = BbtIndex::load_root(
@@ -77,14 +75,15 @@ fn bbt_index_traverses_internal_page_to_leaf_page() {
 #[test]
 fn nbt_page_reports_complete_parse_diagnostics() {
     let mut page = empty_page();
-    page[0] = 1;
-    write_u64(&mut page, 4, 0x200);
-    write_u64(&mut page, 12, 0x300);
-    write_u64(&mut page, 20, 0x400);
-    write_trailer(&mut page, 0x81, 0);
+    write_u64(&mut page, 0, 0x200);
+    write_u64(&mut page, 8, 0x300);
+    write_u64(&mut page, 16, 0x400);
+    write_bt_page_metadata(&mut page, 1, 15, 32, 0, 0x81);
 
     let parsed = NbtPage::parse(&page, 8192).unwrap();
     assert_eq!(parsed.entry_count, 1);
+    assert_eq!(parsed.entry_capacity, 15);
+    assert_eq!(parsed.entry_size, 32);
     assert_eq!(parsed.parsed_entry_count, 1);
     assert_eq!(parsed.truncated_entry_count, 0);
     assert_eq!(parsed.page_type, Some(0x81));
@@ -99,8 +98,7 @@ fn nbt_page_reports_complete_parse_diagnostics() {
 #[test]
 fn nbt_page_reports_truncated_entries() {
     let mut page = empty_page();
-    page[0] = 16;
-    write_trailer(&mut page, 0x81, 0);
+    write_bt_page_metadata(&mut page, 16, 15, 32, 0, 0x81);
 
     let parsed = NbtPage::parse(&page, 0).unwrap();
     assert_eq!(parsed.entry_count, 16);
@@ -112,18 +110,16 @@ fn nbt_page_reports_truncated_entries() {
 #[test]
 fn nbt_index_traverses_internal_page_to_leaf_page() {
     let mut root = empty_page();
-    root[0] = 1;
-    write_u64(&mut root, 4, 0x10);
-    write_u64(&mut root, 12, 512);
-    write_u64(&mut root, 20, 0);
-    write_trailer(&mut root, 0x81, 1);
+    write_u64(&mut root, 0, 0x10);
+    write_u64(&mut root, 8, 0x99);
+    write_u64(&mut root, 16, 512);
+    write_bt_page_metadata(&mut root, 1, 20, 24, 1, 0x81);
 
     let mut leaf = empty_page();
-    leaf[0] = 1;
-    write_u64(&mut leaf, 4, 0x20);
-    write_u64(&mut leaf, 12, 0x30);
-    write_u64(&mut leaf, 20, 0x40);
-    write_trailer(&mut leaf, 0x81, 0);
+    write_u64(&mut leaf, 0, 0x20);
+    write_u64(&mut leaf, 8, 0x30);
+    write_u64(&mut leaf, 16, 0x40);
+    write_bt_page_metadata(&mut leaf, 1, 15, 32, 0, 0x81);
 
     let reader = reader_with_pages([root, leaf].concat());
     let index = NbtIndex::load_root(
@@ -139,6 +135,7 @@ fn nbt_index_traverses_internal_page_to_leaf_page() {
     assert_eq!(index.traversal_error_count, 0);
     assert_eq!(index.entries.len(), 1);
     assert_eq!(index.entries[0].node_id.0, 0x20);
+    assert_eq!(index.page_diagnostics.len(), 2);
     assert!(index.status.contains("tree_traversed"));
 }
 
@@ -152,14 +149,23 @@ fn reader_with_pages(bytes: Vec<u8>) -> PstByteReader {
     PstByteReader::open(file.path()).unwrap()
 }
 
-fn write_trailer(page: &mut [u8], page_type: u8, page_level: u8) {
-    let start = page.len() - 16;
-    page[start] = page_type;
-    page[start + 1] = page_level;
+fn write_bt_page_metadata(
+    page: &mut [u8],
+    entry_count: u8,
+    entry_capacity: u8,
+    entry_size: u8,
+    page_level: u8,
+    page_type: u8,
+) {
+    page[488] = entry_count;
+    page[489] = entry_capacity;
+    page[490] = entry_size;
+    page[491] = page_level;
+    page[496] = page_type;
 }
 
-fn write_u32(page: &mut [u8], offset: usize, value: u32) {
-    page[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+fn write_u16(page: &mut [u8], offset: usize, value: u16) {
+    page[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
 }
 
 fn write_u64(page: &mut [u8], offset: usize, value: u64) {
