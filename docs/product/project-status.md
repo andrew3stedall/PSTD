@@ -16,9 +16,9 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Folder hierarchy | PQ4 folder hierarchy discovery | PQ4 classifies decoded normal/search folder NBT entries, emits folder rows, and records folder discovery counters. |
 | Message table discovery | PQ5 message table discovery | PQ5 classifies normal/associated message NBT entries separately from folder/table nodes and records message-table evidence counters. |
 | Property/body coverage | PQ6 property and body coverage | PQ6 records property-context coverage and body payload/fallback counters for true message candidates. |
-| Metadata processing | PQ6 property and body coverage | Message extraction no longer emits every decoded NBT entry as a message row; PQ6 adds property/body coverage evidence for the true candidate set. |
+| Metadata processing | PQ6 property and body coverage | The true public-fixture message candidate has a loadable property context, but the selected MAPI dictionary currently maps 0 of 74 parsed properties. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
-| Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence; PQ6 adds coverage counters and fallback statuses. |
+| Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence; PQ6 shows no supported body property is selected in the public fixture yet. |
 | Attachments | M23 attachment fidelity and CI validated | M23 preserves metadata-only attachment rows, declared size, size status, method, and deferred embedded-message status. |
 | Batch orchestration | M24 batch hardening and CI validated | M24 adds root-level `batch_progress.jsonl`, expanded `batch_summary.json`, deterministic resume-by-skip context, partial-success classification, and not-run counts. |
 | Release-candidate handoff | M25 and CI validated | M25 adds RC checklist, local/Docker operator handoff, and unsupported/deferred area docs. |
@@ -60,13 +60,13 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | PQ3: Index Entry Decoding | #199 | CI validated |
 | PQ4: Folder Hierarchy Discovery | #247 | CI validated |
 | PQ5: Message Table Discovery | #262 | CI validated |
-| PQ6: Property and Body Coverage | TBD | PR validation pending |
+| PQ6: Property and Body Coverage | #268 | CI validated before merge |
 
 ## Latest validation
 
-GitHub Actions validation passed for PQ5 in PR #262. The `public-pst-progress` artifact from CI #186 shows the checked-in public PST fixture emits 11 folders, 1 message candidate, and 0 attachments. PQ5 also identifies 11 table candidates, with 8 linked to decoded folder candidates and 3 unlinked.
+GitHub Actions validation passed for PQ6 in PR #268. The `public-pst-progress` artifact from CI #192 shows the checked-in public PST fixture emits 11 folders, 1 message candidate, and 0 attachments. PQ6 confirms the true message candidate has a loadable property context, but the selected MAPI dictionary currently maps 0 of 74 parsed properties. Body payload coverage remains 0 and one body fallback row is emitted.
 
-Expected PQ6 validation includes:
+Expected PQ7 validation includes:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -83,15 +83,15 @@ There are **no remaining planned v1 milestones after M25**.
 
 ## Current active blocker
 
-PQ6 property context and body coverage.
+PQ7 selected property dictionary expansion.
 
-The current focus is solely PST conversion coverage. After PQ5, the public fixture message count is based on decoded message-like nodes rather than raw NBT enumeration. The immediate question is how many true message candidates have usable property contexts, headers, and body payloads.
+The current focus is solely PST conversion coverage. After PQ6, the immediate blocker is not loading the property context; that now succeeds for the true public-fixture message candidate. The blocker is mapping the 74 parsed but unknown property tags into useful selected MAPI fields so subject, sender, body, attachment, and recipient evidence can be extracted honestly.
 
 ## Active conversion coverage roadmap
 
-1. PQ6: property context and body coverage.
-2. PQ7: attachment and recipient coverage.
-3. PQ8: fixture corpus and ground-truth comparison.
+1. PQ7: selected property dictionary expansion for the public fixture.
+2. PQ8: body, attachment, and recipient payload coverage after selected properties improve.
+3. PQ9: fixture corpus and ground-truth comparison.
 
 ## Parked work
 
