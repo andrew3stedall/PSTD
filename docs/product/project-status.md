@@ -13,7 +13,8 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
 | PST header parser | PQ2 candidate selection | Validates PST magic and version/variant summary; PQ2 selects safe root candidates for traversal when available. |
 | BBT/NBT parsing | PQ3 index entry decoding | PQ3 corrects B-tree page metadata offsets, internal child references, and page diagnostics. |
-| Metadata processing | M22 body/header fidelity and CI validated | M22 surfaces `PR_TRANSPORT_MESSAGE_HEADERS` on message records when present. |
+| Folder hierarchy | PQ4 folder hierarchy discovery | PQ4 classifies decoded normal/search folder NBT entries, emits folder rows, and records folder discovery counters. |
+| Metadata processing | PQ4 folder hierarchy discovery | Message extraction still uses NBT metadata candidates; PQ5 must add message table and folder-message membership fidelity. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
 | Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence. |
 | Attachments | M23 attachment fidelity and CI validated | M23 preserves metadata-only attachment rows, declared size, size status, method, and deferred embedded-message status. |
@@ -54,12 +55,14 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | M25: v1 Release Candidate and Operator Handoff | #180 | CI validated |
 | PQ1: Root Decode Diagnostics | #188 | CI validated |
 | PQ2: Root Decode Candidate Selection | #193 | CI validated |
+| PQ3: Index Entry Decoding | #199 | CI validated |
+| PQ4: Folder Hierarchy Discovery | #247 | CI validated before merge |
 
 ## Latest validation
 
-GitHub Actions validation passed for PQ2 in PR #193. PQ3 is the current conversion-quality lane.
+GitHub Actions validation passed for PQ4 in PR #247. The `public-pst-progress` artifact from CI #179 shows the checked-in public PST fixture now emits 11 folders, 63 messages, and 0 attachments.
 
-Expected PQ3 validation includes:
+Expected PQ5 validation includes:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -68,7 +71,7 @@ Expected PQ3 validation includes:
 - Python wrapper install and `python -m pstd --help`.
 - Docker image build.
 - CLI smoke checks, including `pstd inspect --help`.
-- Fixture discovery, inspect, and metadata extract when a PST fixture is present.
+- Fixture discovery, inspect, extract, and public PST progress artifact logging.
 
 ## Remaining v1 milestones
 
@@ -76,18 +79,16 @@ There are **no remaining planned v1 milestones after M25**.
 
 ## Current active blocker
 
-PQ3 index entry decoding.
+PQ5 message table discovery.
 
-The current focus is solely PST conversion coverage. The immediate question is whether selected BBT/NBT root pages can produce decoded entries and page diagnostics.
+The current focus is solely PST conversion coverage. The immediate question is whether decoded folders can be connected to message table membership instead of treating raw NBT entries as message metadata candidates.
 
 ## Active conversion coverage roadmap
 
-1. PQ3: index page entry decoding.
-2. PQ4: folder hierarchy discovery.
-3. PQ5: message table discovery.
-4. PQ6: property context and body coverage.
-5. PQ7: attachment and recipient coverage.
-6. PQ8: fixture corpus and ground-truth comparison.
+1. PQ5: message table discovery and folder-message membership.
+2. PQ6: property context and body coverage.
+3. PQ7: attachment and recipient coverage.
+4. PQ8: fixture corpus and ground-truth comparison.
 
 ## Parked work
 
@@ -97,4 +98,4 @@ Snowflake ingestion, UI, search, analytics loading, and other downstream work ar
 
 The M1-M25 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
 
-Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For current page-level traversal decisions, start with [PQ3 Index Entry Decoding](../operations/pq3-index-entry-decoding.md).
+Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For current folder-level traversal decisions, start with [PQ4 Folder Hierarchy Discovery](../operations/pq4-folder-hierarchy-discovery.md).
