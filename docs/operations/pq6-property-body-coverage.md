@@ -48,10 +48,14 @@ The extraction status includes `pq6_status`, which records:
 
 A status row is also written to the error/status stream for milestone auditability.
 
+## Public fixture finding
+
+On the checked-in public PST fixture, PQ6 loads a property context for the single true message candidate. That context currently contains 74 unknown properties and 0 selected properties. No supported body property is detected, so PSTD emits a body fallback row rather than a body payload.
+
 ## Known limitations after PQ6
 
 PQ6 improves measurement and fallback evidence. It does not add new low-level property-context layouts, table-row membership decoding, recipient expansion, or attachment payload extraction.
 
 ## Next blocker
 
-The next blocker is PQ7: attachment and recipient coverage. PQ6 should leave PSTD with an honest message/body coverage baseline for the public fixture before broadening into attachments and recipients.
+The next blocker is PQ7: selected property dictionary expansion for the public fixture. Attachment and recipient coverage should wait until the true message candidate's property tags are mapped into useful selected MAPI fields.
