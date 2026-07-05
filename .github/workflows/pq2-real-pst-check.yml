@@ -1,0 +1,148 @@
+name: PQ2 Real PST Check
+
+on:
+  pull_request:
+
+jobs:
+  pq2-real-pst:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build PSTD
+        run: cargo build
+      - name: Download public PST fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pstd-pq2/input assessment
+          url="https://raw.githubusercontent.com/aspose-email/Aspose.Email-for-Java/master/Examples/src/main/resources/outlook/PersonalStorage.pst"
+          curl -L --fail --retry 3 -o /tmp/pstd-pq2/input/PersonalStorage.pst "$url"
+          stat -c '%s' /tmp/pstd-pq2/input/PersonalStorage.pst > assessment/pst_size.txt
+          sha256sum /tmp/pstd-pq2/input/PersonalStorage.pst > assessment/pst_sha256.txt
+          printf '%s\n' "$url" > assessment/source_url.txt
+      - name: Inspect public PST fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo run -- inspect --input /tmp/pstd-pq2/input/PersonalStorage.pst --json > assessment/inspect.json
+          cargo run -- inspect --input /tmp/pstd-pq2/input/PersonalStorage.pst > assessment/inspect.txt
+      - name: Extract public PST fixture
+        shell: bash
+        run: |
+          set -uo pipefail
+          cargo run -- extract --input /tmp/pstd-pq2/input/PersonalStorage.pst --output assessment/extract-output --overwrite > assessment/extract.stdout 2> assessment/extract.stderr
+          echo $? > assessment/extract.exit
+      - name: Batch public PST fixture
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p /tmp/pstd-pq2/batch-input
+          cp /tmp/pstd-pq2/input/PersonalStorage.pst /tmp/pstd-pq2/batch-input/PersonalStorage.pst
+          cargo run -- batch --input /tmp/pstd-pq2/batch-input --output assessment/batch-output --overwrite > assessment/batch.stdout 2> assessment/batch.stderr
+          echo $? > assessment/batch.exit
+      - name: Summarise assessment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('assessment')
+          inspect = json.loads((root / 'inspect.json').read_text())
+          summary_path = root / 'extract-output' / 'run_summary.json'
+          batch_summary_path = root / 'batch-output' / 'batch_summary.json'
+          extract_summary = json.loads(summary_path.read_text()) if summary_path.exists() else {}
+          batch_summary = json.loads(batch_summary_path.read_text()) if batch_summary_path.exists() else {}
+          size = int((root / 'pst_size.txt').read_text().strip())
+          sha = (root / 'pst_sha256.txt').read_text().split()[0]
+          header = inspect.get('header', {})
+          root_diag = header.get('root_diagnostics', {})
+          result = {
+              'source_url': (root / 'source_url.txt').read_text().strip(),
+              'pst_size_bytes': size,
+              'sha256': sha,
+              'inspect': {
+                  'root_diagnostic_condition': inspect.get('root_diagnostic_condition'),
+                  'bbt_status': inspect.get('bbt_status'),
+                  'bbt_entries': inspect.get('bbt_entries'),
+                  'nbt_status': inspect.get('nbt_status'),
+                  'nbt_entries': inspect.get('nbt_entries'),
+                  'selected_source': root_diag.get('selected_source'),
+                  'candidate_count': root_diag.get('candidate_count'),
+                  'bbt_root_offset': header.get('bbt_root_offset'),
+                  'nbt_root_offset': header.get('nbt_root_offset'),
+                  'candidates': root_diag.get('candidates'),
+              },
+              'extract': {
+                  'exit_code': int((root / 'extract.exit').read_text().strip()),
+                  'status': extract_summary.get('status'),
+                  'folders_discovered': extract_summary.get('folders_discovered'),
+                  'messages_discovered': extract_summary.get('messages_discovered'),
+                  'messages_extracted': extract_summary.get('messages_extracted'),
+                  'attachments_extracted': extract_summary.get('attachments_extracted'),
+                  'attachments_not_extracted': extract_summary.get('attachments_not_extracted'),
+                  'tar_shards_written': extract_summary.get('tar_shards_written'),
+                  'bytes_written': extract_summary.get('bytes_written'),
+              },
+              'batch': {
+                  'exit_code': int((root / 'batch.exit').read_text().strip()),
+                  'status': batch_summary.get('status'),
+                  'pst_discovered': batch_summary.get('pst_discovered'),
+                  'pst_attempted': batch_summary.get('pst_attempted'),
+                  'pst_completed': batch_summary.get('pst_completed'),
+                  'pst_partial': batch_summary.get('pst_partial'),
+                  'pst_failed': batch_summary.get('pst_failed'),
+              },
+          }
+          (root / 'assessment.json').write_text(json.dumps(result, indent=2, sort_keys=True))
+          lines = [
+              '# PQ2 real PST check',
+              '',
+              f"source: {result['source_url']}",
+              f"size: {size}",
+              f"sha256: {sha}",
+              '',
+              '## Inspect',
+              '',
+              f"root_diagnostic_condition: {result['inspect']['root_diagnostic_condition']}",
+              f"selected_source: {result['inspect']['selected_source']}",
+              f"candidate_count: {result['inspect']['candidate_count']}",
+              f"bbt_root_offset: {result['inspect']['bbt_root_offset']}",
+              f"nbt_root_offset: {result['inspect']['nbt_root_offset']}",
+              f"bbt_status: {result['inspect']['bbt_status']}",
+              f"bbt_entries: {result['inspect']['bbt_entries']}",
+              f"nbt_status: {result['inspect']['nbt_status']}",
+              f"nbt_entries: {result['inspect']['nbt_entries']}",
+              '',
+              '## Extract',
+              '',
+              f"exit_code: {result['extract']['exit_code']}",
+              f"status: {result['extract']['status']}",
+              f"folders_discovered: {result['extract']['folders_discovered']}",
+              f"messages_discovered: {result['extract']['messages_discovered']}",
+              f"messages_extracted: {result['extract']['messages_extracted']}",
+              f"attachments_extracted: {result['extract']['attachments_extracted']}",
+              f"attachments_not_extracted: {result['extract']['attachments_not_extracted']}",
+              f"tar_shards_written: {result['extract']['tar_shards_written']}",
+              '',
+              '## Batch',
+              '',
+              f"exit_code: {result['batch']['exit_code']}",
+              f"status: {result['batch']['status']}",
+              f"pst_discovered: {result['batch']['pst_discovered']}",
+              f"pst_attempted: {result['batch']['pst_attempted']}",
+              f"pst_completed: {result['batch']['pst_completed']}",
+              f"pst_partial: {result['batch']['pst_partial']}",
+              f"pst_failed: {result['batch']['pst_failed']}",
+          ]
+          (root / 'assessment.md').write_text('\n'.join(lines) + '\n')
+          print((root / 'assessment.md').read_text())
+          PY
+      - name: Upload assessment artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pq2-real-pst-assessment
+          path: assessment
