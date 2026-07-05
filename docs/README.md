@@ -7,6 +7,7 @@ This tree is organised by audience.
 | Need | Page |
 |---|---|
 | Current status | [Project Status](product/project-status.md) |
+| Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
 | PQ3 index entry decoding | [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md) |
 | PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md) |
 | PQ1 root diagnostics | [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md) |
@@ -70,6 +71,7 @@ This tree is organised by audience.
 | Final checklist | [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md) |
 | Local/Docker runbook | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
 | Unsupported/deferred boundary | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
+| Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
 | PQ3 index entry decoding | [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md) |
 | PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md) |
 | PQ1 root diagnostics | [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md) |
@@ -89,30 +91,13 @@ This tree is organised by audience.
 - [M8 Traversal Expansion Implementation Plan](engineering/pstd-v1-m8-traversal-expansion-implementation-plan.md)
 - [M9 Payload and Subnode Traversal Implementation Plan](engineering/pstd-v1-m9-payload-subnode-traversal-implementation-plan.md)
 - [M10 Payload Wiring Implementation Plan](engineering/pstd-v1-m10-payload-wiring-implementation-plan.md)
-- [M11 Extraction Integration Implementation Plan](engineering/pstd-v1-m11-extraction-integration-implementation-plan.md)
-- [M12 Attachment Subnode Integration Implementation Plan](engineering/pstd-v1-m12-attachment-subnode-integration-implementation-plan.md)
-- [M13 Fixture Compatibility Implementation Plan](engineering/pstd-v1-m13-fixtures-compatibility-implementation-plan.md)
-- [M14 Recursive Subnode Layout Implementation Plan](engineering/pstd-v1-m14-recursive-subnode-layouts-implementation-plan.md)
-- [M15 Observed Layout Triage Implementation Plan](engineering/pstd-v1-m15-observed-layout-triage-implementation-plan.md)
-- [M16 Fixture-Backed Decoder Implementation Plan](engineering/pstd-v1-m16-fixture-backed-decoders-implementation-plan.md)
-- [M17 Triage Reporting Backlog Implementation Plan](engineering/pstd-v1-m17-triage-reporting-backlog-implementation-plan.md)
-- [M18 Backlog Review Workflow Implementation Plan](engineering/pstd-v1-m18-backlog-review-workflow-implementation-plan.md)
-- [M19 Candidate Selection Implementation Plan](engineering/pstd-v1-m19-candidate-selection-plan.md)
-- [M20 Focused Candidate Implementation Plan](engineering/pstd-v1-m20-focused-candidate-implementation-plan.md)
-- [M21 Focused Decoder Evidence Expansion Plan](engineering/pstd-v1-m21-focused-decoder-evidence-expansion-plan.md)
-- [M22 Body and Header Fidelity Expansion Plan](engineering/pstd-v1-m22-body-header-fidelity-expansion-plan.md)
-- [M23 Attachment Payload Fidelity Plan](engineering/pstd-v1-m23-attachment-payload-fidelity-plan.md)
-- [M24 Batch Hardening Plan](engineering/pstd-v1-m24-batch-hardening-plan.md)
-- [M25 Release Candidate Plan](engineering/pstd-v1-m25-release-candidate-plan.md)
-
-## Architecture and data
-
-- [System Overview](architecture/system-overview.md)
-- [PSTD v1 Output Contract Summary](data/pstd-v1-output-contract-summary.md)
+- [M11 Extraction Integration Implementation Plan](engineering/pstd-v1-m11-extraction-integration.md)
+- [M12 Attachment Subnode Integration Implementation Plan](engineering/pstd-v1-m12-attachment-subnode-integration-plan.md)
 
 ## Operations
 
 - [Local Validation](operations/local-validation.md)
+- [Public PST Progress Log](operations/public-pst-progress-log.md)
 - [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md)
 - [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md)
 - [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md)
@@ -123,8 +108,6 @@ This tree is organised by audience.
 - [Candidate Selection Workflow](operations/candidate-selection-workflow.md)
 - [Public and Sanitized Fixture Triage](operations/public-sanitized-fixture-triage.md)
 - [PSTD v1 Deferred Testing Plan](operations/pstd-v1-deferred-testing-plan.md)
-- [M2 Deferred Testing Plan](operations/pstd-v1-m2-deferred-testing-plan.md)
-- [M3 Deferred Testing Plan](operations/pstd-v1-m3-deferred-testing-plan.md)
 
 ## Decisions
 
