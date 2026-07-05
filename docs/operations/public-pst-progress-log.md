@@ -1,0 +1,66 @@
+# Public PST Progress Log
+
+## Purpose
+
+Track conversion progress against the checked-in public PST fixture after every completed milestone.
+
+This is the milestone-level quality signal for PST conversion coverage. It is separate from unit tests and release smoke tests because it records whether each milestone improves real PST extraction outcomes.
+
+## Mandatory milestone rule
+
+After every milestone PR is green and before the completion report is final:
+
+1. Confirm the CI run uploaded the `public-pst-progress` artifact.
+2. Download or inspect the artifact.
+3. Add a new row to the progress table below.
+4. Include the latest public-PST deltas in the user-facing milestone completion report.
+
+Do not mark a conversion-quality milestone complete without reporting the public PST result.
+
+## Artifact contents
+
+The CI artifact `public-pst-progress` contains:
+
+| File | Purpose |
+|---|---|
+| `fixture_path.txt` | Fixture selected by CI. |
+| `fixture_size_bytes.txt` | Fixture size used for comparison. |
+| `inspect.json` | Full `pstd inspect --json` output. |
+| `run_summary.json` | Single-PST extraction summary. |
+| `output_files.txt` | File inventory for the extraction output. |
+| `progress_summary.json` | Compact machine-readable progress summary. |
+| `progress_summary.md` | Compact human-readable progress summary. |
+
+The artifact should contain summaries only. It must not include raw private PST inputs, message bodies, attachment payloads, or full archive shards.
+
+## Metrics to log
+
+Each milestone row should record:
+
+- Root condition and selected root source.
+- BBT/NBT entries and diagnosed page counts.
+- Extraction status.
+- Folder, message, and attachment counts.
+- Whether this is progress, regression, or unchanged.
+- Next blocker.
+
+## Progress table
+
+| Date | Milestone / PR | Commit or run | Fixture | Root condition | BBT entries | NBT entries | Folders | Messages | Attachments | Status | Notes |
+|---|---|---|---|---|---:|---:|---:|---:|---:|---|---|
+| 2026-07-05 | PQ3 / #199 | CI #171 | `tests/fixtures/pst/sample.pst` | Captured by CLI smoke only | n/a | n/a | n/a | n/a | n/a | CI fixture inspect/extract passed | Full structured public-PST artifact was added immediately after PQ3 so future milestones can log comparable metrics. |
+
+## Completion report format
+
+Every milestone completion report should include a section like this:
+
+```text
+Public PST progress:
+- Fixture: tests/fixtures/pst/sample.pst
+- Root condition: <value>
+- BBT entries: <value>
+- NBT entries: <value>
+- Folders/messages/attachments: <folders>/<messages>/<attachments>
+- Change vs previous milestone: <progress|unchanged|regression>
+- Next blocker: <short statement>
+```
