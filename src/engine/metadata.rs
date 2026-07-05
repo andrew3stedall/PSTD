@@ -273,7 +273,8 @@ pub fn extract_metadata(
                             ));
                         }
                     } else {
-                        message.attachment_status = "attachment_payload_property_absent".to_string();
+                        message.attachment_status =
+                            "attachment_payload_property_absent".to_string();
                     }
 
                     message.metadata_status = format!(
