@@ -1,7 +1,9 @@
 use std::fs;
 
+use pstd::pst::bbt::BbtPage;
 use pstd::pst::binary::{u16_le_at, u32_le_at, u64_le_at};
 use pstd::pst::header::{PstHeader, PST_MAGIC};
+use pstd::pst::nbt::NbtPage;
 use pstd::pst::primitives::{BlockId, ByteOffset, NodeId};
 use pstd::pst::reader::PstByteReader;
 use pstd::pst::trailer::{BlockTrailer, PageTrailer};
@@ -166,6 +168,78 @@ fn pst_header_keeps_roots_unavailable_when_no_candidate_pair_is_usable() {
 }
 
 #[test]
+fn bbt_leaf_page_reads_metadata_and_entries_from_page_body() {
+    let mut page = vec![0u8; 512];
+    page[0..8].copy_from_slice(&0x22u64.to_le_bytes());
+    page[8..16].copy_from_slice(&0x1000u64.to_le_bytes());
+    page[16..18].copy_from_slice(&123u16.to_le_bytes());
+    write_bt_page_metadata(&mut page, 1, 20, 24, 0, 0x80);
+
+    let parsed = BbtPage::parse(&page, 4096).unwrap();
+
+    assert_eq!(parsed.entry_count, 1);
+    assert_eq!(parsed.entry_size, 24);
+    assert_eq!(parsed.page_level, Some(0));
+    assert_eq!(parsed.entries.len(), 1);
+    assert_eq!(parsed.entries[0].block_id.0, 0x22);
+    assert_eq!(parsed.entries[0].offset.0, 0x1000);
+    assert_eq!(parsed.entries[0].size, 123);
+    assert!(parsed.child_page_refs.is_empty());
+}
+
+#[test]
+fn bbt_internal_page_reads_child_offset_from_bref() {
+    let mut page = vec![0u8; 512];
+    page[0..8].copy_from_slice(&0x22u64.to_le_bytes());
+    page[8..16].copy_from_slice(&0x33u64.to_le_bytes());
+    page[16..24].copy_from_slice(&0x2000u64.to_le_bytes());
+    write_bt_page_metadata(&mut page, 1, 20, 24, 1, 0x80);
+
+    let parsed = BbtPage::parse(&page, 8192).unwrap();
+
+    assert!(parsed.entries.is_empty());
+    assert_eq!(parsed.child_page_refs.len(), 1);
+    assert_eq!(parsed.child_page_refs[0].block_id.0, 0x33);
+    assert_eq!(parsed.child_page_refs[0].offset.0, 0x2000);
+}
+
+#[test]
+fn nbt_leaf_page_reads_metadata_and_entries_from_page_body() {
+    let mut page = vec![0u8; 512];
+    page[0..8].copy_from_slice(&0x61u64.to_le_bytes());
+    page[8..16].copy_from_slice(&0x71u64.to_le_bytes());
+    page[16..24].copy_from_slice(&0x81u64.to_le_bytes());
+    write_bt_page_metadata(&mut page, 1, 15, 32, 0, 0x81);
+
+    let parsed = NbtPage::parse(&page, 12288).unwrap();
+
+    assert_eq!(parsed.entry_count, 1);
+    assert_eq!(parsed.entry_size, 32);
+    assert_eq!(parsed.page_level, Some(0));
+    assert_eq!(parsed.entries.len(), 1);
+    assert_eq!(parsed.entries[0].node_id.0, 0x61);
+    assert_eq!(parsed.entries[0].data_block_id.0, 0x71);
+    assert_eq!(parsed.entries[0].subnode_block_id.unwrap().0, 0x81);
+    assert!(parsed.child_page_refs.is_empty());
+}
+
+#[test]
+fn nbt_internal_page_reads_child_offset_from_bref() {
+    let mut page = vec![0u8; 512];
+    page[0..8].copy_from_slice(&0x61u64.to_le_bytes());
+    page[8..16].copy_from_slice(&0x71u64.to_le_bytes());
+    page[16..24].copy_from_slice(&0x3000u64.to_le_bytes());
+    write_bt_page_metadata(&mut page, 1, 20, 24, 1, 0x81);
+
+    let parsed = NbtPage::parse(&page, 16384).unwrap();
+
+    assert!(parsed.entries.is_empty());
+    assert_eq!(parsed.child_page_refs.len(), 1);
+    assert_eq!(parsed.child_page_refs[0].node_id.0, 0x61);
+    assert_eq!(parsed.child_page_refs[0].offset.0, 0x3000);
+}
+
+#[test]
 fn typed_primitives_format_for_diagnostics() {
     assert_eq!(format!("{:?}", NodeId(0x22)), "NodeId(0x22)");
     assert_eq!(format!("{:?}", BlockId(0x33)), "BlockId(0x33)");
@@ -181,4 +255,19 @@ fn trailers_parse_from_slices() {
     let block = vec![0u8; 64];
     let block_trailer = BlockTrailer::parse_from_block(&block, 100).unwrap();
     assert_eq!(block_trailer.offset.0, 148);
+}
+
+fn write_bt_page_metadata(
+    page: &mut [u8],
+    entry_count: u8,
+    entry_capacity: u8,
+    entry_size: u8,
+    page_level: u8,
+    page_type: u8,
+) {
+    page[488] = entry_count;
+    page[489] = entry_capacity;
+    page[490] = entry_size;
+    page[491] = page_level;
+    page[496] = page_type;
 }
