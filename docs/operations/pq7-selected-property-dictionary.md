@@ -27,6 +27,12 @@ Examples:
 
 `PropertyContextParseReport` now records sorted unknown property-tag IDs in addition to the unknown count. This keeps the next parser expansion grounded in observed tags without logging raw message body or attachment payload data.
 
+## Public fixture finding
+
+The checked-in public PST fixture remains unchanged after PQ7: the single true message candidate still reports 0 selected properties and 74 unknown properties. Body payload coverage remains 0, with one fallback body row.
+
+That result rules out ANSI/String8 aliases as the explanation for the public fixture selected-property gap. The selected dictionary is now safer and broader, but the public fixture appears to need lower-level property-context layout or tag-interpretation work before additional semantic fields can be extracted.
+
 ## Explicit non-goals
 
 - Attachment payload expansion.
@@ -37,4 +43,4 @@ Examples:
 
 ## Next blocker
 
-The next blocker should be selected from the public PST artifact after PQ7 CI completes. If selected property coverage remains low, the next step is likely lower-level property-context layout work rather than broader payload expansion.
+The next blocker is PQ8 lower-level property-context layout/tag interpretation. Body, attachment, and recipient expansion should wait until the parser can map useful properties from the true public-fixture message candidate.
