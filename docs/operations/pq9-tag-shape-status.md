@@ -23,12 +23,24 @@ PQ8 added parser-level counters, but the compact public artifact still only expo
 - If plausible tags dominate, the next blocker is `selected_mapi_dictionary_expansion`.
 - If no tag-shape signal is visible, the next blocker is `property_context_signal_absent`.
 
+## Public fixture result
+
+CI #218 against `tests/fixtures/pst/sample.pst` produced:
+
+| Metric | Value |
+|---|---:|
+| Plausible property tags | 0 |
+| Suspicious property keys | 70 |
+| Byte-swapped selected properties | 0 |
+
+The measured decision signal is `pq9_next_blocker=heap_bth_layout_traversal`.
+
 ## Non-goals
 
 - PQ9 does not expand the selected property dictionary.
 - PQ9 does not repair heap/BTH traversal.
 - PQ9 does not expand body, attachment, or recipient payload extraction.
 
-## Public fixture use
+## Follow-up
 
-After CI, inspect the `public-pst-progress` artifact and record the PQ9 counters in `docs/operations/public-pst-progress-log.md`.
+The next conversion-quality milestone should repair real heap-on-node/BTH/property-context traversal before additional selected property dictionary, body, attachment, or recipient expansion work.
