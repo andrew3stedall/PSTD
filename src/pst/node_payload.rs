@@ -44,7 +44,10 @@ pub fn load_node_property_context(
         ),
     };
     let property_report = PropertyContext::from_bth_with_report(&bth)?;
-    let properties = property_report.context.clone();
+    let properties = property_report
+        .context
+        .clone()
+        .with_pq10_traversal_status(traversal_status);
     let report = NodePayloadReport {
         node_id: entry.node_id.0,
         data_block_id: entry.data_block_id.0,
@@ -102,6 +105,10 @@ mod tests {
             Some("Hello from node")
         );
         assert_eq!(
+            loaded.properties.pq10_status(),
+            "pq10_traversal=legacy_flat_bth_property_context"
+        );
+        assert_eq!(
             loaded.report.status,
             "node_property_context_loaded; traversal=legacy_flat_bth_property_context"
         );
@@ -131,6 +138,10 @@ mod tests {
         assert_eq!(
             loaded.properties.string_value(PR_SUBJECT).as_deref(),
             Some("Hello from heap")
+        );
+        assert_eq!(
+            loaded.properties.pq10_status(),
+            "pq10_traversal=heap_bth_property_context"
         );
         assert_eq!(
             loaded.report.status,
