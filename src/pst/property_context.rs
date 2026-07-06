@@ -44,6 +44,10 @@ struct InterpretedTag {
 }
 
 impl PropertyContext {
+    pub fn from_values(values: HashMap<u32, PropertyValue>) -> Self {
+        Self { values }
+    }
+
     pub fn from_bth(bth: &BthMap) -> PstdResult<Self> {
         Ok(Self::from_bth_with_report(bth)?.context)
     }
@@ -162,6 +166,51 @@ impl PropertyContext {
     pub fn first_string_value(&self, tags: &[u32]) -> Option<String> {
         tags.iter().find_map(|tag| self.string_value(*tag))
     }
+
+    pub fn pq9_status(&self) -> String {
+        let plausible = self.plausible_property_tag_count();
+        let suspicious = self.suspicious_property_tag_count();
+        let byte_swapped_selected = self.byte_swapped_selected_property_count();
+        format!(
+            "pq9_tag_shape=plausible:{plausible},suspicious:{suspicious},byte_swapped_selected:{byte_swapped_selected}; pq9_next_blocker={}",
+            pq9_next_blocker(plausible, suspicious)
+        )
+    }
+
+    fn plausible_property_tag_count(&self) -> usize {
+        self.values
+            .values()
+            .filter(|value| {
+                value.status == "selected"
+                    || value.status.starts_with("selected_byte_swapped_tag")
+                    || value.status == "not_selected_plausible_mapi_tag"
+            })
+            .count()
+    }
+
+    fn suspicious_property_tag_count(&self) -> usize {
+        self.values
+            .values()
+            .filter(|value| value.status.starts_with("not_selected_suspicious_key"))
+            .count()
+    }
+
+    fn byte_swapped_selected_property_count(&self) -> usize {
+        self.values
+            .values()
+            .filter(|value| value.status.starts_with("selected_byte_swapped_tag"))
+            .count()
+    }
+}
+
+fn pq9_next_blocker(plausible: usize, suspicious: usize) -> &'static str {
+    if suspicious > plausible {
+        "heap_bth_layout_traversal"
+    } else if plausible > 0 {
+        "selected_mapi_dictionary_expansion"
+    } else {
+        "property_context_signal_absent"
+    }
 }
 
 fn interpret_property_tag(raw_tag: u32) -> InterpretedTag {
@@ -266,6 +315,10 @@ mod tests {
         assert_eq!(report.plausible_property_tag_count, 2);
         assert_eq!(report.suspicious_property_tag_count, 0);
         assert_eq!(report.byte_swapped_selected_property_count, 0);
+        assert!(report
+            .context
+            .pq9_status()
+            .contains("pq9_next_blocker=selected_mapi_dictionary_expansion"));
         assert_eq!(report.skipped_key_count, 1);
         assert_eq!(report.decode_error_count, 0);
         assert!(report.status.contains("unknown_tag_sample=0x9999001f"));
@@ -323,6 +376,10 @@ mod tests {
         assert_eq!(report.plausible_property_tag_count, 0);
         assert_eq!(report.suspicious_property_tag_count, 1);
         assert!(report.status.contains("suspicious:1"));
+        assert!(report
+            .context
+            .pq9_status()
+            .contains("pq9_next_blocker=heap_bth_layout_traversal"));
         let value = report.context.values.values().next().unwrap();
         assert!(value.status.contains("not_selected_suspicious_key"));
     }
@@ -348,6 +405,10 @@ mod tests {
         assert_eq!(report.plausible_property_tag_count, 1);
         assert_eq!(report.suspicious_property_tag_count, 0);
         assert_eq!(report.byte_swapped_selected_property_count, 1);
+        assert!(report
+            .context
+            .pq9_status()
+            .contains("byte_swapped_selected:1"));
         assert_eq!(
             report.context.string_value(PR_SUBJECT).as_deref(),
             Some("Swapped subject")

@@ -8,12 +8,14 @@ This tree is organised by audience.
 |---|---|
 | Current status | [Project Status](product/project-status.md) |
 | Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
+| PQ9 property tag-shape status | [PQ9 Property Tag-Shape Status Reporting](operations/pq9-tag-shape-status.md) |
+| PQ8 property-context interpretation | [PQ8 Property-Context Layout and Tag Interpretation](operations/pq8-property-context-interpretation.md) |
 | PQ7 selected property dictionary | [PQ7 Selected Property Dictionary Expansion](operations/pq7-selected-property-dictionary.md) |
 | PQ6 property and body coverage | [PQ6 Property and Body Coverage](operations/pq6-property-body-coverage.md) |
 | PQ5 message table discovery | [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md) |
 | PQ4 folder hierarchy discovery | [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md) |
 | PQ3 index entry decoding | [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md) |
-| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md) |
+| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-decode-candidate-selection.md) |
 | PQ1 root diagnostics | [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md) |
 | Release-candidate checklist | [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md) |
 | Local/Docker operator handoff | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
@@ -46,21 +48,21 @@ This tree is organised by audience.
 | M5 | [Bodies and Attachments](milestones/pstd-v1-m5-bodies-attachments.md) | TBD | [M5 issues](issues/pstd-v1-m5-bodies-attachments.md) | TBD |
 | M6 | [Batch and Resume](milestones/pstd-v1-m6-batch-resume.md) | TBD | [M6 issues](issues/pstd-v1-m6-ordered-issue-plan.md) | TBD |
 | M7 | [Parser Depth Hardening](milestones/pstd-v1-m7-parser-depth-hardening.md) | TBD | [M7 issues](issues/pstd-v1-m7-ordered-issue-plan.md) | TBD |
-| M8 | [Traversal Expansion](milestones/pstd-v1-m8-traversal-expansion.md) | TBD | [M8 issues](issues/pstd-v1-m8-ordered-issue-plan.md) | TBD |
-| M9 | [Payload and Subnode Traversal](milestones/pstd-v1-m9-payload-subnode-traversal.md) | TBD | [M9 issues](issues/pstd-v1-m9-ordered-issue-plan.md) | TBD |
+| M8 | [Traversal Expansion](milestones/pstd-v1-m8-traversal-expansion.md) | TBD | [M8 issues](issues/pstd-v1-m8-traversal-expansion.md) | TBD |
+| M9 | [Payload and Subnode Traversal](milestones/pstd-v1-m9-payload-subnode-traversal.md) | TBD | [M9 issues](issues/pstd-v1-m9-payload-subnode-traversal.md) | TBD |
 | M10 | [Payload Wiring](milestones/pstd-v1-m10-payload-wiring.md) | TBD | [M10 issues](issues/pstd-v1-m10-ordered-issue-plan.md) | TBD |
-| M11 | [Extraction Path Integration](milestones/pstd-v1-m11-extraction-integration.md) | TBD | [M11 issues](issues/pstd-v1-m11-ordered-issue-plan.md) | TBD |
+| M11 | [Extraction Path Integration](milestones/pstd-v1-m11-extraction-integration.md) | TBD | [M11 issues](issues/pstd-v1-m11-extraction-integration.md) | TBD |
 | M12 | [Attachment Table and Subnode Integration](milestones/pstd-v1-m12-attachment-subnode-integration.md) | TBD | [M12 issues](issues/pstd-v1-m12-attachment-subnode-integration.md) | TBD |
 | M13 | [Payload Fixture Expansion and Parser Compatibility](milestones/pstd-v1-m13-fixtures-compatibility.md) | TBD | [M13 issues](issues/pstd-v1-m13-ordered-issue-plan.md) | TBD |
-| M14 | [Recursive Subnode Layout Exploration](milestones/pstd-v1-m14-recursive-subnode-layouts.md) | TBD | [M14 issues](issues/pstd-v1-m14-ordered-issue-plan.md) | TBD |
-| M15 | [Observed Layout Compatibility and Public Fixture Triage](milestones/pstd-v1-m15-observed-layout-triage.md) | TBD | [M15 issues](issues/pstd-v1-m15-ordered-issue-plan.md) | TBD |
-| M16 | [Fixture-Backed Decoder Expansion](milestones/pstd-v1-m16-fixture-backed-decoders.md) | TBD | [M16 issues](issues/pstd-v1-m16-ordered-issue-plan.md) | TBD |
-| M17 | [Compatibility Triage Reporting and Decoder Backlog](milestones/pstd-v1-m17-triage-reporting-backlog.md) | TBD | [M17 issues](issues/pstd-v1-m17-ordered-issue-plan.md) | TBD |
-| M18 | [Decoder Backlog Review Workflow](milestones/pstd-v1-m18-backlog-review-workflow.md) | TBD | [M18 issues](issues/pstd-v1-m18-ordered-issue-plan.md) | TBD |
-| M19 | [Focused Candidate Selection](milestones/pstd-v1-m19-candidate-selection.md) | TBD | [M19 issues](issues/pstd-v1-m19-ordered-issue-plan.md) | TBD |
-| M20 | [Focused Candidate Implementation](milestones/pstd-v1-m20-focused-candidate-implementation.md) | TBD | [M20 issues](issues/pstd-v1-m20-ordered-issue-plan.md) | TBD |
-| M21 | [Focused Decoder Evidence Expansion](milestones/pstd-v1-m21-focused-decoder-evidence-expansion.md) | TBD | [M21 issues](issues/pstd-v1-m21-ordered-issue-plan.md) | TBD |
-| M22 | [Body and Header Fidelity Expansion](milestones/pstd-v1-m22-body-header-fidelity-expansion.md) | TBD | [M22 issues](issues/pstd-v1-m22-ordered-issue-plan.md) | TBD |
+| M14 | [Recursive Subnode Layout Exploration](milestones/pstd-v1-m14-recursive-subnode-layouts.md) | TBD | [M14 issues](issues/pstd-v1-m14-recursive-subnode-layouts.md) | TBD |
+| M15 | [Observed Layout Compatibility and Public Fixture Triage](milestones/pstd-v1-m15-observed-layout-triage.md) | TBD | [M15 issues](issues/pstd-v1-m15-observed-layout-triage.md) | TBD |
+| M16 | [Fixture-Backed Decoder Expansion](milestones/pstd-v1-m16-fixture-backed-decoders.md) | TBD | [M16 issues](issues/pstd-v1-m16-fixture-backed-decoders.md) | TBD |
+| M17 | [Compatibility Triage Reporting and Decoder Backlog](milestones/pstd-v1-m17-triage-reporting-backlog.md) | TBD | [M17 issues](issues/pstd-v1-m17-triage-reporting-backlog.md) | TBD |
+| M18 | [Decoder Backlog Review Workflow](milestones/pstd-v1-m18-backlog-review-workflow.md) | TBD | [M18 issues](issues/pstd-v1-m18-backlog-review-workflow.md) | TBD |
+| M19 | [Focused Candidate Selection](milestones/pstd-v1-m19-candidate-selection.md) | TBD | [M19 issues](issues/pstd-v1-m19-candidate-selection-plan.md) | TBD |
+| M20 | [Focused Candidate Implementation](milestones/pstd-v1-m20-focused-candidate-implementation.md) | TBD | [M20 issues](issues/pstd-v1-m20-focused-candidate-implementation-plan.md) | TBD |
+| M21 | [Focused Decoder Evidence Expansion](milestones/pstd-v1-m21-focused-decoder-evidence-expansion.md) | TBD | [M21 issues](issues/pstd-v1-m21-focused-decoder-evidence-expansion-plan.md) | TBD |
+| M22 | [Body and Header Fidelity Expansion](milestones/pstd-v1-m22-body-header-fidelity-expansion.md) | TBD | [M22 issues](issues/pstd-v1-m22-body-header-fidelity-expansion-plan.md) | TBD |
 | M23 | [Attachment Payload Fidelity](milestones/pstd-v1-m23-attachment-payload-fidelity.md) | TBD | [M23 issues](issues/pstd-v1-m23-attachment-payload-fidelity-plan.md) | TBD |
 | M24 | [Batch Scale, Performance, and Corruption Hardening](milestones/pstd-v1-m24-batch-hardening.md) | TBD | [M24 issues](issues/pstd-v1-m24-batch-hardening-plan.md) | TBD |
 | M25 | [Release Candidate and Operator Handoff](milestones/pstd-v1-m25-release-candidate-operator-handoff.md) | TBD | [M25 issues](issues/pstd-v1-m25-release-candidate-plan.md) | TBD |
@@ -71,6 +73,8 @@ This tree is organised by audience.
 | PQ5 | [Message Table Discovery](milestones/pq5-message-table-discovery.md) | TBD | Issues #248-#261 | TBD |
 | PQ6 | [Property and Body Coverage](milestones/pq6-property-body-coverage.md) | TBD | Issues #263-#267 | TBD |
 | PQ7 | [Selected Property Dictionary Expansion](milestones/pq7-selected-property-dictionary.md) | TBD | Issues #269-#273 | TBD |
+| PQ8 | [Property-Context Interpretation Diagnostics](milestones/pq8-property-context-interpretation.md) | TBD | Issues #275-#279 | TBD |
+| PQ9 | [Property Tag-Shape Status](milestones/pq9-tag-shape-status.md) | TBD | Issues #281-#285 | TBD |
 
 ## v1 release-candidate handoff
 
@@ -80,12 +84,14 @@ This tree is organised by audience.
 | Local/Docker runbook | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
 | Unsupported/deferred boundary | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
 | Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
+| PQ9 property tag-shape status | [PQ9 Property Tag-Shape Status Reporting](operations/pq9-tag-shape-status.md) |
+| PQ8 property-context interpretation | [PQ8 Property-Context Layout and Tag Interpretation](operations/pq8-property-context-interpretation.md) |
 | PQ7 selected property dictionary | [PQ7 Selected Property Dictionary Expansion](operations/pq7-selected-property-dictionary.md) |
 | PQ6 property and body coverage | [PQ6 Property and Body Coverage](operations/pq6-property-body-coverage.md) |
 | PQ5 message table discovery | [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md) |
 | PQ4 folder hierarchy discovery | [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md) |
 | PQ3 index entry decoding | [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md) |
-| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md) |
+| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-decode-candidate-selection.md) |
 | PQ1 root diagnostics | [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md) |
 
 ## Engineering
@@ -128,12 +134,14 @@ This tree is organised by audience.
 
 - [Local Validation](operations/local-validation.md)
 - [Public PST Progress Log](operations/public-pst-progress-log.md)
+- [PQ9 Property Tag-Shape Status Reporting](operations/pq9-tag-shape-status.md)
+- [PQ8 Property-Context Layout and Tag Interpretation](operations/pq8-property-context-interpretation.md)
 - [PQ7 Selected Property Dictionary Expansion](operations/pq7-selected-property-dictionary.md)
 - [PQ6 Property and Body Coverage](operations/pq6-property-body-coverage.md)
 - [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md)
 - [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md)
 - [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md)
-- [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md)
+- [PQ2 Root Candidate Selection](operations/pq2-root-decode-candidate-selection.md)
 - [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md)
 - [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md)
 - [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)

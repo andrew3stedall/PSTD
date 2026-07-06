@@ -17,9 +17,10 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Message table discovery | PQ5 message table discovery | PQ5 classifies normal/associated message NBT entries separately from folder/table nodes and records message-table evidence counters. |
 | Property/body coverage | PQ6 property and body coverage | PQ6 records property-context coverage and body payload/fallback counters for true message candidates. |
 | Selected property dictionary | PQ7 selected property dictionary expansion | PQ7 adds safe String8 aliases for existing selected Unicode string MAPI properties. |
-| Metadata processing | PQ7 selected property dictionary expansion | String8 aliases do not explain the public-fixture selected-property gap; selected properties remain 0 of 74 parsed properties. |
+| Property tag-shape signal | PQ9 property tag-shape status | PQ9 exposes the public-fixture decision signal: 0 plausible property tags, 70 suspicious property keys, and next blocker `heap_bth_layout_traversal`. |
+| Metadata processing | PQ9 property tag-shape status | The current blocker is traversal/layout, not dictionary breadth: public fixture selected properties remain 0, and suspicious property keys dominate. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
-| Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence; PQ7 adds String8 body aliases, but the public fixture still exposes no selected body property. |
+| Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence; public fixture still exposes no selected body property. |
 | Attachments | M23 attachment fidelity and CI validated | M23 preserves metadata-only attachment rows, declared size, size status, method, and deferred embedded-message status. |
 | Batch orchestration | M24 batch hardening and CI validated | M24 adds root-level `batch_progress.jsonl`, expanded `batch_summary.json`, deterministic resume-by-skip context, partial-success classification, and not-run counts. |
 | Release-candidate handoff | M25 and CI validated | M25 adds RC checklist, local/Docker operator handoff, and unsupported/deferred area docs. |
@@ -63,12 +64,14 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | PQ5: Message Table Discovery | #262 | CI validated |
 | PQ6: Property and Body Coverage | #268 | CI validated |
 | PQ7: Selected Property Dictionary Expansion | #274 | CI validated before merge |
+| PQ8: Property-Context Interpretation Diagnostics | #280 | CI validated before merge |
+| PQ9: Property Tag-Shape Status | #286 | CI validated before merge |
 
 ## Latest validation
 
-GitHub Actions validation passed for PQ7 in PR #274. The `public-pst-progress` artifact from CI #201 shows the checked-in public PST fixture still emits 11 folders, 1 message candidate, and 0 attachments. PQ7 adds String8 selected-property aliases, but the public fixture still reports 0 selected properties, 74 unknown properties, 0 body payload records, and 1 body fallback row.
+GitHub Actions validation passed for PQ9 in PR #286. The `public-pst-progress` artifact from CI #218 shows the checked-in public PST fixture still emits 11 folders, 1 message candidate, and 0 attachments. PQ9 now surfaces the tag-shape decision signal: 0 plausible property tags, 70 suspicious property keys, 0 byte-swapped selected properties, and `pq9_next_blocker=heap_bth_layout_traversal`.
 
-Expected PQ8 validation includes:
+Expected PQ10 validation includes:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -85,15 +88,15 @@ There are **no remaining planned v1 milestones after M25**.
 
 ## Current active blocker
 
-PQ8 lower-level property-context layout/tag interpretation.
+PQ10 heap-on-node/BTH/property-context traversal repair.
 
-The current focus is solely PST conversion coverage. PQ7 rules out ANSI/String8 aliases as the explanation for the public fixture selected-property gap. The next blocker is understanding why the true message candidate's loaded property context yields 74 parsed but semantically unknown tags.
+The current focus is solely PST conversion coverage. PQ9 shows the public fixture's property-context keys are overwhelmingly suspicious rather than plausible MAPI tags, so the next blocker is traversal/layout interpretation before dictionary, body, attachment, or recipient expansion.
 
 ## Active conversion coverage roadmap
 
-1. PQ8: lower-level property-context layout/tag interpretation.
-2. PQ9: body, attachment, and recipient coverage after useful properties are selected.
-3. PQ10: fixture corpus and ground-truth comparison.
+1. PQ10: heap-on-node/BTH/property-context traversal repair.
+2. PQ11: selected MAPI dictionary/body coverage after plausible property tags are visible.
+3. PQ12: fixture corpus and ground-truth comparison.
 
 ## Parked work
 
@@ -103,4 +106,4 @@ Snowflake ingestion, UI, search, analytics loading, and other downstream work ar
 
 The M1-M25 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
 
-Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For current property dictionary decisions, start with [PQ7 Selected Property Dictionary Expansion](../operations/pq7-selected-property-dictionary.md).
+Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For current property tag-shape decisions, start with [PQ9 Property Tag-Shape Status Reporting](../operations/pq9-tag-shape-status.md).

@@ -75,7 +75,7 @@ pub fn message_from_properties(
         threading_status,
         body_status: "deferred_to_m5".to_string(),
         attachment_status: "deferred_to_m5".to_string(),
-        extraction_status: "metadata_only".to_string(),
+        extraction_status: format!("metadata_only; {}", properties.pq9_status()),
     }
 }
 
@@ -158,7 +158,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext { values };
+        let properties = PropertyContext::from_values(values);
 
         let message = message_from_properties(
             "run_123",
@@ -174,6 +174,9 @@ mod tests {
             Some("Message-ID: <abc@example.com>\r\nFrom: sender@example.com")
         );
         assert_eq!(message.normalized_subject.as_deref(), Some("hello"));
+        assert!(message
+            .extraction_status
+            .contains("pq9_tag_shape=plausible:2"));
     }
 
     #[test]
@@ -201,7 +204,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext { values };
+        let properties = PropertyContext::from_values(values);
 
         let message = message_from_properties(
             "run_123",
