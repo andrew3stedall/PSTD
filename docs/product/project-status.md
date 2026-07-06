@@ -18,7 +18,8 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | Property/body coverage | PQ6 property and body coverage | PQ6 records property-context coverage and body payload/fallback counters for true message candidates. |
 | Selected property dictionary | PQ7 selected property dictionary expansion | PQ7 adds safe String8 aliases for existing selected Unicode string MAPI properties. |
 | Property tag-shape signal | PQ9 property tag-shape status | PQ9 exposes the public-fixture decision signal: 0 plausible property tags, 70 suspicious property keys, and next blocker `heap_bth_layout_traversal`. |
-| Metadata processing | PQ9 property tag-shape status | The current blocker is traversal/layout, not dictionary breadth: public fixture selected properties remain 0, and suspicious property keys dominate. |
+| Heap/BTH traversal | PQ10 heap BTH property traversal | PQ10 adds a heap-backed property-context path, but public fixture status shows 0 heap BTH contexts and 1 legacy flat BTH context. |
+| Metadata processing | PQ10 heap BTH property traversal | The current blocker is detecting the real heap/HN header or BTH-root layout for the public fixture message payload. |
 | Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
 | Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence; public fixture still exposes no selected body property. |
 | Attachments | M23 attachment fidelity and CI validated | M23 preserves metadata-only attachment rows, declared size, size status, method, and deferred embedded-message status. |
@@ -66,12 +67,13 @@ Provide a single current-state view of what PSTD can do, what is planned next, a
 | PQ7: Selected Property Dictionary Expansion | #274 | CI validated before merge |
 | PQ8: Property-Context Interpretation Diagnostics | #280 | CI validated before merge |
 | PQ9: Property Tag-Shape Status | #286 | CI validated before merge |
+| PQ10: Heap BTH Property Traversal | #292 | CI validated before merge |
 
 ## Latest validation
 
-GitHub Actions validation passed for PQ9 in PR #286. The `public-pst-progress` artifact from CI #218 shows the checked-in public PST fixture still emits 11 folders, 1 message candidate, and 0 attachments. PQ9 now surfaces the tag-shape decision signal: 0 plausible property tags, 70 suspicious property keys, 0 byte-swapped selected properties, and `pq9_next_blocker=heap_bth_layout_traversal`.
+GitHub Actions validation passed for PQ10 in PR #292. The `public-pst-progress` artifact from CI #235 shows the checked-in public PST fixture still emits 11 folders, 1 message candidate, and 0 attachments. PQ10 reports 0 heap BTH contexts, 1 legacy flat BTH context, 0 unknown traversal contexts, 0 plausible property tags, and 70 suspicious property keys.
 
-Expected PQ10 validation includes:
+Expected PQ11 validation includes:
 
 - Rust build.
 - Rust unit/integration tests with `cargo test --all`.
@@ -88,15 +90,15 @@ There are **no remaining planned v1 milestones after M25**.
 
 ## Current active blocker
 
-PQ10 heap-on-node/BTH/property-context traversal repair.
+PQ11 heap/HN header or BTH-root detection for the public fixture message payload.
 
-The current focus is solely PST conversion coverage. PQ9 shows the public fixture's property-context keys are overwhelmingly suspicious rather than plausible MAPI tags, so the next blocker is traversal/layout interpretation before dictionary, body, attachment, or recipient expansion.
+The current focus is solely PST conversion coverage. PQ10 shows the new heap-backed path works for synthetic coverage, but the public fixture still falls back to flat BTH interpretation for the one real message candidate.
 
 ## Active conversion coverage roadmap
 
-1. PQ10: heap-on-node/BTH/property-context traversal repair.
-2. PQ11: selected MAPI dictionary/body coverage after plausible property tags are visible.
-3. PQ12: fixture corpus and ground-truth comparison.
+1. PQ11: heap/HN header or BTH-root detection for the real public fixture payload.
+2. PQ12: selected MAPI dictionary/body coverage after plausible property tags are visible.
+3. PQ13: fixture corpus and ground-truth comparison.
 
 ## Parked work
 
@@ -106,4 +108,4 @@ Snowflake ingestion, UI, search, analytics loading, and other downstream work ar
 
 The M1-M25 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
 
-Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For current property tag-shape decisions, start with [PQ9 Property Tag-Shape Status Reporting](../operations/pq9-tag-shape-status.md).
+Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For current traversal decisions, start with [PQ10 Heap BTH Property Traversal](../operations/pq10-heap-bth-property-traversal.md).
