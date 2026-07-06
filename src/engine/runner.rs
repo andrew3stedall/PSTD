@@ -329,10 +329,12 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
 }
 
 fn status_counter(status: &str, key: &str) -> usize {
-    let needle = format!("{key}:");
+    let colon = format!("{key}:");
+    let equals = format!("{key}=");
     status
-        .split(&needle)
+        .split(&colon)
         .nth(1)
+        .or_else(|| status.split(&equals).nth(1))
         .and_then(|tail| tail.split([',', ';']).next())
         .and_then(|value| value.parse::<usize>().ok())
         .unwrap_or(0)
@@ -480,6 +482,13 @@ mod tests {
         assert_eq!(status_counter(status, "plausible"), 3);
         assert_eq!(status_counter(status, "suspicious"), 7);
         assert_eq!(status_counter(status, "byte_swapped_selected"), 1);
+    }
+
+    #[test]
+    fn parses_equals_status_counters() {
+        let status = "status; subnode_references=3; subnode_decode_plans=2";
+        assert_eq!(status_counter(status, "subnode_references"), 3);
+        assert_eq!(status_counter(status, "subnode_decode_plans"), 2);
     }
 
     #[test]
