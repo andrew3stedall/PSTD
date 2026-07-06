@@ -33,16 +33,14 @@ pub fn load_node_property_context(
 ) -> PstdResult<LoadedNodePayload> {
     let payload = load_payload_block(reader, bbt, entry.data_block_id, limits)?;
     let payload_base_offset = payload.block_ref.offset.0;
-    let (bth, traversal_status) = match load_heap_bth_from_candidates(
-        &payload.bytes,
-        payload_base_offset,
-    ) {
-        Ok((bth, status)) => (bth, status),
-        Err(reason) => (
-            BthMap::parse(&payload.bytes, payload_base_offset)?,
-            format!("legacy_flat_bth_property_context; pq11_heap_probe={reason}"),
-        ),
-    };
+    let (bth, traversal_status) =
+        match load_heap_bth_from_candidates(&payload.bytes, payload_base_offset) {
+            Ok((bth, status)) => (bth, status),
+            Err(reason) => (
+                BthMap::parse(&payload.bytes, payload_base_offset)?,
+                format!("legacy_flat_bth_property_context; pq11_heap_probe={reason}"),
+            ),
+        };
     let property_report = PropertyContext::from_bth_with_report(&bth)?;
     let properties = property_report
         .context
