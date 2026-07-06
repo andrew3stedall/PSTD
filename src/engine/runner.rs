@@ -253,7 +253,8 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         .count();
 
     let has_pq9_signal = plausible > 0 || suspicious > 0 || byte_swapped_selected > 0;
-    let has_pq10_signal = heap_bth_contexts > 0 || legacy_flat_bth_contexts > 0 || unknown_traversal_contexts > 0;
+    let has_pq10_signal =
+        heap_bth_contexts > 0 || legacy_flat_bth_contexts > 0 || unknown_traversal_contexts > 0;
     if !has_pq9_signal && !has_pq10_signal {
         return base_status.to_string();
     }
