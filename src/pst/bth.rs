@@ -149,7 +149,14 @@ fn parse_heap_entries(
     base_offset: u64,
 ) -> PstdResult<Vec<BthEntry>> {
     if index_levels == 0 {
-        return parse_heap_leaf_entries(heap, heap_buf, allocation, key_size, value_size, base_offset);
+        return parse_heap_leaf_entries(
+            heap,
+            heap_buf,
+            allocation,
+            key_size,
+            value_size,
+            base_offset,
+        );
     }
 
     let entry_size = key_size as usize + 4;
