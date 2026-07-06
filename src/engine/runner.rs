@@ -243,7 +243,7 @@ fn status_counter(status: &str, key: &str) -> usize {
     status
         .split(&needle)
         .nth(1)
-        .and_then(|tail| tail.split(|ch| ch == ',' || ch == ';').next())
+        .and_then(|tail| tail.split([',', ';']).next())
         .and_then(|value| value.parse::<usize>().ok())
         .unwrap_or(0)
 }
