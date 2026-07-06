@@ -274,8 +274,10 @@ pub fn extract_metadata(
                                 loaded_subnodes.report.recursive_child_decode_count;
                             subnode_unsupported_layouts +=
                                 loaded_subnodes.layout_report.unsupported_layout_count;
-                            pq14_message_subnode_blocks += loaded_subnodes.report.decoded_block_count;
-                            pq14_message_subnode_failures += loaded_subnodes.report.failed_block_count;
+                            pq14_message_subnode_blocks +=
+                                loaded_subnodes.report.decoded_block_count;
+                            pq14_message_subnode_failures +=
+                                loaded_subnodes.report.failed_block_count;
                             pq14_message_subnode_unsupported_layouts +=
                                 loaded_subnodes.layout_report.unsupported_layout_count;
                             let status = format!(
