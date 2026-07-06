@@ -444,9 +444,13 @@ mod tests {
 
     #[test]
     fn carries_pq10_traversal_status_without_affecting_pq9_counts() {
-        let context = PropertyContext::default().with_pq10_traversal_status("heap_bth_property_context");
+        let context =
+            PropertyContext::default().with_pq10_traversal_status("heap_bth_property_context");
 
-        assert_eq!(context.pq10_status(), "pq10_traversal=heap_bth_property_context");
+        assert_eq!(
+            context.pq10_status(),
+            "pq10_traversal=heap_bth_property_context"
+        );
         assert!(context.pq9_status().contains("plausible:0,suspicious:0"));
     }
 
