@@ -18,10 +18,25 @@ PQ9 is bounded to issues #281 through #285.
 
 ## Delivered behaviour
 
-- Carries PQ8 diagnostics on `PropertyContext`.
+- Derives PQ9 tag-shape status from property-value parse statuses without changing the public `PropertyContext` struct literal shape.
 - Adds compact PQ9 tag-shape status to message extraction status.
 - Aggregates PQ9 counters into `run_summary.status`.
 - Emits `pq9_next_blocker` so the next milestone can be selected from measured fixture evidence.
+
+## Public fixture result
+
+CI #218 against `tests/fixtures/pst/sample.pst` produced:
+
+| Metric | Value |
+|---|---:|
+| BBT entries | 50 |
+| NBT entries | 63 |
+| Folders | 11 |
+| Messages | 1 |
+| Attachments | 0 |
+| Plausible property tags | 0 |
+| Suspicious property keys | 70 |
+| Byte-swapped selected properties | 0 |
 
 ## Non-goals
 
@@ -31,4 +46,4 @@ PQ9 is bounded to issues #281 through #285.
 
 ## Next milestone
 
-The next milestone should follow the measured `pq9_next_blocker` from the public fixture artifact.
+The next milestone should address `heap_bth_layout_traversal`: real heap-on-node/BTH/property-context traversal repair before additional dictionary, body, attachment, or recipient work.
