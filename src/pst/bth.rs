@@ -2,6 +2,10 @@ use crate::error::{PstdError, PstdResult};
 use crate::pst::binary::{slice_at, u16_le_at, u32_le_at, u8_at};
 use crate::pst::heap::HeapOnNode;
 
+const BTH_HEADER_TYPE: u8 = 0xb5;
+const MAX_BTH_ENTRIES: usize = 4096;
+const MAX_BTH_INDEX_LEVELS: u8 = 8;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BthHeader {
     pub key_size: u8,
@@ -53,7 +57,7 @@ impl BthMap {
             ));
         }
         let bth_type = bth_header[0];
-        if bth_type != 0xb5 {
+        if bth_type != BTH_HEADER_TYPE {
             return Err(PstdError::pst_parse(
                 Some(base_offset),
                 format!("unexpected heap BTH type 0x{bth_type:02x}"),
@@ -62,42 +66,25 @@ impl BthMap {
         let key_size = bth_header[1];
         let value_size = bth_header[2];
         let index_levels = bth_header[3];
+        if index_levels > MAX_BTH_INDEX_LEVELS {
+            return Err(PstdError::pst_parse(
+                Some(base_offset),
+                format!("heap BTH index levels exceed limit: {index_levels}"),
+            ));
+        }
         let root_allocation =
             u32::from_le_bytes([bth_header[4], bth_header[5], bth_header[6], bth_header[7]]);
-        if index_levels != 0 {
-            return Err(PstdError::pst_parse(
-                Some(base_offset),
-                format!("heap BTH index levels not yet supported: {index_levels}"),
-            ));
-        }
-        let root = heap.allocation_by_hid(buf, root_allocation, base_offset)?;
-        let entry_size = key_size as usize + value_size as usize;
-        if entry_size == 0 {
-            return Err(PstdError::pst_parse(
-                Some(base_offset),
-                "heap BTH entry size is zero",
-            ));
-        }
 
-        let mut entries = Vec::new();
-        let entry_count = root.len() / entry_size;
-        for idx in 0..entry_count {
-            let cursor = idx * entry_size;
-            let raw_key = slice_at(root, cursor, key_size as usize, base_offset)?;
-            let raw_value = slice_at(
-                root,
-                cursor + key_size as usize,
-                value_size as usize,
-                base_offset,
-            )?;
-            entries.push(property_context_entry(
-                heap,
-                buf,
-                raw_key,
-                raw_value,
-                base_offset,
-            ));
-        }
+        let root = heap.allocation_by_hid(buf, root_allocation, base_offset)?;
+        let entries = parse_heap_entries(
+            heap,
+            buf,
+            root,
+            key_size,
+            value_size,
+            index_levels,
+            base_offset,
+        )?;
 
         Ok(Self {
             header: BthHeader {
@@ -148,6 +135,94 @@ fn parse_flat_entries(
         .to_vec();
         entries.push(BthEntry { key, value });
         cursor += entry_size;
+    }
+    Ok(entries)
+}
+
+fn parse_heap_entries(
+    heap: &HeapOnNode,
+    heap_buf: &[u8],
+    allocation: &[u8],
+    key_size: u8,
+    value_size: u8,
+    index_levels: u8,
+    base_offset: u64,
+) -> PstdResult<Vec<BthEntry>> {
+    if index_levels == 0 {
+        return parse_heap_leaf_entries(heap, heap_buf, allocation, key_size, value_size, base_offset);
+    }
+
+    let entry_size = key_size as usize + 4;
+    if entry_size == 0 {
+        return Err(PstdError::pst_parse(
+            Some(base_offset),
+            "heap BTH index entry size is zero",
+        ));
+    }
+
+    let mut entries = Vec::new();
+    let entry_count = allocation.len() / entry_size;
+    for idx in 0..entry_count.min(MAX_BTH_ENTRIES) {
+        let cursor = idx * entry_size;
+        let child_hid = u32::from_le_bytes([
+            allocation[cursor + key_size as usize],
+            allocation[cursor + key_size as usize + 1],
+            allocation[cursor + key_size as usize + 2],
+            allocation[cursor + key_size as usize + 3],
+        ]);
+        let child = heap.allocation_by_hid(heap_buf, child_hid, base_offset)?;
+        let mut child_entries = parse_heap_entries(
+            heap,
+            heap_buf,
+            child,
+            key_size,
+            value_size,
+            index_levels - 1,
+            base_offset,
+        )?;
+        entries.append(&mut child_entries);
+        if entries.len() >= MAX_BTH_ENTRIES {
+            entries.truncate(MAX_BTH_ENTRIES);
+            break;
+        }
+    }
+    Ok(entries)
+}
+
+fn parse_heap_leaf_entries(
+    heap: &HeapOnNode,
+    heap_buf: &[u8],
+    allocation: &[u8],
+    key_size: u8,
+    value_size: u8,
+    base_offset: u64,
+) -> PstdResult<Vec<BthEntry>> {
+    let entry_size = key_size as usize + value_size as usize;
+    if entry_size == 0 {
+        return Err(PstdError::pst_parse(
+            Some(base_offset),
+            "heap BTH entry size is zero",
+        ));
+    }
+
+    let mut entries = Vec::new();
+    let entry_count = allocation.len() / entry_size;
+    for idx in 0..entry_count.min(MAX_BTH_ENTRIES) {
+        let cursor = idx * entry_size;
+        let raw_key = slice_at(allocation, cursor, key_size as usize, base_offset)?;
+        let raw_value = slice_at(
+            allocation,
+            cursor + key_size as usize,
+            value_size as usize,
+            base_offset,
+        )?;
+        entries.push(property_context_entry(
+            heap,
+            heap_buf,
+            raw_key,
+            raw_value,
+            base_offset,
+        ));
     }
     Ok(entries)
 }
@@ -216,6 +291,17 @@ mod tests {
         assert_eq!(bth.entries[0].value, utf16le("Heap subject"));
     }
 
+    #[test]
+    fn parses_indexed_heap_property_context_entries() {
+        let heap_bytes = indexed_property_context_heap();
+        let heap = HeapOnNode::parse(&heap_bytes, 0).unwrap();
+        let bth = BthMap::parse_property_context_from_heap(&heap, &heap_bytes, 0).unwrap();
+
+        assert_eq!(bth.entries.len(), 1);
+        assert_eq!(bth.entries[0].key, PR_SUBJECT.to_le_bytes());
+        assert_eq!(bth.entries[0].value, utf16le("Indexed heap subject"));
+    }
+
     fn property_context_heap() -> Vec<u8> {
         let subject = utf16le("Heap subject");
         let subject_end = 32u16 + subject.len() as u16;
@@ -243,6 +329,43 @@ mod tests {
         buf[150..152].copy_from_slice(&24u16.to_le_bytes());
         buf[152..154].copy_from_slice(&32u16.to_le_bytes());
         buf[154..156].copy_from_slice(&subject_end.to_le_bytes());
+        buf
+    }
+
+    fn indexed_property_context_heap() -> Vec<u8> {
+        let subject = utf16le("Indexed heap subject");
+        let subject_start = 48u16;
+        let subject_end = subject_start + subject.len() as u16;
+        let page_map_offset = 176u16;
+        let mut buf = vec![0; 192];
+        buf[0..2].copy_from_slice(&page_map_offset.to_le_bytes());
+        buf[2] = 0xec;
+        buf[3] = 0xbc;
+        buf[4..8].copy_from_slice(&0x20u32.to_le_bytes());
+
+        buf[16] = 0xb5;
+        buf[17] = 2;
+        buf[18] = 6;
+        buf[19] = 1;
+        buf[20..24].copy_from_slice(&0x40u32.to_le_bytes());
+
+        buf[24..26].copy_from_slice(&0x0037u16.to_le_bytes());
+        buf[26..30].copy_from_slice(&0x60u32.to_le_bytes());
+
+        buf[32..34].copy_from_slice(&0x0037u16.to_le_bytes());
+        buf[34..36].copy_from_slice(&0x001fu16.to_le_bytes());
+        buf[36..40].copy_from_slice(&0x80u32.to_le_bytes());
+
+        buf[subject_start as usize..subject_end as usize].copy_from_slice(&subject);
+
+        buf[176..178].copy_from_slice(&4u16.to_le_bytes());
+        buf[178..180].copy_from_slice(&0u16.to_le_bytes());
+        buf[180..182].copy_from_slice(&16u16.to_le_bytes());
+        buf[182..184].copy_from_slice(&24u16.to_le_bytes());
+        buf[184..186].copy_from_slice(&32u16.to_le_bytes());
+        buf[186..188].copy_from_slice(&40u16.to_le_bytes());
+        buf[188..190].copy_from_slice(&subject_start.to_le_bytes());
+        buf[190..192].copy_from_slice(&subject_end.to_le_bytes());
         buf
     }
 
