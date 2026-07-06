@@ -75,7 +75,11 @@ pub fn message_from_properties(
         threading_status,
         body_status: "deferred_to_m5".to_string(),
         attachment_status: "deferred_to_m5".to_string(),
-        extraction_status: format!("metadata_only; {}", properties.pq9_status()),
+        extraction_status: format!(
+            "metadata_only; {}; {}",
+            properties.pq9_status(),
+            properties.pq10_status()
+        ),
     }
 }
 
@@ -158,7 +162,8 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext::from_values(values);
+        let properties = PropertyContext::from_values(values)
+            .with_pq10_traversal_status("heap_bth_property_context");
 
         let message = message_from_properties(
             "run_123",
@@ -177,6 +182,9 @@ mod tests {
         assert!(message
             .extraction_status
             .contains("pq9_tag_shape=plausible:2"));
+        assert!(message
+            .extraction_status
+            .contains("pq10_traversal=heap_bth_property_context"));
     }
 
     #[test]
