@@ -117,7 +117,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         "input": input_display,
         "manifest_only": config.manifest_only,
         "profile": config.profile,
-        "metadata_status": metadata_status,
+        "metadata_status": metadata_status.clone(),
     }))?;
 
     let archives_dir = config.output.join("archives");
@@ -243,7 +243,7 @@ fn status_counter(status: &str, key: &str) -> usize {
     status
         .split(&needle)
         .nth(1)
-        .and_then(|tail| tail.split([',', ';']).next())
+        .and_then(|tail| tail.split(|ch| ch == ',' || ch == ';').next())
         .and_then(|value| value.parse::<usize>().ok())
         .unwrap_or(0)
 }
