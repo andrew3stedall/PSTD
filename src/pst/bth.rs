@@ -334,7 +334,7 @@ mod tests {
 
     fn indexed_property_context_heap() -> Vec<u8> {
         let subject = utf16le("Indexed heap subject");
-        let subject_start = 48u16;
+        let subject_start = 40u16;
         let subject_end = subject_start + subject.len() as u16;
         let page_map_offset = 176u16;
         let mut buf = vec![0; 192];
@@ -364,8 +364,7 @@ mod tests {
         buf[182..184].copy_from_slice(&24u16.to_le_bytes());
         buf[184..186].copy_from_slice(&32u16.to_le_bytes());
         buf[186..188].copy_from_slice(&40u16.to_le_bytes());
-        buf[188..190].copy_from_slice(&subject_start.to_le_bytes());
-        buf[190..192].copy_from_slice(&subject_end.to_le_bytes());
+        buf[188..190].copy_from_slice(&subject_end.to_le_bytes());
         buf
     }
 
