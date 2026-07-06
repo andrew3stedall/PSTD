@@ -8,6 +8,7 @@ use crate::engine::metadata::{extract_metadata, fallback_metadata};
 use crate::error::{PstdError, PstdResult};
 use crate::output::ids;
 use crate::output::jsonl_writer::JsonlBuffer;
+use crate::output::metadata::MessageRecord;
 use crate::output::summary::ExtractionSummary;
 use crate::output::tar_writer::TarShardWriter;
 use crate::progress::{ProgressEvent, ProgressEventType};
@@ -38,6 +39,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         Err(reason) if config.continue_on_error => fallback_metadata(&run_id, &pst_id, &reason),
         Err(reason) => return Err(reason),
     };
+    let metadata_status = status_with_pq9_tag_shape(&metadata.status, &metadata.messages);
 
     let mut folders = JsonlBuffer::new();
     for record in &metadata.folders {
@@ -115,7 +117,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         "input": input_display,
         "manifest_only": config.manifest_only,
         "profile": config.profile,
-        "metadata_status": metadata.status,
+        "metadata_status": metadata_status,
     }))?;
 
     let archives_dir = config.output.join("archives");
@@ -186,7 +188,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         bytes_read: 0,
         bytes_written: 0,
         tar_shards_written: 0,
-        status: metadata.status.clone(),
+        status: metadata_status,
     };
 
     tar.append_bytes(
@@ -210,6 +212,50 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         ),
     )?;
     Ok(summary)
+}
+
+fn status_with_pq9_tag_shape(base_status: &str, messages: &[MessageRecord]) -> String {
+    let plausible = messages
+        .iter()
+        .map(|message| status_counter(&message.extraction_status, "plausible"))
+        .sum::<usize>();
+    let suspicious = messages
+        .iter()
+        .map(|message| status_counter(&message.extraction_status, "suspicious"))
+        .sum::<usize>();
+    let byte_swapped_selected = messages
+        .iter()
+        .map(|message| status_counter(&message.extraction_status, "byte_swapped_selected"))
+        .sum::<usize>();
+
+    if plausible == 0 && suspicious == 0 && byte_swapped_selected == 0 {
+        return base_status.to_string();
+    }
+
+    format!(
+        "{base_status}; pq9_status=tag_shape_visible; pq9_plausible_property_tags={plausible}; pq9_suspicious_property_keys={suspicious}; pq9_byte_swapped_selected={byte_swapped_selected}; pq9_next_blocker={}",
+        pq9_next_blocker(plausible, suspicious)
+    )
+}
+
+fn status_counter(status: &str, key: &str) -> usize {
+    let needle = format!("{key}:");
+    status
+        .split(&needle)
+        .nth(1)
+        .and_then(|tail| tail.split([',', ';']).next())
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(0)
+}
+
+fn pq9_next_blocker(plausible: usize, suspicious: usize) -> &'static str {
+    if suspicious > plausible {
+        "heap_bth_layout_traversal"
+    } else if plausible > 0 {
+        "selected_mapi_dictionary_expansion"
+    } else {
+        "property_context_signal_absent"
+    }
 }
 
 fn validate_config(config: &ExtractConfig) -> PstdResult<()> {
@@ -252,4 +298,24 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
     hex::encode(hasher.finalize())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{pq9_next_blocker, status_counter};
+
+    #[test]
+    fn parses_pq9_status_counters() {
+        let status = "metadata_only; pq9_tag_shape=plausible:3,suspicious:7,byte_swapped_selected:1; pq9_next_blocker=heap_bth_layout_traversal";
+        assert_eq!(status_counter(status, "plausible"), 3);
+        assert_eq!(status_counter(status, "suspicious"), 7);
+        assert_eq!(status_counter(status, "byte_swapped_selected"), 1);
+    }
+
+    #[test]
+    fn chooses_pq9_next_blocker() {
+        assert_eq!(pq9_next_blocker(2, 7), "heap_bth_layout_traversal");
+        assert_eq!(pq9_next_blocker(7, 2), "selected_mapi_dictionary_expansion");
+        assert_eq!(pq9_next_blocker(0, 0), "property_context_signal_absent");
+    }
 }
