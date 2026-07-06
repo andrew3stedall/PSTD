@@ -62,12 +62,8 @@ impl BthMap {
         let key_size = bth_header[1];
         let value_size = bth_header[2];
         let index_levels = bth_header[3];
-        let root_allocation = u32::from_le_bytes([
-            bth_header[4],
-            bth_header[5],
-            bth_header[6],
-            bth_header[7],
-        ]);
+        let root_allocation =
+            u32::from_le_bytes([bth_header[4], bth_header[5], bth_header[6], bth_header[7]]);
         if index_levels != 0 {
             return Err(PstdError::pst_parse(
                 Some(base_offset),
