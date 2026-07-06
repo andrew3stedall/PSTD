@@ -227,13 +227,18 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         .iter()
         .map(|message| status_counter(&message.extraction_status, "byte_swapped_selected"))
         .sum::<usize>();
-    let heap_bth_contexts = status_contains_count(messages, "pq10_traversal=heap_bth_property_context");
+    let heap_bth_contexts =
+        status_contains_count(messages, "pq10_traversal=heap_bth_property_context");
     let legacy_flat_bth_contexts =
         status_contains_count(messages, "pq10_traversal=legacy_flat_bth_property_context");
-    let unknown_traversal_contexts =
-        status_contains_count(messages, "pq10_traversal=property_context_traversal_unknown");
-    let pq11_offset_heap_contexts =
-        status_contains_count(messages, "pq10_traversal=heap_bth_property_context_at_offset_");
+    let unknown_traversal_contexts = status_contains_count(
+        messages,
+        "pq10_traversal=property_context_traversal_unknown",
+    );
+    let pq11_offset_heap_contexts = status_contains_count(
+        messages,
+        "pq10_traversal=heap_bth_property_context_at_offset_",
+    );
     let pq11_candidate_not_found =
         status_contains_count(messages, "pq11_heap_probe=candidate_not_found");
     let pq11_candidate_heap_failed =
