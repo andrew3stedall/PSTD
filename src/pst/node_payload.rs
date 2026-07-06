@@ -1,7 +1,10 @@
 use crate::error::PstdResult;
 use crate::pst::bbt::BbtIndex;
 use crate::pst::bth::BthMap;
-use crate::pst::heap::{heap_candidate_offsets, HeapOnNode};
+use crate::pst::heap::{
+    heap_candidate_offsets_with_limit, heap_signature_offsets_with_limit, HeapOnNode,
+    PQ12_MAX_HEAP_SCAN_OFFSET,
+};
 use crate::pst::limits::ParserLimits;
 use crate::pst::nbt::NbtEntry;
 use crate::pst::payload::{load_payload_block, PayloadBlock};
@@ -63,9 +66,9 @@ pub fn load_node_property_context(
 }
 
 fn load_heap_bth_from_candidates(buf: &[u8], base_offset: u64) -> Result<(BthMap, String), String> {
-    let candidates = heap_candidate_offsets(buf);
+    let candidates = heap_candidate_offsets_with_limit(buf, PQ12_MAX_HEAP_SCAN_OFFSET);
     if candidates.is_empty() {
-        return Err("candidate_not_found".to_string());
+        return Err(candidate_not_found_reason(buf));
     }
 
     let mut last_error = "candidate_not_parsed".to_string();
@@ -88,21 +91,49 @@ fn load_heap_bth_from_candidates(buf: &[u8], base_offset: u64) -> Result<(BthMap
                 }
                 Err(reason) => {
                     last_error = format!(
-                        "candidate_bth_failed_at_offset_{candidate_offset}:{}",
-                        sanitized_reason(&reason.to_string())
+                        "candidate_bth_failed_at_offset_{candidate_offset}:{}; pq12_boundary=candidate_bth_failed; pq12_payload_bucket={}",
+                        sanitized_reason(&reason.to_string()),
+                        payload_size_bucket(buf.len())
                     );
                 }
             },
             Err(reason) => {
                 last_error = format!(
-                    "candidate_heap_failed_at_offset_{candidate_offset}:{}",
-                    sanitized_reason(&reason.to_string())
+                    "candidate_heap_failed_at_offset_{candidate_offset}:{}; pq12_boundary=candidate_heap_failed; pq12_payload_bucket={}",
+                    sanitized_reason(&reason.to_string()),
+                    payload_size_bucket(buf.len())
                 );
             }
         }
     }
 
     Err(last_error)
+}
+
+fn candidate_not_found_reason(buf: &[u8]) -> String {
+    let signatures = heap_signature_offsets_with_limit(buf, PQ12_MAX_HEAP_SCAN_OFFSET);
+    if let Some(first_offset) = signatures.first() {
+        format!(
+            "candidate_not_found; pq12_boundary=signature_without_valid_page_map; pq12_first_signature_offset_{first_offset}; pq12_signature_count={}; pq12_payload_bucket={}",
+            signatures.len(),
+            payload_size_bucket(buf.len())
+        )
+    } else {
+        format!(
+            "candidate_not_found; pq12_boundary=no_signature_in_first_4096; pq12_payload_bucket={}",
+            payload_size_bucket(buf.len())
+        )
+    }
+}
+
+fn payload_size_bucket(len: usize) -> &'static str {
+    match len {
+        0..=127 => "lt_128",
+        128..=511 => "lt_512",
+        512..=4095 => "lt_4096",
+        4096..=65535 => "lt_65536",
+        _ => "gte_65536",
+    }
 }
 
 fn sanitized_reason(value: &str) -> String {
@@ -161,11 +192,11 @@ mod tests {
         );
         assert_eq!(
             loaded.properties.pq10_status(),
-            "pq10_traversal=legacy_flat_bth_property_context; pq11_heap_probe=candidate_not_found"
+            "pq10_traversal=legacy_flat_bth_property_context; pq11_heap_probe=candidate_not_found; pq12_boundary=no_signature_in_first_4096; pq12_payload_bucket=lt_128"
         );
         assert_eq!(
             loaded.report.status,
-            "node_property_context_loaded; traversal=legacy_flat_bth_property_context; pq11_heap_probe=candidate_not_found"
+            "node_property_context_loaded; traversal=legacy_flat_bth_property_context; pq11_heap_probe=candidate_not_found; pq12_boundary=no_signature_in_first_4096; pq12_payload_bucket=lt_128"
         );
     }
 

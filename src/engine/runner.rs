@@ -245,6 +245,14 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         status_contains_count(messages, "pq11_heap_probe=candidate_heap_failed");
     let pq11_candidate_bth_failed =
         status_contains_count(messages, "pq11_heap_probe=candidate_bth_failed");
+    let pq12_no_signature =
+        status_contains_count(messages, "pq12_boundary=no_signature_in_first_4096");
+    let pq12_signature_without_page_map =
+        status_contains_count(messages, "pq12_boundary=signature_without_valid_page_map");
+    let pq12_candidate_heap_failed =
+        status_contains_count(messages, "pq12_boundary=candidate_heap_failed");
+    let pq12_candidate_bth_failed =
+        status_contains_count(messages, "pq12_boundary=candidate_bth_failed");
 
     let has_pq9_signal = plausible > 0 || suspicious > 0 || byte_swapped_selected > 0;
     let has_pq10_signal =
@@ -253,7 +261,11 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         || pq11_candidate_not_found > 0
         || pq11_candidate_heap_failed > 0
         || pq11_candidate_bth_failed > 0;
-    if !has_pq9_signal && !has_pq10_signal && !has_pq11_signal {
+    let has_pq12_signal = pq12_no_signature > 0
+        || pq12_signature_without_page_map > 0
+        || pq12_candidate_heap_failed > 0
+        || pq12_candidate_bth_failed > 0;
+    if !has_pq9_signal && !has_pq10_signal && !has_pq11_signal && !has_pq12_signal {
         return base_status.to_string();
     }
 
@@ -278,6 +290,17 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
                 pq11_candidate_not_found,
                 pq11_candidate_heap_failed,
                 pq11_candidate_bth_failed,
+            )
+        ));
+    }
+    if has_pq12_signal {
+        status.push_str(&format!(
+            "; pq12_status=payload_boundary_visible; pq12_no_signature={pq12_no_signature}; pq12_signature_without_page_map={pq12_signature_without_page_map}; pq12_candidate_heap_failed={pq12_candidate_heap_failed}; pq12_candidate_bth_failed={pq12_candidate_bth_failed}; pq12_next_blocker={}",
+            pq12_next_blocker(
+                pq12_no_signature,
+                pq12_signature_without_page_map,
+                pq12_candidate_heap_failed,
+                pq12_candidate_bth_failed,
             )
         ));
     }
@@ -346,6 +369,23 @@ fn pq11_next_blocker(
     }
 }
 
+fn pq12_next_blocker(
+    no_signature: usize,
+    signature_without_page_map: usize,
+    candidate_heap_failed: usize,
+    candidate_bth_failed: usize,
+) -> &'static str {
+    if candidate_bth_failed > 0 {
+        "heap_bth_root_or_index_decode"
+    } else if candidate_heap_failed > 0 || signature_without_page_map > 0 {
+        "payload_prefix_or_heap_page_map_decode"
+    } else if no_signature > 0 {
+        "payload_block_selection_or_subnode_resolution"
+    } else {
+        "payload_boundary_signal_absent"
+    }
+}
+
 fn validate_config(config: &ExtractConfig) -> PstdResult<()> {
     if config.archive_format != "tar" {
         return Err(PstdError::InvalidConfig(
@@ -390,7 +430,9 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{pq10_next_blocker, pq11_next_blocker, pq9_next_blocker, status_counter};
+    use super::{
+        pq10_next_blocker, pq11_next_blocker, pq12_next_blocker, pq9_next_blocker, status_counter,
+    };
 
     #[test]
     fn parses_pq9_status_counters() {
@@ -446,5 +488,29 @@ mod tests {
             "heap_signature_or_block_payload_prefix_detection"
         );
         assert_eq!(pq11_next_blocker(0, 0, 0, 0), "heap_probe_signal_absent");
+    }
+
+    #[test]
+    fn chooses_pq12_next_blocker() {
+        assert_eq!(
+            pq12_next_blocker(0, 0, 0, 1),
+            "heap_bth_root_or_index_decode"
+        );
+        assert_eq!(
+            pq12_next_blocker(0, 1, 0, 0),
+            "payload_prefix_or_heap_page_map_decode"
+        );
+        assert_eq!(
+            pq12_next_blocker(0, 0, 1, 0),
+            "payload_prefix_or_heap_page_map_decode"
+        );
+        assert_eq!(
+            pq12_next_blocker(1, 0, 0, 0),
+            "payload_block_selection_or_subnode_resolution"
+        );
+        assert_eq!(
+            pq12_next_blocker(0, 0, 0, 0),
+            "payload_boundary_signal_absent"
+        );
     }
 }
