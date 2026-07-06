@@ -8,6 +8,7 @@ This tree is organised by audience.
 |---|---|
 | Current status | [Project Status](product/project-status.md) |
 | Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
+| PQ10 heap BTH property traversal | [PQ10 Heap BTH Property Traversal](operations/pq10-heap-bth-property-traversal.md) |
 | PQ9 property tag-shape status | [PQ9 Property Tag-Shape Status Reporting](operations/pq9-tag-shape-status.md) |
 | PQ8 property-context interpretation | [PQ8 Property-Context Layout and Tag Interpretation](operations/pq8-property-context-interpretation.md) |
 | PQ7 selected property dictionary | [PQ7 Selected Property Dictionary Expansion](operations/pq7-selected-property-dictionary.md) |
@@ -15,7 +16,7 @@ This tree is organised by audience.
 | PQ5 message table discovery | [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md) |
 | PQ4 folder hierarchy discovery | [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md) |
 | PQ3 index entry decoding | [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md) |
-| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-decode-candidate-selection.md) |
+| PQ2 root candidate selection | [PQ2 Root Decode Candidate Selection](operations/pq2-root-decode-candidate-selection.md) |
 | PQ1 root diagnostics | [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md) |
 | Release-candidate checklist | [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md) |
 | Local/Docker operator handoff | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
@@ -75,6 +76,7 @@ This tree is organised by audience.
 | PQ7 | [Selected Property Dictionary Expansion](milestones/pq7-selected-property-dictionary.md) | TBD | Issues #269-#273 | TBD |
 | PQ8 | [Property-Context Interpretation Diagnostics](milestones/pq8-property-context-interpretation.md) | TBD | Issues #275-#279 | TBD |
 | PQ9 | [Property Tag-Shape Status](milestones/pq9-tag-shape-status.md) | TBD | Issues #281-#285 | TBD |
+| PQ10 | [Heap BTH Property Traversal](milestones/pq10-heap-bth-property-traversal.md) | TBD | Issues #287-#291 | TBD |
 
 ## v1 release-candidate handoff
 
@@ -84,6 +86,7 @@ This tree is organised by audience.
 | Local/Docker runbook | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
 | Unsupported/deferred boundary | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
 | Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
+| PQ10 heap BTH property traversal | [PQ10 Heap BTH Property Traversal](operations/pq10-heap-bth-property-traversal.md) |
 | PQ9 property tag-shape status | [PQ9 Property Tag-Shape Status Reporting](operations/pq9-tag-shape-status.md) |
 | PQ8 property-context interpretation | [PQ8 Property-Context Layout and Tag Interpretation](operations/pq8-property-context-interpretation.md) |
 | PQ7 selected property dictionary | [PQ7 Selected Property Dictionary Expansion](operations/pq7-selected-property-dictionary.md) |
@@ -91,7 +94,7 @@ This tree is organised by audience.
 | PQ5 message table discovery | [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md) |
 | PQ4 folder hierarchy discovery | [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md) |
 | PQ3 index entry decoding | [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md) |
-| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-decode-candidate-selection.md) |
+| PQ2 root candidate selection | [PQ2 Root Decode Candidate Selection](operations/pq2-root-decode-candidate-selection.md) |
 | PQ1 root diagnostics | [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md) |
 
 ## Engineering
@@ -134,6 +137,7 @@ This tree is organised by audience.
 
 - [Local Validation](operations/local-validation.md)
 - [Public PST Progress Log](operations/public-pst-progress-log.md)
+- [PQ10 Heap BTH Property Traversal](operations/pq10-heap-bth-property-traversal.md)
 - [PQ9 Property Tag-Shape Status Reporting](operations/pq9-tag-shape-status.md)
 - [PQ8 Property-Context Layout and Tag Interpretation](operations/pq8-property-context-interpretation.md)
 - [PQ7 Selected Property Dictionary Expansion](operations/pq7-selected-property-dictionary.md)
@@ -141,7 +145,7 @@ This tree is organised by audience.
 - [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md)
 - [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md)
 - [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md)
-- [PQ2 Root Candidate Selection](operations/pq2-root-decode-candidate-selection.md)
+- [PQ2 Root Decode Candidate Selection](operations/pq2-root-decode-candidate-selection.md)
 - [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md)
 - [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md)
 - [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
