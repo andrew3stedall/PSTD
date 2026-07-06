@@ -4,6 +4,7 @@ use crate::pst::binary::{slice_at, u16_le_at, u32_le_at, u8_at};
 const HEAP_SIGNATURE: u8 = 0xec;
 const MAX_HEAP_ALLOCATIONS: u16 = 4096;
 const MAX_HEAP_SCAN_OFFSET: usize = 128;
+pub const PQ12_MAX_HEAP_SCAN_OFFSET: usize = 4096;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HeapHeader {
@@ -157,28 +158,58 @@ pub fn hid_index(hid: u32) -> Option<u16> {
 }
 
 pub fn heap_candidate_offsets(buf: &[u8]) -> Vec<usize> {
+    heap_candidate_offsets_with_limit(buf, MAX_HEAP_SCAN_OFFSET)
+}
+
+pub fn heap_candidate_offsets_with_limit(buf: &[u8], max_scan_offset: usize) -> Vec<usize> {
     if buf.len() < 8 {
         return Vec::new();
     }
 
-    let max_start = buf.len().saturating_sub(8).min(MAX_HEAP_SCAN_OFFSET);
+    let max_start = buf.len().saturating_sub(8).min(max_scan_offset);
     let mut offsets = Vec::new();
     for start in 0..=max_start {
-        if buf[start + 2] != HEAP_SIGNATURE {
-            continue;
-        }
-        let page_map_offset = u16::from_le_bytes([buf[start], buf[start + 1]]) as usize;
-        let remaining = buf.len() - start;
-        if page_map_offset + 4 <= remaining {
+        if has_heap_signature_at(buf, start) && has_valid_page_map_at(buf, start) {
             offsets.push(start);
         }
     }
     offsets
 }
 
+pub fn heap_signature_offsets_with_limit(buf: &[u8], max_scan_offset: usize) -> Vec<usize> {
+    if buf.len() < 8 {
+        return Vec::new();
+    }
+
+    let max_start = buf.len().saturating_sub(8).min(max_scan_offset);
+    let mut offsets = Vec::new();
+    for start in 0..=max_start {
+        if has_heap_signature_at(buf, start) {
+            offsets.push(start);
+        }
+    }
+    offsets
+}
+
+fn has_heap_signature_at(buf: &[u8], start: usize) -> bool {
+    start + 2 < buf.len() && buf[start + 2] == HEAP_SIGNATURE
+}
+
+fn has_valid_page_map_at(buf: &[u8], start: usize) -> bool {
+    if start + 8 > buf.len() {
+        return false;
+    }
+    let page_map_offset = u16::from_le_bytes([buf[start], buf[start + 1]]) as usize;
+    let remaining = buf.len() - start;
+    page_map_offset + 4 <= remaining
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{heap_candidate_offsets, hid_index, HeapOnNode};
+    use super::{
+        heap_candidate_offsets, heap_candidate_offsets_with_limit, heap_signature_offsets_with_limit,
+        hid_index, HeapOnNode,
+    };
 
     #[test]
     fn maps_hid_to_one_based_heap_allocation_index() {
@@ -219,6 +250,22 @@ mod tests {
         bytes.extend_from_slice(&sample_heap());
 
         assert_eq!(heap_candidate_offsets(&bytes), vec![16]);
+    }
+
+    #[test]
+    fn separates_signature_presence_from_valid_candidate_shape() {
+        let mut bytes = vec![0; 512];
+        bytes[202] = 0xec;
+        assert_eq!(heap_candidate_offsets_with_limit(&bytes, 256), Vec::<usize>::new());
+        assert_eq!(heap_signature_offsets_with_limit(&bytes, 256), vec![200]);
+    }
+
+    #[test]
+    fn extended_scan_finds_valid_candidate_beyond_default_window() {
+        let mut bytes = vec![0; 512];
+        bytes[256..320].copy_from_slice(&sample_heap());
+        assert_eq!(heap_candidate_offsets(&bytes), Vec::<usize>::new());
+        assert_eq!(heap_candidate_offsets_with_limit(&bytes, 512), vec![256]);
     }
 
     fn sample_heap() -> Vec<u8> {
