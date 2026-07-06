@@ -255,6 +255,7 @@ mod tests {
     #[test]
     fn separates_signature_presence_from_valid_candidate_shape() {
         let mut bytes = vec![0; 512];
+        bytes[200..202].copy_from_slice(&400u16.to_le_bytes());
         bytes[202] = 0xec;
         assert_eq!(heap_candidate_offsets_with_limit(&bytes, 256), Vec::<usize>::new());
         assert_eq!(heap_signature_offsets_with_limit(&bytes, 256), vec![200]);
