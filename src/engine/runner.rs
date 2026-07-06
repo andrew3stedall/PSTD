@@ -256,6 +256,11 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     let pq13_subnode_references = status_counter(base_status, "subnode_references");
     let pq13_subnode_decode_plans = status_counter(base_status, "subnode_decode_plans");
     let pq13_subnode_decode_attempts = status_counter(base_status, "subnode_decode_attempts");
+    let pq15_decoded_subnode_blocks = status_counter(base_status, "subnode_decoded_blocks");
+    let pq15_unsupported_subnode_layouts =
+        status_counter(base_status, "subnode_unsupported_layouts");
+    let pq15_supported_subnode_layouts =
+        pq15_decoded_subnode_blocks.saturating_sub(pq15_unsupported_subnode_layouts);
 
     let has_pq9_signal = plausible > 0 || suspicious > 0 || byte_swapped_selected > 0;
     let has_pq10_signal =
@@ -271,11 +276,13 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     let has_pq13_signal = pq13_subnode_references > 0
         || pq13_subnode_decode_plans > 0
         || pq13_subnode_decode_attempts > 0;
+    let has_pq15_signal = pq15_decoded_subnode_blocks > 0 || pq15_unsupported_subnode_layouts > 0;
     if !has_pq9_signal
         && !has_pq10_signal
         && !has_pq11_signal
         && !has_pq12_signal
         && !has_pq13_signal
+        && !has_pq15_signal
     {
         return base_status.to_string();
     }
@@ -322,6 +329,16 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
                 pq13_subnode_references,
                 pq13_subnode_decode_plans,
                 pq13_subnode_decode_attempts,
+            )
+        ));
+    }
+    if has_pq15_signal {
+        status.push_str(&format!(
+            "; pq15_status=subnode_payload_interpretation_visible; pq15_decoded_subnode_blocks={pq15_decoded_subnode_blocks}; pq15_supported_subnode_layouts={pq15_supported_subnode_layouts}; pq15_unsupported_subnode_layouts={pq15_unsupported_subnode_layouts}; pq15_next_blocker={}",
+            pq15_next_blocker(
+                pq15_decoded_subnode_blocks,
+                pq15_supported_subnode_layouts,
+                pq15_unsupported_subnode_layouts,
             )
         ));
     }
@@ -427,6 +444,18 @@ fn pq13_next_blocker(
     }
 }
 
+fn pq15_next_blocker(decoded: usize, supported: usize, unsupported: usize) -> &'static str {
+    if supported > 0 {
+        "subnode_table_or_property_payload_interpretation"
+    } else if unsupported > 0 {
+        "subnode_layout_decoder_expansion"
+    } else if decoded == 0 {
+        "message_subnode_decode_absent"
+    } else {
+        "subnode_interpretation_signal_absent"
+    }
+}
+
 fn validate_config(config: &ExtractConfig) -> PstdResult<()> {
     if config.archive_format != "tar" {
         return Err(PstdError::InvalidConfig(
@@ -473,7 +502,7 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 mod tests {
     use super::{
         pq10_next_blocker, pq11_next_blocker, pq12_next_blocker, pq13_next_blocker,
-        pq9_next_blocker, status_counter,
+        pq15_next_blocker, pq9_next_blocker, status_counter,
     };
 
     #[test]
@@ -574,5 +603,18 @@ mod tests {
             pq13_next_blocker(0, 0, 0),
             "non_subnode_payload_source_selection"
         );
+    }
+
+    #[test]
+    fn chooses_pq15_next_blocker() {
+        assert_eq!(
+            pq15_next_blocker(1, 1, 0),
+            "subnode_table_or_property_payload_interpretation"
+        );
+        assert_eq!(
+            pq15_next_blocker(1, 0, 1),
+            "subnode_layout_decoder_expansion"
+        );
+        assert_eq!(pq15_next_blocker(0, 0, 0), "message_subnode_decode_absent");
     }
 }
