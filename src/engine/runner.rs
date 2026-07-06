@@ -247,10 +247,8 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         status_contains_count(messages, "pq11_heap_probe=candidate_bth_failed");
     let pq12_no_signature =
         status_contains_count(messages, "pq12_boundary=no_signature_in_first_4096");
-    let pq12_signature_without_page_map = status_contains_count(
-        messages,
-        "pq12_boundary=signature_without_valid_page_map",
-    );
+    let pq12_signature_without_page_map =
+        status_contains_count(messages, "pq12_boundary=signature_without_valid_page_map");
     let pq12_candidate_heap_failed =
         status_contains_count(messages, "pq12_boundary=candidate_heap_failed");
     let pq12_candidate_bth_failed =
@@ -433,8 +431,7 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        pq10_next_blocker, pq11_next_blocker, pq12_next_blocker, pq9_next_blocker,
-        status_counter,
+        pq10_next_blocker, pq11_next_blocker, pq12_next_blocker, pq9_next_blocker, status_counter,
     };
 
     #[test]
