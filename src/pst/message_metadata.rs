@@ -131,9 +131,7 @@ mod tests {
         PR_TRANSPORT_MESSAGE_HEADERS_A,
     };
     use crate::pst::primitives::NodeId;
-    use crate::pst::property_context::{
-        PropertyContext, PropertyContextDiagnostics, PropertyValue,
-    };
+    use crate::pst::property_context::{PropertyContext, PropertyValue};
 
     #[test]
     fn surfaces_transport_message_headers_when_present() {
@@ -160,14 +158,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext {
-            values,
-            diagnostics: PropertyContextDiagnostics {
-                plausible_property_tag_count: 2,
-                suspicious_property_tag_count: 0,
-                byte_swapped_selected_property_count: 0,
-            },
-        };
+        let properties = PropertyContext::from_values(values);
 
         let message = message_from_properties(
             "run_123",
