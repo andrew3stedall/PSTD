@@ -6,6 +6,9 @@ use crate::pst::mapi::{
     byte_swapped_tag, decode_value, has_known_value_type, property_def, value_summary, MapiValue,
 };
 
+const PQ10_TRAVERSAL_STATUS_TAG: u32 = 0xffff_fffe;
+const PQ10_TRAVERSAL_STATUS_PREFIX: &str = "pq10_traversal=";
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PropertyValue {
     pub tag: u32,
@@ -153,6 +156,20 @@ impl PropertyContext {
         })
     }
 
+    pub fn with_pq10_traversal_status(mut self, traversal_status: &str) -> Self {
+        self.values.insert(
+            PQ10_TRAVERSAL_STATUS_TAG,
+            PropertyValue {
+                tag: PQ10_TRAVERSAL_STATUS_TAG,
+                name: "pq10_traversal_status".to_string(),
+                raw: Vec::new(),
+                decoded: None,
+                status: format!("{PQ10_TRAVERSAL_STATUS_PREFIX}{traversal_status}"),
+            },
+        );
+        self
+    }
+
     pub fn value(&self, tag: u32) -> Option<&PropertyValue> {
         self.values.get(&tag)
     }
@@ -175,6 +192,15 @@ impl PropertyContext {
             "pq9_tag_shape=plausible:{plausible},suspicious:{suspicious},byte_swapped_selected:{byte_swapped_selected}; pq9_next_blocker={}",
             pq9_next_blocker(plausible, suspicious)
         )
+    }
+
+    pub fn pq10_status(&self) -> String {
+        let traversal = self
+            .values
+            .values()
+            .find_map(|value| value.status.strip_prefix(PQ10_TRAVERSAL_STATUS_PREFIX))
+            .unwrap_or("property_context_traversal_unknown");
+        format!("pq10_traversal={traversal}")
     }
 
     fn plausible_property_tag_count(&self) -> usize {
@@ -414,6 +440,14 @@ mod tests {
             Some("Swapped subject")
         );
         assert!(report.status.contains("byte_swapped_selected:1"));
+    }
+
+    #[test]
+    fn carries_pq10_traversal_status_without_affecting_pq9_counts() {
+        let context = PropertyContext::default().with_pq10_traversal_status("heap_bth_property_context");
+
+        assert_eq!(context.pq10_status(), "pq10_traversal=heap_bth_property_context");
+        assert!(context.pq9_status().contains("plausible:0,suspicious:0"));
     }
 
     fn utf16le(value: &str) -> Vec<u8> {
