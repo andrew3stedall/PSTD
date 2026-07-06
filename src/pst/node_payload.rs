@@ -34,8 +34,9 @@ pub fn load_node_property_context(
     let payload = load_payload_block(reader, bbt, entry.data_block_id, limits)?;
     let payload_base_offset = payload.block_ref.offset.0;
     let (bth, traversal_status) = match HeapOnNode::parse(&payload.bytes, payload_base_offset)
-        .and_then(|heap| BthMap::parse_property_context_from_heap(&heap, &payload.bytes, payload_base_offset))
-    {
+        .and_then(|heap| {
+            BthMap::parse_property_context_from_heap(&heap, &payload.bytes, payload_base_offset)
+        }) {
         Ok(bth) => (bth, "heap_bth_property_context"),
         Err(_) => (
             BthMap::parse(&payload.bytes, payload_base_offset)?,
@@ -151,6 +152,7 @@ mod tests {
 
     fn heap_bth_with_subject(value: &str) -> Vec<u8> {
         let subject = utf16le(value);
+        let subject_end = 32u16 + subject.len() as u16;
         let page_map_offset = 144u16;
         let mut body = vec![0; page_map_offset as usize + 16];
         body[0..2].copy_from_slice(&page_map_offset.to_le_bytes());
@@ -164,20 +166,18 @@ mod tests {
         body[19] = 0;
         body[20..24].copy_from_slice(&0x40u32.to_le_bytes());
 
-        body[32..34].copy_from_slice(&0x0037u16.to_le_bytes());
-        body[34..36].copy_from_slice(&0x001fu16.to_le_bytes());
-        body[36..40].copy_from_slice(&0x60u32.to_le_bytes());
+        body[24..26].copy_from_slice(&0x0037u16.to_le_bytes());
+        body[26..28].copy_from_slice(&0x001fu16.to_le_bytes());
+        body[28..32].copy_from_slice(&0x60u32.to_le_bytes());
 
-        body[48..48 + subject.len()].copy_from_slice(&subject);
+        body[32..subject_end as usize].copy_from_slice(&subject);
 
         body[144..146].copy_from_slice(&3u16.to_le_bytes());
         body[146..148].copy_from_slice(&0u16.to_le_bytes());
         body[148..150].copy_from_slice(&16u16.to_le_bytes());
         body[150..152].copy_from_slice(&24u16.to_le_bytes());
         body[152..154].copy_from_slice(&32u16.to_le_bytes());
-        body[154..156].copy_from_slice(&40u16.to_le_bytes());
-        body[156..158].copy_from_slice(&48u16.to_le_bytes());
-        body[158..160].copy_from_slice(&(48u16 + subject.len() as u16).to_le_bytes());
+        body[154..156].copy_from_slice(&subject_end.to_le_bytes());
         body
     }
 
