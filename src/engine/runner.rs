@@ -257,7 +257,8 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     let pq13_subnode_decode_plans = status_counter(base_status, "subnode_decode_plans");
     let pq13_subnode_decode_attempts = status_counter(base_status, "subnode_decode_attempts");
     let pq15_decoded_subnode_blocks = status_counter(base_status, "subnode_decoded_blocks");
-    let pq15_unsupported_subnode_layouts = status_counter(base_status, "subnode_unsupported_layouts");
+    let pq15_unsupported_subnode_layouts =
+        status_counter(base_status, "subnode_unsupported_layouts");
     let pq15_supported_subnode_layouts =
         pq15_decoded_subnode_blocks.saturating_sub(pq15_unsupported_subnode_layouts);
 
@@ -275,8 +276,7 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     let has_pq13_signal = pq13_subnode_references > 0
         || pq13_subnode_decode_plans > 0
         || pq13_subnode_decode_attempts > 0;
-    let has_pq15_signal =
-        pq15_decoded_subnode_blocks > 0 || pq15_unsupported_subnode_layouts > 0;
+    let has_pq15_signal = pq15_decoded_subnode_blocks > 0 || pq15_unsupported_subnode_layouts > 0;
     if !has_pq9_signal
         && !has_pq10_signal
         && !has_pq11_signal
