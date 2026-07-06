@@ -166,7 +166,8 @@ fn property_context_entry(
     if raw_key.len() == 2 && raw_value.len() >= 6 {
         let prop_id = u16::from_le_bytes([raw_key[0], raw_key[1]]);
         let prop_type = u16::from_le_bytes([raw_value[0], raw_value[1]]);
-        let value_hnid = u32::from_le_bytes([raw_value[2], raw_value[3], raw_value[4], raw_value[5]]);
+        let value_hnid =
+            u32::from_le_bytes([raw_value[2], raw_value[3], raw_value[4], raw_value[5]]);
         let tag = ((prop_id as u32) << 16) | prop_type as u32;
         let value = heap
             .try_allocation_by_hnid(buf, value_hnid, base_offset)
@@ -220,6 +221,8 @@ mod tests {
     }
 
     fn property_context_heap() -> Vec<u8> {
+        let subject = utf16le("Heap subject");
+        let subject_end = 32u16 + subject.len() as u16;
         let mut buf = vec![0; 160];
         buf[0..2].copy_from_slice(&144u16.to_le_bytes());
         buf[2] = 0xec;
@@ -232,21 +235,18 @@ mod tests {
         buf[19] = 0;
         buf[20..24].copy_from_slice(&0x40u32.to_le_bytes());
 
-        buf[32..34].copy_from_slice(&0x0037u16.to_le_bytes());
-        buf[34..36].copy_from_slice(&0x001fu16.to_le_bytes());
-        buf[36..40].copy_from_slice(&0x60u32.to_le_bytes());
+        buf[24..26].copy_from_slice(&0x0037u16.to_le_bytes());
+        buf[26..28].copy_from_slice(&0x001fu16.to_le_bytes());
+        buf[28..32].copy_from_slice(&0x60u32.to_le_bytes());
 
-        let subject = utf16le("Heap subject");
-        buf[48..48 + subject.len()].copy_from_slice(&subject);
+        buf[32..subject_end as usize].copy_from_slice(&subject);
 
         buf[144..146].copy_from_slice(&3u16.to_le_bytes());
         buf[146..148].copy_from_slice(&0u16.to_le_bytes());
         buf[148..150].copy_from_slice(&16u16.to_le_bytes());
         buf[150..152].copy_from_slice(&24u16.to_le_bytes());
         buf[152..154].copy_from_slice(&32u16.to_le_bytes());
-        buf[154..156].copy_from_slice(&40u16.to_le_bytes());
-        buf[156..158].copy_from_slice(&48u16.to_le_bytes());
-        buf[158..160].copy_from_slice(&(48u16 + subject.len() as u16).to_le_bytes());
+        buf[154..156].copy_from_slice(&subject_end.to_le_bytes());
         buf
     }
 
