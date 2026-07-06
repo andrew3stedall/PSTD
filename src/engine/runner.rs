@@ -227,35 +227,28 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         .iter()
         .map(|message| status_counter(&message.extraction_status, "byte_swapped_selected"))
         .sum::<usize>();
-    let heap_bth_contexts = messages
-        .iter()
-        .filter(|message| {
-            message
-                .extraction_status
-                .contains("pq10_traversal=heap_bth_property_context")
-        })
-        .count();
-    let legacy_flat_bth_contexts = messages
-        .iter()
-        .filter(|message| {
-            message
-                .extraction_status
-                .contains("pq10_traversal=legacy_flat_bth_property_context")
-        })
-        .count();
-    let unknown_traversal_contexts = messages
-        .iter()
-        .filter(|message| {
-            message
-                .extraction_status
-                .contains("pq10_traversal=property_context_traversal_unknown")
-        })
-        .count();
+    let heap_bth_contexts = status_contains_count(messages, "pq10_traversal=heap_bth_property_context");
+    let legacy_flat_bth_contexts =
+        status_contains_count(messages, "pq10_traversal=legacy_flat_bth_property_context");
+    let unknown_traversal_contexts =
+        status_contains_count(messages, "pq10_traversal=property_context_traversal_unknown");
+    let pq11_offset_heap_contexts =
+        status_contains_count(messages, "pq10_traversal=heap_bth_property_context_at_offset_");
+    let pq11_candidate_not_found =
+        status_contains_count(messages, "pq11_heap_probe=candidate_not_found");
+    let pq11_candidate_heap_failed =
+        status_contains_count(messages, "pq11_heap_probe=candidate_heap_failed");
+    let pq11_candidate_bth_failed =
+        status_contains_count(messages, "pq11_heap_probe=candidate_bth_failed");
 
     let has_pq9_signal = plausible > 0 || suspicious > 0 || byte_swapped_selected > 0;
     let has_pq10_signal =
         heap_bth_contexts > 0 || legacy_flat_bth_contexts > 0 || unknown_traversal_contexts > 0;
-    if !has_pq9_signal && !has_pq10_signal {
+    let has_pq11_signal = pq11_offset_heap_contexts > 0
+        || pq11_candidate_not_found > 0
+        || pq11_candidate_heap_failed > 0
+        || pq11_candidate_bth_failed > 0;
+    if !has_pq9_signal && !has_pq10_signal && !has_pq11_signal {
         return base_status.to_string();
     }
 
@@ -272,6 +265,17 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
             pq10_next_blocker(heap_bth_contexts, legacy_flat_bth_contexts, unknown_traversal_contexts)
         ));
     }
+    if has_pq11_signal {
+        status.push_str(&format!(
+            "; pq11_status=heap_probe_visible; pq11_offset_heap_contexts={pq11_offset_heap_contexts}; pq11_candidate_not_found={pq11_candidate_not_found}; pq11_candidate_heap_failed={pq11_candidate_heap_failed}; pq11_candidate_bth_failed={pq11_candidate_bth_failed}; pq11_next_blocker={}",
+            pq11_next_blocker(
+                pq11_offset_heap_contexts,
+                pq11_candidate_not_found,
+                pq11_candidate_heap_failed,
+                pq11_candidate_bth_failed,
+            )
+        ));
+    }
     status
 }
 
@@ -283,6 +287,13 @@ fn status_counter(status: &str, key: &str) -> usize {
         .and_then(|tail| tail.split([',', ';']).next())
         .and_then(|value| value.parse::<usize>().ok())
         .unwrap_or(0)
+}
+
+fn status_contains_count(messages: &[MessageRecord], needle: &str) -> usize {
+    messages
+        .iter()
+        .filter(|message| message.extraction_status.contains(needle))
+        .count()
 }
 
 fn pq9_next_blocker(plausible: usize, suspicious: usize) -> &'static str {
@@ -308,6 +319,25 @@ fn pq10_next_blocker(
         "heap_bth_index_or_external_hnid_resolution"
     } else {
         "property_context_traversal_signal_absent"
+    }
+}
+
+fn pq11_next_blocker(
+    offset_heap_contexts: usize,
+    candidate_not_found: usize,
+    candidate_heap_failed: usize,
+    candidate_bth_failed: usize,
+) -> &'static str {
+    if offset_heap_contexts > 0 {
+        "selected_property_or_external_hnid_resolution"
+    } else if candidate_bth_failed > 0 {
+        "heap_bth_root_or_index_decode"
+    } else if candidate_heap_failed > 0 {
+        "heap_page_map_or_allocation_decode"
+    } else if candidate_not_found > 0 {
+        "heap_signature_or_block_payload_prefix_detection"
+    } else {
+        "heap_probe_signal_absent"
     }
 }
 
@@ -355,7 +385,7 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{pq10_next_blocker, pq9_next_blocker, status_counter};
+    use super::{pq10_next_blocker, pq11_next_blocker, pq9_next_blocker, status_counter};
 
     #[test]
     fn parses_pq9_status_counters() {
@@ -390,5 +420,26 @@ mod tests {
             pq10_next_blocker(0, 0, 0),
             "property_context_traversal_signal_absent"
         );
+    }
+
+    #[test]
+    fn chooses_pq11_next_blocker() {
+        assert_eq!(
+            pq11_next_blocker(1, 0, 0, 0),
+            "selected_property_or_external_hnid_resolution"
+        );
+        assert_eq!(
+            pq11_next_blocker(0, 0, 0, 1),
+            "heap_bth_root_or_index_decode"
+        );
+        assert_eq!(
+            pq11_next_blocker(0, 0, 1, 0),
+            "heap_page_map_or_allocation_decode"
+        );
+        assert_eq!(
+            pq11_next_blocker(0, 1, 0, 0),
+            "heap_signature_or_block_payload_prefix_detection"
+        );
+        assert_eq!(pq11_next_blocker(0, 0, 0, 0), "heap_probe_signal_absent");
     }
 }
