@@ -174,7 +174,9 @@ mod tests {
             Some("Message-ID: <abc@example.com>\r\nFrom: sender@example.com")
         );
         assert_eq!(message.normalized_subject.as_deref(), Some("hello"));
-        assert!(message.extraction_status.contains("pq9_tag_shape=plausible:2"));
+        assert!(message
+            .extraction_status
+            .contains("pq9_tag_shape=plausible:2"));
     }
 
     #[test]
