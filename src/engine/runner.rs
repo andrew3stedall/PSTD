@@ -412,7 +412,9 @@ fn pq13_next_blocker(
     subnode_decode_plans: usize,
     subnode_decode_attempts: usize,
 ) -> &'static str {
-    if subnode_references > subnode_decode_attempts || subnode_decode_plans > subnode_decode_attempts {
+    if subnode_references > subnode_decode_attempts
+        || subnode_decode_plans > subnode_decode_attempts
+    {
         "message_subnode_payload_selection"
     } else if subnode_decode_attempts > 0 {
         "subnode_payload_interpretation"
@@ -558,10 +560,7 @@ mod tests {
             pq13_next_blocker(3, 3, 0),
             "message_subnode_payload_selection"
         );
-        assert_eq!(
-            pq13_next_blocker(3, 3, 3),
-            "subnode_payload_interpretation"
-        );
+        assert_eq!(pq13_next_blocker(3, 3, 3), "subnode_payload_interpretation");
         assert_eq!(
             pq13_next_blocker(0, 0, 0),
             "non_subnode_payload_source_selection"
