@@ -160,7 +160,10 @@ mod tests {
         assert_eq!(heap.header.allocation_count, 2);
         assert_eq!(heap.allocations.len(), 2);
         assert_eq!(heap.allocation(&heap_bytes, 1, 0).unwrap(), b"root");
-        assert_eq!(heap.allocation_by_hid(&heap_bytes, 0x40, 0).unwrap(), b"value");
+        assert_eq!(
+            heap.allocation_by_hid(&heap_bytes, 0x40, 0).unwrap(),
+            b"value"
+        );
     }
 
     fn sample_heap() -> Vec<u8> {
