@@ -1,7 +1,7 @@
 use crate::error::PstdResult;
 use crate::pst::bbt::BbtIndex;
 use crate::pst::bth::BthMap;
-use crate::pst::heap::HeapOnNode;
+use crate::pst::heap::{heap_candidate_offsets, HeapOnNode};
 use crate::pst::limits::ParserLimits;
 use crate::pst::nbt::NbtEntry;
 use crate::pst::payload::{load_payload_block, PayloadBlock};
@@ -33,21 +33,19 @@ pub fn load_node_property_context(
 ) -> PstdResult<LoadedNodePayload> {
     let payload = load_payload_block(reader, bbt, entry.data_block_id, limits)?;
     let payload_base_offset = payload.block_ref.offset.0;
-    let (bth, traversal_status) = match HeapOnNode::parse(&payload.bytes, payload_base_offset)
-        .and_then(|heap| {
-            BthMap::parse_property_context_from_heap(&heap, &payload.bytes, payload_base_offset)
-        }) {
-        Ok(bth) => (bth, "heap_bth_property_context"),
-        Err(_) => (
-            BthMap::parse(&payload.bytes, payload_base_offset)?,
-            "legacy_flat_bth_property_context",
-        ),
-    };
+    let (bth, traversal_status) =
+        match load_heap_bth_from_candidates(&payload.bytes, payload_base_offset) {
+            Ok((bth, status)) => (bth, status),
+            Err(reason) => (
+                BthMap::parse(&payload.bytes, payload_base_offset)?,
+                format!("legacy_flat_bth_property_context; pq11_heap_probe={reason}"),
+            ),
+        };
     let property_report = PropertyContext::from_bth_with_report(&bth)?;
     let properties = property_report
         .context
         .clone()
-        .with_pq10_traversal_status(traversal_status);
+        .with_pq10_traversal_status(&traversal_status);
     let report = NodePayloadReport {
         node_id: entry.node_id.0,
         data_block_id: entry.data_block_id.0,
@@ -62,6 +60,63 @@ pub fn load_node_property_context(
         property_report,
         report,
     })
+}
+
+fn load_heap_bth_from_candidates(buf: &[u8], base_offset: u64) -> Result<(BthMap, String), String> {
+    let candidates = heap_candidate_offsets(buf);
+    if candidates.is_empty() {
+        return Err("candidate_not_found".to_string());
+    }
+
+    let mut last_error = "candidate_not_parsed".to_string();
+    for candidate_offset in candidates.iter().copied() {
+        let candidate_buf = &buf[candidate_offset..];
+        let candidate_base_offset = base_offset + candidate_offset as u64;
+        match HeapOnNode::parse(candidate_buf, candidate_base_offset) {
+            Ok(heap) => match BthMap::parse_property_context_from_heap(
+                &heap,
+                candidate_buf,
+                candidate_base_offset,
+            ) {
+                Ok(bth) => {
+                    let status = if candidate_offset == 0 {
+                        "heap_bth_property_context".to_string()
+                    } else {
+                        format!("heap_bth_property_context_at_offset_{candidate_offset}")
+                    };
+                    return Ok((bth, status));
+                }
+                Err(reason) => {
+                    last_error = format!(
+                        "candidate_bth_failed_at_offset_{candidate_offset}:{}",
+                        sanitized_reason(&reason.to_string())
+                    );
+                }
+            },
+            Err(reason) => {
+                last_error = format!(
+                    "candidate_heap_failed_at_offset_{candidate_offset}:{}",
+                    sanitized_reason(&reason.to_string())
+                );
+            }
+        }
+    }
+
+    Err(last_error)
+}
+
+fn sanitized_reason(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| match ch {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' => ch,
+            _ => '_',
+        })
+        .collect::<String>()
+        .trim_matches('_')
+        .chars()
+        .take(80)
+        .collect()
 }
 
 #[cfg(test)]
@@ -106,11 +161,11 @@ mod tests {
         );
         assert_eq!(
             loaded.properties.pq10_status(),
-            "pq10_traversal=legacy_flat_bth_property_context"
+            "pq10_traversal=legacy_flat_bth_property_context; pq11_heap_probe=candidate_not_found"
         );
         assert_eq!(
             loaded.report.status,
-            "node_property_context_loaded; traversal=legacy_flat_bth_property_context"
+            "node_property_context_loaded; traversal=legacy_flat_bth_property_context; pq11_heap_probe=candidate_not_found"
         );
     }
 
@@ -146,6 +201,37 @@ mod tests {
         assert_eq!(
             loaded.report.status,
             "node_property_context_loaded; traversal=heap_bth_property_context"
+        );
+    }
+
+    #[test]
+    fn loads_node_property_context_from_offset_heap_bth_data_block() {
+        let mut bytes = vec![0; 16];
+        bytes.extend_from_slice(&heap_bth_with_subject("Hello from offset heap"));
+        let offset = 32usize;
+        let size = bytes.len() as u64;
+        let mut file_bytes = vec![0; offset];
+        file_bytes.append(&mut bytes);
+
+        let file = NamedTempFile::new().unwrap();
+        fs::write(file.path(), file_bytes).unwrap();
+        let reader = PstByteReader::open(file.path()).unwrap();
+        let bbt = index_with_entry(BlockId(100), offset as u64, size);
+        let entry = NbtEntry {
+            node_id: NodeId(200),
+            data_block_id: BlockId(100),
+            subnode_block_id: None,
+        };
+
+        let loaded =
+            load_node_property_context(&reader, &bbt, &entry, ParserLimits::default()).unwrap();
+        assert_eq!(
+            loaded.properties.string_value(PR_SUBJECT).as_deref(),
+            Some("Hello from offset heap")
+        );
+        assert_eq!(
+            loaded.properties.pq10_status(),
+            "pq10_traversal=heap_bth_property_context_at_offset_16"
         );
     }
 

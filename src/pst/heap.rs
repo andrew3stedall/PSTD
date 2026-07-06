@@ -1,6 +1,10 @@
 use crate::error::{PstdError, PstdResult};
 use crate::pst::binary::{slice_at, u16_le_at, u32_le_at, u8_at};
 
+const HEAP_SIGNATURE: u8 = 0xec;
+const MAX_HEAP_ALLOCATIONS: u16 = 4096;
+const MAX_HEAP_SCAN_OFFSET: usize = 128;
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HeapHeader {
     pub page_map_offset: u16,
@@ -42,7 +46,21 @@ impl HeapOnNode {
             ));
         }
 
+        let signature = u8_at(buf, 2, base_offset)?;
+        if signature != HEAP_SIGNATURE {
+            return Err(PstdError::pst_parse(
+                Some(base_offset + 2),
+                format!("heap signature mismatch: 0x{signature:02x}"),
+            ));
+        }
+
         let allocation_count = u16_le_at(buf, page_map_start, base_offset)?;
+        if allocation_count > MAX_HEAP_ALLOCATIONS {
+            return Err(PstdError::pst_parse(
+                Some(base_offset + page_map_start as u64),
+                format!("heap allocation count exceeds limit: {allocation_count}"),
+            ));
+        }
         let free_allocation_count = u16_le_at(buf, page_map_start + 2, base_offset)?;
         let allocation_offset_count = allocation_count as usize + 1;
         let allocation_offsets_start = page_map_start + 4;
@@ -55,7 +73,7 @@ impl HeapOnNode {
 
         let header = HeapHeader {
             page_map_offset,
-            signature: u8_at(buf, 2, base_offset)?,
+            signature,
             client_signature: u8_at(buf, 3, base_offset)?,
             user_root: u32_le_at(buf, 4, base_offset)?,
             allocation_count,
@@ -138,9 +156,29 @@ pub fn hid_index(hid: u32) -> Option<u16> {
     }
 }
 
+pub fn heap_candidate_offsets(buf: &[u8]) -> Vec<usize> {
+    if buf.len() < 8 {
+        return Vec::new();
+    }
+
+    let max_start = buf.len().saturating_sub(8).min(MAX_HEAP_SCAN_OFFSET);
+    let mut offsets = Vec::new();
+    for start in 0..=max_start {
+        if buf[start + 2] != HEAP_SIGNATURE {
+            continue;
+        }
+        let page_map_offset = u16::from_le_bytes([buf[start], buf[start + 1]]) as usize;
+        let remaining = buf.len() - start;
+        if page_map_offset + 4 <= remaining {
+            offsets.push(start);
+        }
+    }
+    offsets
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{hid_index, HeapOnNode};
+    use super::{heap_candidate_offsets, hid_index, HeapOnNode};
 
     #[test]
     fn maps_hid_to_one_based_heap_allocation_index() {
@@ -164,6 +202,23 @@ mod tests {
             heap.allocation_by_hid(&heap_bytes, 0x40, 0).unwrap(),
             b"value"
         );
+    }
+
+    #[test]
+    fn rejects_heap_without_signature() {
+        let mut heap_bytes = sample_heap();
+        heap_bytes[2] = 0;
+
+        let err = HeapOnNode::parse(&heap_bytes, 0).unwrap_err();
+        assert!(err.to_string().contains("heap signature mismatch"));
+    }
+
+    #[test]
+    fn finds_offset_heap_candidates_within_bounded_prefix() {
+        let mut bytes = vec![0; 16];
+        bytes.extend_from_slice(&sample_heap());
+
+        assert_eq!(heap_candidate_offsets(&bytes), vec![16]);
     }
 
     fn sample_heap() -> Vec<u8> {

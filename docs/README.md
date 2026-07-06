@@ -8,6 +8,7 @@ This tree is organised by audience.
 |---|---|
 | Current status | [Project Status](product/project-status.md) |
 | Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
+| PQ11 heap root detection | [PQ11 Heap Root Detection](operations/pq11-heap-root-detection.md) |
 | PQ10 heap BTH property traversal | [PQ10 Heap BTH Property Traversal](operations/pq10-heap-bth-property-traversal.md) |
 | PQ9 property tag-shape status | [PQ9 Property Tag-Shape Status Reporting](operations/pq9-tag-shape-status.md) |
 | PQ8 property-context interpretation | [PQ8 Property-Context Layout and Tag Interpretation](operations/pq8-property-context-interpretation.md) |
@@ -77,6 +78,7 @@ This tree is organised by audience.
 | PQ8 | [Property-Context Interpretation Diagnostics](milestones/pq8-property-context-interpretation.md) | TBD | Issues #275-#279 | TBD |
 | PQ9 | [Property Tag-Shape Status](milestones/pq9-tag-shape-status.md) | TBD | Issues #281-#285 | TBD |
 | PQ10 | [Heap BTH Property Traversal](milestones/pq10-heap-bth-property-traversal.md) | TBD | Issues #287-#291 | TBD |
+| PQ11 | [Heap Root Detection](milestones/pq11-heap-root-detection.md) | TBD | Issues #293-#297 | TBD |
 
 ## v1 release-candidate handoff
 
@@ -86,6 +88,7 @@ This tree is organised by audience.
 | Local/Docker runbook | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
 | Unsupported/deferred boundary | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
 | Public PST progress log | [Public PST Progress Log](operations/public-pst-progress-log.md) |
+| PQ11 heap root detection | [PQ11 Heap Root Detection](operations/pq11-heap-root-detection.md) |
 | PQ10 heap BTH property traversal | [PQ10 Heap BTH Property Traversal](operations/pq10-heap-bth-property-traversal.md) |
 | PQ9 property tag-shape status | [PQ9 Property Tag-Shape Status Reporting](operations/pq9-tag-shape-status.md) |
 | PQ8 property-context interpretation | [PQ8 Property-Context Layout and Tag Interpretation](operations/pq8-property-context-interpretation.md) |
@@ -112,14 +115,14 @@ This tree is organised by audience.
 - [M8 Traversal Expansion Implementation Plan](engineering/pstd-v1-m8-traversal-expansion-implementation-plan.md)
 - [M9 Payload and Subnode Traversal Implementation Plan](engineering/pstd-v1-m9-payload-subnode-traversal-implementation-plan.md)
 - [M10 Payload Wiring Implementation Plan](engineering/pstd-v1-m10-payload-wiring-implementation-plan.md)
-- [M11 Extraction Integration Implementation Plan](engineering/pstd-v1-m11-extraction-integration-implementation-plan.md)
-- [M12 Attachment Subnode Integration Implementation Plan](engineering/pstd-v1-m12-attachment-subnode-integration-implementation-plan.md)
+- [M11 Extraction Integration Implementation Plan](engineering/pstd-v1-m11-extraction-integration.md)
+- [M12 Attachment Subnode Integration Implementation Plan](engineering/pstd-v1-m12-attachment-subnode-integration-plan.md)
 - [M13 Fixture Compatibility Implementation Plan](engineering/pstd-v1-m13-fixtures-compatibility-implementation-plan.md)
 - [M14 Recursive Subnode Layout Implementation Plan](engineering/pstd-v1-m14-recursive-subnode-layouts-implementation-plan.md)
 - [M15 Observed Layout Triage Implementation Plan](engineering/pstd-v1-m15-observed-layout-triage-implementation-plan.md)
 - [M16 Fixture-Backed Decoder Implementation Plan](engineering/pstd-v1-m16-fixture-backed-decoders-implementation-plan.md)
 - [M17 Triage Reporting Backlog Implementation Plan](engineering/pstd-v1-m17-triage-reporting-backlog-implementation-plan.md)
-- [M18 Backlog Review Workflow Implementation Plan](engineering/pstd-v1-m18-backlog-review-workflow-implementation-plan.md)
+- [M18 Backlog Review Workflow Implementation Plan](engineering/pstd-v1-m18-backlog-review-workflow.md)
 - [M19 Candidate Selection Implementation Plan](engineering/pstd-v1-m19-candidate-selection-plan.md)
 - [M20 Focused Candidate Implementation Plan](engineering/pstd-v1-m20-focused-candidate-implementation-plan.md)
 - [M21 Focused Decoder Evidence Expansion Plan](engineering/pstd-v1-m21-focused-decoder-evidence-expansion-plan.md)
@@ -137,6 +140,7 @@ This tree is organised by audience.
 
 - [Local Validation](operations/local-validation.md)
 - [Public PST Progress Log](operations/public-pst-progress-log.md)
+- [PQ11 Heap Root Detection](operations/pq11-heap-root-detection.md)
 - [PQ10 Heap BTH Property Traversal](operations/pq10-heap-bth-property-traversal.md)
 - [PQ9 Property Tag-Shape Status Reporting](operations/pq9-tag-shape-status.md)
 - [PQ8 Property-Context Layout and Tag Interpretation](operations/pq8-property-context-interpretation.md)
