@@ -110,6 +110,10 @@ pub fn extract_metadata(
     let mut pq6_text_body_property_messages = 0usize;
     let mut pq6_html_body_property_messages = 0usize;
     let mut pq6_rtf_body_property_messages = 0usize;
+    let mut pq14_message_subnode_probe_attempts = 0usize;
+    let mut pq14_message_subnode_blocks = 0usize;
+    let mut pq14_message_subnode_failures = 0usize;
+    let mut pq14_message_subnode_unsupported_layouts = 0usize;
 
     let subnode_report = subnode_references_from_index(&nbt);
     let subnode_plans = subnode_decode_plans(&subnode_report.references, limits);
@@ -254,6 +258,42 @@ pub fn extract_metadata(
                         }
                     }
 
+                    let mut message_subnode_probe_status = None;
+                    if !message.has_attachments {
+                        if let Some(reference) =
+                            subnode_reference_for_entry(&subnode_report.references, entry)
+                        {
+                            subnode_decode_attempts += 1;
+                            pq14_message_subnode_probe_attempts += 1;
+                            let loaded_subnodes =
+                                load_recursive_subnode_blocks(&reader, &bbt, reference, 1, limits);
+                            subnode_decoded_blocks += loaded_subnodes.report.decoded_block_count;
+                            subnode_child_references +=
+                                loaded_subnodes.report.recursive_child_reference_count;
+                            subnode_recursive_child_decodes +=
+                                loaded_subnodes.report.recursive_child_decode_count;
+                            subnode_unsupported_layouts +=
+                                loaded_subnodes.layout_report.unsupported_layout_count;
+                            pq14_message_subnode_blocks += loaded_subnodes.report.decoded_block_count;
+                            pq14_message_subnode_failures += loaded_subnodes.report.failed_block_count;
+                            pq14_message_subnode_unsupported_layouts +=
+                                loaded_subnodes.layout_report.unsupported_layout_count;
+                            let status = format!(
+                                "pq14_message_subnode_probe; {}; {}",
+                                loaded_subnodes.report.status, loaded_subnodes.layout_report.status
+                            );
+                            issues.push(StatusRecord::info(
+                                run_id,
+                                "pq14_message_subnode_probe",
+                                format!(
+                                    "Message-level subnode probe for node_{:x}: {status}",
+                                    entry.node_id.0
+                                ),
+                            ));
+                            message_subnode_probe_status = Some(status);
+                        }
+                    }
+
                     if message.has_attachments {
                         if let Some(reference) =
                             subnode_reference_for_entry(&subnode_report.references, entry)
@@ -349,6 +389,9 @@ pub fn extract_metadata(
                                 "attachment_subnode_reference_absent",
                             ));
                         }
+                    } else if let Some(status) = message_subnode_probe_status {
+                        message.attachment_status =
+                            format!("attachment_payload_property_absent; {status}");
                     } else {
                         message.attachment_status =
                             "attachment_payload_property_absent".to_string();
@@ -459,8 +502,11 @@ pub fn extract_metadata(
         .iter()
         .filter(|selection| selection.selection_status == "selected_for_next_planning")
         .count();
+    let pq14_status = format!(
+        "message_subnode_probe; attempts={pq14_message_subnode_probe_attempts}; blocks={pq14_message_subnode_blocks}; failures={pq14_message_subnode_failures}; unsupported_layouts={pq14_message_subnode_unsupported_layouts}"
+    );
     let status = format!(
-        "{}; bbt_status={}; nbt_status={}; pq4_status={}; pq4_folder_candidates={}; pq4_folder_property_loaded={}; pq4_folder_property_unavailable={}; pq5_status={}; pq5_message_candidates={}; pq5_table_candidates={}; pq5_linked_tables={}; pq5_unlinked_tables={}; pq6_status={}; folders_discovered={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; m23_status=attachment_metadata_fidelity; body_payloads={}; attachment_payloads={}; attachment_records={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
+        "{}; bbt_status={}; nbt_status={}; pq4_status={}; pq4_folder_candidates={}; pq4_folder_property_loaded={}; pq4_folder_property_unavailable={}; pq5_status={}; pq5_message_candidates={}; pq5_table_candidates={}; pq5_linked_tables={}; pq5_unlinked_tables={}; pq6_status={}; pq14_status={}; folders_discovered={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; m23_status=attachment_metadata_fidelity; body_payloads={}; attachment_payloads={}; attachment_records={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
         metadata_status,
         bbt.status,
         nbt.status,
@@ -474,6 +520,7 @@ pub fn extract_metadata(
         message_table_discovery.linked_table_count,
         message_table_discovery.unlinked_table_count,
         pq6_status,
+        pq14_status,
         folders_discovered,
         body_payloads.len(),
         attachment_payloads.len(),
