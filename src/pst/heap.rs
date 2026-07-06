@@ -207,8 +207,8 @@ fn has_valid_page_map_at(buf: &[u8], start: usize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        heap_candidate_offsets, heap_candidate_offsets_with_limit, heap_signature_offsets_with_limit,
-        hid_index, HeapOnNode,
+        heap_candidate_offsets, heap_candidate_offsets_with_limit,
+        heap_signature_offsets_with_limit, hid_index, HeapOnNode,
     };
 
     #[test]
@@ -257,7 +257,10 @@ mod tests {
         let mut bytes = vec![0; 512];
         bytes[200..202].copy_from_slice(&400u16.to_le_bytes());
         bytes[202] = 0xec;
-        assert_eq!(heap_candidate_offsets_with_limit(&bytes, 256), Vec::<usize>::new());
+        assert_eq!(
+            heap_candidate_offsets_with_limit(&bytes, 256),
+            Vec::<usize>::new()
+        );
         assert_eq!(heap_signature_offsets_with_limit(&bytes, 256), vec![200]);
     }
 
