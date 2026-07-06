@@ -246,7 +246,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext { values };
+        let properties = PropertyContext::from_values(values);
 
         let payloads = body_payloads_from_properties("msg_123", &properties);
         assert_eq!(payloads.len(), 2);
@@ -277,7 +277,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext { values };
+        let properties = PropertyContext::from_values(values);
 
         let payloads = body_payloads_from_properties("msg_123", &properties);
         let report = body_coverage_report(&properties, &payloads);
@@ -303,7 +303,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext { values };
+        let properties = PropertyContext::from_values(values);
 
         let payloads = body_payloads_from_properties("msg_123", &properties);
         assert_eq!(payloads.len(), 1);
@@ -335,7 +335,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext { values };
+        let properties = PropertyContext::from_values(values);
 
         let payloads = body_payloads_from_properties("msg_123", &properties);
         assert_eq!(payloads.len(), 1);
@@ -376,7 +376,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext { values };
+        let properties = PropertyContext::from_values(values);
 
         let payloads = body_payloads_from_properties("msg_123", &properties);
         assert_eq!(payloads.len(), 3);
@@ -399,7 +399,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext { values };
+        let properties = PropertyContext::from_values(values);
         let payloads = body_payloads_from_properties("msg_123", &properties);
         let report = body_coverage_report(&properties, &payloads);
 
@@ -441,7 +441,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext { values };
+        let properties = PropertyContext::from_values(values);
         let payloads = body_payloads_from_properties("msg_123", &properties);
         let report = body_coverage_report(&properties, &payloads);
 
