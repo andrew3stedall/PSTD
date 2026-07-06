@@ -315,12 +315,10 @@ mod tests {
         assert_eq!(report.plausible_property_tag_count, 2);
         assert_eq!(report.suspicious_property_tag_count, 0);
         assert_eq!(report.byte_swapped_selected_property_count, 0);
-        assert!(
-            report
-                .context
-                .pq9_status()
-                .contains("pq9_next_blocker=selected_mapi_dictionary_expansion")
-        );
+        assert!(report
+            .context
+            .pq9_status()
+            .contains("pq9_next_blocker=selected_mapi_dictionary_expansion"));
         assert_eq!(report.skipped_key_count, 1);
         assert_eq!(report.decode_error_count, 0);
         assert!(report.status.contains("unknown_tag_sample=0x9999001f"));
@@ -378,12 +376,10 @@ mod tests {
         assert_eq!(report.plausible_property_tag_count, 0);
         assert_eq!(report.suspicious_property_tag_count, 1);
         assert!(report.status.contains("suspicious:1"));
-        assert!(
-            report
-                .context
-                .pq9_status()
-                .contains("pq9_next_blocker=heap_bth_layout_traversal")
-        );
+        assert!(report
+            .context
+            .pq9_status()
+            .contains("pq9_next_blocker=heap_bth_layout_traversal"));
         let value = report.context.values.values().next().unwrap();
         assert!(value.status.contains("not_selected_suspicious_key"));
     }
@@ -409,7 +405,10 @@ mod tests {
         assert_eq!(report.plausible_property_tag_count, 1);
         assert_eq!(report.suspicious_property_tag_count, 0);
         assert_eq!(report.byte_swapped_selected_property_count, 1);
-        assert!(report.context.pq9_status().contains("byte_swapped_selected:1"));
+        assert!(report
+            .context
+            .pq9_status()
+            .contains("byte_swapped_selected:1"));
         assert_eq!(
             report.context.string_value(PR_SUBJECT).as_deref(),
             Some("Swapped subject")
