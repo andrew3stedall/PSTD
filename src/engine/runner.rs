@@ -39,7 +39,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         Err(reason) if config.continue_on_error => fallback_metadata(&run_id, &pst_id, &reason),
         Err(reason) => return Err(reason),
     };
-    let metadata_status = status_with_pq9_tag_shape(&metadata.status, &metadata.messages);
+    let metadata_status = status_with_property_diagnostics(&metadata.status, &metadata.messages);
 
     let mut folders = JsonlBuffer::new();
     for record in &metadata.folders {
@@ -214,7 +214,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     Ok(summary)
 }
 
-fn status_with_pq9_tag_shape(base_status: &str, messages: &[MessageRecord]) -> String {
+fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord]) -> String {
     let plausible = messages
         .iter()
         .map(|message| status_counter(&message.extraction_status, "plausible"))
@@ -227,15 +227,51 @@ fn status_with_pq9_tag_shape(base_status: &str, messages: &[MessageRecord]) -> S
         .iter()
         .map(|message| status_counter(&message.extraction_status, "byte_swapped_selected"))
         .sum::<usize>();
+    let heap_bth_contexts = messages
+        .iter()
+        .filter(|message| {
+            message
+                .extraction_status
+                .contains("pq10_traversal=heap_bth_property_context")
+        })
+        .count();
+    let legacy_flat_bth_contexts = messages
+        .iter()
+        .filter(|message| {
+            message
+                .extraction_status
+                .contains("pq10_traversal=legacy_flat_bth_property_context")
+        })
+        .count();
+    let unknown_traversal_contexts = messages
+        .iter()
+        .filter(|message| {
+            message
+                .extraction_status
+                .contains("pq10_traversal=property_context_traversal_unknown")
+        })
+        .count();
 
-    if plausible == 0 && suspicious == 0 && byte_swapped_selected == 0 {
+    let has_pq9_signal = plausible > 0 || suspicious > 0 || byte_swapped_selected > 0;
+    let has_pq10_signal = heap_bth_contexts > 0 || legacy_flat_bth_contexts > 0 || unknown_traversal_contexts > 0;
+    if !has_pq9_signal && !has_pq10_signal {
         return base_status.to_string();
     }
 
-    format!(
-        "{base_status}; pq9_status=tag_shape_visible; pq9_plausible_property_tags={plausible}; pq9_suspicious_property_keys={suspicious}; pq9_byte_swapped_selected={byte_swapped_selected}; pq9_next_blocker={}",
-        pq9_next_blocker(plausible, suspicious)
-    )
+    let mut status = base_status.to_string();
+    if has_pq9_signal {
+        status.push_str(&format!(
+            "; pq9_status=tag_shape_visible; pq9_plausible_property_tags={plausible}; pq9_suspicious_property_keys={suspicious}; pq9_byte_swapped_selected={byte_swapped_selected}; pq9_next_blocker={}",
+            pq9_next_blocker(plausible, suspicious)
+        ));
+    }
+    if has_pq10_signal {
+        status.push_str(&format!(
+            "; pq10_status=property_context_traversal_visible; pq10_heap_bth_contexts={heap_bth_contexts}; pq10_legacy_flat_bth_contexts={legacy_flat_bth_contexts}; pq10_unknown_traversal_contexts={unknown_traversal_contexts}; pq10_next_blocker={}",
+            pq10_next_blocker(heap_bth_contexts, legacy_flat_bth_contexts, unknown_traversal_contexts)
+        ));
+    }
+    status
 }
 
 fn status_counter(status: &str, key: &str) -> usize {
@@ -255,6 +291,22 @@ fn pq9_next_blocker(plausible: usize, suspicious: usize) -> &'static str {
         "selected_mapi_dictionary_expansion"
     } else {
         "property_context_signal_absent"
+    }
+}
+
+fn pq10_next_blocker(
+    heap_bth_contexts: usize,
+    legacy_flat_bth_contexts: usize,
+    unknown_traversal_contexts: usize,
+) -> &'static str {
+    if legacy_flat_bth_contexts > 0 {
+        "heap_hn_header_or_bth_root_detection"
+    } else if unknown_traversal_contexts > 0 {
+        "property_context_traversal_status_missing"
+    } else if heap_bth_contexts > 0 {
+        "heap_bth_index_or_external_hnid_resolution"
+    } else {
+        "property_context_traversal_signal_absent"
     }
 }
 
@@ -302,7 +354,7 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{pq9_next_blocker, status_counter};
+    use super::{pq10_next_blocker, pq9_next_blocker, status_counter};
 
     #[test]
     fn parses_pq9_status_counters() {
@@ -317,5 +369,25 @@ mod tests {
         assert_eq!(pq9_next_blocker(2, 7), "heap_bth_layout_traversal");
         assert_eq!(pq9_next_blocker(7, 2), "selected_mapi_dictionary_expansion");
         assert_eq!(pq9_next_blocker(0, 0), "property_context_signal_absent");
+    }
+
+    #[test]
+    fn chooses_pq10_next_blocker() {
+        assert_eq!(
+            pq10_next_blocker(0, 1, 0),
+            "heap_hn_header_or_bth_root_detection"
+        );
+        assert_eq!(
+            pq10_next_blocker(0, 0, 1),
+            "property_context_traversal_status_missing"
+        );
+        assert_eq!(
+            pq10_next_blocker(1, 0, 0),
+            "heap_bth_index_or_external_hnid_resolution"
+        );
+        assert_eq!(
+            pq10_next_blocker(0, 0, 0),
+            "property_context_traversal_signal_absent"
+        );
     }
 }
