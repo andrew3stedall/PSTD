@@ -15,7 +15,7 @@ This tree is organised by audience.
 | PQ5 message table discovery | [PQ5 Message Table Discovery](operations/pq5-message-table-discovery.md) |
 | PQ4 folder hierarchy discovery | [PQ4 Folder Hierarchy Discovery](operations/pq4-folder-hierarchy-discovery.md) |
 | PQ3 index entry decoding | [PQ3 Index Entry Decoding](operations/pq3-index-entry-decoding.md) |
-| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-candidate-selection.md) |
+| PQ2 root candidate selection | [PQ2 Root Candidate Selection](operations/pq2-root-decode-candidate-selection.md) |
 | PQ1 root diagnostics | [PQ1 Root Decode Diagnostics](operations/pq1-root-decode-diagnostics.md) |
 | Release-candidate checklist | [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md) |
 | Local/Docker operator handoff | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
@@ -48,10 +48,10 @@ This tree is organised by audience.
 | M5 | [Bodies and Attachments](milestones/pstd-v1-m5-bodies-attachments.md) | TBD | [M5 issues](issues/pstd-v1-m5-bodies-attachments.md) | TBD |
 | M6 | [Batch and Resume](milestones/pstd-v1-m6-batch-resume.md) | TBD | [M6 issues](issues/pstd-v1-m6-ordered-issue-plan.md) | TBD |
 | M7 | [Parser Depth Hardening](milestones/pstd-v1-m7-parser-depth-hardening.md) | TBD | [M7 issues](issues/pstd-v1-m7-ordered-issue-plan.md) | TBD |
-| M8 | [Traversal Expansion](milestones/pstd-v1-m8-traversal-expansion.md) | TBD | [M8 issues](issues/pstd-v1-m8-ordered-issue-plan.md) | TBD |
-| M9 | [Payload and Subnode Traversal](milestones/pstd-v1-m9-payload-subnode-traversal.md) | TBD | [M9 issues](issues/pstd-v1-m9-ordered-issue-plan.md) | TBD |
+| M8 | [Traversal Expansion](milestones/pstd-v1-m8-traversal-expansion.md) | TBD | [M8 issues](issues/pstd-v1-m8-traversal-expansion.md) | TBD |
+| M9 | [Payload and Subnode Traversal](milestones/pstd-v1-m9-payload-subnode-traversal.md) | TBD | [M9 issues](issues/pstd-v1-m9-payload-subnode-traversal.md) | TBD |
 | M10 | [Payload Wiring](milestones/pstd-v1-m10-payload-wiring.md) | TBD | [M10 issues](issues/pstd-v1-m10-ordered-issue-plan.md) | TBD |
-| M11 | [Extraction Path Integration](milestones/pstd-v1-m11-extraction-integration.md) | TBD | [M11 issues](issues/pstd-v1-m11-ordered-issue-plan.md) | TBD |
+| M11 | [Extraction Path Integration](milestones/pstd-v1-m11-extraction-integration.md) | TBD | [M11 issues](issues/pstd-v1-m11-extraction-integration.md) | TBD |
 | M12 | [Attachment Table and Subnode Integration](milestones/pstd-v1-m12-attachment-subnode-integration.md) | TBD | [M12 issues](issues/pstd-v1-m12-attachment-subnode-integration.md) | TBD |
 | M13 | [Payload Fixture Expansion and Parser Compatibility](milestones/pstd-v1-m13-fixtures-compatibility.md) | TBD | [M13 issues](issues/pstd-v1-m13-ordered-issue-plan.md) | TBD |
 | M14 | [Recursive Subnode Layout Exploration](milestones/pstd-v1-m14-recursive-subnode-layouts.md) | TBD | [M14 issues](issues/pstd-v1-m14-recursive-subnode-layouts.md) | TBD |
@@ -108,15 +108,15 @@ This tree is organised by audience.
 - [M7 Parser Depth Hardening Implementation Plan](engineering/pstd-v1-m7-parser-depth-hardening-implementation-plan.md)
 - [M8 Traversal Expansion Implementation Plan](engineering/pstd-v1-m8-traversal-expansion-implementation-plan.md)
 - [M9 Payload and Subnode Traversal Implementation Plan](engineering/pstd-v1-m9-payload-subnode-traversal-implementation-plan.md)
-- [M10 Payload Wiring Implementation Plan](engineering/pstd-v1-m10-payload-wiring.md)
-- [M11 Extraction Integration Implementation Plan](engineering/pstd-v1-m11-extraction-integration.md)
-- [M12 Attachment Subnode Integration Implementation Plan](engineering/pstd-v1-m12-attachment-subnode-integration.md)
-- [M13 Fixture Compatibility Implementation Plan](engineering/pstd-v1-m13-fixtures-compatibility.md)
-- [M14 Recursive Subnode Layout Implementation Plan](engineering/pstd-v1-m14-recursive-subnode-layouts.md)
-- [M15 Observed Layout Triage Implementation Plan](engineering/pstd-v1-m15-observed-layout-triage.md)
-- [M16 Fixture-Backed Decoder Implementation Plan](engineering/pstd-v1-m16-fixture-backed-decoders.md)
-- [M17 Triage Reporting Backlog Implementation Plan](engineering/pstd-v1-m17-triage-reporting-backlog.md)
-- [M18 Backlog Review Workflow Implementation Plan](engineering/pstd-v1-m18-backlog-review-workflow.md)
+- [M10 Payload Wiring Implementation Plan](engineering/pstd-v1-m10-payload-wiring-implementation-plan.md)
+- [M11 Extraction Integration Implementation Plan](engineering/pstd-v1-m11-extraction-integration-implementation-plan.md)
+- [M12 Attachment Subnode Integration Implementation Plan](engineering/pstd-v1-m12-attachment-subnode-integration-implementation-plan.md)
+- [M13 Fixture Compatibility Implementation Plan](engineering/pstd-v1-m13-fixtures-compatibility-implementation-plan.md)
+- [M14 Recursive Subnode Layout Implementation Plan](engineering/pstd-v1-m14-recursive-subnode-layouts-implementation-plan.md)
+- [M15 Observed Layout Triage Implementation Plan](engineering/pstd-v1-m15-observed-layout-triage-implementation-plan.md)
+- [M16 Fixture-Backed Decoder Implementation Plan](engineering/pstd-v1-m16-fixture-backed-decoders-implementation-plan.md)
+- [M17 Triage Reporting Backlog Implementation Plan](engineering/pstd-v1-m17-triage-reporting-backlog-implementation-plan.md)
+- [M18 Backlog Review Workflow Implementation Plan](engineering/pstd-v1-m18-backlog-review-workflow-implementation-plan.md)
 - [M19 Candidate Selection Implementation Plan](engineering/pstd-v1-m19-candidate-selection-plan.md)
 - [M20 Focused Candidate Implementation Plan](engineering/pstd-v1-m20-focused-candidate-implementation-plan.md)
 - [M21 Focused Decoder Evidence Expansion Plan](engineering/pstd-v1-m21-focused-decoder-evidence-expansion-plan.md)
