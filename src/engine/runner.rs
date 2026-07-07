@@ -570,8 +570,7 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 mod tests {
     use super::{
         pq10_next_blocker, pq11_next_blocker, pq12_next_blocker, pq13_next_blocker,
-        pq15_next_blocker, pq16_next_blocker, pq17_next_blocker, pq9_next_blocker,
-        status_counter,
+        pq15_next_blocker, pq16_next_blocker, pq17_next_blocker, pq9_next_blocker, status_counter,
     };
 
     #[test]
@@ -713,10 +712,7 @@ mod tests {
             pq17_next_blocker(1, 0, 0),
             "table_row_matrix_or_row_count_decode"
         );
-        assert_eq!(
-            pq17_next_blocker(0, 1, 0),
-            "table_context_layout_decode"
-        );
+        assert_eq!(pq17_next_blocker(0, 1, 0), "table_context_layout_decode");
         assert_eq!(pq17_next_blocker(0, 0, 0), "table_probe_absent");
     }
 }
