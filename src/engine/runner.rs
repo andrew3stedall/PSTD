@@ -262,13 +262,12 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     let pq15_supported_subnode_layouts =
         pq15_decoded_subnode_blocks.saturating_sub(pq15_unsupported_subnode_layouts);
     let pq16_child_references = status_counter(base_status, "subnode_child_references");
-    let pq16_table_like_subnode_layouts = if pq15_supported_subnode_layouts > 0
-        && pq16_child_references == 0
-    {
-        pq15_supported_subnode_layouts
-    } else {
-        0
-    };
+    let pq16_table_like_subnode_layouts =
+        if pq15_supported_subnode_layouts > 0 && pq16_child_references == 0 {
+            pq15_supported_subnode_layouts
+        } else {
+            0
+        };
     let pq16_child_reference_subnode_layouts =
         pq15_supported_subnode_layouts.saturating_sub(pq16_table_like_subnode_layouts);
 
