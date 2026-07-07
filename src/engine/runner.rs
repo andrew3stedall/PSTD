@@ -275,6 +275,10 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     let pq17_table_parse_failures = pq15_unsupported_subnode_layouts;
     let pq17_table_columns = status_counter(base_status, "subnode_table_columns");
     let pq17_table_rows = status_counter(base_status, "subnode_table_rows");
+    let pq18_candidate_rows = pq17_table_rows;
+    let pq18_candidate_values = status_counter(base_status, "subnode_table_values");
+    let pq18_selected_property_lift = 0usize;
+    let pq18_plausible_property_lift = 0usize;
 
     let has_pq9_signal = plausible > 0 || suspicious > 0 || byte_swapped_selected > 0;
     let has_pq10_signal =
@@ -297,6 +301,7 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     let has_pq17_signal = pq17_table_parse_attempts > 0
         || pq17_table_parse_successes > 0
         || pq17_table_parse_failures > 0;
+    let has_pq18_signal = pq17_table_parse_successes > 0 || pq18_candidate_rows > 0;
     if !has_pq9_signal
         && !has_pq10_signal
         && !has_pq11_signal
@@ -305,6 +310,7 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         && !has_pq15_signal
         && !has_pq16_signal
         && !has_pq17_signal
+        && !has_pq18_signal
     {
         return base_status.to_string();
     }
@@ -381,6 +387,17 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
                 pq17_table_parse_successes,
                 pq17_table_parse_failures,
                 pq17_table_rows,
+            )
+        ));
+    }
+    if has_pq18_signal {
+        status.push_str(&format!(
+            "; pq18_status=table_property_candidate_measurement_visible; pq18_candidate_rows={pq18_candidate_rows}; pq18_candidate_values={pq18_candidate_values}; pq18_selected_property_lift={pq18_selected_property_lift}; pq18_plausible_property_lift={pq18_plausible_property_lift}; pq18_next_blocker={}",
+            pq18_next_blocker(
+                pq17_table_parse_successes,
+                pq18_candidate_rows,
+                pq18_selected_property_lift,
+                pq18_plausible_property_lift,
             )
         ));
     }
@@ -524,6 +541,23 @@ fn pq17_next_blocker(successes: usize, failures: usize, rows: usize) -> &'static
     }
 }
 
+fn pq18_next_blocker(
+    table_successes: usize,
+    candidate_rows: usize,
+    selected_lift: usize,
+    plausible_lift: usize,
+) -> &'static str {
+    if selected_lift > 0 || plausible_lift > 0 {
+        "table_property_candidate_selection"
+    } else if candidate_rows > 0 {
+        "table_row_value_to_property_mapping"
+    } else if table_successes > 0 {
+        "table_row_matrix_or_row_count_decode"
+    } else {
+        "table_property_candidates_absent"
+    }
+}
+
 fn validate_config(config: &ExtractConfig) -> PstdResult<()> {
     if config.archive_format != "tar" {
         return Err(PstdError::InvalidConfig(
@@ -570,7 +604,8 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 mod tests {
     use super::{
         pq10_next_blocker, pq11_next_blocker, pq12_next_blocker, pq13_next_blocker,
-        pq15_next_blocker, pq16_next_blocker, pq17_next_blocker, pq9_next_blocker, status_counter,
+        pq15_next_blocker, pq16_next_blocker, pq17_next_blocker, pq18_next_blocker,
+        pq9_next_blocker, status_counter,
     };
 
     #[test]
@@ -714,5 +749,25 @@ mod tests {
         );
         assert_eq!(pq17_next_blocker(0, 1, 0), "table_context_layout_decode");
         assert_eq!(pq17_next_blocker(0, 0, 0), "table_probe_absent");
+    }
+
+    #[test]
+    fn chooses_pq18_next_blocker() {
+        assert_eq!(
+            pq18_next_blocker(1, 0, 0, 0),
+            "table_row_matrix_or_row_count_decode"
+        );
+        assert_eq!(
+            pq18_next_blocker(1, 2, 0, 0),
+            "table_row_value_to_property_mapping"
+        );
+        assert_eq!(
+            pq18_next_blocker(1, 2, 1, 0),
+            "table_property_candidate_selection"
+        );
+        assert_eq!(
+            pq18_next_blocker(0, 0, 0, 0),
+            "table_property_candidates_absent"
+        );
     }
 }
