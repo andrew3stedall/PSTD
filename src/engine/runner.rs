@@ -261,6 +261,15 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         status_counter(base_status, "subnode_unsupported_layouts");
     let pq15_supported_subnode_layouts =
         pq15_decoded_subnode_blocks.saturating_sub(pq15_unsupported_subnode_layouts);
+    let pq16_child_references = status_counter(base_status, "subnode_child_references");
+    let pq16_table_like_subnode_layouts =
+        if pq15_supported_subnode_layouts > 0 && pq16_child_references == 0 {
+            pq15_supported_subnode_layouts
+        } else {
+            0
+        };
+    let pq16_child_reference_subnode_layouts =
+        pq15_supported_subnode_layouts.saturating_sub(pq16_table_like_subnode_layouts);
 
     let has_pq9_signal = plausible > 0 || suspicious > 0 || byte_swapped_selected > 0;
     let has_pq10_signal =
@@ -277,12 +286,16 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         || pq13_subnode_decode_plans > 0
         || pq13_subnode_decode_attempts > 0;
     let has_pq15_signal = pq15_decoded_subnode_blocks > 0 || pq15_unsupported_subnode_layouts > 0;
+    let has_pq16_signal = pq16_table_like_subnode_layouts > 0
+        || pq16_child_reference_subnode_layouts > 0
+        || pq16_child_references > 0;
     if !has_pq9_signal
         && !has_pq10_signal
         && !has_pq11_signal
         && !has_pq12_signal
         && !has_pq13_signal
         && !has_pq15_signal
+        && !has_pq16_signal
     {
         return base_status.to_string();
     }
@@ -339,6 +352,16 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
                 pq15_decoded_subnode_blocks,
                 pq15_supported_subnode_layouts,
                 pq15_unsupported_subnode_layouts,
+            )
+        ));
+    }
+    if has_pq16_signal {
+        status.push_str(&format!(
+            "; pq16_status=subnode_payload_classification_visible; pq16_table_like_subnode_layouts={pq16_table_like_subnode_layouts}; pq16_child_reference_subnode_layouts={pq16_child_reference_subnode_layouts}; pq16_child_references={pq16_child_references}; pq16_next_blocker={}",
+            pq16_next_blocker(
+                pq16_table_like_subnode_layouts,
+                pq16_child_reference_subnode_layouts,
+                pq16_child_references,
             )
         ));
     }
@@ -456,6 +479,20 @@ fn pq15_next_blocker(decoded: usize, supported: usize, unsupported: usize) -> &'
     }
 }
 
+fn pq16_next_blocker(
+    table_like_layouts: usize,
+    child_reference_layouts: usize,
+    child_references: usize,
+) -> &'static str {
+    if table_like_layouts > 0 {
+        "message_subnode_table_payload_wiring"
+    } else if child_reference_layouts > 0 || child_references > 0 {
+        "recursive_child_subnode_interpretation"
+    } else {
+        "subnode_payload_classification_absent"
+    }
+}
+
 fn validate_config(config: &ExtractConfig) -> PstdResult<()> {
     if config.archive_format != "tar" {
         return Err(PstdError::InvalidConfig(
@@ -502,7 +539,7 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 mod tests {
     use super::{
         pq10_next_blocker, pq11_next_blocker, pq12_next_blocker, pq13_next_blocker,
-        pq15_next_blocker, pq9_next_blocker, status_counter,
+        pq15_next_blocker, pq16_next_blocker, pq9_next_blocker, status_counter,
     };
 
     #[test]
@@ -616,5 +653,21 @@ mod tests {
             "subnode_layout_decoder_expansion"
         );
         assert_eq!(pq15_next_blocker(0, 0, 0), "message_subnode_decode_absent");
+    }
+
+    #[test]
+    fn chooses_pq16_next_blocker() {
+        assert_eq!(
+            pq16_next_blocker(1, 0, 0),
+            "message_subnode_table_payload_wiring"
+        );
+        assert_eq!(
+            pq16_next_blocker(0, 1, 0),
+            "recursive_child_subnode_interpretation"
+        );
+        assert_eq!(
+            pq16_next_blocker(0, 0, 0),
+            "subnode_payload_classification_absent"
+        );
     }
 }
