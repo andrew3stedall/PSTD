@@ -338,8 +338,14 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
         .iter()
         .map(|layout| layout.child_block_ids.len())
         .sum::<usize>();
+    let table_declared_columns = status_sum(&layouts, "subnode_table_declared_columns");
+    let table_columns = status_sum(&layouts, "subnode_table_columns");
+    let table_declared_rows = status_sum(&layouts, "subnode_table_declared_rows");
+    let table_rows = status_sum(&layouts, "subnode_table_rows");
+    let table_values = status_sum(&layouts, "subnode_table_values");
+    let table_omitted_values = status_sum(&layouts, "subnode_table_omitted_values");
 
-    let status = if layouts.is_empty() {
+    let base_status = if layouts.is_empty() {
         "subnode_layouts_empty"
     } else if unsupported_layout_count == 0 {
         "subnode_layouts_classified"
@@ -348,6 +354,9 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
     } else {
         "subnode_layouts_unsupported"
     };
+    let status = format!(
+        "{base_status}; subnode_table_declared_columns={table_declared_columns}; subnode_table_columns={table_columns}; subnode_table_declared_rows={table_declared_rows}; subnode_table_rows={table_rows}; subnode_table_values={table_values}; subnode_table_omitted_values={table_omitted_values}"
+    );
 
     SubnodeLayoutReport {
         block_count: layouts.len(),
@@ -356,7 +365,7 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
         unsupported_layout_count,
         child_reference_count,
         layouts,
-        status: status.to_string(),
+        status,
     }
 }
 
@@ -378,15 +387,33 @@ pub fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayo
     }
 
     match TableContext::parse_with_report(&payload.bytes, payload.block_ref.offset.0) {
-        Ok(report) => SubnodeBlockLayout {
-            block_id: payload.block_id,
-            offset: payload.block_ref.offset.0,
-            size: payload.block_ref.size,
-            byte_len: payload.bytes.len(),
-            layout_kind: "table_context".to_string(),
-            child_block_ids: Vec::new(),
-            status: report.status,
-        },
+        Ok(report) => {
+            let value_count = report
+                .context
+                .rows
+                .iter()
+                .map(|row| row.values.len())
+                .sum::<usize>();
+            SubnodeBlockLayout {
+                block_id: payload.block_id,
+                offset: payload.block_ref.offset.0,
+                size: payload.block_ref.size,
+                byte_len: payload.bytes.len(),
+                layout_kind: "table_context".to_string(),
+                child_block_ids: Vec::new(),
+                status: format!(
+                    "{}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_row_width={}; subnode_table_values={}; subnode_table_omitted_values={}",
+                    report.status,
+                    report.declared_column_count,
+                    report.parsed_column_count,
+                    report.declared_row_count,
+                    report.parsed_row_count,
+                    report.row_width,
+                    value_count,
+                    report.omitted_value_count,
+                ),
+            }
+        }
         Err(reason) => SubnodeBlockLayout {
             block_id: payload.block_id,
             offset: payload.block_ref.offset.0,
@@ -438,8 +465,25 @@ fn empty_layout_report() -> SubnodeLayoutReport {
         unsupported_layout_count: 0,
         child_reference_count: 0,
         layouts: Vec::new(),
-        status: "subnode_layouts_empty".to_string(),
+        status: "subnode_layouts_empty; subnode_table_declared_columns=0; subnode_table_columns=0; subnode_table_declared_rows=0; subnode_table_rows=0; subnode_table_values=0; subnode_table_omitted_values=0".to_string(),
     }
+}
+
+fn status_sum(layouts: &[SubnodeBlockLayout], key: &str) -> usize {
+    layouts
+        .iter()
+        .map(|layout| status_counter(&layout.status, key))
+        .sum()
+}
+
+fn status_counter(status: &str, key: &str) -> usize {
+    let marker = format!("{key}=");
+    status
+        .split(&marker)
+        .nth(1)
+        .and_then(|tail| tail.split([';', ',']).next())
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or(0)
 }
 
 #[cfg(test)]
@@ -574,7 +618,10 @@ mod tests {
         let layout = classify_subnode_block_layout(&payload);
         assert_eq!(layout.layout_kind, "table_context");
         assert_eq!(layout.child_block_ids.len(), 0);
-        assert_eq!(layout.status, "table_context_parsed");
+        assert!(layout.status.contains("table_context_parsed"));
+        assert!(layout.status.contains("subnode_table_columns=1"));
+        assert!(layout.status.contains("subnode_table_rows=1"));
+        assert!(layout.status.contains("subnode_table_values=1"));
     }
 
     #[test]
@@ -599,7 +646,10 @@ mod tests {
         assert_eq!(report.table_layout_count, 1);
         assert_eq!(report.unsupported_layout_count, 1);
         assert_eq!(report.child_reference_count, 1);
-        assert_eq!(report.status, "subnode_layouts_partially_classified");
+        assert!(report.status.contains("subnode_layouts_partially_classified"));
+        assert!(report.status.contains("subnode_table_columns=1"));
+        assert!(report.status.contains("subnode_table_rows=1"));
+        assert!(report.status.contains("subnode_table_values=1"));
     }
 
     #[test]
@@ -634,6 +684,7 @@ mod tests {
         assert_eq!(loaded.report.recursive_child_decode_count, 1);
         assert_eq!(loaded.layout_report.child_reference_layout_count, 1);
         assert_eq!(loaded.layout_report.table_layout_count, 1);
+        assert!(loaded.layout_report.status.contains("subnode_table_rows=1"));
         assert_eq!(loaded.report.status, "subnode_recursive_blocks_loaded");
     }
 
