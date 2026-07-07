@@ -13,6 +13,44 @@ def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def status_counter(status: str, key: str) -> int:
+    for marker in (f"{key}=", f"{key}:"):
+        if marker not in status:
+            continue
+        tail = status.split(marker, 1)[1]
+        value = tail.split(";", 1)[0].split(",", 1)[0].strip()
+        try:
+            return int(value)
+        except ValueError:
+            return 0
+    return 0
+
+
+def pq19_next_blocker(status: str) -> str:
+    hierarchy_rows = status_counter(status, "pq19_hierarchy_table_rows")
+    contents_rows = status_counter(status, "pq19_contents_table_rows")
+    pq18_rows = status_counter(status, "pq18_candidate_rows")
+    pq17_successes = status_counter(status, "pq17_table_parse_successes")
+    if hierarchy_rows > 0 or contents_rows > 0:
+        return "table_membership_wiring"
+    if pq18_rows > 0:
+        return "table_row_semantic_classification"
+    if pq17_successes > 0:
+        return "table_row_matrix_or_row_count_decode"
+    return "table_membership_signal_absent"
+
+
+def pq19_metrics(status: str) -> dict[str, Any]:
+    return {
+        "pq19_status": "table_membership_measurement_visible",
+        "pq19_hierarchy_table_rows": status_counter(status, "pq19_hierarchy_table_rows"),
+        "pq19_contents_table_rows": status_counter(status, "pq19_contents_table_rows"),
+        "pq19_table_linked_folders": status_counter(status, "pq19_table_linked_folders"),
+        "pq19_table_linked_messages": status_counter(status, "pq19_table_linked_messages"),
+        "pq19_next_blocker": pq19_next_blocker(status),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--progress-dir", required=True)
@@ -23,6 +61,7 @@ def main() -> int:
     run = load_json(progress_dir / "run_summary.json")
     fixture = (progress_dir / "fixture_path.txt").read_text(encoding="utf-8").strip()
     fixture_size = int((progress_dir / "fixture_size_bytes.txt").read_text(encoding="utf-8"))
+    extract_status = run.get("status", "")
 
     summary = {
         "fixture": fixture,
@@ -40,7 +79,8 @@ def main() -> int:
         "nbt_status": inspect.get("nbt_status"),
         "nbt_entries": inspect.get("nbt_entries"),
         "nbt_pages_diagnosed": len(inspect.get("nbt_page_diagnostics", [])),
-        "extract_status": run.get("status"),
+        "extract_status": extract_status,
+        **pq19_metrics(extract_status),
         "folders_discovered": run.get("folders_discovered"),
         "messages_discovered": run.get("messages_discovered"),
         "messages_extracted": run.get("messages_extracted"),
