@@ -51,6 +51,30 @@ def pq19_metrics(status: str) -> dict[str, Any]:
     }
 
 
+def pq20_next_blocker(status: str) -> str:
+    parsed_rows = status_counter(status, "subnode_table_rows")
+    parsed_columns = status_counter(status, "subnode_table_columns")
+    table_successes = status_counter(status, "pq17_table_parse_successes")
+    if parsed_rows > 0 and parsed_columns > 0:
+        return "table_row_property_candidate_mapping"
+    if table_successes > 0:
+        return "subnode_table_parser_counter_wiring"
+    return "table_row_matrix_signal_absent"
+
+
+def pq20_metrics(status: str) -> dict[str, Any]:
+    parsed_rows = status_counter(status, "subnode_table_rows")
+    parsed_columns = status_counter(status, "subnode_table_columns")
+    return {
+        "pq20_status": "table_row_matrix_measurement_visible",
+        "pq20_row_matrix_decode_attempts": status_counter(status, "pq17_table_parse_successes"),
+        "pq20_parsed_table_columns": parsed_columns,
+        "pq20_parsed_table_rows": parsed_rows,
+        "pq20_row_value_slots": parsed_columns * parsed_rows,
+        "pq20_next_blocker": pq20_next_blocker(status),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--progress-dir", required=True)
@@ -81,6 +105,7 @@ def main() -> int:
         "nbt_pages_diagnosed": len(inspect.get("nbt_page_diagnostics", [])),
         "extract_status": extract_status,
         **pq19_metrics(extract_status),
+        **pq20_metrics(extract_status),
         "folders_discovered": run.get("folders_discovered"),
         "messages_discovered": run.get("messages_discovered"),
         "messages_extracted": run.get("messages_extracted"),
