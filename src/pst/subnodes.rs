@@ -646,7 +646,9 @@ mod tests {
         assert_eq!(report.table_layout_count, 1);
         assert_eq!(report.unsupported_layout_count, 1);
         assert_eq!(report.child_reference_count, 1);
-        assert!(report.status.contains("subnode_layouts_partially_classified"));
+        assert!(report
+            .status
+            .contains("subnode_layouts_partially_classified"));
         assert!(report.status.contains("subnode_table_columns=1"));
         assert!(report.status.contains("subnode_table_rows=1"));
         assert!(report.status.contains("subnode_table_values=1"));
