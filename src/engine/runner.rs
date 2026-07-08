@@ -270,16 +270,28 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     let pq21_table_values = aggregate_status_counter(base_status, messages, "subnode_table_values");
     let pq21_table_omitted_values =
         aggregate_status_counter(base_status, messages, "subnode_table_omitted_values");
+    let pq24_selected_columns =
+        aggregate_status_counter(base_status, messages, "subnode_table_selected_columns");
+    let pq24_plausible_columns =
+        aggregate_status_counter(base_status, messages, "subnode_table_plausible_columns");
+    let pq24_unknown_columns =
+        aggregate_status_counter(base_status, messages, "subnode_table_unknown_columns");
+    let pq24_selected_values =
+        aggregate_status_counter(base_status, messages, "subnode_table_selected_values");
+    let pq24_plausible_values =
+        aggregate_status_counter(base_status, messages, "subnode_table_plausible_values");
+    let pq24_unknown_values =
+        aggregate_status_counter(base_status, messages, "subnode_table_unknown_values");
     let pq17_table_columns = pq21_table_columns;
     let pq17_table_rows = pq21_table_rows;
     let pq18_candidate_rows = pq17_table_rows;
     let pq18_candidate_values = pq21_table_values;
-    let pq18_selected_property_lift = 0usize;
-    let pq18_plausible_property_lift = 0usize;
+    let pq18_selected_property_lift = pq24_selected_values;
+    let pq18_plausible_property_lift = pq24_plausible_values;
     let pq23_candidate_rows = pq21_table_rows;
     let pq23_candidate_values = pq21_table_values;
-    let pq23_selected_property_candidates = 0usize;
-    let pq23_plausible_property_candidates = 0usize;
+    let pq23_selected_property_candidates = pq24_selected_values;
+    let pq23_plausible_property_candidates = pq24_plausible_values;
 
     let has_pq9_signal = plausible > 0 || suspicious > 0 || byte_swapped_selected > 0;
     let has_pq10_signal =
@@ -311,6 +323,12 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         || pq21_table_values > 0
         || pq21_table_omitted_values > 0;
     let has_pq23_signal = pq23_candidate_rows > 0 || pq23_candidate_values > 0;
+    let has_pq24_signal = pq24_selected_columns > 0
+        || pq24_plausible_columns > 0
+        || pq24_unknown_columns > 0
+        || pq24_selected_values > 0
+        || pq24_plausible_values > 0
+        || pq24_unknown_values > 0;
     if !has_pq9_signal
         && !has_pq10_signal
         && !has_pq11_signal
@@ -322,6 +340,7 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         && !has_pq18_signal
         && !has_pq21_signal
         && !has_pq23_signal
+        && !has_pq24_signal
     {
         return base_status.to_string();
     }
@@ -359,6 +378,9 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     }
     if has_pq23_signal {
         status.push_str(&format!("; pq23_status=table_row_property_candidates_visible; pq23_candidate_rows={pq23_candidate_rows}; pq23_candidate_values={pq23_candidate_values}; pq23_selected_property_candidates={pq23_selected_property_candidates}; pq23_plausible_property_candidates={pq23_plausible_property_candidates}; pq23_next_blocker={}", pq23_next_blocker(pq23_candidate_rows, pq23_candidate_values, pq23_selected_property_candidates, pq23_plausible_property_candidates)));
+    }
+    if has_pq24_signal {
+        status.push_str(&format!("; pq24_status=table_column_tag_mapping_visible; pq24_selected_columns={pq24_selected_columns}; pq24_plausible_columns={pq24_plausible_columns}; pq24_unknown_columns={pq24_unknown_columns}; pq24_selected_values={pq24_selected_values}; pq24_plausible_values={pq24_plausible_values}; pq24_unknown_values={pq24_unknown_values}; pq24_next_blocker={}", pq24_next_blocker(pq24_selected_values, pq24_plausible_values, pq24_unknown_values)));
     }
     status
 }
@@ -556,6 +578,22 @@ fn pq23_next_blocker(
         "table_row_value_extraction"
     } else {
         "table_property_candidates_absent"
+    }
+}
+
+fn pq24_next_blocker(
+    selected_values: usize,
+    plausible_values: usize,
+    unknown_values: usize,
+) -> &'static str {
+    if selected_values > 0 {
+        "table_selected_property_materialization"
+    } else if plausible_values > 0 {
+        "selected_dictionary_expansion_for_table_columns"
+    } else if unknown_values > 0 {
+        "table_column_tag_interpretation"
+    } else {
+        "table_column_mapping_absent"
     }
 }
 
