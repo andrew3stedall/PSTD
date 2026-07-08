@@ -121,7 +121,7 @@ impl TableContext {
             .saturating_sub(plausible_value_count);
         let parsed_row_count = rows.len();
         let truncated_row_count = declared_row_count.saturating_sub(parsed_row_count);
-        let base_status = if truncated_column_count == 0
+        let status = if truncated_column_count == 0
             && truncated_row_count == 0
             && omitted_value_count == 0
         {
@@ -131,9 +131,6 @@ impl TableContext {
                 "table_context_parsed_with_issues; truncated_columns={truncated_column_count}; truncated_rows={truncated_row_count}; omitted_values={omitted_value_count}"
             )
         };
-        let status = format!(
-            "{base_status}; subnode_table_selected_columns={selected_column_count}; subnode_table_plausible_columns={plausible_column_count}; subnode_table_unknown_columns={unknown_column_count}; subnode_table_selected_values={selected_value_count}; subnode_table_plausible_values={plausible_value_count}; subnode_table_unknown_values={unknown_value_count}"
-        );
 
         Ok(TableContextParseReport {
             context: Self { columns, rows },
@@ -182,7 +179,6 @@ mod tests {
         assert_eq!(report.selected_column_count, 1);
         assert_eq!(report.selected_value_count, 1);
         assert!(report.status.contains("truncated_rows=1"));
-        assert!(report.status.contains("subnode_table_selected_columns=1"));
         assert_eq!(report.context.rows[0].values[0].1, vec![1, 2, 3, 4]);
     }
 
