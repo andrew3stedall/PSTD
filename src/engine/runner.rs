@@ -282,6 +282,46 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         aggregate_status_counter(base_status, messages, "subnode_table_plausible_values");
     let pq24_unknown_values =
         aggregate_status_counter(base_status, messages, "subnode_table_unknown_values");
+    let pq25_byte_swapped_selected_columns = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_byte_swapped_selected_columns",
+    );
+    let pq25_byte_swapped_plausible_columns = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_byte_swapped_plausible_columns",
+    );
+    let pq25_low_word_known_type_columns = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_low_word_known_type_columns",
+    );
+    let pq25_high_word_known_type_columns = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_high_word_known_type_columns",
+    );
+    let pq25_byte_swapped_selected_values = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_byte_swapped_selected_values",
+    );
+    let pq25_byte_swapped_plausible_values = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_byte_swapped_plausible_values",
+    );
+    let pq25_low_word_known_type_values = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_low_word_known_type_values",
+    );
+    let pq25_high_word_known_type_values = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_high_word_known_type_values",
+    );
     let pq17_table_columns = pq21_table_columns;
     let pq17_table_rows = pq21_table_rows;
     let pq18_candidate_rows = pq17_table_rows;
@@ -329,6 +369,14 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         || pq24_selected_values > 0
         || pq24_plausible_values > 0
         || pq24_unknown_values > 0;
+    let has_pq25_signal = pq25_byte_swapped_selected_columns > 0
+        || pq25_byte_swapped_plausible_columns > 0
+        || pq25_low_word_known_type_columns > 0
+        || pq25_high_word_known_type_columns > 0
+        || pq25_byte_swapped_selected_values > 0
+        || pq25_byte_swapped_plausible_values > 0
+        || pq25_low_word_known_type_values > 0
+        || pq25_high_word_known_type_values > 0;
     if !has_pq9_signal
         && !has_pq10_signal
         && !has_pq11_signal
@@ -341,6 +389,7 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         && !has_pq21_signal
         && !has_pq23_signal
         && !has_pq24_signal
+        && !has_pq25_signal
     {
         return base_status.to_string();
     }
@@ -381,6 +430,9 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     }
     if has_pq24_signal {
         status.push_str(&format!("; pq24_status=table_column_tag_mapping_visible; pq24_selected_columns={pq24_selected_columns}; pq24_plausible_columns={pq24_plausible_columns}; pq24_unknown_columns={pq24_unknown_columns}; pq24_selected_values={pq24_selected_values}; pq24_plausible_values={pq24_plausible_values}; pq24_unknown_values={pq24_unknown_values}; pq24_next_blocker={}", pq24_next_blocker(pq24_selected_values, pq24_plausible_values, pq24_unknown_values)));
+    }
+    if has_pq25_signal {
+        status.push_str(&format!("; pq25_status=table_tag_shape_visible; pq25_byte_swapped_selected_columns={pq25_byte_swapped_selected_columns}; pq25_byte_swapped_plausible_columns={pq25_byte_swapped_plausible_columns}; pq25_low_word_known_type_columns={pq25_low_word_known_type_columns}; pq25_high_word_known_type_columns={pq25_high_word_known_type_columns}; pq25_byte_swapped_selected_values={pq25_byte_swapped_selected_values}; pq25_byte_swapped_plausible_values={pq25_byte_swapped_plausible_values}; pq25_low_word_known_type_values={pq25_low_word_known_type_values}; pq25_high_word_known_type_values={pq25_high_word_known_type_values}; pq25_next_blocker={}", pq25_next_blocker(pq25_byte_swapped_selected_values, pq25_byte_swapped_plausible_values, pq25_low_word_known_type_values, pq25_high_word_known_type_values, pq24_unknown_values)));
     }
     status
 }
@@ -594,6 +646,26 @@ fn pq24_next_blocker(
         "table_column_tag_interpretation"
     } else {
         "table_column_mapping_absent"
+    }
+}
+
+fn pq25_next_blocker(
+    byte_swapped_selected_values: usize,
+    byte_swapped_plausible_values: usize,
+    low_word_known_type_values: usize,
+    high_word_known_type_values: usize,
+    unknown_values: usize,
+) -> &'static str {
+    if byte_swapped_selected_values > 0 {
+        "table_byte_swapped_property_materialization"
+    } else if byte_swapped_plausible_values > 0 {
+        "table_byte_swapped_dictionary_expansion"
+    } else if high_word_known_type_values > 0 || low_word_known_type_values > 0 {
+        "table_column_tag_word_order_decode"
+    } else if unknown_values > 0 {
+        "table_column_descriptor_decode"
+    } else {
+        "table_tag_interpretation_absent"
     }
 }
 

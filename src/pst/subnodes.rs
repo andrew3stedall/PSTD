@@ -267,7 +267,7 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
         "subnode_layouts_unsupported"
     };
     let status = format!(
-        "{base_status}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}",
+        "{base_status}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}; subnode_table_byte_swapped_selected_columns={}; subnode_table_byte_swapped_plausible_columns={}; subnode_table_low_word_known_type_columns={}; subnode_table_high_word_known_type_columns={}; subnode_table_byte_swapped_selected_values={}; subnode_table_byte_swapped_plausible_values={}; subnode_table_low_word_known_type_values={}; subnode_table_high_word_known_type_values={}",
         status_sum(&layouts, "subnode_table_declared_columns"),
         status_sum(&layouts, "subnode_table_columns"),
         status_sum(&layouts, "subnode_table_declared_rows"),
@@ -280,6 +280,14 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
         status_sum(&layouts, "subnode_table_selected_values"),
         status_sum(&layouts, "subnode_table_plausible_values"),
         status_sum(&layouts, "subnode_table_unknown_values"),
+        status_sum(&layouts, "subnode_table_byte_swapped_selected_columns"),
+        status_sum(&layouts, "subnode_table_byte_swapped_plausible_columns"),
+        status_sum(&layouts, "subnode_table_low_word_known_type_columns"),
+        status_sum(&layouts, "subnode_table_high_word_known_type_columns"),
+        status_sum(&layouts, "subnode_table_byte_swapped_selected_values"),
+        status_sum(&layouts, "subnode_table_byte_swapped_plausible_values"),
+        status_sum(&layouts, "subnode_table_low_word_known_type_values"),
+        status_sum(&layouts, "subnode_table_high_word_known_type_values"),
     );
     SubnodeLayoutReport {
         block_count: layouts.len(),
@@ -323,7 +331,7 @@ pub fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayo
                 layout_kind: "table_context".to_string(),
                 child_block_ids: Vec::new(),
                 status: format!(
-                    "{}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_row_width={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}",
+                    "{}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_row_width={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}; subnode_table_byte_swapped_selected_columns={}; subnode_table_byte_swapped_plausible_columns={}; subnode_table_low_word_known_type_columns={}; subnode_table_high_word_known_type_columns={}; subnode_table_byte_swapped_selected_values={}; subnode_table_byte_swapped_plausible_values={}; subnode_table_low_word_known_type_values={}; subnode_table_high_word_known_type_values={}",
                     report.status,
                     report.declared_column_count,
                     report.parsed_column_count,
@@ -338,6 +346,14 @@ pub fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayo
                     report.selected_value_count,
                     report.plausible_value_count,
                     report.unknown_value_count,
+                    report.byte_swapped_selected_column_count,
+                    report.byte_swapped_plausible_column_count,
+                    report.low_word_known_type_column_count,
+                    report.high_word_known_type_column_count,
+                    report.byte_swapped_selected_value_count,
+                    report.byte_swapped_plausible_value_count,
+                    report.low_word_known_type_value_count,
+                    report.high_word_known_type_value_count,
                 ),
             }
         }
@@ -390,7 +406,7 @@ fn empty_layout_report() -> SubnodeLayoutReport {
         unsupported_layout_count: 0,
         child_reference_count: 0,
         layouts: Vec::new(),
-        status: "subnode_layouts_empty; subnode_table_declared_columns=0; subnode_table_columns=0; subnode_table_declared_rows=0; subnode_table_rows=0; subnode_table_values=0; subnode_table_omitted_values=0; subnode_table_selected_columns=0; subnode_table_plausible_columns=0; subnode_table_unknown_columns=0; subnode_table_selected_values=0; subnode_table_plausible_values=0; subnode_table_unknown_values=0".to_string(),
+        status: "subnode_layouts_empty; subnode_table_declared_columns=0; subnode_table_columns=0; subnode_table_declared_rows=0; subnode_table_rows=0; subnode_table_values=0; subnode_table_omitted_values=0; subnode_table_selected_columns=0; subnode_table_plausible_columns=0; subnode_table_unknown_columns=0; subnode_table_selected_values=0; subnode_table_plausible_values=0; subnode_table_unknown_values=0; subnode_table_byte_swapped_selected_columns=0; subnode_table_byte_swapped_plausible_columns=0; subnode_table_low_word_known_type_columns=0; subnode_table_high_word_known_type_columns=0; subnode_table_byte_swapped_selected_values=0; subnode_table_byte_swapped_plausible_values=0; subnode_table_low_word_known_type_values=0; subnode_table_high_word_known_type_values=0".to_string(),
     }
 }
 
