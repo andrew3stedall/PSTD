@@ -273,10 +273,28 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     let pq17_table_parse_attempts = pq15_decoded_subnode_blocks;
     let pq17_table_parse_successes = pq16_table_like_subnode_layouts;
     let pq17_table_parse_failures = pq15_unsupported_subnode_layouts;
-    let pq17_table_columns = status_counter(base_status, "subnode_table_columns");
-    let pq17_table_rows = status_counter(base_status, "subnode_table_rows");
+    let pq21_table_declared_columns = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_declared_columns",
+    );
+    let pq21_table_columns = aggregate_status_counter(base_status, messages, "subnode_table_columns");
+    let pq21_table_declared_rows = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_declared_rows",
+    );
+    let pq21_table_rows = aggregate_status_counter(base_status, messages, "subnode_table_rows");
+    let pq21_table_values = aggregate_status_counter(base_status, messages, "subnode_table_values");
+    let pq21_table_omitted_values = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_omitted_values",
+    );
+    let pq17_table_columns = pq21_table_columns;
+    let pq17_table_rows = pq21_table_rows;
     let pq18_candidate_rows = pq17_table_rows;
-    let pq18_candidate_values = status_counter(base_status, "subnode_table_values");
+    let pq18_candidate_values = pq21_table_values;
     let pq18_selected_property_lift = 0usize;
     let pq18_plausible_property_lift = 0usize;
 
@@ -302,6 +320,13 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         || pq17_table_parse_successes > 0
         || pq17_table_parse_failures > 0;
     let has_pq18_signal = pq17_table_parse_successes > 0 || pq18_candidate_rows > 0;
+    let has_pq21_signal = pq17_table_parse_successes > 0
+        || pq21_table_declared_columns > 0
+        || pq21_table_columns > 0
+        || pq21_table_declared_rows > 0
+        || pq21_table_rows > 0
+        || pq21_table_values > 0
+        || pq21_table_omitted_values > 0;
     if !has_pq9_signal
         && !has_pq10_signal
         && !has_pq11_signal
@@ -311,6 +336,7 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         && !has_pq16_signal
         && !has_pq17_signal
         && !has_pq18_signal
+        && !has_pq21_signal
     {
         return base_status.to_string();
     }
@@ -401,6 +427,16 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
             )
         ));
     }
+    if has_pq21_signal {
+        status.push_str(&format!(
+            "; pq21_status=table_parser_counters_visible; pq21_table_declared_columns={pq21_table_declared_columns}; pq21_table_columns={pq21_table_columns}; pq21_table_declared_rows={pq21_table_declared_rows}; pq21_table_rows={pq21_table_rows}; pq21_table_values={pq21_table_values}; pq21_table_omitted_values={pq21_table_omitted_values}; pq21_next_blocker={}",
+            pq21_next_blocker(
+                pq21_table_rows,
+                pq21_table_values,
+                pq17_table_parse_successes,
+            )
+        ));
+    }
     status
 }
 
@@ -414,6 +450,19 @@ fn status_counter(status: &str, key: &str) -> usize {
         .and_then(|tail| tail.split([',', ';']).next())
         .and_then(|value| value.parse::<usize>().ok())
         .unwrap_or(0)
+}
+
+fn aggregate_status_counter(base_status: &str, messages: &[MessageRecord], key: &str) -> usize {
+    status_counter(base_status, key)
+        + messages
+            .iter()
+            .map(|message| {
+                status_counter(&message.extraction_status, key)
+                    + status_counter(&message.metadata_status, key)
+                    + status_counter(&message.body_status, key)
+                    + status_counter(&message.attachment_status, key)
+            })
+            .sum::<usize>()
 }
 
 fn status_contains_count(messages: &[MessageRecord], needle: &str) -> usize {
@@ -558,6 +607,18 @@ fn pq18_next_blocker(
     }
 }
 
+fn pq21_next_blocker(rows: usize, values: usize, table_successes: usize) -> &'static str {
+    if rows > 0 && values > 0 {
+        "table_row_property_candidate_mapping"
+    } else if rows > 0 {
+        "table_row_value_extraction"
+    } else if table_successes > 0 {
+        "real_table_row_layout_decode"
+    } else {
+        "table_counter_signal_absent"
+    }
+}
+
 fn validate_config(config: &ExtractConfig) -> PstdResult<()> {
     if config.archive_format != "tar" {
         return Err(PstdError::InvalidConfig(
@@ -605,7 +666,7 @@ mod tests {
     use super::{
         pq10_next_blocker, pq11_next_blocker, pq12_next_blocker, pq13_next_blocker,
         pq15_next_blocker, pq16_next_blocker, pq17_next_blocker, pq18_next_blocker,
-        pq9_next_blocker, status_counter,
+        pq21_next_blocker, pq9_next_blocker, status_counter,
     };
 
     #[test]
@@ -769,5 +830,16 @@ mod tests {
             pq18_next_blocker(0, 0, 0, 0),
             "table_property_candidates_absent"
         );
+    }
+
+    #[test]
+    fn chooses_pq21_next_blocker() {
+        assert_eq!(
+            pq21_next_blocker(1, 1, 1),
+            "table_row_property_candidate_mapping"
+        );
+        assert_eq!(pq21_next_blocker(1, 0, 1), "table_row_value_extraction");
+        assert_eq!(pq21_next_blocker(0, 0, 1), "real_table_row_layout_decode");
+        assert_eq!(pq21_next_blocker(0, 0, 0), "table_counter_signal_absent");
     }
 }
