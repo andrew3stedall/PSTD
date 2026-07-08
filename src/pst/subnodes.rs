@@ -95,18 +95,16 @@ pub fn subnode_references_from_entries(entries: &[NbtEntry]) -> SubnodeReference
                 })
         })
         .collect::<Vec<_>>();
-
     let status = if references.is_empty() {
-        "no_subnode_references".to_string()
+        "no_subnode_references"
     } else {
-        "subnode_references_discovered".to_string()
+        "subnode_references_discovered"
     };
-
     SubnodeReferenceReport {
         node_count: entries.len(),
         subnode_reference_count: references.len(),
         references,
-        status,
+        status: status.to_string(),
     }
 }
 
@@ -130,85 +128,12 @@ pub fn subnode_decode_plan(
     } else {
         "subnode_decode_planned"
     };
-
     SubnodeDecodePlan {
         root_node_id: reference.node_id,
         root_subnode_block_id: reference.subnode_block_id,
         requested_depth,
         max_depth: limits.max_subnode_depth,
         status: status.to_string(),
-    }
-}
-
-pub fn load_bounded_subnode_blocks(
-    reader: &PstByteReader,
-    bbt: &BbtIndex,
-    reference: &SubnodeReference,
-    requested_depth: usize,
-    limits: ParserLimits,
-) -> LoadedSubnodeBlocks {
-    if requested_depth > limits.max_subnode_depth {
-        return LoadedSubnodeBlocks {
-            payloads: Vec::new(),
-            report: SubnodeDecodeReport {
-                root_node_id: reference.node_id,
-                root_subnode_block_id: reference.subnode_block_id,
-                requested_depth,
-                max_depth: limits.max_subnode_depth,
-                decoded_block_count: 0,
-                failed_block_count: 0,
-                decoded_bytes: 0,
-                recursive_child_reference_count: 0,
-                recursive_child_decode_count: 0,
-                layout_statuses: Vec::new(),
-                status: "subnode_depth_limit_exceeded".to_string(),
-            },
-            layout_report: empty_layout_report(),
-        };
-    }
-
-    match load_payload_block(reader, bbt, reference.subnode_block_id, limits) {
-        Ok(payload) => {
-            let layout_report = classify_subnode_payloads(std::slice::from_ref(&payload));
-            LoadedSubnodeBlocks {
-                report: SubnodeDecodeReport {
-                    root_node_id: reference.node_id,
-                    root_subnode_block_id: reference.subnode_block_id,
-                    requested_depth,
-                    max_depth: limits.max_subnode_depth,
-                    decoded_block_count: 1,
-                    failed_block_count: 0,
-                    decoded_bytes: payload.bytes.len() as u64,
-                    recursive_child_reference_count: layout_report.child_reference_count,
-                    recursive_child_decode_count: 0,
-                    layout_statuses: layout_report
-                        .layouts
-                        .iter()
-                        .map(|layout| layout.status.clone())
-                        .collect(),
-                    status: "subnode_root_block_loaded".to_string(),
-                },
-                payloads: vec![payload],
-                layout_report,
-            }
-        }
-        Err(reason) => LoadedSubnodeBlocks {
-            payloads: Vec::new(),
-            report: SubnodeDecodeReport {
-                root_node_id: reference.node_id,
-                root_subnode_block_id: reference.subnode_block_id,
-                requested_depth,
-                max_depth: limits.max_subnode_depth,
-                decoded_block_count: 0,
-                failed_block_count: 1,
-                decoded_bytes: 0,
-                recursive_child_reference_count: 0,
-                recursive_child_decode_count: 0,
-                layout_statuses: Vec::new(),
-                status: format!("subnode_root_block_unavailable; reason={reason}"),
-            },
-            layout_report: empty_layout_report(),
-        },
     }
 }
 
@@ -253,7 +178,6 @@ pub fn load_recursive_subnode_blocks(
             skipped_child_count += 1;
             continue;
         }
-
         match load_payload_block(reader, bbt, block_id, limits) {
             Ok(payload) => {
                 let layout = classify_subnode_block_layout(&payload);
@@ -268,9 +192,7 @@ pub fn load_recursive_subnode_blocks(
                 }
                 payloads.push(payload);
             }
-            Err(_) => {
-                failed_block_count += 1;
-            }
+            Err(_) => failed_block_count += 1,
         }
     }
 
@@ -279,13 +201,7 @@ pub fn load_recursive_subnode_blocks(
         .iter()
         .map(|payload| payload.bytes.len() as u64)
         .sum();
-    let recursive_child_reference_count = layout_report.child_reference_count;
     let recursive_child_decode_count = payloads.len().saturating_sub(1);
-    let layout_statuses = layout_report
-        .layouts
-        .iter()
-        .map(|layout| layout.status.clone())
-        .collect::<Vec<_>>();
     let status = if payloads.is_empty() {
         "subnode_recursive_blocks_unavailable"
     } else if skipped_child_count > 0 {
@@ -297,7 +213,6 @@ pub fn load_recursive_subnode_blocks(
     } else {
         "subnode_root_block_loaded"
     };
-
     LoadedSubnodeBlocks {
         report: SubnodeDecodeReport {
             root_node_id: reference.node_id,
@@ -307,9 +222,13 @@ pub fn load_recursive_subnode_blocks(
             decoded_block_count: payloads.len(),
             failed_block_count,
             decoded_bytes,
-            recursive_child_reference_count,
+            recursive_child_reference_count: layout_report.child_reference_count,
             recursive_child_decode_count,
-            layout_statuses,
+            layout_statuses: layout_report
+                .layouts
+                .iter()
+                .map(|layout| layout.status.clone())
+                .collect(),
             status: status.to_string(),
         },
         payloads,
@@ -338,19 +257,6 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
         .iter()
         .map(|layout| layout.child_block_ids.len())
         .sum::<usize>();
-    let table_declared_columns = status_sum(&layouts, "subnode_table_declared_columns");
-    let table_columns = status_sum(&layouts, "subnode_table_columns");
-    let table_declared_rows = status_sum(&layouts, "subnode_table_declared_rows");
-    let table_rows = status_sum(&layouts, "subnode_table_rows");
-    let table_values = status_sum(&layouts, "subnode_table_values");
-    let table_omitted_values = status_sum(&layouts, "subnode_table_omitted_values");
-    let table_selected_columns = status_sum(&layouts, "subnode_table_selected_columns");
-    let table_plausible_columns = status_sum(&layouts, "subnode_table_plausible_columns");
-    let table_unknown_columns = status_sum(&layouts, "subnode_table_unknown_columns");
-    let table_selected_values = status_sum(&layouts, "subnode_table_selected_values");
-    let table_plausible_values = status_sum(&layouts, "subnode_table_plausible_values");
-    let table_unknown_values = status_sum(&layouts, "subnode_table_unknown_values");
-
     let base_status = if layouts.is_empty() {
         "subnode_layouts_empty"
     } else if unsupported_layout_count == 0 {
@@ -361,9 +267,20 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
         "subnode_layouts_unsupported"
     };
     let status = format!(
-        "{base_status}; subnode_table_declared_columns={table_declared_columns}; subnode_table_columns={table_columns}; subnode_table_declared_rows={table_declared_rows}; subnode_table_rows={table_rows}; subnode_table_values={table_values}; subnode_table_omitted_values={table_omitted_values}; subnode_table_selected_columns={table_selected_columns}; subnode_table_plausible_columns={table_plausible_columns}; subnode_table_unknown_columns={table_unknown_columns}; subnode_table_selected_values={table_selected_values}; subnode_table_plausible_values={table_plausible_values}; subnode_table_unknown_values={table_unknown_values}"
+        "{base_status}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}",
+        status_sum(&layouts, "subnode_table_declared_columns"),
+        status_sum(&layouts, "subnode_table_columns"),
+        status_sum(&layouts, "subnode_table_declared_rows"),
+        status_sum(&layouts, "subnode_table_rows"),
+        status_sum(&layouts, "subnode_table_values"),
+        status_sum(&layouts, "subnode_table_omitted_values"),
+        status_sum(&layouts, "subnode_table_selected_columns"),
+        status_sum(&layouts, "subnode_table_plausible_columns"),
+        status_sum(&layouts, "subnode_table_unknown_columns"),
+        status_sum(&layouts, "subnode_table_selected_values"),
+        status_sum(&layouts, "subnode_table_plausible_values"),
+        status_sum(&layouts, "subnode_table_unknown_values"),
     );
-
     SubnodeLayoutReport {
         block_count: layouts.len(),
         table_layout_count,
@@ -387,11 +304,9 @@ pub fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayo
             status: "subnode_layout_unsupported_short_block".to_string(),
         };
     }
-
     if payload.bytes.starts_with(SYNTHETIC_CHILD_REF_MAGIC) {
         return classify_synthetic_child_reference_layout(payload);
     }
-
     match TableContext::parse_with_report(&payload.bytes, payload.block_ref.offset.0) {
         Ok(report) => {
             let value_count = report
@@ -408,7 +323,7 @@ pub fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayo
                 layout_kind: "table_context".to_string(),
                 child_block_ids: Vec::new(),
                 status: format!(
-                    "{}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_row_width={}; subnode_table_values={}; subnode_table_omitted_values={}",
+                    "{}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_row_width={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}",
                     report.status,
                     report.declared_column_count,
                     report.parsed_column_count,
@@ -417,6 +332,12 @@ pub fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayo
                     report.row_width,
                     value_count,
                     report.omitted_value_count,
+                    report.selected_column_count,
+                    report.plausible_column_count,
+                    report.unknown_column_count,
+                    report.selected_value_count,
+                    report.plausible_value_count,
+                    report.unknown_value_count,
                 ),
             }
         }
@@ -445,13 +366,11 @@ fn classify_synthetic_child_reference_layout(payload: &PayloadBlock) -> SubnodeB
         child_block_ids.push(BlockId(u64::from_le_bytes(bytes)));
         cursor += 8;
     }
-
     let status = if child_block_ids.len() == declared_child_count {
         "subnode_layout_child_references_classified"
     } else {
         "subnode_layout_child_references_truncated"
     };
-
     SubnodeBlockLayout {
         block_id: payload.block_id,
         offset: payload.block_ref.offset.0,
