@@ -1,6 +1,6 @@
 use crate::error::{PstdError, PstdResult};
 use crate::pst::binary::{slice_at, u16_le_at, u32_le_at};
-use crate::pst::mapi::{has_known_value_type, property_def};
+use crate::pst::mapi::{byte_swapped_tag, has_known_value_type, property_def};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TableColumn {
@@ -38,6 +38,14 @@ pub struct TableContextParseReport {
     pub selected_value_count: usize,
     pub plausible_value_count: usize,
     pub unknown_value_count: usize,
+    pub byte_swapped_selected_column_count: usize,
+    pub byte_swapped_plausible_column_count: usize,
+    pub low_word_known_type_column_count: usize,
+    pub high_word_known_type_column_count: usize,
+    pub byte_swapped_selected_value_count: usize,
+    pub byte_swapped_plausible_value_count: usize,
+    pub low_word_known_type_value_count: usize,
+    pub high_word_known_type_value_count: usize,
     pub status: String,
 }
 
@@ -119,6 +127,56 @@ impl TableContext {
         let unknown_value_count = value_count
             .saturating_sub(selected_value_count)
             .saturating_sub(plausible_value_count);
+        let byte_swapped_selected_column_count = columns
+            .iter()
+            .filter(|column| is_unknown_tag(column.tag))
+            .filter(|column| property_def(byte_swapped_tag(column.tag)).is_some())
+            .count();
+        let byte_swapped_plausible_column_count = columns
+            .iter()
+            .filter(|column| is_unknown_tag(column.tag))
+            .filter(|column| {
+                let swapped = byte_swapped_tag(column.tag);
+                property_def(swapped).is_none() && has_known_value_type(swapped)
+            })
+            .count();
+        let low_word_known_type_column_count = columns
+            .iter()
+            .filter(|column| is_unknown_tag(column.tag))
+            .filter(|column| known_value_type_code((column.tag & 0xffff) as u16))
+            .count();
+        let high_word_known_type_column_count = columns
+            .iter()
+            .filter(|column| is_unknown_tag(column.tag))
+            .filter(|column| known_value_type_code((column.tag >> 16) as u16))
+            .count();
+        let byte_swapped_selected_value_count = rows
+            .iter()
+            .flat_map(|row| row.values.iter())
+            .filter(|(tag, _)| is_unknown_tag(*tag))
+            .filter(|(tag, _)| property_def(byte_swapped_tag(*tag)).is_some())
+            .count();
+        let byte_swapped_plausible_value_count = rows
+            .iter()
+            .flat_map(|row| row.values.iter())
+            .filter(|(tag, _)| is_unknown_tag(*tag))
+            .filter(|(tag, _)| {
+                let swapped = byte_swapped_tag(*tag);
+                property_def(swapped).is_none() && has_known_value_type(swapped)
+            })
+            .count();
+        let low_word_known_type_value_count = rows
+            .iter()
+            .flat_map(|row| row.values.iter())
+            .filter(|(tag, _)| is_unknown_tag(*tag))
+            .filter(|(tag, _)| known_value_type_code((*tag & 0xffff) as u16))
+            .count();
+        let high_word_known_type_value_count = rows
+            .iter()
+            .flat_map(|row| row.values.iter())
+            .filter(|(tag, _)| is_unknown_tag(*tag))
+            .filter(|(tag, _)| known_value_type_code((*tag >> 16) as u16))
+            .count();
         let parsed_row_count = rows.len();
         let truncated_row_count = declared_row_count.saturating_sub(parsed_row_count);
         let status = if truncated_column_count == 0
@@ -148,9 +206,43 @@ impl TableContext {
             selected_value_count,
             plausible_value_count,
             unknown_value_count,
+            byte_swapped_selected_column_count,
+            byte_swapped_plausible_column_count,
+            low_word_known_type_column_count,
+            high_word_known_type_column_count,
+            byte_swapped_selected_value_count,
+            byte_swapped_plausible_value_count,
+            low_word_known_type_value_count,
+            high_word_known_type_value_count,
             status,
         })
     }
+}
+
+fn is_unknown_tag(tag: u32) -> bool {
+    property_def(tag).is_none() && !has_known_value_type(tag)
+}
+
+fn known_value_type_code(code: u16) -> bool {
+    matches!(
+        code,
+        0x0002
+            | 0x0003
+            | 0x0005
+            | 0x000b
+            | 0x0014
+            | 0x001e
+            | 0x001f
+            | 0x0040
+            | 0x0048
+            | 0x0102
+            | 0x1002
+            | 0x1003
+            | 0x101e
+            | 0x101f
+            | 0x1040
+            | 0x1102
+    )
 }
 
 #[cfg(test)]
@@ -221,5 +313,23 @@ mod tests {
         assert_eq!(report.unknown_column_count, 1);
         assert_eq!(report.plausible_value_count, 1);
         assert_eq!(report.unknown_value_count, 1);
+    }
+
+    #[test]
+    fn reports_unknown_tag_word_shape() {
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&1u16.to_le_bytes());
+        buf.extend_from_slice(&1u16.to_le_bytes());
+        buf.extend_from_slice(&4u16.to_le_bytes());
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&0x001f_9000u32.to_le_bytes());
+        buf.extend_from_slice(&0u16.to_le_bytes());
+        buf.extend_from_slice(&4u16.to_le_bytes());
+        buf.extend_from_slice(&[1, 2, 3, 4]);
+
+        let report = TableContext::parse_with_report(&buf, 0).unwrap();
+        assert_eq!(report.unknown_column_count, 1);
+        assert_eq!(report.high_word_known_type_column_count, 1);
+        assert_eq!(report.high_word_known_type_value_count, 1);
     }
 }
