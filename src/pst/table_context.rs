@@ -336,7 +336,8 @@ mod tests {
         assert_eq!(report.unknown_column_count, 1);
         assert_eq!(report.plausible_value_count, 1);
         assert_eq!(report.unknown_value_count, 1);
-        assert_eq!(report.second_unknown_column_tag, 0x9000_9999);
+        assert_eq!(report.first_unknown_column_tag, 0x9000_9999);
+        assert_eq!(report.second_unknown_column_tag, 0);
     }
 
     #[test]
