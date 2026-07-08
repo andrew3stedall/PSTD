@@ -135,6 +135,29 @@ def pq26_metrics(status: str) -> dict[str, Any]:
     }
 
 
+def pq27_next_blocker(first_tag: int, second_tag: int, unknown_values: int) -> str:
+    if first_tag > 0 or second_tag > 0:
+        return "table_descriptor_tag_classification"
+    if unknown_values > 0:
+        return "message_level_tag_source_capture"
+    return "table_descriptor_tag_source_absent"
+
+
+def pq27_metrics(statuses: list[str], pq26: dict[str, Any]) -> dict[str, Any]:
+    first_tag = status_sum(statuses, "subnode_table_first_unknown_tag")
+    second_tag = status_sum(statuses, "subnode_table_second_unknown_tag")
+    return {
+        "pq27_status": "table_descriptor_tag_source_visible",
+        "pq27_first_unknown_tag": first_tag,
+        "pq27_second_unknown_tag": second_tag,
+        "pq27_first_unknown_tag_low_word": status_sum(statuses, "subnode_table_first_unknown_tag_low_word"),
+        "pq27_first_unknown_tag_high_word": status_sum(statuses, "subnode_table_first_unknown_tag_high_word"),
+        "pq27_second_unknown_tag_low_word": status_sum(statuses, "subnode_table_second_unknown_tag_low_word"),
+        "pq27_second_unknown_tag_high_word": status_sum(statuses, "subnode_table_second_unknown_tag_high_word"),
+        "pq27_next_blocker": pq27_next_blocker(first_tag, second_tag, pq26["pq26_unknown_value_extents"]),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--progress-dir", required=True)
@@ -146,7 +169,9 @@ def main() -> int:
     fixture = (progress_dir / "fixture_path.txt").read_text(encoding="utf-8").strip()
     fixture_size = int((progress_dir / "fixture_size_bytes.txt").read_text(encoding="utf-8"))
     extract_status = run.get("status", "")
-    pq21 = pq21_metrics(load_status_lines(progress_dir))
+    message_statuses = load_status_lines(progress_dir)
+    pq21 = pq21_metrics(message_statuses)
+    pq26 = pq26_metrics(extract_status)
 
     summary = {
         "fixture": fixture,
@@ -162,7 +187,8 @@ def main() -> int:
         "nbt_pages_diagnosed": len(inspect.get("nbt_page_diagnostics", [])),
         "extract_status": extract_status,
         **pq19_metrics(extract_status),
-        **pq26_metrics(extract_status),
+        **pq26,
+        **pq27_metrics([extract_status, *message_statuses], pq26),
         **pq21,
         **pq20_metrics(extract_status, pq21),
         "folders_discovered": run.get("folders_discovered"),

@@ -46,6 +46,12 @@ pub struct TableContextParseReport {
     pub byte_swapped_plausible_value_count: usize,
     pub low_word_known_type_value_count: usize,
     pub high_word_known_type_value_count: usize,
+    pub first_unknown_column_tag: u32,
+    pub second_unknown_column_tag: u32,
+    pub first_unknown_column_tag_low_word: u16,
+    pub first_unknown_column_tag_high_word: u16,
+    pub second_unknown_column_tag_low_word: u16,
+    pub second_unknown_column_tag_high_word: u16,
     pub status: String,
 }
 
@@ -177,6 +183,17 @@ impl TableContext {
             .filter(|(tag, _)| is_unknown_tag(*tag))
             .filter(|(tag, _)| known_value_type_code((*tag >> 16) as u16))
             .count();
+        let unknown_tags = columns
+            .iter()
+            .filter(|column| is_unknown_tag(column.tag))
+            .map(|column| column.tag)
+            .collect::<Vec<_>>();
+        let first_unknown_column_tag = unknown_tags.first().copied().unwrap_or(0);
+        let second_unknown_column_tag = unknown_tags.get(1).copied().unwrap_or(0);
+        let first_unknown_column_tag_low_word = (first_unknown_column_tag & 0xffff) as u16;
+        let first_unknown_column_tag_high_word = (first_unknown_column_tag >> 16) as u16;
+        let second_unknown_column_tag_low_word = (second_unknown_column_tag & 0xffff) as u16;
+        let second_unknown_column_tag_high_word = (second_unknown_column_tag >> 16) as u16;
         let parsed_row_count = rows.len();
         let truncated_row_count = declared_row_count.saturating_sub(parsed_row_count);
         let status = if truncated_column_count == 0
@@ -214,6 +231,12 @@ impl TableContext {
             byte_swapped_plausible_value_count,
             low_word_known_type_value_count,
             high_word_known_type_value_count,
+            first_unknown_column_tag,
+            second_unknown_column_tag,
+            first_unknown_column_tag_low_word,
+            first_unknown_column_tag_high_word,
+            second_unknown_column_tag_low_word,
+            second_unknown_column_tag_high_word,
             status,
         })
     }
@@ -313,6 +336,8 @@ mod tests {
         assert_eq!(report.unknown_column_count, 1);
         assert_eq!(report.plausible_value_count, 1);
         assert_eq!(report.unknown_value_count, 1);
+        assert_eq!(report.first_unknown_column_tag, 0x9000_9999);
+        assert_eq!(report.second_unknown_column_tag, 0);
     }
 
     #[test]
@@ -331,5 +356,8 @@ mod tests {
         assert_eq!(report.unknown_column_count, 1);
         assert_eq!(report.high_word_known_type_column_count, 1);
         assert_eq!(report.high_word_known_type_value_count, 1);
+        assert_eq!(report.first_unknown_column_tag, 0x001f_9000);
+        assert_eq!(report.first_unknown_column_tag_low_word, 0x9000);
+        assert_eq!(report.first_unknown_column_tag_high_word, 0x001f);
     }
 }
