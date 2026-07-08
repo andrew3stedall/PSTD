@@ -108,6 +108,33 @@ def pq20_metrics(status: str, pq21: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def pq26_next_blocker(valid_extents: int, omitted_extents: int, unknown_values: int) -> str:
+    if omitted_extents > 0:
+        return "table_descriptor_offset_width_decode"
+    if valid_extents > 0 and unknown_values > 0:
+        return "table_descriptor_tag_source_decode"
+    if valid_extents > 0:
+        return "table_descriptor_property_materialization"
+    return "table_descriptor_signal_absent"
+
+
+def pq26_metrics(status: str) -> dict[str, Any]:
+    descriptor_columns = status_counter(status, "pq21_table_columns")
+    descriptor_rows = status_counter(status, "pq21_table_rows")
+    valid_extents = status_counter(status, "pq21_table_values")
+    omitted_extents = status_counter(status, "pq21_table_omitted_values")
+    unknown_values = status_counter(status, "pq24_unknown_values")
+    return {
+        "pq26_status": "table_descriptor_decode_visible",
+        "pq26_descriptor_columns": descriptor_columns,
+        "pq26_descriptor_rows": descriptor_rows,
+        "pq26_valid_value_extents": valid_extents,
+        "pq26_omitted_value_extents": omitted_extents,
+        "pq26_unknown_value_extents": unknown_values,
+        "pq26_next_blocker": pq26_next_blocker(valid_extents, omitted_extents, unknown_values),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--progress-dir", required=True)
@@ -135,6 +162,7 @@ def main() -> int:
         "nbt_pages_diagnosed": len(inspect.get("nbt_page_diagnostics", [])),
         "extract_status": extract_status,
         **pq19_metrics(extract_status),
+        **pq26_metrics(extract_status),
         **pq21,
         **pq20_metrics(extract_status, pq21),
         "folders_discovered": run.get("folders_discovered"),
