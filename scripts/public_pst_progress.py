@@ -158,6 +158,21 @@ def pq27_metrics(statuses: list[str], pq26: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def pq28_metrics(message_status_count: int, pq26: dict[str, Any], pq27: dict[str, Any]) -> dict[str, Any]:
+    capture_gap = int(
+        pq26["pq26_unknown_value_extents"] > 0
+        and pq27["pq27_first_unknown_tag"] == 0
+        and pq27["pq27_second_unknown_tag"] == 0
+    )
+    next_blocker = "subnode_layout_status_tag_source_propagation" if capture_gap else "table_descriptor_tag_classification"
+    return {
+        "pq28_status": "message_level_tag_source_capture_visible",
+        "pq28_message_status_lines": message_status_count,
+        "pq28_tag_source_capture_gap": capture_gap,
+        "pq28_next_blocker": next_blocker,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--progress-dir", required=True)
@@ -172,6 +187,7 @@ def main() -> int:
     message_statuses = load_status_lines(progress_dir)
     pq21 = pq21_metrics(message_statuses)
     pq26 = pq26_metrics(extract_status)
+    pq27 = pq27_metrics([extract_status, *message_statuses], pq26)
 
     summary = {
         "fixture": fixture,
@@ -188,7 +204,8 @@ def main() -> int:
         "extract_status": extract_status,
         **pq19_metrics(extract_status),
         **pq26,
-        **pq27_metrics([extract_status, *message_statuses], pq26),
+        **pq27,
+        **pq28_metrics(len(message_statuses), pq26, pq27),
         **pq21,
         **pq20_metrics(extract_status, pq21),
         "folders_discovered": run.get("folders_discovered"),
