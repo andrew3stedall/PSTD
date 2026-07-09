@@ -196,7 +196,7 @@ impl TableContext {
         let second_unknown_column_tag_high_word = (second_unknown_column_tag >> 16) as u16;
         let parsed_row_count = rows.len();
         let truncated_row_count = declared_row_count.saturating_sub(parsed_row_count);
-        let status = if truncated_column_count == 0
+        let base_status = if truncated_column_count == 0
             && truncated_row_count == 0
             && omitted_value_count == 0
         {
@@ -205,6 +205,13 @@ impl TableContext {
             format!(
                 "table_context_parsed_with_issues; truncated_columns={truncated_column_count}; truncated_rows={truncated_row_count}; omitted_values={omitted_value_count}"
             )
+        };
+        let status = if unknown_column_count > 0 {
+            format!(
+                "{base_status}; subnode_table_first_unknown_tag={first_unknown_column_tag}; subnode_table_second_unknown_tag={second_unknown_column_tag}; subnode_table_first_unknown_tag_low_word={first_unknown_column_tag_low_word}; subnode_table_first_unknown_tag_high_word={first_unknown_column_tag_high_word}; subnode_table_second_unknown_tag_low_word={second_unknown_column_tag_low_word}; subnode_table_second_unknown_tag_high_word={second_unknown_column_tag_high_word}"
+            )
+        } else {
+            base_status
         };
 
         Ok(TableContextParseReport {
@@ -338,6 +345,7 @@ mod tests {
         assert_eq!(report.unknown_value_count, 1);
         assert_eq!(report.first_unknown_column_tag, 0x9000_9999);
         assert_eq!(report.second_unknown_column_tag, 0);
+        assert!(report.status.contains("subnode_table_first_unknown_tag="));
     }
 
     #[test]
