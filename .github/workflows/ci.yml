@@ -78,6 +78,14 @@ jobs:
           cargo run -- extract --input "$fixture" --output "$output_dir" --manifest-only --overwrite
           cp "$output_dir/run_summary.json" "$progress_dir/run_summary.json"
           find "$output_dir" -maxdepth 4 -type f | sort > "$progress_dir/output_files.txt"
+          for archive in "$output_dir"/archives/*.tar; do
+            tar -xOf "$archive" data/messages.jsonl 2>/dev/null || true
+          done | python -c 'import json,sys
+for line in sys.stdin:
+    if not line.strip():
+        continue
+    record=json.loads(line)
+    print("; ".join(str(record.get(key,"")) for key in ("extraction_status","metadata_status","body_status","attachment_status") if record.get(key)))' > "$progress_dir/message_statuses.txt"
           python scripts/public_pst_progress.py --progress-dir "$progress_dir"
       - name: Upload public PST progress artifact
         if: always()
