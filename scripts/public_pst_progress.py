@@ -37,6 +37,27 @@ def status_sum(statuses: list[str], key: str) -> int:
     return sum(status_counter(status, key) for status in statuses)
 
 
+def known_mapi_type_code(code: int) -> bool:
+    return code in {
+        0x0002,
+        0x0003,
+        0x0005,
+        0x000B,
+        0x0014,
+        0x001E,
+        0x001F,
+        0x0040,
+        0x0048,
+        0x0102,
+        0x1002,
+        0x1003,
+        0x101E,
+        0x101F,
+        0x1040,
+        0x1102,
+    }
+
+
 def pq19_next_blocker(status: str) -> str:
     hierarchy_rows = status_counter(status, "pq19_hierarchy_table_rows")
     contents_rows = status_counter(status, "pq19_contents_table_rows")
@@ -192,6 +213,55 @@ def pq29_metrics(pq26: dict[str, Any], pq27: dict[str, Any], pq28: dict[str, Any
     }
 
 
+def descriptor_tag_class(tag: int, low_word: int, high_word: int) -> str:
+    if tag == 0:
+        return "absent"
+    if high_word > 0 and known_mapi_type_code(low_word):
+        return "mapi_tag_like"
+    if high_word == 0:
+        if known_mapi_type_code(low_word):
+            return "mapi_type_without_property_id"
+        return "descriptor_field_like_high_word_zero"
+    return "non_mapi_descriptor_sample"
+
+
+def pq30_next_blocker(first_class: str, second_class: str) -> str:
+    classes = {first_class, second_class}
+    if "mapi_tag_like" in classes:
+        return "table_descriptor_property_selection"
+    if "descriptor_field_like_high_word_zero" in classes:
+        return "table_column_descriptor_field_capture"
+    if classes == {"absent"}:
+        return "table_descriptor_tag_source_absent"
+    return "table_descriptor_alternate_tag_scan"
+
+
+def pq30_metrics(pq27: dict[str, Any]) -> dict[str, Any]:
+    first_tag = pq27["pq27_first_unknown_tag"]
+    second_tag = pq27["pq27_second_unknown_tag"]
+    first_class = descriptor_tag_class(
+        first_tag,
+        pq27["pq27_first_unknown_tag_low_word"],
+        pq27["pq27_first_unknown_tag_high_word"],
+    )
+    second_class = descriptor_tag_class(
+        second_tag,
+        pq27["pq27_second_unknown_tag_low_word"],
+        pq27["pq27_second_unknown_tag_high_word"],
+    )
+    return {
+        "pq30_status": "table_descriptor_tag_classification_visible",
+        "pq30_first_tag_hex": f"0x{first_tag:08x}",
+        "pq30_second_tag_hex": f"0x{second_tag:08x}",
+        "pq30_first_tag_class": first_class,
+        "pq30_second_tag_class": second_class,
+        "pq30_mapi_tag_like_count": int(first_class == "mapi_tag_like") + int(second_class == "mapi_tag_like"),
+        "pq30_descriptor_field_like_count": int(first_class == "descriptor_field_like_high_word_zero")
+        + int(second_class == "descriptor_field_like_high_word_zero"),
+        "pq30_next_blocker": pq30_next_blocker(first_class, second_class),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--progress-dir", required=True)
@@ -208,6 +278,8 @@ def main() -> int:
     pq26 = pq26_metrics(extract_status)
     pq27 = pq27_metrics([extract_status, *message_statuses], pq26)
     pq28 = pq28_metrics(len(message_statuses), pq26, pq27)
+    pq29 = pq29_metrics(pq26, pq27, pq28)
+    pq30 = pq30_metrics(pq27)
 
     summary = {
         "fixture": fixture,
@@ -226,7 +298,8 @@ def main() -> int:
         **pq26,
         **pq27,
         **pq28,
-        **pq29_metrics(pq26, pq27, pq28),
+        **pq29,
+        **pq30,
         **pq21,
         **pq20_metrics(extract_status, pq21),
         "folders_discovered": run.get("folders_discovered"),
