@@ -195,10 +195,8 @@ impl TableContext {
             .first()
             .map(|column| column.tag)
             .unwrap_or(0);
-        let second_unknown_column_tag = unknown_columns
-            .get(1)
-            .map(|column| column.tag)
-            .unwrap_or(0);
+        let second_unknown_column_tag =
+            unknown_columns.get(1).map(|column| column.tag).unwrap_or(0);
         let first_unknown_column_tag_low_word = (first_unknown_column_tag & 0xffff) as u16;
         let first_unknown_column_tag_high_word = (first_unknown_column_tag >> 16) as u16;
         let second_unknown_column_tag_low_word = (second_unknown_column_tag & 0xffff) as u16;
