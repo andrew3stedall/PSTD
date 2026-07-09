@@ -262,6 +262,35 @@ def pq30_metrics(pq27: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def pq31_next_blocker(row_width: int, first_offset: int, first_width: int, second_offset: int, second_width: int) -> str:
+    first_end = first_offset + first_width
+    second_end = second_offset + second_width
+    if row_width > 0 and first_width > 0 and second_width > 0 and first_end <= row_width and second_end <= row_width:
+        return "table_descriptor_alternate_tag_scan"
+    if row_width > 0 and (first_width > 0 or second_width > 0):
+        return "table_descriptor_offset_width_decode"
+    return "table_column_descriptor_fields_absent"
+
+
+def pq31_metrics(statuses: list[str]) -> dict[str, Any]:
+    row_width = status_sum(statuses, "subnode_table_row_width")
+    first_offset = status_sum(statuses, "subnode_table_first_unknown_offset")
+    first_width = status_sum(statuses, "subnode_table_first_unknown_width")
+    second_offset = status_sum(statuses, "subnode_table_second_unknown_offset")
+    second_width = status_sum(statuses, "subnode_table_second_unknown_width")
+    return {
+        "pq31_status": "table_descriptor_field_capture_visible",
+        "pq31_row_width": row_width,
+        "pq31_first_unknown_offset": first_offset,
+        "pq31_first_unknown_width": first_width,
+        "pq31_second_unknown_offset": second_offset,
+        "pq31_second_unknown_width": second_width,
+        "pq31_first_unknown_end": first_offset + first_width,
+        "pq31_second_unknown_end": second_offset + second_width,
+        "pq31_next_blocker": pq31_next_blocker(row_width, first_offset, first_width, second_offset, second_width),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--progress-dir", required=True)
@@ -274,12 +303,14 @@ def main() -> int:
     fixture_size = int((progress_dir / "fixture_size_bytes.txt").read_text(encoding="utf-8"))
     extract_status = run.get("status", "")
     message_statuses = load_status_lines(progress_dir)
+    statuses = [extract_status, *message_statuses]
     pq21 = pq21_metrics(message_statuses)
     pq26 = pq26_metrics(extract_status)
-    pq27 = pq27_metrics([extract_status, *message_statuses], pq26)
+    pq27 = pq27_metrics(statuses, pq26)
     pq28 = pq28_metrics(len(message_statuses), pq26, pq27)
     pq29 = pq29_metrics(pq26, pq27, pq28)
     pq30 = pq30_metrics(pq27)
+    pq31 = pq31_metrics(statuses)
 
     summary = {
         "fixture": fixture,
@@ -300,6 +331,7 @@ def main() -> int:
         **pq28,
         **pq29,
         **pq30,
+        **pq31,
         **pq21,
         **pq20_metrics(extract_status, pq21),
         "folders_discovered": run.get("folders_discovered"),
