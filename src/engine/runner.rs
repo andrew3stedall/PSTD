@@ -170,7 +170,8 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         attachments_not_extracted: metadata
             .attachments
             .len()
-            .saturating_sub(metadata.attachment_payloads.len()) as u64,
+            .saturating_sub(metadata.attachment_payloads.len())
+            as u64,
         bytes_read: 0,
         bytes_written: 0,
         tar_shards_written: 0,
@@ -213,64 +214,147 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         .iter()
         .map(|message| status_counter(&message.extraction_status, "byte_swapped_selected"))
         .sum::<usize>();
-    let heap_bth_contexts = status_contains_count(messages, "pq10_traversal=heap_bth_property_context");
-    let legacy_flat_bth_contexts = status_contains_count(messages, "pq10_traversal=legacy_flat_bth_property_context");
-    let unknown_traversal_contexts = status_contains_count(messages, "pq10_traversal=property_context_traversal_unknown");
-    let pq11_offset_heap_contexts = status_contains_count(messages, "pq10_traversal=heap_bth_property_context_at_offset_");
-    let pq11_candidate_not_found = status_contains_count(messages, "pq11_heap_probe=candidate_not_found");
-    let pq11_candidate_heap_failed = status_contains_count(messages, "pq11_heap_probe=candidate_heap_failed");
-    let pq11_candidate_bth_failed = status_contains_count(messages, "pq11_heap_probe=candidate_bth_failed");
-    let pq12_no_signature = status_contains_count(messages, "pq12_boundary=no_signature_in_first_4096");
-    let pq12_signature_without_page_map = status_contains_count(messages, "pq12_boundary=signature_without_valid_page_map");
-    let pq12_candidate_heap_failed = status_contains_count(messages, "pq12_boundary=candidate_heap_failed");
-    let pq12_candidate_bth_failed = status_contains_count(messages, "pq12_boundary=candidate_bth_failed");
+    let heap_bth_contexts =
+        status_contains_count(messages, "pq10_traversal=heap_bth_property_context");
+    let legacy_flat_bth_contexts =
+        status_contains_count(messages, "pq10_traversal=legacy_flat_bth_property_context");
+    let unknown_traversal_contexts = status_contains_count(
+        messages,
+        "pq10_traversal=property_context_traversal_unknown",
+    );
+    let pq11_offset_heap_contexts = status_contains_count(
+        messages,
+        "pq10_traversal=heap_bth_property_context_at_offset_",
+    );
+    let pq11_candidate_not_found =
+        status_contains_count(messages, "pq11_heap_probe=candidate_not_found");
+    let pq11_candidate_heap_failed =
+        status_contains_count(messages, "pq11_heap_probe=candidate_heap_failed");
+    let pq11_candidate_bth_failed =
+        status_contains_count(messages, "pq11_heap_probe=candidate_bth_failed");
+    let pq12_no_signature =
+        status_contains_count(messages, "pq12_boundary=no_signature_in_first_4096");
+    let pq12_signature_without_page_map =
+        status_contains_count(messages, "pq12_boundary=signature_without_valid_page_map");
+    let pq12_candidate_heap_failed =
+        status_contains_count(messages, "pq12_boundary=candidate_heap_failed");
+    let pq12_candidate_bth_failed =
+        status_contains_count(messages, "pq12_boundary=candidate_bth_failed");
     let pq13_subnode_references = status_counter(base_status, "subnode_references");
     let pq13_subnode_decode_plans = status_counter(base_status, "subnode_decode_plans");
     let pq13_subnode_decode_attempts = status_counter(base_status, "subnode_decode_attempts");
     let pq15_decoded_subnode_blocks = status_counter(base_status, "subnode_decoded_blocks");
-    let pq15_unsupported_subnode_layouts = status_counter(base_status, "subnode_unsupported_layouts");
-    let pq15_supported_subnode_layouts = pq15_decoded_subnode_blocks.saturating_sub(pq15_unsupported_subnode_layouts);
+    let pq15_unsupported_subnode_layouts =
+        status_counter(base_status, "subnode_unsupported_layouts");
+    let pq15_supported_subnode_layouts =
+        pq15_decoded_subnode_blocks.saturating_sub(pq15_unsupported_subnode_layouts);
     let pq16_child_references = status_counter(base_status, "subnode_child_references");
-    let pq16_table_like_subnode_layouts = if pq15_supported_subnode_layouts > 0 && pq16_child_references == 0 {
-        pq15_supported_subnode_layouts
-    } else {
-        0
-    };
-    let pq16_child_reference_subnode_layouts = pq15_supported_subnode_layouts.saturating_sub(pq16_table_like_subnode_layouts);
+    let pq16_table_like_subnode_layouts =
+        if pq15_supported_subnode_layouts > 0 && pq16_child_references == 0 {
+            pq15_supported_subnode_layouts
+        } else {
+            0
+        };
+    let pq16_child_reference_subnode_layouts =
+        pq15_supported_subnode_layouts.saturating_sub(pq16_table_like_subnode_layouts);
     let pq17_table_parse_attempts = pq15_decoded_subnode_blocks;
     let pq17_table_parse_successes = pq16_table_like_subnode_layouts;
     let pq17_table_parse_failures = pq15_unsupported_subnode_layouts;
-    let pq21_table_declared_columns = aggregate_status_counter(base_status, messages, "subnode_table_declared_columns");
-    let pq21_table_columns = aggregate_status_counter(base_status, messages, "subnode_table_columns");
-    let pq21_table_declared_rows = aggregate_status_counter(base_status, messages, "subnode_table_declared_rows");
+    let pq21_table_declared_columns =
+        aggregate_status_counter(base_status, messages, "subnode_table_declared_columns");
+    let pq21_table_columns =
+        aggregate_status_counter(base_status, messages, "subnode_table_columns");
+    let pq21_table_declared_rows =
+        aggregate_status_counter(base_status, messages, "subnode_table_declared_rows");
     let pq21_table_rows = aggregate_status_counter(base_status, messages, "subnode_table_rows");
     let pq21_table_values = aggregate_status_counter(base_status, messages, "subnode_table_values");
-    let pq21_table_omitted_values = aggregate_status_counter(base_status, messages, "subnode_table_omitted_values");
-    let pq24_selected_columns = aggregate_status_counter(base_status, messages, "subnode_table_selected_columns");
-    let pq24_plausible_columns = aggregate_status_counter(base_status, messages, "subnode_table_plausible_columns");
-    let pq24_unknown_columns = aggregate_status_counter(base_status, messages, "subnode_table_unknown_columns");
-    let pq24_selected_values = aggregate_status_counter(base_status, messages, "subnode_table_selected_values");
-    let pq24_plausible_values = aggregate_status_counter(base_status, messages, "subnode_table_plausible_values");
-    let pq24_unknown_values = aggregate_status_counter(base_status, messages, "subnode_table_unknown_values");
-    let pq25_byte_swapped_selected_columns = aggregate_status_counter(base_status, messages, "subnode_table_byte_swapped_selected_columns");
-    let pq25_byte_swapped_plausible_columns = aggregate_status_counter(base_status, messages, "subnode_table_byte_swapped_plausible_columns");
-    let pq25_low_word_known_type_columns = aggregate_status_counter(base_status, messages, "subnode_table_low_word_known_type_columns");
-    let pq25_high_word_known_type_columns = aggregate_status_counter(base_status, messages, "subnode_table_high_word_known_type_columns");
-    let pq25_byte_swapped_selected_values = aggregate_status_counter(base_status, messages, "subnode_table_byte_swapped_selected_values");
-    let pq25_byte_swapped_plausible_values = aggregate_status_counter(base_status, messages, "subnode_table_byte_swapped_plausible_values");
-    let pq25_low_word_known_type_values = aggregate_status_counter(base_status, messages, "subnode_table_low_word_known_type_values");
-    let pq25_high_word_known_type_values = aggregate_status_counter(base_status, messages, "subnode_table_high_word_known_type_values");
-    let pq27_first_unknown_tag = aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_tag");
-    let pq27_second_unknown_tag = aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_tag");
-    let pq27_first_unknown_tag_low_word = aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_tag_low_word");
-    let pq27_first_unknown_tag_high_word = aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_tag_high_word");
-    let pq27_second_unknown_tag_low_word = aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_tag_low_word");
-    let pq27_second_unknown_tag_high_word = aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_tag_high_word");
+    let pq21_table_omitted_values =
+        aggregate_status_counter(base_status, messages, "subnode_table_omitted_values");
+    let pq24_selected_columns =
+        aggregate_status_counter(base_status, messages, "subnode_table_selected_columns");
+    let pq24_plausible_columns =
+        aggregate_status_counter(base_status, messages, "subnode_table_plausible_columns");
+    let pq24_unknown_columns =
+        aggregate_status_counter(base_status, messages, "subnode_table_unknown_columns");
+    let pq24_selected_values =
+        aggregate_status_counter(base_status, messages, "subnode_table_selected_values");
+    let pq24_plausible_values =
+        aggregate_status_counter(base_status, messages, "subnode_table_plausible_values");
+    let pq24_unknown_values =
+        aggregate_status_counter(base_status, messages, "subnode_table_unknown_values");
+    let pq25_byte_swapped_selected_columns = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_byte_swapped_selected_columns",
+    );
+    let pq25_byte_swapped_plausible_columns = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_byte_swapped_plausible_columns",
+    );
+    let pq25_low_word_known_type_columns = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_low_word_known_type_columns",
+    );
+    let pq25_high_word_known_type_columns = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_high_word_known_type_columns",
+    );
+    let pq25_byte_swapped_selected_values = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_byte_swapped_selected_values",
+    );
+    let pq25_byte_swapped_plausible_values = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_byte_swapped_plausible_values",
+    );
+    let pq25_low_word_known_type_values = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_low_word_known_type_values",
+    );
+    let pq25_high_word_known_type_values = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_high_word_known_type_values",
+    );
+    let pq27_first_unknown_tag =
+        aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_tag");
+    let pq27_second_unknown_tag =
+        aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_tag");
+    let pq27_first_unknown_tag_low_word = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_first_unknown_tag_low_word",
+    );
+    let pq27_first_unknown_tag_high_word = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_first_unknown_tag_high_word",
+    );
+    let pq27_second_unknown_tag_low_word = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_second_unknown_tag_low_word",
+    );
+    let pq27_second_unknown_tag_high_word = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_second_unknown_tag_high_word",
+    );
     let pq31_row_width = aggregate_status_counter(base_status, messages, "subnode_table_row_width");
-    let pq31_first_unknown_offset = aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_offset");
-    let pq31_first_unknown_width = aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_width");
-    let pq31_second_unknown_offset = aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_offset");
-    let pq31_second_unknown_width = aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_width");
+    let pq31_first_unknown_offset =
+        aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_offset");
+    let pq31_first_unknown_width =
+        aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_width");
+    let pq31_second_unknown_offset =
+        aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_offset");
+    let pq31_second_unknown_width =
+        aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_width");
     let pq17_table_columns = pq21_table_columns;
     let pq17_table_rows = pq21_table_rows;
     let pq18_candidate_rows = pq17_table_rows;
@@ -283,20 +367,76 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     let pq23_plausible_property_candidates = pq24_plausible_values;
 
     let has_pq9_signal = plausible > 0 || suspicious > 0 || byte_swapped_selected > 0;
-    let has_pq10_signal = heap_bth_contexts > 0 || legacy_flat_bth_contexts > 0 || unknown_traversal_contexts > 0;
-    let has_pq11_signal = pq11_offset_heap_contexts > 0 || pq11_candidate_not_found > 0 || pq11_candidate_heap_failed > 0 || pq11_candidate_bth_failed > 0;
-    let has_pq12_signal = pq12_no_signature > 0 || pq12_signature_without_page_map > 0 || pq12_candidate_heap_failed > 0 || pq12_candidate_bth_failed > 0;
-    let has_pq13_signal = pq13_subnode_references > 0 || pq13_subnode_decode_plans > 0 || pq13_subnode_decode_attempts > 0;
+    let has_pq10_signal =
+        heap_bth_contexts > 0 || legacy_flat_bth_contexts > 0 || unknown_traversal_contexts > 0;
+    let has_pq11_signal = pq11_offset_heap_contexts > 0
+        || pq11_candidate_not_found > 0
+        || pq11_candidate_heap_failed > 0
+        || pq11_candidate_bth_failed > 0;
+    let has_pq12_signal = pq12_no_signature > 0
+        || pq12_signature_without_page_map > 0
+        || pq12_candidate_heap_failed > 0
+        || pq12_candidate_bth_failed > 0;
+    let has_pq13_signal = pq13_subnode_references > 0
+        || pq13_subnode_decode_plans > 0
+        || pq13_subnode_decode_attempts > 0;
     let has_pq15_signal = pq15_decoded_subnode_blocks > 0 || pq15_unsupported_subnode_layouts > 0;
-    let has_pq16_signal = pq16_table_like_subnode_layouts > 0 || pq16_child_reference_subnode_layouts > 0 || pq16_child_references > 0;
-    let has_pq17_signal = pq17_table_parse_attempts > 0 || pq17_table_parse_successes > 0 || pq17_table_parse_failures > 0;
+    let has_pq16_signal = pq16_table_like_subnode_layouts > 0
+        || pq16_child_reference_subnode_layouts > 0
+        || pq16_child_references > 0;
+    let has_pq17_signal = pq17_table_parse_attempts > 0
+        || pq17_table_parse_successes > 0
+        || pq17_table_parse_failures > 0;
     let has_pq18_signal = pq17_table_parse_successes > 0 || pq18_candidate_rows > 0;
-    let has_pq21_signal = pq17_table_parse_successes > 0 || pq21_table_declared_columns > 0 || pq21_table_columns > 0 || pq21_table_declared_rows > 0 || pq21_table_rows > 0 || pq21_table_values > 0 || pq21_table_omitted_values > 0;
+    let has_pq21_signal = pq17_table_parse_successes > 0
+        || pq21_table_declared_columns > 0
+        || pq21_table_columns > 0
+        || pq21_table_declared_rows > 0
+        || pq21_table_rows > 0
+        || pq21_table_values > 0
+        || pq21_table_omitted_values > 0;
     let has_pq23_signal = pq23_candidate_rows > 0 || pq23_candidate_values > 0;
-    let has_pq24_signal = pq24_selected_columns > 0 || pq24_plausible_columns > 0 || pq24_unknown_columns > 0 || pq24_selected_values > 0 || pq24_plausible_values > 0 || pq24_unknown_values > 0;
-    let has_pq25_signal = pq25_byte_swapped_selected_columns > 0 || pq25_byte_swapped_plausible_columns > 0 || pq25_low_word_known_type_columns > 0 || pq25_high_word_known_type_columns > 0 || pq25_byte_swapped_selected_values > 0 || pq25_byte_swapped_plausible_values > 0 || pq25_low_word_known_type_values > 0 || pq25_high_word_known_type_values > 0;
-    let has_pq27_signal = pq24_unknown_values > 0 || pq27_first_unknown_tag > 0 || pq27_second_unknown_tag > 0 || pq27_first_unknown_tag_low_word > 0 || pq27_first_unknown_tag_high_word > 0 || pq27_second_unknown_tag_low_word > 0 || pq27_second_unknown_tag_high_word > 0 || pq31_row_width > 0 || pq31_first_unknown_offset > 0 || pq31_first_unknown_width > 0 || pq31_second_unknown_offset > 0 || pq31_second_unknown_width > 0;
-    if !has_pq9_signal && !has_pq10_signal && !has_pq11_signal && !has_pq12_signal && !has_pq13_signal && !has_pq15_signal && !has_pq16_signal && !has_pq17_signal && !has_pq18_signal && !has_pq21_signal && !has_pq23_signal && !has_pq24_signal && !has_pq25_signal && !has_pq27_signal {
+    let has_pq24_signal = pq24_selected_columns > 0
+        || pq24_plausible_columns > 0
+        || pq24_unknown_columns > 0
+        || pq24_selected_values > 0
+        || pq24_plausible_values > 0
+        || pq24_unknown_values > 0;
+    let has_pq25_signal = pq25_byte_swapped_selected_columns > 0
+        || pq25_byte_swapped_plausible_columns > 0
+        || pq25_low_word_known_type_columns > 0
+        || pq25_high_word_known_type_columns > 0
+        || pq25_byte_swapped_selected_values > 0
+        || pq25_byte_swapped_plausible_values > 0
+        || pq25_low_word_known_type_values > 0
+        || pq25_high_word_known_type_values > 0;
+    let has_pq27_signal = pq24_unknown_values > 0
+        || pq27_first_unknown_tag > 0
+        || pq27_second_unknown_tag > 0
+        || pq27_first_unknown_tag_low_word > 0
+        || pq27_first_unknown_tag_high_word > 0
+        || pq27_second_unknown_tag_low_word > 0
+        || pq27_second_unknown_tag_high_word > 0
+        || pq31_row_width > 0
+        || pq31_first_unknown_offset > 0
+        || pq31_first_unknown_width > 0
+        || pq31_second_unknown_offset > 0
+        || pq31_second_unknown_width > 0;
+    if !has_pq9_signal
+        && !has_pq10_signal
+        && !has_pq11_signal
+        && !has_pq12_signal
+        && !has_pq13_signal
+        && !has_pq15_signal
+        && !has_pq16_signal
+        && !has_pq17_signal
+        && !has_pq18_signal
+        && !has_pq21_signal
+        && !has_pq23_signal
+        && !has_pq24_signal
+        && !has_pq25_signal
+        && !has_pq27_signal
+    {
         return base_status.to_string();
     }
 
