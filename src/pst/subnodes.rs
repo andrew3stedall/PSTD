@@ -267,7 +267,7 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
         "subnode_layouts_unsupported"
     };
     let status = format!(
-        "{base_status}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}; subnode_table_byte_swapped_selected_columns={}; subnode_table_byte_swapped_plausible_columns={}; subnode_table_low_word_known_type_columns={}; subnode_table_high_word_known_type_columns={}; subnode_table_byte_swapped_selected_values={}; subnode_table_byte_swapped_plausible_values={}; subnode_table_low_word_known_type_values={}; subnode_table_high_word_known_type_values={}",
+        "{base_status}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}; subnode_table_byte_swapped_selected_columns={}; subnode_table_byte_swapped_plausible_columns={}; subnode_table_low_word_known_type_columns={}; subnode_table_high_word_known_type_columns={}; subnode_table_byte_swapped_selected_values={}; subnode_table_byte_swapped_plausible_values={}; subnode_table_low_word_known_type_values={}; subnode_table_high_word_known_type_values={}; subnode_table_first_unknown_tag={}; subnode_table_second_unknown_tag={}; subnode_table_first_unknown_tag_low_word={}; subnode_table_first_unknown_tag_high_word={}; subnode_table_second_unknown_tag_low_word={}; subnode_table_second_unknown_tag_high_word={}",
         status_sum(&layouts, "subnode_table_declared_columns"),
         status_sum(&layouts, "subnode_table_columns"),
         status_sum(&layouts, "subnode_table_declared_rows"),
@@ -288,6 +288,12 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
         status_sum(&layouts, "subnode_table_byte_swapped_plausible_values"),
         status_sum(&layouts, "subnode_table_low_word_known_type_values"),
         status_sum(&layouts, "subnode_table_high_word_known_type_values"),
+        status_sum(&layouts, "subnode_table_first_unknown_tag"),
+        status_sum(&layouts, "subnode_table_second_unknown_tag"),
+        status_sum(&layouts, "subnode_table_first_unknown_tag_low_word"),
+        status_sum(&layouts, "subnode_table_first_unknown_tag_high_word"),
+        status_sum(&layouts, "subnode_table_second_unknown_tag_low_word"),
+        status_sum(&layouts, "subnode_table_second_unknown_tag_high_word"),
     );
     SubnodeLayoutReport {
         block_count: layouts.len(),
@@ -406,7 +412,7 @@ fn empty_layout_report() -> SubnodeLayoutReport {
         unsupported_layout_count: 0,
         child_reference_count: 0,
         layouts: Vec::new(),
-        status: "subnode_layouts_empty; subnode_table_declared_columns=0; subnode_table_columns=0; subnode_table_declared_rows=0; subnode_table_rows=0; subnode_table_values=0; subnode_table_omitted_values=0; subnode_table_selected_columns=0; subnode_table_plausible_columns=0; subnode_table_unknown_columns=0; subnode_table_selected_values=0; subnode_table_plausible_values=0; subnode_table_unknown_values=0; subnode_table_byte_swapped_selected_columns=0; subnode_table_byte_swapped_plausible_columns=0; subnode_table_low_word_known_type_columns=0; subnode_table_high_word_known_type_columns=0; subnode_table_byte_swapped_selected_values=0; subnode_table_byte_swapped_plausible_values=0; subnode_table_low_word_known_type_values=0; subnode_table_high_word_known_type_values=0".to_string(),
+        status: "subnode_layouts_empty; subnode_table_declared_columns=0; subnode_table_columns=0; subnode_table_declared_rows=0; subnode_table_rows=0; subnode_table_values=0; subnode_table_omitted_values=0; subnode_table_selected_columns=0; subnode_table_plausible_columns=0; subnode_table_unknown_columns=0; subnode_table_selected_values=0; subnode_table_plausible_values=0; subnode_table_unknown_values=0; subnode_table_byte_swapped_selected_columns=0; subnode_table_byte_swapped_plausible_columns=0; subnode_table_low_word_known_type_columns=0; subnode_table_high_word_known_type_columns=0; subnode_table_byte_swapped_selected_values=0; subnode_table_byte_swapped_plausible_values=0; subnode_table_low_word_known_type_values=0; subnode_table_high_word_known_type_values=0; subnode_table_first_unknown_tag=0; subnode_table_second_unknown_tag=0; subnode_table_first_unknown_tag_low_word=0; subnode_table_first_unknown_tag_high_word=0; subnode_table_second_unknown_tag_low_word=0; subnode_table_second_unknown_tag_high_word=0".to_string(),
     }
 }
 
