@@ -191,16 +191,34 @@ impl TableContext {
             .iter()
             .filter(|column| is_unknown_tag(column.tag))
             .collect::<Vec<_>>();
-        let first_unknown_column_tag = unknown_columns.first().map(|column| column.tag).unwrap_or(0);
-        let second_unknown_column_tag = unknown_columns.get(1).map(|column| column.tag).unwrap_or(0);
+        let first_unknown_column_tag = unknown_columns
+            .first()
+            .map(|column| column.tag)
+            .unwrap_or(0);
+        let second_unknown_column_tag = unknown_columns
+            .get(1)
+            .map(|column| column.tag)
+            .unwrap_or(0);
         let first_unknown_column_tag_low_word = (first_unknown_column_tag & 0xffff) as u16;
         let first_unknown_column_tag_high_word = (first_unknown_column_tag >> 16) as u16;
         let second_unknown_column_tag_low_word = (second_unknown_column_tag & 0xffff) as u16;
         let second_unknown_column_tag_high_word = (second_unknown_column_tag >> 16) as u16;
-        let first_unknown_column_offset = unknown_columns.first().map(|column| column.offset).unwrap_or(0);
-        let first_unknown_column_width = unknown_columns.first().map(|column| column.width).unwrap_or(0);
-        let second_unknown_column_offset = unknown_columns.get(1).map(|column| column.offset).unwrap_or(0);
-        let second_unknown_column_width = unknown_columns.get(1).map(|column| column.width).unwrap_or(0);
+        let first_unknown_column_offset = unknown_columns
+            .first()
+            .map(|column| column.offset)
+            .unwrap_or(0);
+        let first_unknown_column_width = unknown_columns
+            .first()
+            .map(|column| column.width)
+            .unwrap_or(0);
+        let second_unknown_column_offset = unknown_columns
+            .get(1)
+            .map(|column| column.offset)
+            .unwrap_or(0);
+        let second_unknown_column_width = unknown_columns
+            .get(1)
+            .map(|column| column.width)
+            .unwrap_or(0);
         let parsed_row_count = rows.len();
         let truncated_row_count = declared_row_count.saturating_sub(parsed_row_count);
         let base_status = if truncated_column_count == 0
@@ -358,7 +376,9 @@ mod tests {
         assert_eq!(report.second_unknown_column_tag, 0);
         assert_eq!(report.first_unknown_column_offset, 4);
         assert_eq!(report.first_unknown_column_width, 4);
-        assert!(report.status.contains("subnode_table_first_unknown_offset=4"));
+        assert!(report
+            .status
+            .contains("subnode_table_first_unknown_offset=4"));
     }
 
     #[test]
