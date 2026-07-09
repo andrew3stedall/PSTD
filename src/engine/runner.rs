@@ -322,6 +322,30 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         messages,
         "subnode_table_high_word_known_type_values",
     );
+    let pq27_first_unknown_tag =
+        aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_tag");
+    let pq27_second_unknown_tag =
+        aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_tag");
+    let pq27_first_unknown_tag_low_word = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_first_unknown_tag_low_word",
+    );
+    let pq27_first_unknown_tag_high_word = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_first_unknown_tag_high_word",
+    );
+    let pq27_second_unknown_tag_low_word = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_second_unknown_tag_low_word",
+    );
+    let pq27_second_unknown_tag_high_word = aggregate_status_counter(
+        base_status,
+        messages,
+        "subnode_table_second_unknown_tag_high_word",
+    );
     let pq17_table_columns = pq21_table_columns;
     let pq17_table_rows = pq21_table_rows;
     let pq18_candidate_rows = pq17_table_rows;
@@ -377,6 +401,13 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         || pq25_byte_swapped_plausible_values > 0
         || pq25_low_word_known_type_values > 0
         || pq25_high_word_known_type_values > 0;
+    let has_pq27_signal = pq24_unknown_values > 0
+        || pq27_first_unknown_tag > 0
+        || pq27_second_unknown_tag > 0
+        || pq27_first_unknown_tag_low_word > 0
+        || pq27_first_unknown_tag_high_word > 0
+        || pq27_second_unknown_tag_low_word > 0
+        || pq27_second_unknown_tag_high_word > 0;
     if !has_pq9_signal
         && !has_pq10_signal
         && !has_pq11_signal
@@ -390,6 +421,7 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         && !has_pq23_signal
         && !has_pq24_signal
         && !has_pq25_signal
+        && !has_pq27_signal
     {
         return base_status.to_string();
     }
@@ -433,6 +465,9 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     }
     if has_pq25_signal {
         status.push_str(&format!("; pq25_status=table_tag_shape_visible; pq25_byte_swapped_selected_columns={pq25_byte_swapped_selected_columns}; pq25_byte_swapped_plausible_columns={pq25_byte_swapped_plausible_columns}; pq25_low_word_known_type_columns={pq25_low_word_known_type_columns}; pq25_high_word_known_type_columns={pq25_high_word_known_type_columns}; pq25_byte_swapped_selected_values={pq25_byte_swapped_selected_values}; pq25_byte_swapped_plausible_values={pq25_byte_swapped_plausible_values}; pq25_low_word_known_type_values={pq25_low_word_known_type_values}; pq25_high_word_known_type_values={pq25_high_word_known_type_values}; pq25_next_blocker={}", pq25_next_blocker(pq25_byte_swapped_selected_values, pq25_byte_swapped_plausible_values, pq25_low_word_known_type_values, pq25_high_word_known_type_values, pq24_unknown_values)));
+    }
+    if has_pq27_signal {
+        status.push_str(&format!("; pq27_status=table_descriptor_tag_source_visible; subnode_table_first_unknown_tag={pq27_first_unknown_tag}; subnode_table_second_unknown_tag={pq27_second_unknown_tag}; subnode_table_first_unknown_tag_low_word={pq27_first_unknown_tag_low_word}; subnode_table_first_unknown_tag_high_word={pq27_first_unknown_tag_high_word}; subnode_table_second_unknown_tag_low_word={pq27_second_unknown_tag_low_word}; subnode_table_second_unknown_tag_high_word={pq27_second_unknown_tag_high_word}; pq27_next_blocker={}", pq27_next_blocker(pq27_first_unknown_tag, pq27_second_unknown_tag, pq24_unknown_values)));
     }
     status
 }
@@ -666,6 +701,16 @@ fn pq25_next_blocker(
         "table_column_descriptor_decode"
     } else {
         "table_tag_interpretation_absent"
+    }
+}
+
+fn pq27_next_blocker(first_tag: usize, second_tag: usize, unknown_values: usize) -> &'static str {
+    if first_tag > 0 || second_tag > 0 {
+        "table_descriptor_tag_classification"
+    } else if unknown_values > 0 {
+        "message_level_tag_source_capture"
+    } else {
+        "table_descriptor_tag_source_absent"
     }
 }
 
