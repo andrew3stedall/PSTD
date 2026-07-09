@@ -291,6 +291,47 @@ def pq31_metrics(statuses: list[str]) -> dict[str, Any]:
     }
 
 
+def pq32_word_class(word: int) -> str:
+    return descriptor_tag_class(word, word & 0xFFFF, word >> 16)
+
+
+def pq32_next_blocker(mapi_like_count: int, nonzero_word_count: int) -> str:
+    if mapi_like_count > 0:
+        return "table_descriptor_property_selection"
+    if nonzero_word_count > 0:
+        return "table_descriptor_raw_byte_window_capture"
+    return "table_descriptor_words_absent"
+
+
+def pq32_metrics(pq27: dict[str, Any], pq31: dict[str, Any]) -> dict[str, Any]:
+    first_word0 = pq27["pq27_first_unknown_tag"]
+    first_word1 = (pq31["pq31_first_unknown_width"] << 16) | pq31["pq31_first_unknown_offset"]
+    second_word0 = pq27["pq27_second_unknown_tag"]
+    second_word1 = (pq31["pq31_second_unknown_width"] << 16) | pq31["pq31_second_unknown_offset"]
+    classes = [
+        pq32_word_class(first_word0),
+        pq32_word_class(first_word1),
+        pq32_word_class(second_word0),
+        pq32_word_class(second_word1),
+    ]
+    mapi_like_count = sum(1 for value in classes if value == "mapi_tag_like")
+    nonzero_word_count = sum(1 for value in [first_word0, first_word1, second_word0, second_word1] if value > 0)
+    return {
+        "pq32_status": "table_descriptor_raw_scan_visible",
+        "pq32_first_descriptor_word0_hex": f"0x{first_word0:08x}",
+        "pq32_first_descriptor_word1_hex": f"0x{first_word1:08x}",
+        "pq32_second_descriptor_word0_hex": f"0x{second_word0:08x}",
+        "pq32_second_descriptor_word1_hex": f"0x{second_word1:08x}",
+        "pq32_first_word0_class": classes[0],
+        "pq32_first_word1_class": classes[1],
+        "pq32_second_word0_class": classes[2],
+        "pq32_second_word1_class": classes[3],
+        "pq32_mapi_tag_like_count": mapi_like_count,
+        "pq32_nonzero_word_count": nonzero_word_count,
+        "pq32_next_blocker": pq32_next_blocker(mapi_like_count, nonzero_word_count),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--progress-dir", required=True)
@@ -311,6 +352,7 @@ def main() -> int:
     pq29 = pq29_metrics(pq26, pq27, pq28)
     pq30 = pq30_metrics(pq27)
     pq31 = pq31_metrics(statuses)
+    pq32 = pq32_metrics(pq27, pq31)
 
     summary = {
         "fixture": fixture,
@@ -332,6 +374,7 @@ def main() -> int:
         **pq29,
         **pq30,
         **pq31,
+        **pq32,
         **pq21,
         **pq20_metrics(extract_status, pq21),
         "folders_discovered": run.get("folders_discovered"),
