@@ -346,6 +346,15 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         messages,
         "subnode_table_second_unknown_tag_high_word",
     );
+    let pq31_row_width = aggregate_status_counter(base_status, messages, "subnode_table_row_width");
+    let pq31_first_unknown_offset =
+        aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_offset");
+    let pq31_first_unknown_width =
+        aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_width");
+    let pq31_second_unknown_offset =
+        aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_offset");
+    let pq31_second_unknown_width =
+        aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_width");
     let pq17_table_columns = pq21_table_columns;
     let pq17_table_rows = pq21_table_rows;
     let pq18_candidate_rows = pq17_table_rows;
@@ -407,7 +416,12 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         || pq27_first_unknown_tag_low_word > 0
         || pq27_first_unknown_tag_high_word > 0
         || pq27_second_unknown_tag_low_word > 0
-        || pq27_second_unknown_tag_high_word > 0;
+        || pq27_second_unknown_tag_high_word > 0
+        || pq31_row_width > 0
+        || pq31_first_unknown_offset > 0
+        || pq31_first_unknown_width > 0
+        || pq31_second_unknown_offset > 0
+        || pq31_second_unknown_width > 0;
     if !has_pq9_signal
         && !has_pq10_signal
         && !has_pq11_signal
@@ -467,7 +481,7 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         status.push_str(&format!("; pq25_status=table_tag_shape_visible; pq25_byte_swapped_selected_columns={pq25_byte_swapped_selected_columns}; pq25_byte_swapped_plausible_columns={pq25_byte_swapped_plausible_columns}; pq25_low_word_known_type_columns={pq25_low_word_known_type_columns}; pq25_high_word_known_type_columns={pq25_high_word_known_type_columns}; pq25_byte_swapped_selected_values={pq25_byte_swapped_selected_values}; pq25_byte_swapped_plausible_values={pq25_byte_swapped_plausible_values}; pq25_low_word_known_type_values={pq25_low_word_known_type_values}; pq25_high_word_known_type_values={pq25_high_word_known_type_values}; pq25_next_blocker={}", pq25_next_blocker(pq25_byte_swapped_selected_values, pq25_byte_swapped_plausible_values, pq25_low_word_known_type_values, pq25_high_word_known_type_values, pq24_unknown_values)));
     }
     if has_pq27_signal {
-        status.push_str(&format!("; pq27_status=table_descriptor_tag_source_visible; subnode_table_first_unknown_tag={pq27_first_unknown_tag}; subnode_table_second_unknown_tag={pq27_second_unknown_tag}; subnode_table_first_unknown_tag_low_word={pq27_first_unknown_tag_low_word}; subnode_table_first_unknown_tag_high_word={pq27_first_unknown_tag_high_word}; subnode_table_second_unknown_tag_low_word={pq27_second_unknown_tag_low_word}; subnode_table_second_unknown_tag_high_word={pq27_second_unknown_tag_high_word}; pq27_next_blocker={}", pq27_next_blocker(pq27_first_unknown_tag, pq27_second_unknown_tag, pq24_unknown_values)));
+        status.push_str(&format!("; pq27_status=table_descriptor_tag_source_visible; subnode_table_first_unknown_tag={pq27_first_unknown_tag}; subnode_table_second_unknown_tag={pq27_second_unknown_tag}; subnode_table_first_unknown_tag_low_word={pq27_first_unknown_tag_low_word}; subnode_table_first_unknown_tag_high_word={pq27_first_unknown_tag_high_word}; subnode_table_second_unknown_tag_low_word={pq27_second_unknown_tag_low_word}; subnode_table_second_unknown_tag_high_word={pq27_second_unknown_tag_high_word}; subnode_table_row_width={pq31_row_width}; subnode_table_first_unknown_offset={pq31_first_unknown_offset}; subnode_table_first_unknown_width={pq31_first_unknown_width}; subnode_table_second_unknown_offset={pq31_second_unknown_offset}; subnode_table_second_unknown_width={pq31_second_unknown_width}; pq27_next_blocker={}", pq27_next_blocker(pq27_first_unknown_tag, pq27_second_unknown_tag, pq24_unknown_values)));
     }
     status
 }

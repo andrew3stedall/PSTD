@@ -52,6 +52,10 @@ pub struct TableContextParseReport {
     pub first_unknown_column_tag_high_word: u16,
     pub second_unknown_column_tag_low_word: u16,
     pub second_unknown_column_tag_high_word: u16,
+    pub first_unknown_column_offset: u16,
+    pub first_unknown_column_width: u16,
+    pub second_unknown_column_offset: u16,
+    pub second_unknown_column_width: u16,
     pub status: String,
 }
 
@@ -183,17 +187,36 @@ impl TableContext {
             .filter(|(tag, _)| is_unknown_tag(*tag))
             .filter(|(tag, _)| known_value_type_code((*tag >> 16) as u16))
             .count();
-        let unknown_tags = columns
+        let unknown_columns = columns
             .iter()
             .filter(|column| is_unknown_tag(column.tag))
-            .map(|column| column.tag)
             .collect::<Vec<_>>();
-        let first_unknown_column_tag = unknown_tags.first().copied().unwrap_or(0);
-        let second_unknown_column_tag = unknown_tags.get(1).copied().unwrap_or(0);
+        let first_unknown_column_tag = unknown_columns
+            .first()
+            .map(|column| column.tag)
+            .unwrap_or(0);
+        let second_unknown_column_tag =
+            unknown_columns.get(1).map(|column| column.tag).unwrap_or(0);
         let first_unknown_column_tag_low_word = (first_unknown_column_tag & 0xffff) as u16;
         let first_unknown_column_tag_high_word = (first_unknown_column_tag >> 16) as u16;
         let second_unknown_column_tag_low_word = (second_unknown_column_tag & 0xffff) as u16;
         let second_unknown_column_tag_high_word = (second_unknown_column_tag >> 16) as u16;
+        let first_unknown_column_offset = unknown_columns
+            .first()
+            .map(|column| column.offset)
+            .unwrap_or(0);
+        let first_unknown_column_width = unknown_columns
+            .first()
+            .map(|column| column.width)
+            .unwrap_or(0);
+        let second_unknown_column_offset = unknown_columns
+            .get(1)
+            .map(|column| column.offset)
+            .unwrap_or(0);
+        let second_unknown_column_width = unknown_columns
+            .get(1)
+            .map(|column| column.width)
+            .unwrap_or(0);
         let parsed_row_count = rows.len();
         let truncated_row_count = declared_row_count.saturating_sub(parsed_row_count);
         let base_status = if truncated_column_count == 0
@@ -208,7 +231,7 @@ impl TableContext {
         };
         let status = if unknown_column_count > 0 {
             format!(
-                "{base_status}; subnode_table_first_unknown_tag={first_unknown_column_tag}; subnode_table_second_unknown_tag={second_unknown_column_tag}; subnode_table_first_unknown_tag_low_word={first_unknown_column_tag_low_word}; subnode_table_first_unknown_tag_high_word={first_unknown_column_tag_high_word}; subnode_table_second_unknown_tag_low_word={second_unknown_column_tag_low_word}; subnode_table_second_unknown_tag_high_word={second_unknown_column_tag_high_word}"
+                "{base_status}; subnode_table_first_unknown_tag={first_unknown_column_tag}; subnode_table_second_unknown_tag={second_unknown_column_tag}; subnode_table_first_unknown_tag_low_word={first_unknown_column_tag_low_word}; subnode_table_first_unknown_tag_high_word={first_unknown_column_tag_high_word}; subnode_table_second_unknown_tag_low_word={second_unknown_column_tag_low_word}; subnode_table_second_unknown_tag_high_word={second_unknown_column_tag_high_word}; subnode_table_first_unknown_offset={first_unknown_column_offset}; subnode_table_first_unknown_width={first_unknown_column_width}; subnode_table_second_unknown_offset={second_unknown_column_offset}; subnode_table_second_unknown_width={second_unknown_column_width}"
             )
         } else {
             base_status
@@ -244,6 +267,10 @@ impl TableContext {
             first_unknown_column_tag_high_word,
             second_unknown_column_tag_low_word,
             second_unknown_column_tag_high_word,
+            first_unknown_column_offset,
+            first_unknown_column_width,
+            second_unknown_column_offset,
+            second_unknown_column_width,
             status,
         })
     }
@@ -345,7 +372,11 @@ mod tests {
         assert_eq!(report.unknown_value_count, 1);
         assert_eq!(report.first_unknown_column_tag, 0x9000_9999);
         assert_eq!(report.second_unknown_column_tag, 0);
-        assert!(report.status.contains("subnode_table_first_unknown_tag="));
+        assert_eq!(report.first_unknown_column_offset, 4);
+        assert_eq!(report.first_unknown_column_width, 4);
+        assert!(report
+            .status
+            .contains("subnode_table_first_unknown_offset=4"));
     }
 
     #[test]
