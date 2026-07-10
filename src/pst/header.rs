@@ -5,6 +5,8 @@ use crate::pst::reader::PstByteReader;
 
 pub const PST_HEADER_MIN_BYTES: usize = 64;
 pub const PST_HEADER_ROOT_CANDIDATE_BYTES: usize = 248;
+pub const PST_HEADER_CRYPT_METHOD_OFFSET: usize = 513;
+const PST_HEADER_READ_BYTES: usize = PST_HEADER_CRYPT_METHOD_OFFSET + 1;
 pub const PST_MAGIC: [u8; 4] = [0x21, 0x42, 0x44, 0x4e];
 pub const PST_ROOT_PAGE_SIZE_BYTES: u64 = 512;
 
@@ -220,6 +222,7 @@ pub struct PstHeaderSummary {
     pub magic_client: Option<String>,
     pub version: Option<u16>,
     pub variant: String,
+    pub crypt_method: Option<u8>,
     pub bbt_root_offset: Option<u64>,
     pub nbt_root_offset: Option<u64>,
     pub root_diagnostics: PstRootDiagnostics,
@@ -234,7 +237,7 @@ pub struct PstHeader {
 
 impl PstHeader {
     pub fn parse(reader: &PstByteReader) -> PstdResult<Self> {
-        let header_bytes = reader.read_prefix(PST_HEADER_ROOT_CANDIDATE_BYTES)?;
+        let header_bytes = reader.read_prefix(PST_HEADER_READ_BYTES)?;
         Self::parse_bytes(&header_bytes, reader.file_size())
     }
 
@@ -297,6 +300,7 @@ impl PstHeader {
             magic_client: Some(magic_client),
             version: Some(version),
             variant: format!("{:?}", variant).to_lowercase(),
+            crypt_method: buf.get(PST_HEADER_CRYPT_METHOD_OFFSET).copied(),
             bbt_root_offset: selected_bbt_root_offset,
             nbt_root_offset: selected_nbt_root_offset,
             root_diagnostics,
