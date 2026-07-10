@@ -1,4 +1,5 @@
 use crate::pst::payload::PayloadBlock;
+use crate::pst::subnodes::SubnodeReference;
 use crate::pst::tc_heap::resolve_tcinfo_from_heap;
 
 const HEAP_SIGNATURE: u8 = 0xec;
@@ -76,6 +77,54 @@ impl TcHeapAggregateReport {
             self.total_row_references_out_of_bounds,
             self.subnode_backed_row_heap_count,
         )
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TcSubnodeProbeReport {
+    pub root_node_id: u64,
+    pub root_subnode_block_id: u64,
+    pub decoded_payload_count: usize,
+    pub table_heaps: TcHeapAggregateReport,
+    pub status: String,
+}
+
+impl TcSubnodeProbeReport {
+    pub fn progress_status(&self) -> String {
+        format!(
+            "pq43_status={}; pq43_root_node_id=0x{:x}; pq43_root_subnode_bid=0x{:x}; pq43_decoded_payloads={}; {}",
+            self.status,
+            self.root_node_id,
+            self.root_subnode_block_id,
+            self.decoded_payload_count,
+            self.table_heaps.progress_status()
+        )
+    }
+}
+
+pub fn report_subnode_table_heaps(
+    reference: &SubnodeReference,
+    payloads: &[PayloadBlock],
+) -> TcSubnodeProbeReport {
+    let table_heaps = report_table_heaps(payloads);
+    let status = if payloads.is_empty() {
+        "pq43_subnode_payloads_empty"
+    } else if table_heaps.table_heap_count == 0 {
+        "pq43_no_table_heaps_detected"
+    } else if table_heaps.failed_table_heap_count == 0 {
+        "pq43_table_heaps_resolved"
+    } else if table_heaps.resolved_table_heap_count > 0 {
+        "pq43_table_heaps_partially_resolved"
+    } else {
+        "pq43_table_heaps_unresolved"
+    };
+
+    TcSubnodeProbeReport {
+        root_node_id: reference.node_id.0,
+        root_subnode_block_id: reference.subnode_block_id.0,
+        decoded_payload_count: payloads.len(),
+        table_heaps,
+        status: status.to_string(),
     }
 }
 
@@ -164,9 +213,10 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
 
 #[cfg(test)]
 mod tests {
-    use super::report_table_heaps;
+    use super::{report_subnode_table_heaps, report_table_heaps};
     use crate::pst::payload::PayloadBlock;
-    use crate::pst::primitives::{BlockId, BlockRef, ByteOffset};
+    use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, NodeId};
+    use crate::pst::subnodes::SubnodeReference;
 
     #[test]
     fn ignores_non_table_payloads() {
@@ -195,6 +245,44 @@ mod tests {
         assert!(status.contains("pq42_failed_table_heaps=1"));
         assert!(status.contains("bid=0x74,bytes=16,resolved=0"));
         assert!(!status.contains(";error="));
+    }
+
+    #[test]
+    fn binds_table_heap_evidence_to_the_subnode_probe_identity() {
+        let reference = SubnodeReference {
+            node_id: NodeId(0x122),
+            subnode_block_id: BlockId(0x244),
+            status: "test".to_string(),
+        };
+        let mut bytes = vec![0; 16];
+        bytes[2] = 0xec;
+        bytes[3] = 0x7c;
+        let report = report_subnode_table_heaps(&reference, &[payload(0x74, bytes)]);
+
+        assert_eq!(report.root_node_id, 0x122);
+        assert_eq!(report.root_subnode_block_id, 0x244);
+        assert_eq!(report.decoded_payload_count, 1);
+        assert_eq!(report.table_heaps.failed_table_heap_count, 1);
+        assert_eq!(report.status, "pq43_table_heaps_unresolved");
+        let status = report.progress_status();
+        assert!(status.contains("pq43_root_node_id=0x122"));
+        assert!(status.contains("pq43_root_subnode_bid=0x244"));
+        assert!(status.contains("pq42_failed_table_heaps=1"));
+    }
+
+    #[test]
+    fn distinguishes_decoded_non_table_payloads_from_empty_probes() {
+        let reference = SubnodeReference {
+            node_id: NodeId(1),
+            subnode_block_id: BlockId(2),
+            status: "test".to_string(),
+        };
+
+        let empty = report_subnode_table_heaps(&reference, &[]);
+        assert_eq!(empty.status, "pq43_subnode_payloads_empty");
+
+        let non_table = report_subnode_table_heaps(&reference, &[payload(3, vec![0; 16])]);
+        assert_eq!(non_table.status, "pq43_no_table_heaps_detected");
     }
 
     fn payload(block_id: u64, bytes: Vec<u8>) -> PayloadBlock {
