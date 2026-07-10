@@ -190,10 +190,12 @@ mod tests {
     #[test]
     fn rejects_unsupported_row_index_shapes() {
         let mut bytes = sample_row_index_heap(0);
-        bytes[17] = 2;
+        bytes[9] = 2;
         let heap = HeapOnNode::parse(&bytes, 0).unwrap();
         let error = parse_row_index_bth(&heap, &bytes, 0x20, 0).unwrap_err();
-        assert!(error.to_string().contains("unsupported row-index BTH entry sizes"));
+        assert!(error
+            .to_string()
+            .contains("unsupported row-index BTH entry sizes"));
     }
 
     fn sample_row_index_heap(index_levels: u8) -> Vec<u8> {
@@ -203,33 +205,33 @@ mod tests {
         bytes[3] = 0x7c;
         bytes[4..8].copy_from_slice(&0x20u32.to_le_bytes());
 
-        bytes[16] = 0xb5;
-        bytes[17] = 4;
-        bytes[18] = 4;
-        bytes[19] = index_levels;
-        bytes[20..24].copy_from_slice(&0x40u32.to_le_bytes());
+        bytes[8] = 0xb5;
+        bytes[9] = 4;
+        bytes[10] = 4;
+        bytes[11] = index_levels;
+        bytes[12..16].copy_from_slice(&0x40u32.to_le_bytes());
 
         if index_levels == 0 {
-            bytes[24..28].copy_from_slice(&0x1001u32.to_le_bytes());
-            bytes[28..32].copy_from_slice(&0u32.to_le_bytes());
-            bytes[32..36].copy_from_slice(&0x1002u32.to_le_bytes());
-            bytes[36..40].copy_from_slice(&24u32.to_le_bytes());
+            bytes[16..20].copy_from_slice(&0x1001u32.to_le_bytes());
+            bytes[20..24].copy_from_slice(&0u32.to_le_bytes());
+            bytes[24..28].copy_from_slice(&0x1002u32.to_le_bytes());
+            bytes[28..32].copy_from_slice(&24u32.to_le_bytes());
             bytes[112..114].copy_from_slice(&2u16.to_le_bytes());
             bytes[114..116].copy_from_slice(&0u16.to_le_bytes());
-            for (index, offset) in [8u16, 16, 24, 40].iter().enumerate() {
+            for (index, offset) in [8u16, 16, 32, 32].iter().enumerate() {
                 let start = 116 + index * 2;
                 bytes[start..start + 2].copy_from_slice(&offset.to_le_bytes());
             }
         } else {
+            bytes[16..20].copy_from_slice(&0x1001u32.to_le_bytes());
+            bytes[20..24].copy_from_slice(&0x60u32.to_le_bytes());
             bytes[24..28].copy_from_slice(&0x1001u32.to_le_bytes());
-            bytes[28..32].copy_from_slice(&0x60u32.to_le_bytes());
-            bytes[32..36].copy_from_slice(&0x1001u32.to_le_bytes());
-            bytes[36..40].copy_from_slice(&0u32.to_le_bytes());
-            bytes[40..44].copy_from_slice(&0x1002u32.to_le_bytes());
-            bytes[44..48].copy_from_slice(&24u32.to_le_bytes());
+            bytes[28..32].copy_from_slice(&0u32.to_le_bytes());
+            bytes[32..36].copy_from_slice(&0x1002u32.to_le_bytes());
+            bytes[36..40].copy_from_slice(&24u32.to_le_bytes());
             bytes[112..114].copy_from_slice(&3u16.to_le_bytes());
             bytes[114..116].copy_from_slice(&0u16.to_le_bytes());
-            for (index, offset) in [8u16, 16, 24, 32, 48].iter().enumerate() {
+            for (index, offset) in [8u16, 16, 24, 40, 40].iter().enumerate() {
                 let start = 116 + index * 2;
                 bytes[start..start + 2].copy_from_slice(&offset.to_le_bytes());
             }
