@@ -76,7 +76,10 @@ impl TcInfo {
             u16_le_at(buf, 6, base_offset)?,
             u16_le_at(buf, 8, base_offset)?,
         ];
-        if data_region_boundaries.windows(2).any(|pair| pair[0] > pair[1]) {
+        if data_region_boundaries
+            .windows(2)
+            .any(|pair| pair[0] > pair[1])
+        {
             return Err(PstdError::pst_parse(
                 Some(base_offset + 2),
                 "TCINFO data-region boundaries are not monotonic",
