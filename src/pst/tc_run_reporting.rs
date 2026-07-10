@@ -2,6 +2,29 @@ use crate::pst::tc_reporting::TcSubnodeProbeReport;
 
 const MAX_PROBE_DIAGNOSTICS: usize = 16;
 
+#[derive(Debug, Clone, Default)]
+pub struct TcRunProbeCollector {
+    probes: Vec<TcSubnodeProbeReport>,
+}
+
+impl TcRunProbeCollector {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn record(&mut self, probe: TcSubnodeProbeReport) {
+        self.probes.push(probe);
+    }
+
+    pub fn probe_count(&self) -> usize {
+        self.probes.len()
+    }
+
+    pub fn finish(self) -> TcRunAggregateReport {
+        aggregate_subnode_table_probes(&self.probes)
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TcRunAggregateReport {
     pub probe_count: usize,
@@ -131,7 +154,7 @@ pub fn aggregate_subnode_table_probes(probes: &[TcSubnodeProbeReport]) -> TcRunA
 
 #[cfg(test)]
 mod tests {
-    use super::{aggregate_subnode_table_probes, MAX_PROBE_DIAGNOSTICS};
+    use super::{aggregate_subnode_table_probes, TcRunProbeCollector, MAX_PROBE_DIAGNOSTICS};
     use crate::pst::payload::PayloadBlock;
     use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, NodeId};
     use crate::pst::subnodes::SubnodeReference;
@@ -151,6 +174,33 @@ mod tests {
         assert_eq!(report.decoded_payload_count, 1);
         assert_eq!(report.probes_with_table_heaps, 0);
         assert_eq!(report.status, "pq44_no_table_heaps");
+    }
+
+    #[test]
+    fn collector_accepts_probes_from_separate_extraction_paths() {
+        let mut collector = TcRunProbeCollector::new();
+        let non_table_reference = reference(1, 2);
+        collector.record(report_subnode_table_heaps(
+            &non_table_reference,
+            &[payload(3, vec![0; 16])],
+        ));
+
+        let failed_reference = reference(0x122, 0x244);
+        let mut bytes = vec![0; 16];
+        bytes[2] = 0xec;
+        bytes[3] = 0x7c;
+        collector.record(report_subnode_table_heaps(
+            &failed_reference,
+            &[payload(0x74, bytes)],
+        ));
+
+        assert_eq!(collector.probe_count(), 2);
+        let report = collector.finish();
+        assert_eq!(report.probe_count, 2);
+        assert_eq!(report.decoded_probe_count, 2);
+        assert_eq!(report.probes_with_table_heaps, 1);
+        assert_eq!(report.failed_table_heap_count, 1);
+        assert!(report.progress_status().contains("pq43_root_node_id=0x122"));
     }
 
     #[test]
