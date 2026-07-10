@@ -79,6 +79,7 @@ jobs:
           cp "$output_dir/run_summary.json" "$progress_dir/run_summary.json"
           find "$output_dir" -maxdepth 4 -type f | sort > "$progress_dir/output_files.txt"
           python scripts/public_pst_progress.py --progress-dir "$progress_dir"
+          python scripts/pq32_descriptor_layout.py --progress-dir "$progress_dir"
       - name: Upload public PST progress artifact
         if: always()
         uses: actions/upload-artifact@v4
