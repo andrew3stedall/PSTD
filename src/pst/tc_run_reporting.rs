@@ -154,9 +154,7 @@ pub fn aggregate_subnode_table_probes(probes: &[TcSubnodeProbeReport]) -> TcRunA
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        aggregate_subnode_table_probes, TcRunProbeCollector, MAX_PROBE_DIAGNOSTICS,
-    };
+    use super::{aggregate_subnode_table_probes, TcRunProbeCollector, MAX_PROBE_DIAGNOSTICS};
     use crate::pst::payload::PayloadBlock;
     use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, NodeId};
     use crate::pst::subnodes::SubnodeReference;
