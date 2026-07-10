@@ -421,8 +421,7 @@ fn is_unicode_slblock(bytes: &[u8]) -> bool {
 }
 
 fn classify_unicode_slblock_layout(payload: &PayloadBlock) -> SubnodeBlockLayout {
-    let declared_entry_count =
-        u16::from_le_bytes([payload.bytes[2], payload.bytes[3]]) as usize;
+    let declared_entry_count = u16::from_le_bytes([payload.bytes[2], payload.bytes[3]]) as usize;
     let available_entry_count = payload
         .bytes
         .len()
@@ -547,8 +546,8 @@ mod tests {
     use tempfile::NamedTempFile;
 
     use super::{
-        classify_subnode_block_layout, classify_subnode_payloads,
-        load_recursive_subnode_blocks, SubnodeReference,
+        classify_subnode_block_layout, classify_subnode_payloads, load_recursive_subnode_blocks,
+        SubnodeReference,
     };
     use crate::pst::bbt::{BbtEntry, BbtIndex};
     use crate::pst::limits::ParserLimits;
@@ -565,12 +564,8 @@ mod tests {
         assert_eq!(layout.layout_kind, "unicode_slblock");
         assert_eq!(layout.child_block_ids, vec![BlockId(0x7c), BlockId(0x7a)]);
         assert!(layout.status.contains("subnode_slblock_entries=1"));
-        assert!(layout
-            .status
-            .contains("subnode_slblock_data_references=1"));
-        assert!(layout
-            .status
-            .contains("subnode_slblock_sub_references=1"));
+        assert!(layout.status.contains("subnode_slblock_data_references=1"));
+        assert!(layout.status.contains("subnode_slblock_sub_references=1"));
     }
 
     #[test]
@@ -610,13 +605,8 @@ mod tests {
             status: "test".to_string(),
         };
 
-        let loaded = load_recursive_subnode_blocks(
-            &reader,
-            &bbt,
-            &reference,
-            1,
-            ParserLimits::default(),
-        );
+        let loaded =
+            load_recursive_subnode_blocks(&reader, &bbt, &reference, 1, ParserLimits::default());
 
         assert_eq!(loaded.report.decoded_block_count, 2);
         assert_eq!(loaded.report.recursive_child_decode_count, 1);
