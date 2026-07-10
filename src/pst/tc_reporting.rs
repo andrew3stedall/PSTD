@@ -41,39 +41,44 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                 && payload.bytes[2] == HEAP_SIGNATURE
                 && payload.bytes[3] == HEAP_CLIENT_TABLE_CONTEXT
         })
-        .map(|payload| match resolve_tcinfo_from_heap(&payload.bytes, payload.block_ref.offset.0) {
-            Ok(report) => TcHeapDiagnostic {
-                block_id: payload.block_id.0,
-                payload_byte_len: payload.bytes.len(),
-                resolved: true,
-                column_count: report.column_count,
-                row_reference_count: report.row_reference_count,
-                row_references_in_bounds: report.row_references_in_bounds,
-                row_references_out_of_bounds: report.row_references_out_of_bounds,
-                rows_require_subnode_resolution: report.rows_requires_subnode_resolution,
-                status: report.status,
-                error: report.row_index_error,
+        .map(
+            |payload| match resolve_tcinfo_from_heap(&payload.bytes, payload.block_ref.offset.0) {
+                Ok(report) => TcHeapDiagnostic {
+                    block_id: payload.block_id.0,
+                    payload_byte_len: payload.bytes.len(),
+                    resolved: true,
+                    column_count: report.column_count,
+                    row_reference_count: report.row_reference_count,
+                    row_references_in_bounds: report.row_references_in_bounds,
+                    row_references_out_of_bounds: report.row_references_out_of_bounds,
+                    rows_require_subnode_resolution: report.rows_requires_subnode_resolution,
+                    status: report.status,
+                    error: report.row_index_error,
+                },
+                Err(reason) => TcHeapDiagnostic {
+                    block_id: payload.block_id.0,
+                    payload_byte_len: payload.bytes.len(),
+                    resolved: false,
+                    column_count: 0,
+                    row_reference_count: 0,
+                    row_references_in_bounds: 0,
+                    row_references_out_of_bounds: 0,
+                    rows_require_subnode_resolution: false,
+                    status: "tc_heap_resolution_failed".to_string(),
+                    error: Some(reason.to_string()),
+                },
             },
-            Err(reason) => TcHeapDiagnostic {
-                block_id: payload.block_id.0,
-                payload_byte_len: payload.bytes.len(),
-                resolved: false,
-                column_count: 0,
-                row_reference_count: 0,
-                row_references_in_bounds: 0,
-                row_references_out_of_bounds: 0,
-                rows_require_subnode_resolution: false,
-                status: "tc_heap_resolution_failed".to_string(),
-                error: Some(reason.to_string()),
-            },
-        })
+        )
         .collect::<Vec<_>>();
 
     let table_heap_count = diagnostics.len();
     let resolved_table_heap_count = diagnostics.iter().filter(|item| item.resolved).count();
     let failed_table_heap_count = table_heap_count.saturating_sub(resolved_table_heap_count);
     let total_columns = diagnostics.iter().map(|item| item.column_count).sum();
-    let total_row_references = diagnostics.iter().map(|item| item.row_reference_count).sum();
+    let total_row_references = diagnostics
+        .iter()
+        .map(|item| item.row_reference_count)
+        .sum();
     let total_row_references_in_bounds = diagnostics
         .iter()
         .map(|item| item.row_references_in_bounds)
