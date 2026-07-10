@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     fn resolves_and_validates_heap_backed_row_references() {
-        let bytes = sample_tc_heap(0x80, &[0, 3]);
+        let bytes = sample_tc_heap(0xa0, &[0, 3]);
         let report = resolve_tcinfo_from_heap(&bytes, 0).unwrap();
 
         assert_eq!(report.user_root_hid, 0x40);
@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn reports_out_of_bounds_heap_row_references() {
-        let bytes = sample_tc_heap(0x80, &[0, 99]);
+        let bytes = sample_tc_heap(0xa0, &[0, 99]);
         let report = resolve_tcinfo_from_heap(&bytes, 0).unwrap();
 
         assert_eq!(report.row_reference_count, 2);
@@ -188,23 +188,23 @@ mod tests {
         bytes[root_start + 36] = 4;
         bytes[root_start + 37] = 1;
 
-        bytes[64] = 0xb5;
-        bytes[65] = 4;
-        bytes[66] = 4;
-        bytes[67] = 0;
-        bytes[68..72].copy_from_slice(&0x80u32.to_le_bytes());
+        bytes[54] = 0xb5;
+        bytes[55] = 4;
+        bytes[56] = 4;
+        bytes[57] = 0;
+        bytes[58..62].copy_from_slice(&0x80u32.to_le_bytes());
 
-        bytes[72..76].copy_from_slice(&0x1001u32.to_le_bytes());
-        bytes[76..80].copy_from_slice(&row_references[0].to_le_bytes());
-        bytes[80..84].copy_from_slice(&0x1002u32.to_le_bytes());
-        bytes[84..88].copy_from_slice(&row_references[1].to_le_bytes());
+        bytes[62..66].copy_from_slice(&0x1001u32.to_le_bytes());
+        bytes[66..70].copy_from_slice(&row_references[0].to_le_bytes());
+        bytes[70..74].copy_from_slice(&0x1002u32.to_le_bytes());
+        bytes[74..78].copy_from_slice(&row_references[1].to_le_bytes());
 
-        bytes[88..96].copy_from_slice(b"row-data");
-        bytes[96..100].copy_from_slice(b"indx");
+        bytes[78..86].copy_from_slice(b"row-data");
+        bytes[86..90].copy_from_slice(b"indx");
 
         bytes[172..174].copy_from_slice(&6u16.to_le_bytes());
         bytes[174..176].copy_from_slice(&0u16.to_le_bytes());
-        for (index, offset) in [8u16, 16, 54, 64, 72, 88, 96].iter().enumerate() {
+        for (index, offset) in [8u16, 16, 54, 62, 78, 86, 90].iter().enumerate() {
             let start = 176 + index * 2;
             bytes[start..start + 2].copy_from_slice(&offset.to_le_bytes());
         }
