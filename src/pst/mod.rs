@@ -26,6 +26,7 @@ pub mod reader;
 pub mod recipients;
 pub mod subnodes;
 pub mod table_context;
+pub mod tc_heap;
 pub mod tcinfo;
 pub mod threading;
 pub mod trailer;
