@@ -29,11 +29,7 @@ mod tests {
         let mut collector = TcRunProbeCollector::new();
         let reference = reference(0x122, 0x244);
 
-        record_subnode_payload_probe(
-            &mut collector,
-            &reference,
-            &[payload(0x74, vec![0; 16])],
-        );
+        record_subnode_payload_probe(&mut collector, &reference, &[payload(0x74, vec![0; 16])]);
 
         let report = collector.finish();
         assert_eq!(report.probe_count, 1);
