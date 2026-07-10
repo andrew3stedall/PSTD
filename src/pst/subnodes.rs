@@ -478,7 +478,9 @@ fn is_admissible_flat_table(bytes: &[u8]) -> bool {
     if columns == 0 || columns > 256 || row_width == 0 {
         return false;
     }
-    let Some(descriptor_end) = columns.checked_mul(8).and_then(|size| 8usize.checked_add(size))
+    let Some(descriptor_end) = columns
+        .checked_mul(8)
+        .and_then(|size| 8usize.checked_add(size))
     else {
         return false;
     };
@@ -492,7 +494,10 @@ fn is_admissible_flat_table(bytes: &[u8]) -> bool {
         let start = 8 + index * 8;
         let offset = u16::from_le_bytes([bytes[start + 4], bytes[start + 5]]) as usize;
         let width = u16::from_le_bytes([bytes[start + 6], bytes[start + 7]]) as usize;
-        width > 0 && offset.checked_add(width).is_some_and(|end| end <= row_width)
+        width > 0
+            && offset
+                .checked_add(width)
+                .is_some_and(|end| end <= row_width)
     })
 }
 
