@@ -2,83 +2,61 @@
 
 ## Purpose
 
-Track conversion progress against the checked-in public PST fixture after every completed milestone.
-
-This is the milestone-level quality signal for PST conversion coverage. It is separate from unit tests and release smoke tests because it records whether each milestone improves real PST extraction outcomes.
+Track conversion progress against the checked-in public PST fixture after every parser-quality milestone. This is the primary real-file quality signal and is separate from unit, lint, Docker, and CLI smoke checks.
 
 ## Mandatory milestone rule
 
-After every milestone PR is green and before the completion report is final:
+After each PQ pull request is green:
 
-1. Confirm the CI run uploaded the `public-pst-progress` artifact.
-2. Download or inspect the artifact.
-3. Add a new row to the progress table below.
-4. Include the latest public-PST deltas in the user-facing milestone completion report.
+1. inspect the `public-pst-progress` and PQ-specific artifacts;
+2. record the extraction and diagnostic delta;
+3. distinguish fidelity progress from counter-only or parser-only progress;
+4. revise the next PQ from measured evidence;
+5. do not claim general PST compatibility from one fixture.
 
-Do not mark a conversion-quality milestone complete without reporting the public PST result.
+The artifact must contain summaries and bounded diagnostics only. It must not contain private PST files, complete message bodies, attachment payloads, or unredacted archives.
 
-## Artifact contents
+## Stable fixture baseline
 
-The CI artifact `public-pst-progress` contains:
+| Metric | Current baseline |
+|---|---:|
+| BBT entries | 50 |
+| NBT entries | 63 |
+| Folder rows | 11 |
+| True message candidates | 1 |
+| Attachment rows | 0 |
 
-| File | Purpose |
-|---|---|
-| `fixture_path.txt` | Fixture selected by CI. |
-| `fixture_size_bytes.txt` | Fixture size used for comparison. |
-| `inspect.json` | Full `pstd inspect --json` output. |
-| `run_summary.json` | Single-PST extraction summary. |
-| `output_files.txt` | File inventory for the extraction output. |
-| `progress_summary.json` | Compact machine-readable progress summary. |
-| `progress_summary.md` | Compact human-readable progress summary. |
+## Recent progress
 
-The artifact should contain summaries only. It must not include raw private PST inputs, message bodies, attachment payloads, or full archive shards.
+| Date | Milestone / PR | Change type | Public-fixture result | Next blocker |
+|---|---|---|---|---|
+| 2026-07-10 | PQ37 / #378 | Parser primitive; output-neutral | Added bounded parsing for the 22-byte TCINFO root and exact 8-byte TCOLDESC records. Preserved `hidRowIndex`, `hnidRows`, and `hidIndex` as unresolved typed HNID values. Extraction counts and PQ36 property/body results are intentionally unchanged. | Wire parsing to the actual `hidUserRoot` heap allocation and emit fixture evidence before row materialisation. |
+| 2026-07-10 | PQ36 / #377 | Material extraction progress | Decoded non-internal `NDB_CRYPT_PERMUTE` blocks, classified Heap-on-Node clients, and rejected invalid legacy table declarations. Selected properties increased **0 → 16**, unknown properties decreased **74 → 19**, text and RTF bodies were recovered, and fallback body rows decreased **1 → 0**. BID `0x74` remains an unresolved 208-byte payload. | Parse the real table-context root without assuming BID `0x74` is the row matrix. |
+| 2026-07-10 | PQ35 / #376 | Structural correctness | Resolved Unicode SLENTRY targets through the BBT with depth and cycle guards. Corrected false table rows/values from 1/2 to 0/0 and exposed the remaining permissive payload-admission problem. | Decode payload encryption and require structural client admission. |
+| 2026-07-10 | PQ34 / #375 | Diagnostic correction | Reinterpreted the 32-byte capture as a Unicode SLBLOCK with one 24-byte SLENTRY: `nid=0x692`, `bidData=0x7c`, `bidSub=0x7a`. Marked the previous zero-width table parse as spurious. | Resolve SLENTRY data and subnode targets. |
+| 2026-07-10 | PQ33 / #374 | Evidence capture | Added bounded raw prefix capture for the selected table-like payload, allowing the SLBLOCK structure to be identified. | Interpret the captured payload boundary. |
+| 2026-07-10 | PQ32 / #373 | Assumption invalidated | Demonstrated that one parsed row/two values with zero descriptor offsets and widths was not structurally credible. | Capture raw payload bytes rather than extending the legacy descriptor assumption. |
+| 2026-07-09 | PQ27-PQ31 / #351-#370 | Diagnostic sequence | Propagated tag sources and descriptor fields, but evidence remained inconsistent with a valid table layout. | Validate descriptor and payload boundaries from raw evidence. |
+| 2026-07-08 | PQ20-PQ26 / #337-#349 | Counter and interpretation sequence | Added row-matrix, parser, candidate, column, tag, and descriptor diagnostics. Extraction counts remained stable. | Identify the actual source/address space for table structures. |
+| 2026-07-06 to 2026-07-08 | PQ11-PQ19 / #298-#334 | Source discovery | Progressed from missing heap-signature evidence to message subnode selection, decoding, classification, table probes, and membership/candidate measurement. | Follow the subnode/reference chain rather than guessing payload prefixes. |
+| 2026-07-05 to 2026-07-06 | PQ4-PQ10 / #247-#292 | Fidelity and measurement | Corrected folder output to 11 rows and message output to one true candidate; exposed 74 unknown properties and no selected body property under the then-current path. | Repair real payload/Heap-on-Node traversal. |
+| 2026-07-05 | PQ3 / #199 and #200 | Structured baseline | Corrected BBT/NBT traversal and established the comparable public-PST artifact: 50 BBT, 63 NBT, 1 root folder, 63 metadata candidates before later classification fixes. | Folder and message fidelity. |
 
-## Metrics to log
+## Interpretation
 
-Each milestone row should record:
+The headline result is not that PSTD is complete. PQ36 proved that the previous extraction gap was substantially caused by payload decryption and structural admission, but table-context reference resolution is still incomplete. PQ37 reduces the risk of the next step by adding a bounded parser without guessing ownership or address spaces.
 
-- Root condition and selected root source.
-- BBT/NBT entries and diagnosed page counts.
-- Extraction status.
-- Folder, message, and attachment counts.
-- Whether this is progress, regression, or unchanged.
-- Next blocker.
-
-## Progress table
-
-| Date | Milestone / PR | Commit or run | Fixture | Root condition | BBT entries | NBT entries | Folders | Messages | Attachments | Status | Notes |
-|---|---|---|---|---|---:|---:|---:|---:|---:|---|---|
-| 2026-07-08 | PQ20 / #337 | CI #306 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `pq20_status=table_row_matrix_measurement_visible` | Row-matrix measurement progress only: extraction counts remain unchanged. PQ20 shows 1 row-matrix decode attempt, 0 parsed table columns, 0 parsed table rows, and 0 row value slots. The revised next blocker is `subnode_table_parser_counter_wiring`. |
-| 2026-07-08 | PQ19 / #334 | CI #303 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `pq19_status=table_membership_measurement_visible` | Table-membership measurement progress only: extraction counts remain unchanged. PQ19 shows 0 hierarchy table rows, 0 contents table rows, 0 table-linked folders, and 0 table-linked messages. The revised next blocker remains `table_row_matrix_or_row_count_decode`. |
-| 2026-07-08 | PQ18 / #332 | CI #300 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq18_status=table_property_candidate_measurement_visible` | Candidate-measurement progress only: extraction counts remain unchanged. PQ18 shows 0 candidate rows, 0 candidate values, 0 selected-property lift, and 0 plausible-property lift because PQ17 found 0 table rows. The revised next blocker remains `table_row_matrix_or_row_count_decode`. |
-| 2026-07-08 | PQ17 / #330 | CI #297 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq17_status=table_probe_visible` | Table-probe signal progress only: extraction counts remain unchanged. PQ17 shows 1 table parse attempt, 1 table parse success, 0 table parse failures, 0 table columns, and 0 table rows. The revised next blocker is `table_row_matrix_or_row_count_decode`. |
-| 2026-07-07 | PQ16 / #328 | CI #281 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq16_status=subnode_payload_classification_visible` | Classification-signal progress only: extraction counts remain unchanged. PQ16 shows 1 table-like subnode layout, 0 child-reference subnode layouts, and 0 child references. The revised next blocker is `message_subnode_table_payload_wiring`. |
-| 2026-07-06 | PQ15 / #322 | CI #275 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq15_status=subnode_payload_interpretation_visible` | Interpretation-signal progress only: extraction counts remain unchanged. PQ15 shows 1 decoded subnode block, 1 supported subnode layout, and 0 unsupported subnode layouts. The revised next blocker is `subnode_table_or_property_payload_interpretation`. |
-| 2026-07-06 | PQ14 / #316 | CI #269 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq14_status=message_subnode_probe` | Source-probe progress only: extraction counts remain unchanged. PQ14 performs 1 message-level subnode probe attempt, loads 1 subnode block, records 0 failed blocks, and 0 unsupported layouts. The revised next blocker is interpreting the loaded message subnode payload as a table/property source. |
-| 2026-07-06 | PQ13 / #310 | CI #263 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq13_status=payload_source_visible` | Source-signal progress only: extraction counts remain unchanged. PQ13 shows 3 subnode references, 3 subnode decode plans, and 0 subnode decode attempts. The measured next blocker is `message_subnode_payload_selection`. |
-| 2026-07-06 | PQ12 / #304 | CI #256 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq12_status=payload_boundary_visible` | Boundary-signal progress only: extraction counts remain unchanged, and PQ9 tag-shape counters remain 0 plausible property tags, 70 suspicious property keys, and 0 byte-swapped selected properties. PQ12 shows the real public fixture message had 1 no-signature payload, 0 signature-without-page-map payloads, 0 heap-candidate failures, and 0 BTH-candidate failures. The measured next blocker is `payload_block_selection_or_subnode_resolution`. |
-| 2026-07-06 | PQ11 / #298 | CI #246 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq11_status=heap_probe_visible` | Probe-signal progress only: extraction counts remain unchanged, and PQ9 tag-shape counters remain 0 plausible property tags, 70 suspicious property keys, and 0 byte-swapped selected properties. PQ11 shows the real public fixture message had 0 offset heap contexts, 1 candidate-not-found context, 0 heap-failed contexts, and 0 BTH-failed contexts. The measured next blocker is `heap_signature_or_block_payload_prefix_detection`. |
-| 2026-07-06 | PQ10 / #292 | CI #235 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq10_status=property_context_traversal_visible` | Traversal-signal progress only: extraction counts remain unchanged and PQ9 tag-shape counters remain 0 plausible property tags, 70 suspicious property keys, and 0 byte-swapped selected properties. PQ10 shows the real public fixture message used 0 heap BTH contexts and 1 legacy flat BTH context. The measured next blocker is `heap_hn_header_or_bth_root_detection`. |
-| 2026-07-06 | PQ9 / #286 | CI #218 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq9_status=tag_shape_visible` | Decision-signal progress: extraction counts remain unchanged, but the public artifact now exposes PQ9 tag-shape counters: 0 plausible property tags, 70 suspicious property keys, and 0 byte-swapped selected properties. The measured next blocker is `heap_bth_layout_traversal`, so the next milestone should repair real heap-on-node/BTH/property-context traversal before dictionary, body, attachment, or recipient expansion. |
-| 2026-07-05 | PQ8 / #280 | CI #208 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq6_status=property_body_coverage` | No public-fixture extraction count delta: PQ8 adds parser-level key-shape diagnostics and safe selected-tag interpretation for an unambiguous byte-shape case, but the compact artifact still reports 0 selected properties, 74 unknown properties, 0 body payloads, and 1 body fallback row. Next blocker is PQ9 surfacing tag-shape counters through the extraction status and then using them to decide between heap/BTH traversal repair and safe dictionary expansion. |
-| 2026-07-05 | PQ7 / #274 | CI #201 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq6_status=property_body_coverage` | No public-fixture extraction count delta: String8 selected-property aliases are now supported, but the public fixture still reports 0 selected properties, 74 unknown properties, 0 body payloads, and 1 body fallback row. This rules out ANSI/String8 aliases as the explanation for the current selected-property gap. Next blocker is PQ8 lower-level property-context layout/tag interpretation before body, attachment, or recipient expansion. |
-| 2026-07-05 | PQ6 / #268 | CI #192 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq6_status=property_body_coverage` | Measurement progress: the true message candidate has a loadable property context, but all 74 parsed properties are currently unknown to the selected MAPI dictionary. No supported body properties were found, so body payload records remain 0 and one body fallback row is emitted. Next blocker is PQ7 selected property dictionary expansion before attachment/recipient expansion. |
-| 2026-07-05 | PQ5 / #262 | CI #186 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 1 | 0 | `metadata_candidates_from_message_nodes; pq5_status=message_table_candidates_linked` | Fidelity progress: message output no longer counts every decoded NBT entry as a message. PQ5 identified 1 decoded message candidate and 11 table candidates, with 8 table candidates linked to decoded folder candidates and 3 unlinked. The message-count drop from 63 to 1 is an over-count correction, not a regression. Next blocker is PQ6 property context and body coverage for the true message candidate set. |
-| 2026-07-05 | PQ4 / #247 | CI #179 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 11 | 63 | 0 | `metadata_candidates_from_node_index; pq4_status=decoded_folder_candidates` | Progress: decoded 10 folder candidates, loaded properties for all 10, and moved folder output from root-only to 11 folder rows. Next blocker is PQ5 message table discovery and folder-message membership; body and attachment payload counts remain unchanged. |
-| 2026-07-05 | PQ3 baseline / #200 | CI #173 | `tests/fixtures/pst/sample.pst` | `root_pages_in_bounds` via `unicode_root_bref_offsets` | 50 | 63 | 1 | 63 | 0 | `metadata_candidates_from_node_index` | First structured baseline after PQ3: BBT/NBT traversal works, messages are discovered/extracted as metadata candidates, and the next blocker is folder/message fidelity plus body and attachment payload coverage. |
-| 2026-07-05 | PQ3 / #199 | CI #171 | `tests/fixtures/pst/sample.pst` | Captured by CLI smoke only | n/a | n/a | n/a | n/a | n/a | CI fixture inspect/extract passed | Full structured public-PST artifact was added immediately after PQ3 so future milestones can log comparable metrics. |
+Do not treat parser-only milestones as extraction improvement. The next material progress requires resolving the correct Heap-on-Node allocation and then proving the row-index and row-storage chains.
 
 ## Completion report format
-
-Every milestone completion report should include a section like this:
 
 ```text
 Public PST progress:
 - Fixture: tests/fixtures/pst/sample.pst
-- Root condition: <value>
-- BBT entries: <value>
-- NBT entries: <value>
-- Folders/messages/attachments: <folders>/<messages>/<attachments>
-- Change vs previous milestone: <progress|unchanged|regression>
-- Next blocker: <short statement>
+- BBT/NBT: 50/63
+- Folders/messages/attachments: 11/1/0
+- Selected/unknown properties: <values>
+- Body outputs/fallbacks: <values>
+- Change vs previous milestone: <material progress|structural correction|diagnostic only|regression>
+- Next blocker: <evidence-based statement>
 ```
