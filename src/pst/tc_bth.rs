@@ -53,9 +53,7 @@ pub fn parse_row_index_bth(
     if key_size != 4 || value_size != 4 {
         return Err(PstdError::pst_parse(
             Some(base_offset),
-            format!(
-                "unsupported row-index BTH entry sizes: key={key_size}, value={value_size}"
-            ),
+            format!("unsupported row-index BTH entry sizes: key={key_size}, value={value_size}"),
         ));
     }
     if index_levels > MAX_ROW_INDEX_LEVELS {
