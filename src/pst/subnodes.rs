@@ -1,6 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate::pst::bbt::BbtIndex;
+use crate::pst::heap::HeapOnNode;
 use crate::pst::limits::ParserLimits;
 use crate::pst::nbt::{NbtEntry, NbtIndex};
 use crate::pst::payload::{load_payload_block, PayloadBlock};
@@ -14,6 +15,10 @@ const SLBLOCK_TYPE: u8 = 0x02;
 const SLBLOCK_LEAF_LEVEL: u8 = 0x00;
 const UNICODE_SLBLOCK_HEADER_BYTES: usize = 8;
 const UNICODE_SLENTRY_BYTES: usize = 24;
+const HEAP_SIGNATURE: u8 = 0xec;
+const HEAP_CLIENT_TABLE_CONTEXT: u8 = 0x7c;
+const HEAP_CLIENT_BTH: u8 = 0xb5;
+const HEAP_CLIENT_PROPERTY_CONTEXT: u8 = 0xbc;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SubnodeReference {
@@ -263,6 +268,10 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
         .iter()
         .filter(|layout| layout.layout_kind == "unsupported")
         .count();
+    let heap_layout_count = layouts
+        .iter()
+        .filter(|layout| layout.layout_kind.starts_with("heap_"))
+        .count();
     let child_reference_count = layouts
         .iter()
         .map(|layout| layout.child_block_ids.len())
@@ -271,7 +280,7 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
         "subnode_layouts_empty"
     } else if unsupported_layout_count == 0 {
         "subnode_layouts_classified"
-    } else if table_layout_count > 0 || child_reference_layout_count > 0 {
+    } else if table_layout_count > 0 || child_reference_layout_count > 0 || heap_layout_count > 0 {
         "subnode_layouts_partially_classified"
     } else {
         "subnode_layouts_unsupported"
@@ -281,11 +290,31 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
         .find(|layout| layout.layout_kind == "table_context")
         .map(|layout| layout.status.as_str())
         .unwrap_or("");
+    let first_unsupported_layout_status = layouts
+        .iter()
+        .find(|layout| layout.layout_kind == "unsupported")
+        .map(|layout| layout.status.as_str())
+        .unwrap_or("");
     let status = format!(
-        "{base_status}; subnode_slblock_entries={}; subnode_slblock_data_references={}; subnode_slblock_sub_references={}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_row_width={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}; subnode_table_byte_swapped_selected_columns={}; subnode_table_byte_swapped_plausible_columns={}; subnode_table_low_word_known_type_columns={}; subnode_table_high_word_known_type_columns={}; subnode_table_byte_swapped_selected_values={}; subnode_table_byte_swapped_plausible_values={}; subnode_table_low_word_known_type_values={}; subnode_table_high_word_known_type_values={}; subnode_table_first_unknown_tag={}; subnode_table_second_unknown_tag={}; subnode_table_first_unknown_tag_low_word={}; subnode_table_first_unknown_tag_high_word={}; subnode_table_second_unknown_tag_low_word={}; subnode_table_second_unknown_tag_high_word={}; subnode_table_first_unknown_offset={}; subnode_table_first_unknown_width={}; subnode_table_second_unknown_offset={}; subnode_table_second_unknown_width={}; subnode_table_payload_byte_len={}; subnode_table_payload_prefix_byte_len={}; subnode_table_payload_prefix_truncated={}; subnode_table_payload_prefix_hex={}",
+        "{base_status}; subnode_heap_contexts={heap_layout_count}; subnode_heap_table_contexts={}; subnode_heap_property_contexts={}; subnode_heap_bth_contexts={}; subnode_slblock_entries={}; subnode_slblock_data_references={}; subnode_slblock_sub_references={}; subnode_unsupported_payload_block_id={}; subnode_unsupported_payload_byte_len={}; subnode_unsupported_payload_prefix_hex={}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_row_width={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}; subnode_table_byte_swapped_selected_columns={}; subnode_table_byte_swapped_plausible_columns={}; subnode_table_low_word_known_type_columns={}; subnode_table_high_word_known_type_columns={}; subnode_table_byte_swapped_selected_values={}; subnode_table_byte_swapped_plausible_values={}; subnode_table_low_word_known_type_values={}; subnode_table_high_word_known_type_values={}; subnode_table_first_unknown_tag={}; subnode_table_second_unknown_tag={}; subnode_table_first_unknown_tag_low_word={}; subnode_table_first_unknown_tag_high_word={}; subnode_table_second_unknown_tag_low_word={}; subnode_table_second_unknown_tag_high_word={}; subnode_table_first_unknown_offset={}; subnode_table_first_unknown_width={}; subnode_table_second_unknown_offset={}; subnode_table_second_unknown_width={}; subnode_table_payload_byte_len={}; subnode_table_payload_prefix_byte_len={}; subnode_table_payload_prefix_truncated={}; subnode_table_payload_prefix_hex={}",
+        layouts
+            .iter()
+            .filter(|layout| layout.layout_kind == "heap_table_context")
+            .count(),
+        layouts
+            .iter()
+            .filter(|layout| layout.layout_kind == "heap_property_context")
+            .count(),
+        layouts
+            .iter()
+            .filter(|layout| layout.layout_kind == "heap_bth")
+            .count(),
         status_sum(&layouts, "subnode_slblock_entries"),
         status_sum(&layouts, "subnode_slblock_data_references"),
         status_sum(&layouts, "subnode_slblock_sub_references"),
+        status_counter(first_unsupported_layout_status, "subnode_payload_block_id"),
+        status_counter(first_unsupported_layout_status, "subnode_payload_byte_len"),
+        status_value(first_unsupported_layout_status, "subnode_payload_prefix_hex"),
         status_sum(&layouts, "subnode_table_declared_columns"),
         status_sum(&layouts, "subnode_table_columns"),
         status_sum(&layouts, "subnode_table_declared_rows"),
@@ -351,6 +380,12 @@ pub fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayo
     if is_unicode_slblock(&payload.bytes) {
         return classify_unicode_slblock_layout(payload);
     }
+    if payload.bytes.get(2) == Some(&HEAP_SIGNATURE) {
+        return classify_heap_layout(payload);
+    }
+    if !is_admissible_flat_table(&payload.bytes) {
+        return unsupported_payload_layout(payload, "no_supported_payload_signature");
+    }
     match TableContext::parse_with_report(&payload.bytes, payload.block_ref.offset.0) {
         Ok(report) => {
             let value_count = report
@@ -400,15 +435,82 @@ pub fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayo
                 ),
             }
         }
-        Err(reason) => SubnodeBlockLayout {
-            block_id: payload.block_id,
-            offset: payload.block_ref.offset.0,
-            size: payload.block_ref.size,
-            byte_len: payload.bytes.len(),
-            layout_kind: "unsupported".to_string(),
-            child_block_ids: Vec::new(),
-            status: format!("subnode_layout_unsupported; reason={reason}"),
-        },
+        Err(reason) => unsupported_payload_layout(payload, &reason.to_string()),
+    }
+}
+
+fn classify_heap_layout(payload: &PayloadBlock) -> SubnodeBlockLayout {
+    match HeapOnNode::parse(&payload.bytes, payload.block_ref.offset.0) {
+        Ok(heap) => {
+            let layout_kind = match heap.header.client_signature {
+                HEAP_CLIENT_TABLE_CONTEXT => "heap_table_context",
+                HEAP_CLIENT_PROPERTY_CONTEXT => "heap_property_context",
+                HEAP_CLIENT_BTH => "heap_bth",
+                _ => "heap_other",
+            };
+            SubnodeBlockLayout {
+                block_id: payload.block_id,
+                offset: payload.block_ref.offset.0,
+                size: payload.block_ref.size,
+                byte_len: payload.bytes.len(),
+                layout_kind: layout_kind.to_string(),
+                child_block_ids: Vec::new(),
+                status: format!(
+                    "subnode_layout_{layout_kind}; subnode_heap_client_signature={}; subnode_heap_allocations={}; subnode_payload_block_id={}; subnode_payload_byte_len={}",
+                    heap.header.client_signature,
+                    heap.allocations.len(),
+                    payload.block_id.0,
+                    payload.bytes.len()
+                ),
+            }
+        }
+        Err(reason) => unsupported_payload_layout(payload, &format!("heap_invalid:{reason}")),
+    }
+}
+
+fn is_admissible_flat_table(bytes: &[u8]) -> bool {
+    if bytes.len() < 8 {
+        return false;
+    }
+    let columns = u16::from_le_bytes([bytes[0], bytes[1]]) as usize;
+    let rows = u16::from_le_bytes([bytes[2], bytes[3]]) as usize;
+    let row_width = u16::from_le_bytes([bytes[4], bytes[5]]) as usize;
+    if columns == 0 || columns > 256 || row_width == 0 {
+        return false;
+    }
+    let Some(descriptor_end) = columns.checked_mul(8).and_then(|size| 8usize.checked_add(size))
+    else {
+        return false;
+    };
+    let Some(row_bytes) = rows.checked_mul(row_width) else {
+        return false;
+    };
+    if descriptor_end > bytes.len() || row_bytes > bytes.len() - descriptor_end {
+        return false;
+    }
+    (0..columns).all(|index| {
+        let start = 8 + index * 8;
+        let offset = u16::from_le_bytes([bytes[start + 4], bytes[start + 5]]) as usize;
+        let width = u16::from_le_bytes([bytes[start + 6], bytes[start + 7]]) as usize;
+        width > 0 && offset.checked_add(width).is_some_and(|end| end <= row_width)
+    })
+}
+
+fn unsupported_payload_layout(payload: &PayloadBlock, reason: &str) -> SubnodeBlockLayout {
+    let prefix_len = payload.bytes.len().min(TABLE_PAYLOAD_PREFIX_BYTES);
+    SubnodeBlockLayout {
+        block_id: payload.block_id,
+        offset: payload.block_ref.offset.0,
+        size: payload.block_ref.size,
+        byte_len: payload.bytes.len(),
+        layout_kind: "unsupported".to_string(),
+        child_block_ids: Vec::new(),
+        status: format!(
+            "subnode_layout_unsupported; reason={reason}; subnode_payload_block_id={}; subnode_payload_byte_len={}; subnode_payload_prefix_hex={}",
+            payload.block_id.0,
+            payload.bytes.len(),
+            hex::encode(&payload.bytes[..prefix_len])
+        ),
     }
 }
 
@@ -507,7 +609,7 @@ fn empty_layout_report() -> SubnodeLayoutReport {
         unsupported_layout_count: 0,
         child_reference_count: 0,
         layouts: Vec::new(),
-        status: "subnode_layouts_empty; subnode_slblock_entries=0; subnode_slblock_data_references=0; subnode_slblock_sub_references=0; subnode_table_declared_columns=0; subnode_table_columns=0; subnode_table_declared_rows=0; subnode_table_rows=0; subnode_table_row_width=0; subnode_table_values=0; subnode_table_omitted_values=0; subnode_table_selected_columns=0; subnode_table_plausible_columns=0; subnode_table_unknown_columns=0; subnode_table_selected_values=0; subnode_table_plausible_values=0; subnode_table_unknown_values=0; subnode_table_byte_swapped_selected_columns=0; subnode_table_byte_swapped_plausible_columns=0; subnode_table_low_word_known_type_columns=0; subnode_table_high_word_known_type_columns=0; subnode_table_byte_swapped_selected_values=0; subnode_table_byte_swapped_plausible_values=0; subnode_table_low_word_known_type_values=0; subnode_table_high_word_known_type_values=0; subnode_table_first_unknown_tag=0; subnode_table_second_unknown_tag=0; subnode_table_first_unknown_tag_low_word=0; subnode_table_first_unknown_tag_high_word=0; subnode_table_second_unknown_tag_low_word=0; subnode_table_second_unknown_tag_high_word=0; subnode_table_first_unknown_offset=0; subnode_table_first_unknown_width=0; subnode_table_second_unknown_offset=0; subnode_table_second_unknown_width=0; subnode_table_payload_byte_len=0; subnode_table_payload_prefix_byte_len=0; subnode_table_payload_prefix_truncated=0; subnode_table_payload_prefix_hex=".to_string(),
+        status: "subnode_layouts_empty; subnode_heap_contexts=0; subnode_heap_table_contexts=0; subnode_heap_property_contexts=0; subnode_heap_bth_contexts=0; subnode_slblock_entries=0; subnode_slblock_data_references=0; subnode_slblock_sub_references=0; subnode_unsupported_payload_block_id=0; subnode_unsupported_payload_byte_len=0; subnode_unsupported_payload_prefix_hex=; subnode_table_declared_columns=0; subnode_table_columns=0; subnode_table_declared_rows=0; subnode_table_rows=0; subnode_table_row_width=0; subnode_table_values=0; subnode_table_omitted_values=0; subnode_table_selected_columns=0; subnode_table_plausible_columns=0; subnode_table_unknown_columns=0; subnode_table_selected_values=0; subnode_table_plausible_values=0; subnode_table_unknown_values=0; subnode_table_byte_swapped_selected_columns=0; subnode_table_byte_swapped_plausible_columns=0; subnode_table_low_word_known_type_columns=0; subnode_table_high_word_known_type_columns=0; subnode_table_byte_swapped_selected_values=0; subnode_table_byte_swapped_plausible_values=0; subnode_table_low_word_known_type_values=0; subnode_table_high_word_known_type_values=0; subnode_table_first_unknown_tag=0; subnode_table_second_unknown_tag=0; subnode_table_first_unknown_tag_low_word=0; subnode_table_first_unknown_tag_high_word=0; subnode_table_second_unknown_tag_low_word=0; subnode_table_second_unknown_tag_high_word=0; subnode_table_first_unknown_offset=0; subnode_table_first_unknown_width=0; subnode_table_second_unknown_offset=0; subnode_table_second_unknown_width=0; subnode_table_payload_byte_len=0; subnode_table_payload_prefix_byte_len=0; subnode_table_payload_prefix_truncated=0; subnode_table_payload_prefix_hex=".to_string(),
     }
 }
 
@@ -627,39 +729,60 @@ mod tests {
 
     #[test]
     fn table_layout_status_captures_bounded_payload_prefix() {
-        let payload = payload_block((0u8..40u8).collect());
+        let payload = payload_block(valid_table_payload(40));
 
         let layout = classify_subnode_block_layout(&payload);
 
         assert_eq!(layout.layout_kind, "table_context");
-        assert!(layout.status.contains("subnode_table_payload_byte_len=40"));
+        assert!(layout.status.contains("subnode_table_payload_byte_len=56"));
         assert!(layout
             .status
             .contains("subnode_table_payload_prefix_byte_len=32"));
         assert!(layout
             .status
             .contains("subnode_table_payload_prefix_truncated=1"));
-        assert!(layout.status.contains(
-            "subnode_table_payload_prefix_hex=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
-        ));
+        assert!(layout
+            .status
+            .contains("subnode_table_payload_prefix_hex=01000100280000001f00370000000400"));
     }
 
     #[test]
     fn layout_report_propagates_first_table_payload_prefix() {
-        let payload = payload_block((0u8..16u8).collect());
+        let payload = payload_block(valid_table_payload(4));
 
         let report = classify_subnode_payloads(&[payload]);
 
-        assert!(report.status.contains("subnode_table_payload_byte_len=16"));
+        assert!(report.status.contains("subnode_table_payload_byte_len=20"));
         assert!(report
             .status
-            .contains("subnode_table_payload_prefix_byte_len=16"));
+            .contains("subnode_table_payload_prefix_byte_len=20"));
         assert!(report
             .status
             .contains("subnode_table_payload_prefix_truncated=0"));
         assert!(report
             .status
-            .contains("subnode_table_payload_prefix_hex=000102030405060708090a0b0c0d0e0f"));
+            .contains("subnode_table_payload_prefix_hex=01000100040000001f0037000000040000000000"));
+    }
+
+    #[test]
+    fn rejects_implausible_flat_table_declarations() {
+        let payload = payload_block(vec![0xec, 0xa3, 0x40, 0x5e, 0xae, 0x82, 0x41, 0x82]);
+
+        let layout = classify_subnode_block_layout(&payload);
+
+        assert_eq!(layout.layout_kind, "unsupported");
+        assert!(layout.status.contains("no_supported_payload_signature"));
+        assert!(layout.status.contains("subnode_payload_block_id=7"));
+    }
+
+    #[test]
+    fn classifies_valid_heap_client_signature() {
+        let payload = payload_block(table_heap_payload());
+
+        let layout = classify_subnode_block_layout(&payload);
+
+        assert_eq!(layout.layout_kind, "heap_table_context");
+        assert!(layout.status.contains("subnode_heap_client_signature=124"));
     }
 
     fn payload_block(bytes: Vec<u8>) -> PayloadBlock {
@@ -689,5 +812,31 @@ mod tests {
             offset: ByteOffset(offset),
             size,
         }
+    }
+
+    fn valid_table_payload(row_width: u16) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&1u16.to_le_bytes());
+        bytes.extend_from_slice(&1u16.to_le_bytes());
+        bytes.extend_from_slice(&row_width.to_le_bytes());
+        bytes.extend_from_slice(&0u16.to_le_bytes());
+        bytes.extend_from_slice(&0x0037_001fu32.to_le_bytes());
+        bytes.extend_from_slice(&0u16.to_le_bytes());
+        bytes.extend_from_slice(&4u16.to_le_bytes());
+        bytes.resize(16 + row_width as usize, 0);
+        bytes
+    }
+
+    fn table_heap_payload() -> Vec<u8> {
+        let mut bytes = vec![0u8; 48];
+        bytes[0..2].copy_from_slice(&32u16.to_le_bytes());
+        bytes[2] = 0xec;
+        bytes[3] = 0x7c;
+        bytes[4..8].copy_from_slice(&0x20u32.to_le_bytes());
+        bytes[32..34].copy_from_slice(&1u16.to_le_bytes());
+        bytes[34..36].copy_from_slice(&0u16.to_le_bytes());
+        bytes[36..38].copy_from_slice(&8u16.to_le_bytes());
+        bytes[38..40].copy_from_slice(&16u16.to_le_bytes());
+        bytes
     }
 }
