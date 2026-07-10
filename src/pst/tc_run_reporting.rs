@@ -53,10 +53,7 @@ pub fn aggregate_subnode_table_probes(probes: &[TcSubnodeProbeReport]) -> TcRunA
         .iter()
         .filter(|probe| probe.decoded_payload_count > 0)
         .count();
-    let decoded_payload_count = probes
-        .iter()
-        .map(|probe| probe.decoded_payload_count)
-        .sum();
+    let decoded_payload_count = probes.iter().map(|probe| probe.decoded_payload_count).sum();
     let probes_with_table_heaps = probes
         .iter()
         .filter(|probe| probe.table_heaps.table_heap_count > 0)
@@ -191,7 +188,9 @@ mod tests {
         assert_eq!(report.failed_table_heap_count, MAX_PROBE_DIAGNOSTICS + 3);
         assert_eq!(report.diagnostic_fragments.len(), MAX_PROBE_DIAGNOSTICS);
         assert!(report.diagnostics_truncated);
-        assert!(report.progress_status().contains("pq44_diagnostics_truncated=1"));
+        assert!(report
+            .progress_status()
+            .contains("pq44_diagnostics_truncated=1"));
     }
 
     fn reference(node_id: u64, block_id: u64) -> SubnodeReference {
