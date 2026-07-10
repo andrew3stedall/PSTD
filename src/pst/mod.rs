@@ -28,6 +28,7 @@ pub mod subnodes;
 pub mod table_context;
 pub mod tc_bth;
 pub mod tc_heap;
+pub mod tc_reporting;
 pub mod tcinfo;
 pub mod threading;
 pub mod trailer;
