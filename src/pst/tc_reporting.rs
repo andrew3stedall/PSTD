@@ -18,6 +18,25 @@ pub struct TcHeapDiagnostic {
     pub error: Option<String>,
 }
 
+impl TcHeapDiagnostic {
+    fn status_fragment(&self) -> String {
+        let error = self.error.as_deref().unwrap_or("none").replace(';', ",");
+        format!(
+            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},status={},error={}",
+            self.block_id,
+            self.payload_byte_len,
+            usize::from(self.resolved),
+            self.column_count,
+            self.row_reference_count,
+            self.row_references_in_bounds,
+            self.row_references_out_of_bounds,
+            usize::from(self.rows_require_subnode_resolution),
+            self.status.replace(';', ","),
+            error
+        )
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TcHeapAggregateReport {
     pub payload_count: usize,
@@ -31,6 +50,33 @@ pub struct TcHeapAggregateReport {
     pub subnode_backed_row_heap_count: usize,
     pub diagnostics: Vec<TcHeapDiagnostic>,
     pub status: String,
+}
+
+impl TcHeapAggregateReport {
+    pub fn progress_status(&self) -> String {
+        let diagnostic_fragment = if self.diagnostics.is_empty() {
+            "none".to_string()
+        } else {
+            self.diagnostics
+                .iter()
+                .map(TcHeapDiagnostic::status_fragment)
+                .collect::<Vec<_>>()
+                .join("|")
+        };
+        format!(
+            "pq42_status={}; pq42_payloads={}; pq42_table_heaps={}; pq42_resolved_table_heaps={}; pq42_failed_table_heaps={}; pq42_columns={}; pq42_row_references={}; pq42_row_references_in_bounds={}; pq42_row_references_out_of_bounds={}; pq42_subnode_backed_row_heaps={}; pq42_diagnostics={diagnostic_fragment}",
+            self.status,
+            self.payload_count,
+            self.table_heap_count,
+            self.resolved_table_heap_count,
+            self.failed_table_heap_count,
+            self.total_columns,
+            self.total_row_references,
+            self.total_row_references_in_bounds,
+            self.total_row_references_out_of_bounds,
+            self.subnode_backed_row_heap_count,
+        )
+    }
 }
 
 pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
@@ -128,6 +174,8 @@ mod tests {
         assert_eq!(report.payload_count, 1);
         assert_eq!(report.table_heap_count, 0);
         assert_eq!(report.status, "tc_heap_report_empty");
+        assert!(report.progress_status().contains("pq42_table_heaps=0"));
+        assert!(report.progress_status().contains("pq42_diagnostics=none"));
     }
 
     #[test]
@@ -143,6 +191,10 @@ mod tests {
         assert_eq!(report.diagnostics[0].block_id, 0x74);
         assert!(report.diagnostics[0].error.is_some());
         assert_eq!(report.status, "tc_heap_report_failed");
+        let status = report.progress_status();
+        assert!(status.contains("pq42_failed_table_heaps=1"));
+        assert!(status.contains("bid=0x74,bytes=16,resolved=0"));
+        assert!(!status.contains(";error="));
     }
 
     fn payload(block_id: u64, bytes: Vec<u8>) -> PayloadBlock {
