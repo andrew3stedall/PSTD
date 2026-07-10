@@ -9,6 +9,7 @@ use crate::pst::reader::PstByteReader;
 use crate::pst::table_context::TableContext;
 
 const SYNTHETIC_CHILD_REF_MAGIC: &[u8; 4] = b"SNOD";
+const TABLE_PAYLOAD_PREFIX_BYTES: usize = 32;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SubnodeReference {
@@ -266,8 +267,13 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
     } else {
         "subnode_layouts_unsupported"
     };
+    let first_table_layout_status = layouts
+        .iter()
+        .find(|layout| layout.layout_kind == "table_context")
+        .map(|layout| layout.status.as_str())
+        .unwrap_or("");
     let status = format!(
-        "{base_status}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_row_width={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}; subnode_table_byte_swapped_selected_columns={}; subnode_table_byte_swapped_plausible_columns={}; subnode_table_low_word_known_type_columns={}; subnode_table_high_word_known_type_columns={}; subnode_table_byte_swapped_selected_values={}; subnode_table_byte_swapped_plausible_values={}; subnode_table_low_word_known_type_values={}; subnode_table_high_word_known_type_values={}; subnode_table_first_unknown_tag={}; subnode_table_second_unknown_tag={}; subnode_table_first_unknown_tag_low_word={}; subnode_table_first_unknown_tag_high_word={}; subnode_table_second_unknown_tag_low_word={}; subnode_table_second_unknown_tag_high_word={}; subnode_table_first_unknown_offset={}; subnode_table_first_unknown_width={}; subnode_table_second_unknown_offset={}; subnode_table_second_unknown_width={}",
+        "{base_status}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_row_width={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}; subnode_table_byte_swapped_selected_columns={}; subnode_table_byte_swapped_plausible_columns={}; subnode_table_low_word_known_type_columns={}; subnode_table_high_word_known_type_columns={}; subnode_table_byte_swapped_selected_values={}; subnode_table_byte_swapped_plausible_values={}; subnode_table_low_word_known_type_values={}; subnode_table_high_word_known_type_values={}; subnode_table_first_unknown_tag={}; subnode_table_second_unknown_tag={}; subnode_table_first_unknown_tag_low_word={}; subnode_table_first_unknown_tag_high_word={}; subnode_table_second_unknown_tag_low_word={}; subnode_table_second_unknown_tag_high_word={}; subnode_table_first_unknown_offset={}; subnode_table_first_unknown_width={}; subnode_table_second_unknown_offset={}; subnode_table_second_unknown_width={}; subnode_table_payload_byte_len={}; subnode_table_payload_prefix_byte_len={}; subnode_table_payload_prefix_truncated={}; subnode_table_payload_prefix_hex={}",
         status_sum(&layouts, "subnode_table_declared_columns"),
         status_sum(&layouts, "subnode_table_columns"),
         status_sum(&layouts, "subnode_table_declared_rows"),
@@ -299,6 +305,10 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
         status_sum(&layouts, "subnode_table_first_unknown_width"),
         status_sum(&layouts, "subnode_table_second_unknown_offset"),
         status_sum(&layouts, "subnode_table_second_unknown_width"),
+        status_counter(first_table_layout_status, "subnode_table_payload_byte_len"),
+        status_counter(first_table_layout_status, "subnode_table_payload_prefix_byte_len"),
+        status_counter(first_table_layout_status, "subnode_table_payload_prefix_truncated"),
+        status_value(first_table_layout_status, "subnode_table_payload_prefix_hex"),
     );
     SubnodeLayoutReport {
         block_count: layouts.len(),
@@ -334,6 +344,9 @@ pub fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayo
                 .iter()
                 .map(|row| row.values.len())
                 .sum::<usize>();
+            let prefix_len = payload.bytes.len().min(TABLE_PAYLOAD_PREFIX_BYTES);
+            let prefix_hex = hex::encode(&payload.bytes[..prefix_len]);
+            let prefix_truncated = usize::from(prefix_len < payload.bytes.len());
             SubnodeBlockLayout {
                 block_id: payload.block_id,
                 offset: payload.block_ref.offset.0,
@@ -342,7 +355,7 @@ pub fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayo
                 layout_kind: "table_context".to_string(),
                 child_block_ids: Vec::new(),
                 status: format!(
-                    "{}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_row_width={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}; subnode_table_byte_swapped_selected_columns={}; subnode_table_byte_swapped_plausible_columns={}; subnode_table_low_word_known_type_columns={}; subnode_table_high_word_known_type_columns={}; subnode_table_byte_swapped_selected_values={}; subnode_table_byte_swapped_plausible_values={}; subnode_table_low_word_known_type_values={}; subnode_table_high_word_known_type_values={}",
+                    "{}; subnode_table_declared_columns={}; subnode_table_columns={}; subnode_table_declared_rows={}; subnode_table_rows={}; subnode_table_row_width={}; subnode_table_values={}; subnode_table_omitted_values={}; subnode_table_selected_columns={}; subnode_table_plausible_columns={}; subnode_table_unknown_columns={}; subnode_table_selected_values={}; subnode_table_plausible_values={}; subnode_table_unknown_values={}; subnode_table_byte_swapped_selected_columns={}; subnode_table_byte_swapped_plausible_columns={}; subnode_table_low_word_known_type_columns={}; subnode_table_high_word_known_type_columns={}; subnode_table_byte_swapped_selected_values={}; subnode_table_byte_swapped_plausible_values={}; subnode_table_low_word_known_type_values={}; subnode_table_high_word_known_type_values={}; subnode_table_payload_byte_len={}; subnode_table_payload_prefix_byte_len={}; subnode_table_payload_prefix_truncated={}; subnode_table_payload_prefix_hex={}",
                     report.status,
                     report.declared_column_count,
                     report.parsed_column_count,
@@ -365,6 +378,10 @@ pub fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayo
                     report.byte_swapped_plausible_value_count,
                     report.low_word_known_type_value_count,
                     report.high_word_known_type_value_count,
+                    payload.bytes.len(),
+                    prefix_len,
+                    prefix_truncated,
+                    prefix_hex,
                 ),
             }
         }
@@ -417,7 +434,7 @@ fn empty_layout_report() -> SubnodeLayoutReport {
         unsupported_layout_count: 0,
         child_reference_count: 0,
         layouts: Vec::new(),
-        status: "subnode_layouts_empty; subnode_table_declared_columns=0; subnode_table_columns=0; subnode_table_declared_rows=0; subnode_table_rows=0; subnode_table_row_width=0; subnode_table_values=0; subnode_table_omitted_values=0; subnode_table_selected_columns=0; subnode_table_plausible_columns=0; subnode_table_unknown_columns=0; subnode_table_selected_values=0; subnode_table_plausible_values=0; subnode_table_unknown_values=0; subnode_table_byte_swapped_selected_columns=0; subnode_table_byte_swapped_plausible_columns=0; subnode_table_low_word_known_type_columns=0; subnode_table_high_word_known_type_columns=0; subnode_table_byte_swapped_selected_values=0; subnode_table_byte_swapped_plausible_values=0; subnode_table_low_word_known_type_values=0; subnode_table_high_word_known_type_values=0; subnode_table_first_unknown_tag=0; subnode_table_second_unknown_tag=0; subnode_table_first_unknown_tag_low_word=0; subnode_table_first_unknown_tag_high_word=0; subnode_table_second_unknown_tag_low_word=0; subnode_table_second_unknown_tag_high_word=0; subnode_table_first_unknown_offset=0; subnode_table_first_unknown_width=0; subnode_table_second_unknown_offset=0; subnode_table_second_unknown_width=0".to_string(),
+        status: "subnode_layouts_empty; subnode_table_declared_columns=0; subnode_table_columns=0; subnode_table_declared_rows=0; subnode_table_rows=0; subnode_table_row_width=0; subnode_table_values=0; subnode_table_omitted_values=0; subnode_table_selected_columns=0; subnode_table_plausible_columns=0; subnode_table_unknown_columns=0; subnode_table_selected_values=0; subnode_table_plausible_values=0; subnode_table_unknown_values=0; subnode_table_byte_swapped_selected_columns=0; subnode_table_byte_swapped_plausible_columns=0; subnode_table_low_word_known_type_columns=0; subnode_table_high_word_known_type_columns=0; subnode_table_byte_swapped_selected_values=0; subnode_table_byte_swapped_plausible_values=0; subnode_table_low_word_known_type_values=0; subnode_table_high_word_known_type_values=0; subnode_table_first_unknown_tag=0; subnode_table_second_unknown_tag=0; subnode_table_first_unknown_tag_low_word=0; subnode_table_first_unknown_tag_high_word=0; subnode_table_second_unknown_tag_low_word=0; subnode_table_second_unknown_tag_high_word=0; subnode_table_first_unknown_offset=0; subnode_table_first_unknown_width=0; subnode_table_second_unknown_offset=0; subnode_table_second_unknown_width=0; subnode_table_payload_byte_len=0; subnode_table_payload_prefix_byte_len=0; subnode_table_payload_prefix_truncated=0; subnode_table_payload_prefix_hex=".to_string(),
     }
 }
 
@@ -436,4 +453,72 @@ fn status_counter(status: &str, key: &str) -> usize {
         .and_then(|tail| tail.split([';', ',']).next())
         .and_then(|value| value.trim().parse::<usize>().ok())
         .unwrap_or(0)
+}
+
+fn status_value(status: &str, key: &str) -> String {
+    let marker = format!("{key}=");
+    status
+        .split(&marker)
+        .nth(1)
+        .and_then(|tail| tail.split([';', ',']).next())
+        .map(str::trim)
+        .unwrap_or("")
+        .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{classify_subnode_block_layout, classify_subnode_payloads};
+    use crate::pst::payload::PayloadBlock;
+    use crate::pst::primitives::{BlockId, BlockRef, ByteOffset};
+
+    #[test]
+    fn table_layout_status_captures_bounded_payload_prefix() {
+        let payload = payload_block((0u8..40u8).collect());
+
+        let layout = classify_subnode_block_layout(&payload);
+
+        assert_eq!(layout.layout_kind, "table_context");
+        assert!(layout.status.contains("subnode_table_payload_byte_len=40"));
+        assert!(layout
+            .status
+            .contains("subnode_table_payload_prefix_byte_len=32"));
+        assert!(layout
+            .status
+            .contains("subnode_table_payload_prefix_truncated=1"));
+        assert!(layout.status.contains(
+            "subnode_table_payload_prefix_hex=000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+        ));
+    }
+
+    #[test]
+    fn layout_report_propagates_first_table_payload_prefix() {
+        let payload = payload_block((0u8..16u8).collect());
+
+        let report = classify_subnode_payloads(&[payload]);
+
+        assert!(report.status.contains("subnode_table_payload_byte_len=16"));
+        assert!(report
+            .status
+            .contains("subnode_table_payload_prefix_byte_len=16"));
+        assert!(report
+            .status
+            .contains("subnode_table_payload_prefix_truncated=0"));
+        assert!(report
+            .status
+            .contains("subnode_table_payload_prefix_hex=000102030405060708090a0b0c0d0e0f"));
+    }
+
+    fn payload_block(bytes: Vec<u8>) -> PayloadBlock {
+        PayloadBlock {
+            block_id: BlockId(7),
+            block_ref: BlockRef {
+                block_id: BlockId(7),
+                offset: ByteOffset(100),
+                size: bytes.len() as u64,
+            },
+            bytes,
+            status: "payload_loaded".to_string(),
+        }
+    }
 }
