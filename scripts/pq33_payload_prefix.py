@@ -9,6 +9,15 @@ import re
 from pathlib import Path
 
 
+STATUS_FIELDS = (
+    "status",
+    "extraction_status",
+    "metadata_status",
+    "body_status",
+    "attachment_status",
+)
+
+
 def status_int(status: str, key: str) -> int:
     match = re.search(rf"(?:^|; )({re.escape(key)})=(\d+)(?:;|$)", status)
     return int(match.group(2)) if match else 0
@@ -19,6 +28,27 @@ def status_text(status: str, key: str) -> str:
     return match.group(2).strip() if match else ""
 
 
+def load_statuses(progress_dir: Path, run_status: str) -> list[str]:
+    statuses = [run_status]
+    message_path = progress_dir / "pq33_messages.jsonl"
+    if not message_path.exists():
+        return statuses
+    for line in message_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        record = json.loads(line)
+        statuses.extend(str(record.get(field, "")) for field in STATUS_FIELDS)
+    return statuses
+
+
+def first_int(statuses: list[str], key: str) -> int:
+    return next((value for value in (status_int(status, key) for status in statuses) if value), 0)
+
+
+def first_text(statuses: list[str], key: str) -> str:
+    return next((value for value in (status_text(status, key) for status in statuses) if value), "")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--progress-dir", required=True)
@@ -27,11 +57,12 @@ def main() -> int:
     progress_dir = Path(args.progress_dir)
     run = json.loads((progress_dir / "run_summary.json").read_text(encoding="utf-8"))
     status = str(run.get("status", ""))
+    statuses = load_statuses(progress_dir, status)
 
-    payload_len = status_int(status, "subnode_table_payload_byte_len")
-    prefix_len = status_int(status, "subnode_table_payload_prefix_byte_len")
-    prefix_hex = status_text(status, "subnode_table_payload_prefix_hex")
-    truncated = status_int(status, "subnode_table_payload_prefix_truncated")
+    payload_len = first_int(statuses, "subnode_table_payload_byte_len")
+    prefix_len = first_int(statuses, "subnode_table_payload_prefix_byte_len")
+    prefix_hex = first_text(statuses, "subnode_table_payload_prefix_hex")
+    truncated = first_int(statuses, "subnode_table_payload_prefix_truncated")
     parsed_rows = status_int(status, "pq17_table_rows")
     values = status_int(status, "pq21_table_values")
 
@@ -58,6 +89,7 @@ def main() -> int:
         "pq33_parsed_rows": parsed_rows,
         "pq33_values": values,
         "pq33_payload_prefix_visible": payload_prefix_visible,
+        "pq33_status_sources": len(statuses),
         "pq33_next_blocker": next_blocker,
     }
 
