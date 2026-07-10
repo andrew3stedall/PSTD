@@ -2,112 +2,90 @@
 
 ## Purpose
 
-Provide a single current-state view of what PSTD can do, what is planned next, and what remains unverified.
+Provide a single current-state view of what PSTD can do, what has been validated, and what remains blocked.
 
 ## Current implementation state
 
 | Area | Status | Notes |
 |---|---|---|
-| Rust CLI | v1 release candidate and CI validated | `pstd extract`, `pstd inspect`, `pstd batch`, and `pstd version` exist. |
-| Structured output contract | v1 release candidate and CI validated | Single-PST and batch output contracts are documented for local/Docker operators. |
-| PST byte reader | Implemented foundation and CI validated | Bounded range reads from large PST files. |
-| PST header parser | PQ2 candidate selection | Validates PST magic and version/variant summary; PQ2 selects safe root candidates for traversal when available. |
-| BBT/NBT parsing | PQ3 index entry decoding | PQ3 corrects B-tree page metadata offsets, internal child references, and page diagnostics. |
-| Folder hierarchy | PQ4 folder hierarchy discovery | PQ4 classifies decoded normal/search folder NBT entries, emits folder rows, and records folder discovery counters. |
-| Message table discovery | PQ5 message table discovery | PQ5 classifies normal/associated message NBT entries separately from folder/table nodes and records message-table evidence counters. |
-| Property/body coverage | PQ6 property and body coverage | PQ6 records property-context coverage and body payload/fallback counters for true message candidates. |
-| Selected property dictionary | PQ7 selected property dictionary expansion | PQ7 adds safe String8 aliases for existing selected Unicode string MAPI properties. |
-| Property tag-shape signal | PQ9 property tag-shape status | PQ9 exposes the public-fixture decision signal: 0 plausible property tags, 70 suspicious property keys, and next blocker `heap_bth_layout_traversal`. |
-| Heap/BTH traversal | PQ10 heap BTH property traversal | PQ10 adds a heap-backed property-context path, but public fixture status shows 0 heap BTH contexts and 1 legacy flat BTH context. |
-| Heap probe diagnostics | PQ11 heap root detection | PQ11 reports 0 heap candidates found for the public fixture message payload; next blocker is `heap_signature_or_block_payload_prefix_detection`. |
-| Metadata processing | PQ11 heap root detection | The current blocker is payload selection or payload prefix interpretation before heap/BTH or dictionary expansion. |
-| Recipients/threading | Implemented foundation and CI validated | Recipient/reference outputs, selected MAPI fields, threading helpers, and recipient row conversion exist. |
-| Bodies/headers | M22 body/header fidelity and CI validated | M22 supports Unicode/string HTML body payloads and preserves binary HTML precedence; public fixture still exposes no selected body property. |
-| Attachments | M23 attachment fidelity and CI validated | M23 preserves metadata-only attachment rows, declared size, size status, method, and deferred embedded-message status. |
-| Batch orchestration | M24 batch hardening and CI validated | M24 adds root-level `batch_progress.jsonl`, expanded `batch_summary.json`, deterministic resume-by-skip context, partial-success classification, and not-run counts. |
-| Release-candidate handoff | M25 and CI validated | M25 adds RC checklist, local/Docker operator handoff, and unsupported/deferred area docs. |
-| Parser limits | Implemented foundation and CI validated | Explicit parser limits exist for traversal pages, block payload size, and subnode depth. |
-| Subnode references | M15 compatibility triage and CI validated | M15 summarizes observed subnode layout reports into supported, partial, and unsupported categories. |
-| Snowflake/web UI/search | Parked | Not active until PST conversion coverage is reliable. |
+| Rust CLI and structured output | M1-M25 complete and CI validated | `pstd inspect`, `extract`, `batch`, and `version` exist with TAR/JSONL output, run summaries, batch progress, resume support, Docker packaging, and operator docs. |
+| Header, BBT, and NBT traversal | PQ1-PQ3 complete | Safe Unicode root selection and corrected B-tree page metadata/child-reference decoding produce 50 BBT and 63 NBT entries on the public fixture. |
+| Folder and message discovery | PQ4-PQ5 complete | The public fixture produces 11 folders and one true message candidate instead of treating all NBT entries as messages. |
+| Property and body coverage | PQ6-PQ10 complete | Coverage, selected/unknown property diagnostics, String8 support, tag-shape analysis, and Heap-on-Node/BTH parser foundations are present. |
+| Payload and subnode discovery | PQ11-PQ35 complete | Bounded payload scans, message subnode selection, recursive Unicode SLBLOCK/SLENTRY decoding, target resolution, cycle guards, and evidence artifacts are implemented. |
+| Payload decoding and structural admission | PQ36 complete | Non-internal `NDB_CRYPT_PERMUTE` blocks are decoded; internal blocks remain raw; Heap-on-Node clients are classified; invalid legacy table declarations are rejected. |
+| Table-context root parsing | PQ37 complete | A bounded 22-byte TCINFO parser and exact 8-byte TCOLDESC parser exist. HNID values are classified as null, HID, or NID without premature resolution. |
+| Table row materialisation | In progress | The real `hidUserRoot`, `hidRowIndex`, `hnidRows`, and `hidIndex` references still need resolution through the correct address spaces. |
+| EML reconstruction | Not implemented | Current canonical output remains structured TAR + JSONL. Full RFC-compliant EML reconstruction is later work after extraction coverage stabilises. |
+| Snowflake, UI, search, analytics | Parked | Downstream work remains out of scope until PST conversion coverage is reliable. |
 
-## Merged milestones
+## Merged parser-quality milestones
 
-| Milestone | Merge PR | Validation status |
-|---|---:|---|
-| M1: Extraction Foundation and Archive Contract | #18 | CI validated |
-| M2: PST Binary Foundation | #30 | CI validated |
-| M3: Folder and Metadata Extraction | #43 | CI validated |
-| M4: Recipients, Threading, and Address Resolution | #52 and #53 | CI validated |
-| M5: Message Bodies and Attachments | #59 | CI validated |
-| M6: Batch Orchestration and Resume | #65 | CI validated |
-| M7: Parser Depth Hardening | #70 | CI validated |
-| M8: Traversal Expansion | #75 | CI validated |
-| M9: Payload and Subnode Traversal | #81 | CI validated |
-| M10: Payload Wiring | #86 | CI validated |
-| M11: Extraction Path Integration | #91 | CI validated |
-| M12: Attachment Table and Subnode Integration | #96 | CI validated |
-| M13: Payload Fixture Expansion and Parser Compatibility | #101 | CI validated |
-| M14: Recursive Subnode Layout Exploration | #106 | CI validated |
-| M15: Observed Layout Compatibility and Public Fixture Triage | #111 | CI validated |
-| M16: Fixture-Backed Decoder Expansion | #116 | CI validated |
-| M17: Compatibility Triage Reporting and Decoder Backlog | #121 | CI validated |
-| M18: Decoder Backlog Review Workflow | #126 | CI validated |
-| M19: Focused Candidate Selection | #131 | CI validated |
-| M20: Focused Candidate Implementation | #135 | CI validated |
-| M21: Focused Decoder Evidence Expansion | #160 | CI validated |
-| M22: Body and Header Fidelity Expansion | #166 | CI validated |
-| M23: Attachment Payload Fidelity | #171 | CI validated |
-| M24: Batch Scale, Performance, and Corruption Hardening | #176 | CI validated |
-| M25: v1 Release Candidate and Operator Handoff | #180 | CI validated |
-| PQ1: Root Decode Diagnostics | #188 | CI validated |
-| PQ2: Root Decode Candidate Selection | #193 | CI validated |
-| PQ3: Index Entry Decoding | #199 | CI validated |
-| PQ4: Folder Hierarchy Discovery | #247 | CI validated |
-| PQ5: Message Table Discovery | #262 | CI validated |
-| PQ6: Property and Body Coverage | #268 | CI validated |
-| PQ7: Selected Property Dictionary Expansion | #274 | CI validated before merge |
-| PQ8: Property-Context Interpretation Diagnostics | #280 | CI validated before merge |
-| PQ9: Property Tag-Shape Status | #286 | CI validated before merge |
-| PQ10: Heap BTH Property Traversal | #292 | CI validated before merge |
-| PQ11: Heap Root Detection | #298 | CI validated before merge |
+| Range | Result |
+|---|---|
+| PQ1-PQ5 | Correct root/index traversal and real folder/message candidate discovery. |
+| PQ6-PQ10 | Property/body measurement, selected dictionary expansion, tag-shape diagnostics, and initial Heap-on-Node/BTH support. |
+| PQ11-PQ16 | Payload boundary diagnosis, message subnode selection, decoding, interpretation, and classification. |
+| PQ17-PQ23 | Table-probe counters, candidate measurement, row-matrix diagnostics, and property candidate discovery. |
+| PQ24-PQ31 | Column/tag/descriptor experiments and propagation diagnostics. |
+| PQ32-PQ35 | Invalid legacy descriptor assumption identified; raw payload captured as Unicode SLBLOCK; SLENTRY targets resolved recursively. |
+| PQ36 | Correct payload decryption and structural admission produced the first material property/body extraction improvement. |
+| PQ37 | Specification-aligned TCINFO root parser added without changing extraction output. |
 
-## Latest validation
+## Latest validated fixture result
 
-GitHub Actions validation passed for PQ11 in PR #298. The `public-pst-progress` artifact from CI #246 shows the checked-in public PST fixture still emits 11 folders, 1 message candidate, and 0 attachments. PQ11 reports 0 offset heap contexts, 1 candidate-not-found context, 0 heap-failed contexts, 0 BTH-failed contexts, 0 plausible property tags, and 70 suspicious property keys.
+The checked-in public fixture remains:
 
-Expected PQ12 validation includes:
+- 50 BBT entries;
+- 63 NBT entries;
+- 11 folders;
+- 1 true message candidate;
+- 0 attachments currently emitted.
 
-- Rust build.
-- Rust unit/integration tests with `cargo test --all`.
-- Rust linting with `cargo clippy --all-targets --all-features -- -D warnings`.
-- Rust formatting with `cargo fmt --check`.
-- Python wrapper install and `python -m pstd --help`.
-- Docker image build.
-- CLI smoke checks, including `pstd inspect --help`.
-- Fixture discovery, inspect, extract, and public PST progress artifact logging.
+PQ36 corrected the property and body path:
 
-## Remaining v1 milestones
+- selected properties: **0 → 16**;
+- unknown properties: **74 → 19**;
+- text body recovered;
+- RTF body recovered;
+- fallback body rows: **1 → 0**;
+- false table declarations rejected;
+- unresolved BID `0x74`: 208 bytes.
 
-There are **no remaining planned v1 milestones after M25**.
+PQ37 is deliberately output-neutral. It adds safe parser primitives required for the next reference-resolution step.
 
 ## Current active blocker
 
-PQ12 heap signature or block payload prefix detection for the public fixture message payload.
+**PQ38: resolve and parse the real table-context root allocation.**
 
-The current focus is solely PST conversion coverage. PQ11 shows the public fixture message payload does not expose a valid heap signature in the bounded scan window, so the next blocker is payload selection or payload prefix interpretation before heap/BTH, dictionary, body, attachment, or recipient expansion.
+Required outcome:
+
+1. Resolve the Heap-on-Node `hidUserRoot` allocation from the selected decoded payload.
+2. Parse TCINFO and TCOLDESC records from that bounded allocation rather than from a guessed block prefix.
+3. Preserve `hidRowIndex`, `hnidRows`, and `hidIndex` as typed references.
+4. Emit deterministic fixture evidence before attempting row materialisation.
+5. Do not assume BID `0x74` is the row matrix without reference-chain evidence.
 
 ## Active conversion coverage roadmap
 
-1. PQ12: heap signature or block payload prefix detection.
-2. PQ13: selected MAPI dictionary/body coverage after plausible property tags are visible.
-3. PQ14: fixture corpus and ground-truth comparison.
+1. **PQ38** — wire TCINFO parsing to the real `hidUserRoot` allocation and publish fixture evidence.
+2. **PQ39** — resolve row-index and row-storage references through the correct HID/NID address spaces, revised from PQ38 evidence.
+3. **PQ40+** — materialise rows and selected table properties only after structural bounds and reference ownership are proven.
 
-## Parked work
+The exact requirements for each later PQ must be revised from the preceding CI artifact rather than fixed in advance.
 
-Snowflake ingestion, UI, search, analytics loading, and other downstream work are parked until PST conversion coverage is reliable and measured against public or sanitized fixtures.
+## Validation expectations
 
-## Validation risk
+Every parser-quality PR must pass:
 
-The M1-M25 foundation has CI coverage at the unit, smoke, Docker, and fixture level. Extraction quality still depends on broader observed layout coverage and reviewed validation inputs.
+- `cargo fmt --check`;
+- `cargo clippy --all-targets --all-features -- -D warnings`;
+- `cargo test --all`;
+- Python wrapper smoke checks;
+- Docker build;
+- CLI fixture inspect/extract checks;
+- deterministic public-PST artifact generation and review.
 
-Before high-risk parser expansion, continue running the commands in [Local Validation](../operations/local-validation.md). For current heap probe decisions, start with [PQ11 Heap Root Detection](../operations/pq11-heap-root-detection.md).
+## Risk statement
+
+The implementation has strong bounded parsing, diagnostics, and CI coverage, but extraction remains fixture-limited. A parser milestone is not evidence of general PST compatibility unless the public/sanitised fixture artifacts demonstrate the relevant structure and no regression in existing outputs.
