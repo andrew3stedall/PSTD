@@ -1,0 +1,118 @@
+name: PQ51 patch
+
+on:
+  push:
+    branches:
+      - feature/pq51-validate-table-row-layout
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/pq51-validate-table-row-layout
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Apply deterministic PQ51 patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f'expected snippet missing in {path}: {old[:120]!r}')
+              p.write_text(text.replace(old, new, 1))
+
+          replace(
+              'src/pst/tc_heap.rs',
+              '    pub column_count: usize,\n    pub property_tags: Vec<u32>,\n',
+              '    pub column_count: usize,\n    pub property_tags: Vec<u32>,\n    pub data_region_boundaries: [u16; 4],\n    pub maximum_column_end: usize,\n',
+          )
+          replace(
+              'src/pst/tc_heap.rs',
+              '        property_tags: tcinfo\n            .columns\n            .iter()\n            .map(|column| column.property_tag)\n            .collect(),\n',
+              '        property_tags: tcinfo\n            .columns\n            .iter()\n            .map(|column| column.property_tag)\n            .collect(),\n        data_region_boundaries: tcinfo.data_region_boundaries,\n        maximum_column_end: tcinfo\n            .columns\n            .iter()\n            .map(|column| column.data_offset as usize + column.data_size as usize)\n            .max()\n            .unwrap_or(0),\n',
+          )
+
+          replace(
+              'src/pst/tc_subnode_rows.rs',
+              '    pub row_references_out_of_bounds: usize,\n    pub status: String,\n',
+              '    pub row_references_out_of_bounds: usize,\n    pub row_width: usize,\n    pub fixed_width_rows: bool,\n    pub data_regions_in_bounds: bool,\n    pub column_extents_in_bounds: bool,\n    pub status: String,\n',
+          )
+          replace(
+              'src/pst/tc_subnode_rows.rs',
+              '    rows_nid: u32,\n    row_references: &[u32],\n) -> TcSubnodeRowResolutionReport {\n',
+              '    rows_nid: u32,\n    row_references: &[u32],\n    required_data_region_end: usize,\n    required_column_end: usize,\n) -> TcSubnodeRowResolutionReport {\n',
+          )
+          replace(
+              'src/pst/tc_subnode_rows.rs',
+              '    let status = match (matching_entry_count, resolved_payload_count) {\n        (0, _) => "tc_subnode_rows_nid_missing",\n        (1, 0) => "tc_subnode_rows_payload_missing",\n        (1, 1) if row_references_out_of_bounds > 0 => "tc_subnode_rows_references_out_of_bounds",\n        (1, 1) => "tc_subnode_rows_references_validated",\n        _ => "tc_subnode_rows_ambiguous",\n    };\n\n    TcSubnodeRowResolutionReport {\n',
+              '    let row_segments = if resolved_payload_count == 1 && row_references_out_of_bounds == 0 {\n        row_references\n            .windows(2)\n            .map(|pair| pair[1].saturating_sub(pair[0]) as usize)\n            .chain(row_references.last().map(|last| {\n                row_data_byte_len.saturating_sub(*last as usize)\n            }))\n            .collect::<Vec<_>>()\n    } else {\n        Vec::new()\n    };\n    let row_width = row_segments.first().copied().unwrap_or(0);\n    let fixed_width_rows = !row_segments.is_empty()\n        && row_width > 0\n        && row_segments.iter().all(|width| *width == row_width)\n        && row_references.windows(2).all(|pair| pair[0] < pair[1]);\n    let data_regions_in_bounds = fixed_width_rows && required_data_region_end <= row_width;\n    let column_extents_in_bounds = fixed_width_rows && required_column_end <= row_width;\n    let status = match (matching_entry_count, resolved_payload_count) {\n        (0, _) => "tc_subnode_rows_nid_missing",\n        (1, 0) => "tc_subnode_rows_payload_missing",\n        (1, 1) if row_references_out_of_bounds > 0 => "tc_subnode_rows_references_out_of_bounds",\n        (1, 1) if row_references.is_empty() => "tc_subnode_rows_no_references",\n        (1, 1) if !fixed_width_rows => "tc_subnode_rows_variable_width",\n        (1, 1) if !data_regions_in_bounds || !column_extents_in_bounds => {\n            "tc_subnode_rows_layout_out_of_bounds"\n        }\n        (1, 1) => "tc_subnode_rows_layout_validated",\n        _ => "tc_subnode_rows_ambiguous",\n    };\n\n    TcSubnodeRowResolutionReport {\n',
+          )
+          replace(
+              'src/pst/tc_subnode_rows.rs',
+              '        row_references_out_of_bounds,\n        status: status.to_string(),\n',
+              '        row_references_out_of_bounds,\n        row_width,\n        fixed_width_rows,\n        data_regions_in_bounds,\n        column_extents_in_bounds,\n        status: status.to_string(),\n',
+          )
+          text = Path('src/pst/tc_subnode_rows.rs').read_text()
+          text = text.replace('resolve_subnode_row_storage(&payloads, 0x74, &[0, 11])', 'resolve_subnode_row_storage(&payloads, 0x74, &[0, 6], 6, 6)')
+          text = text.replace('assert_eq!(report.status, "tc_subnode_rows_references_validated");', 'assert_eq!(report.row_width, 6);\n        assert!(report.fixed_width_rows);\n        assert!(report.data_regions_in_bounds);\n        assert!(report.column_extents_in_bounds);\n        assert_eq!(report.status, "tc_subnode_rows_layout_validated");')
+          text = text.replace('resolve_subnode_row_storage(&[], 0x74, &[0])', 'resolve_subnode_row_storage(&[], 0x74, &[0], 1, 1)')
+          text = text.replace('resolve_subnode_row_storage(&payloads, 0x74, &[0]);', 'resolve_subnode_row_storage(&payloads, 0x74, &[0], 1, 1);')
+          text = text.replace('resolve_subnode_row_storage(&payloads, 0x74, &[0, 4])', 'resolve_subnode_row_storage(&payloads, 0x74, &[0, 4], 1, 1)')
+          marker = '    fn bounds_checks_resolved_row_references() {'
+          if marker not in text:
+              raise SystemExit('test marker missing')
+          insert = '''    #[test]\n    fn rejects_variable_width_and_column_overflow() {\n        let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 12])];\n        let variable = resolve_subnode_row_storage(&payloads, 0x74, &[0, 5], 5, 5);\n        assert_eq!(variable.status, "tc_subnode_rows_variable_width");\n\n        let overflow = resolve_subnode_row_storage(&payloads, 0x74, &[0, 6], 7, 8);\n        assert_eq!(overflow.row_width, 6);\n        assert!(!overflow.data_regions_in_bounds);\n        assert!(!overflow.column_extents_in_bounds);\n        assert_eq!(overflow.status, "tc_subnode_rows_layout_out_of_bounds");\n    }\n\n    #[test]\n'''
+          text = text.replace('    #[test]\n' + marker, insert + marker, 1)
+          Path('src/pst/tc_subnode_rows.rs').write_text(text)
+
+          replace(
+              'src/pst/tc_reporting.rs',
+              '    pub row_data_byte_len: usize,\n    pub status: String,\n',
+              '    pub row_data_byte_len: usize,\n    pub row_width: usize,\n    pub fixed_width_rows: bool,\n    pub data_regions_in_bounds: bool,\n    pub column_extents_in_bounds: bool,\n    pub status: String,\n',
+          )
+          replace(
+              'src/pst/tc_reporting.rs',
+              '            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},status={},error={}",\n',
+              '            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_width={},fixed_width={},regions_in_bounds={},columns_in_bounds={},status={},error={}",\n',
+          )
+          replace(
+              'src/pst/tc_reporting.rs',
+              '            self.row_data_byte_len,\n            self.status.replace(\';\', ","),\n',
+              '            self.row_data_byte_len,\n            self.row_width,\n            usize::from(self.fixed_width_rows),\n            usize::from(self.data_regions_in_bounds),\n            usize::from(self.column_extents_in_bounds),\n            self.status.replace(\';\', ","),\n',
+          )
+          replace(
+              'src/pst/tc_reporting.rs',
+              '                        resolve_subnode_row_storage(payloads, report.rows_hnid, &row_references)\n',
+              '                        resolve_subnode_row_storage(\n                            payloads,\n                            report.rows_hnid,\n                            &row_references,\n                            report.data_region_boundaries[3] as usize,\n                            report.maximum_column_end,\n                        )\n',
+          )
+          replace(
+              'src/pst/tc_reporting.rs',
+              '                        row_data_byte_len: subnode_rows\n                            .as_ref()\n                            .map_or(report.row_data_byte_len, |rows| rows.row_data_byte_len),\n                        status: subnode_rows\n',
+              '                        row_data_byte_len: subnode_rows\n                            .as_ref()\n                            .map_or(report.row_data_byte_len, |rows| rows.row_data_byte_len),\n                        row_width: subnode_rows.as_ref().map_or(0, |rows| rows.row_width),\n                        fixed_width_rows: subnode_rows\n                            .as_ref()\n                            .is_some_and(|rows| rows.fixed_width_rows),\n                        data_regions_in_bounds: subnode_rows\n                            .as_ref()\n                            .is_some_and(|rows| rows.data_regions_in_bounds),\n                        column_extents_in_bounds: subnode_rows\n                            .as_ref()\n                            .is_some_and(|rows| rows.column_extents_in_bounds),\n                        status: subnode_rows\n',
+          )
+          replace(
+              'src/pst/tc_reporting.rs',
+              '                    row_data_byte_len: 0,\n                    status: "tc_heap_resolution_failed".to_string(),\n',
+              '                    row_data_byte_len: 0,\n                    row_width: 0,\n                    fixed_width_rows: false,\n                    data_regions_in_bounds: false,\n                    column_extents_in_bounds: false,\n                    status: "tc_heap_resolution_failed".to_string(),\n',
+          )
+
+          docs = '''# PQ51 — validate fixed table-row layout\n\n## Evidence from PQ50\n\nThe public PST fixture resolved the row-matrix NID `0x809f` through one SLBLOCK entry to one 208-byte payload. All four row references were in bounds, and the table retained 14 columns. Existing extraction totals remained stable at 11 folders, one message, two body payloads, zero attachments, one tar shard, and 29,806 output bytes.\n\n## Revised requirement\n\nBefore decoding any table values, prove that the resolved row payload has a fixed-width layout and that the TCINFO data-region boundary and every column extent fit within that width. Reject empty, non-increasing, variable-width, and overflowing layouts.\n\n## Changes\n\n- Derive row segments from consecutive row references plus the final payload tail.\n- Require all row segments to have one non-zero width.\n- Expose the inferred row width and fixed-width result.\n- Validate the final TCINFO data-region boundary against the inferred width.\n- Validate the maximum `data_offset + data_size` column extent against the inferred width.\n- Preserve the safety boundary: no column values are decoded or materialised.\n\n## Expected fixture evidence\n\nThe four references and 208-byte payload are expected to produce four 52-byte rows. The diagnostic should report `row_width=52`, `fixed_width=1`, `regions_in_bounds=1`, `columns_in_bounds=1`, and `status=tc_subnode_rows_layout_validated`.\n\n## Failure meanings\n\n- `tc_subnode_rows_variable_width`: references do not partition the payload into equal non-zero rows.\n- `tc_subnode_rows_layout_out_of_bounds`: TCINFO region or column extents exceed the inferred row width.\n- Existing missing, ambiguous, payload-missing, and reference-out-of-bounds states remain unchanged.\n\n## Proposed PQ52 decision boundary\n\n- If the real fixture validates a 52-byte row width and all extents fit, decode only the row presence bitmap and report present/absent column counts without interpreting values.\n- If widths vary, inspect whether row references are indices or require a separate row-size source.\n- If column or region extents overflow, inspect the exact TCINFO boundary semantics before decoding any row bytes.\n'''
+          Path('docs/operations/pq51-fixed-row-layout-validation.md').write_text(docs)
+          PY
+          cargo fmt
+          cargo test tc_subnode_rows --lib
+          rm .github/workflows/pq51-patch.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/pst/tc_heap.rs src/pst/tc_subnode_rows.rs src/pst/tc_reporting.rs docs/operations/pq51-fixed-row-layout-validation.md .github/workflows/pq51-patch.yml
+          git commit -m "PQ51: validate fixed table row layout"
+          git push origin HEAD:feature/pq51-validate-table-row-layout
