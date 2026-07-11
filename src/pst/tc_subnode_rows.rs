@@ -59,13 +59,12 @@ pub fn resolve_subnode_row_storage(
     } else {
         0
     };
-    let (inferred_row_width, fixed_width_rows) = if resolved_payload_count == 1
-        && row_references_out_of_bounds == 0
-    {
-        infer_fixed_row_width(row_references, row_data_byte_len)
-    } else {
-        (0, false)
-    };
+    let (inferred_row_width, fixed_width_rows) =
+        if resolved_payload_count == 1 && row_references_out_of_bounds == 0 {
+            infer_fixed_row_width(row_references, row_data_byte_len)
+        } else {
+            (0, false)
+        };
     let status = match (matching_entry_count, resolved_payload_count) {
         (0, _) => "tc_subnode_rows_nid_missing".to_string(),
         (1, 0) => "tc_subnode_rows_payload_missing".to_string(),
