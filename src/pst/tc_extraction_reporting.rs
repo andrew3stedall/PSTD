@@ -95,7 +95,6 @@ mod tests {
                 block_id: BlockId(block_id),
                 offset: ByteOffset(0),
                 size: bytes.len() as u64,
-                reference_count: 1,
             },
             bytes,
             status: "test".to_string(),
