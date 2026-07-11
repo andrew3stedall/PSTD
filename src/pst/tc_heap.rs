@@ -9,6 +9,10 @@ pub struct TcHeapResolutionReport {
     pub user_root_resolved: bool,
     pub column_count: usize,
     pub property_tags: Vec<u32>,
+    pub data_region_boundaries: [u16; 4],
+    pub max_column_extent: usize,
+    pub bitmap_byte_len: usize,
+    pub bitmap_end: usize,
     pub row_index_hid: u32,
     pub row_index_resolved: bool,
     pub row_index_report: Option<TcRowIndexReport>,
@@ -34,6 +38,15 @@ pub fn resolve_tcinfo_from_heap(
     let user_root_hid = heap.header.user_root;
     let root = heap.allocation_by_hid(bytes, user_root_hid, base_offset)?;
     let tcinfo = TcInfo::parse(root, base_offset)?;
+    let data_region_boundaries = tcinfo.data_region_boundaries;
+    let max_column_extent = tcinfo
+        .columns
+        .iter()
+        .map(|column| column.data_offset as usize + column.data_size as usize)
+        .max()
+        .unwrap_or(0);
+    let bitmap_byte_len = tcinfo.columns.len().div_ceil(8);
+    let bitmap_end = data_region_boundaries[3] as usize + bitmap_byte_len;
 
     let row_index_result = parse_row_index_bth(&heap, bytes, tcinfo.row_index_hid, base_offset);
     let (row_index_report, row_index_error) = match row_index_result {
@@ -93,6 +106,10 @@ pub fn resolve_tcinfo_from_heap(
             .iter()
             .map(|column| column.property_tag)
             .collect(),
+        data_region_boundaries,
+        max_column_extent,
+        bitmap_byte_len,
+        bitmap_end,
         row_index_hid: tcinfo.row_index_hid,
         row_index_resolved,
         row_index_report,
@@ -125,6 +142,10 @@ mod tests {
         assert!(report.user_root_resolved);
         assert_eq!(report.column_count, 2);
         assert_eq!(report.property_tags, vec![0x001a0037, 0x001f3001]);
+        assert_eq!(report.data_region_boundaries, [4, 8, 10, 12]);
+        assert_eq!(report.max_column_extent, 8);
+        assert_eq!(report.bitmap_byte_len, 1);
+        assert_eq!(report.bitmap_end, 13);
         assert_eq!(report.row_index_hid, 0x60);
         assert!(report.row_index_resolved);
         assert_eq!(report.row_reference_count, 2);
