@@ -37,6 +37,10 @@ The resolver must distinguish:
 | In/out-of-bounds row references | 0 / 0 | Derived from resolved row payload |
 | Messages, bodies, attachments, EMLs | Existing baseline | Expected unchanged |
 
+## CI repair evidence
+
+CI run 421 passed the Rust build, unit tests, Clippy, Python wrapper, and Docker jobs. It failed only at `cargo fmt --check` in `src/pst/tc_reporting.rs`; the CLI/public-PST job was skipped because it depends on the Rust job. The exact rustfmt output was applied on the existing branch and the temporary repair workflow removed before the final validation run.
+
 ## Evidence required from CI
 
 The public fixture must retain the existing folder, message, body, attachment, EML, and output-byte totals. The table diagnostic must expose `rows_nid`, matching SLBLOCK entries, resolved row payloads, row-data byte length, and row-reference bounds counts.
