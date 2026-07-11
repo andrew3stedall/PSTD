@@ -14,6 +14,8 @@ pub struct TcSubnodeRowResolutionReport {
     pub row_reference_count: usize,
     pub row_references_in_bounds: usize,
     pub row_references_out_of_bounds: usize,
+    pub inferred_row_width: usize,
+    pub fixed_width_rows: bool,
     pub status: String,
 }
 
@@ -57,12 +59,23 @@ pub fn resolve_subnode_row_storage(
     } else {
         0
     };
+    let (inferred_row_width, fixed_width_rows) =
+        if resolved_payload_count == 1 && row_references_out_of_bounds == 0 {
+            infer_fixed_row_width(row_references, row_data_byte_len)
+        } else {
+            (0, false)
+        };
     let status = match (matching_entry_count, resolved_payload_count) {
-        (0, _) => "tc_subnode_rows_nid_missing",
-        (1, 0) => "tc_subnode_rows_payload_missing",
-        (1, 1) if row_references_out_of_bounds > 0 => "tc_subnode_rows_references_out_of_bounds",
-        (1, 1) => "tc_subnode_rows_references_validated",
-        _ => "tc_subnode_rows_ambiguous",
+        (0, _) => "tc_subnode_rows_nid_missing".to_string(),
+        (1, 0) => "tc_subnode_rows_payload_missing".to_string(),
+        (1, 1) if row_references_out_of_bounds > 0 => {
+            "tc_subnode_rows_references_out_of_bounds".to_string()
+        }
+        (1, 1) if fixed_width_rows => {
+            format!("tc_subnode_rows_fixed_width_validated_{inferred_row_width}")
+        }
+        (1, 1) => "tc_subnode_rows_variable_or_invalid_width".to_string(),
+        _ => "tc_subnode_rows_ambiguous".to_string(),
     };
 
     TcSubnodeRowResolutionReport {
@@ -73,8 +86,35 @@ pub fn resolve_subnode_row_storage(
         row_reference_count: row_references.len(),
         row_references_in_bounds,
         row_references_out_of_bounds,
-        status: status.to_string(),
+        inferred_row_width,
+        fixed_width_rows,
+        status,
     }
+}
+
+fn infer_fixed_row_width(row_references: &[u32], row_data_byte_len: usize) -> (usize, bool) {
+    if row_references.is_empty() {
+        return (0, false);
+    }
+
+    let mut offsets = row_references
+        .iter()
+        .map(|reference| *reference as usize)
+        .collect::<Vec<_>>();
+    if offsets.windows(2).any(|pair| pair[0] >= pair[1]) {
+        return (0, false);
+    }
+    offsets.push(row_data_byte_len);
+
+    let widths = offsets
+        .windows(2)
+        .map(|pair| pair[1].saturating_sub(pair[0]))
+        .collect::<Vec<_>>();
+    let inferred_row_width = widths[0];
+    let fixed_width_rows = inferred_row_width > 0
+        && offsets[0] == 0
+        && widths.iter().all(|width| *width == inferred_row_width);
+    (inferred_row_width, fixed_width_rows)
 }
 
 fn is_unicode_slblock(bytes: &[u8]) -> bool {
@@ -113,16 +153,29 @@ mod tests {
     use crate::pst::primitives::{BlockId, BlockRef, ByteOffset};
 
     #[test]
-    fn resolves_nid_backed_rows_and_validates_references() {
+    fn resolves_nid_backed_rows_and_validates_fixed_width() {
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 12])];
-        let report = resolve_subnode_row_storage(&payloads, 0x74, &[0, 11]);
+        let report = resolve_subnode_row_storage(&payloads, 0x74, &[0, 4, 8]);
 
         assert_eq!(report.matching_entry_count, 1);
         assert_eq!(report.resolved_payload_count, 1);
         assert_eq!(report.row_data_byte_len, 12);
-        assert_eq!(report.row_references_in_bounds, 2);
+        assert_eq!(report.row_references_in_bounds, 3);
         assert_eq!(report.row_references_out_of_bounds, 0);
-        assert_eq!(report.status, "tc_subnode_rows_references_validated");
+        assert_eq!(report.inferred_row_width, 4);
+        assert!(report.fixed_width_rows);
+        assert_eq!(report.status, "tc_subnode_rows_fixed_width_validated_4");
+    }
+
+    #[test]
+    fn rejects_variable_duplicate_and_nonzero_start_layouts() {
+        let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 12])];
+
+        for references in [&[0, 4, 9][..], &[0, 4, 4][..], &[2, 6, 10][..]] {
+            let report = resolve_subnode_row_storage(&payloads, 0x74, references);
+            assert!(!report.fixed_width_rows);
+            assert_eq!(report.status, "tc_subnode_rows_variable_or_invalid_width");
+        }
     }
 
     #[test]
@@ -142,12 +195,14 @@ mod tests {
     }
 
     #[test]
-    fn bounds_checks_resolved_row_references() {
+    fn bounds_checks_resolved_row_references_before_width_inference() {
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 4])];
         let report = resolve_subnode_row_storage(&payloads, 0x74, &[0, 4]);
 
         assert_eq!(report.row_references_in_bounds, 1);
         assert_eq!(report.row_references_out_of_bounds, 1);
+        assert_eq!(report.inferred_row_width, 0);
+        assert!(!report.fixed_width_rows);
         assert_eq!(report.status, "tc_subnode_rows_references_out_of_bounds");
     }
 
