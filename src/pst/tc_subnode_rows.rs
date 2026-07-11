@@ -140,7 +140,7 @@ fn analyze_row_layout(
 }
 
 fn infer_ordinal_row_width(row_references: &[u32], row_data_byte_len: usize) -> usize {
-    if row_references.is_empty() || row_data_byte_len % row_references.len() != 0 {
+    if row_references.is_empty() || !row_data_byte_len.is_multiple_of(row_references.len()) {
         return 0;
     }
     if !row_references
