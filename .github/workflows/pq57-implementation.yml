@@ -1,0 +1,131 @@
+name: PQ57 implementation
+
+on:
+  push:
+    branches:
+      - feature/pq57-expose-row-bitmap-masks
+    paths:
+      - .github/workflows/pq57-implementation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/pq57-expose-row-bitmap-masks
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Apply PQ57 changes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          rows = Path('src/pst/tc_subnode_rows.rs')
+          text = rows.read_text()
+          text = text.replace(
+              '    pub bitmap_unset_counts: Vec<usize>,\n    pub bitmap_status: String,',
+              '    pub bitmap_unset_counts: Vec<usize>,\n    pub bitmap_masks: Vec<String>,\n    pub bitmap_status: String,'
+          )
+          text = text.replace(
+              '    let (bitmap_set_counts, bitmap_unset_counts, bitmap_status) = if resolved_payload_count == 1 {\n        analyze_bitmap_counts(',
+              '    let (bitmap_set_counts, bitmap_unset_counts, bitmap_masks, bitmap_status) =\n        if resolved_payload_count == 1 {\n            analyze_bitmap_counts('
+          )
+          text = text.replace(
+              '            bitmap_end,\n        )\n    } else {\n        (\n            Vec::new(),\n            Vec::new(),\n            "tc_row_bitmap_payload_unavailable".to_string(),\n        )\n    };',
+              '                bitmap_end,\n            )\n        } else {\n            (\n                Vec::new(),\n                Vec::new(),\n                Vec::new(),\n                "tc_row_bitmap_payload_unavailable".to_string(),\n            )\n        };'
+          )
+          text = text.replace(
+              '        bitmap_unset_counts,\n        bitmap_status,',
+              '        bitmap_unset_counts,\n        bitmap_masks,\n        bitmap_status,'
+          )
+          text = text.replace(
+              ') -> (Vec<usize>, Vec<usize>, String) {',
+              ') -> (Vec<usize>, Vec<usize>, Vec<String>, String) {'
+          )
+          text = text.replace(
+              '            Vec::new(),\n            "tc_row_bitmap_layout_invalid".to_string(),',
+              '            Vec::new(),\n            Vec::new(),\n            "tc_row_bitmap_layout_invalid".to_string(),'
+          )
+          text = text.replace(
+              '            Vec::new(),\n            "tc_row_bitmap_capacity_insufficient".to_string(),',
+              '            Vec::new(),\n            Vec::new(),\n            "tc_row_bitmap_capacity_insufficient".to_string(),'
+          )
+          text = text.replace(
+              '            Vec::new(),\n            "tc_row_bitmap_row_mode_unavailable".to_string(),',
+              '            Vec::new(),\n            Vec::new(),\n            "tc_row_bitmap_row_mode_unavailable".to_string(),'
+          )
+          text = text.replace(
+              '    let mut unset_counts = Vec::with_capacity(row_offsets.len());\n    for row_offset in row_offsets {',
+              '    let mut unset_counts = Vec::with_capacity(row_offsets.len());\n    let mut masks = Vec::with_capacity(row_offsets.len());\n    for row_offset in row_offsets {'
+          )
+          text = text.replace(
+              '                Vec::new(),\n                "tc_row_bitmap_bytes_out_of_bounds".to_string(),',
+              '                Vec::new(),\n                Vec::new(),\n                "tc_row_bitmap_bytes_out_of_bounds".to_string(),'
+          )
+          text = text.replace(
+              '        let set = (0..column_count)\n            .filter(|bit| bitmap[*bit / 8] & (1 << (*bit % 8)) != 0)\n            .count();\n        set_counts.push(set);\n        unset_counts.push(column_count - set);',
+              '        let mask = (0..column_count)\n            .map(|bit| {\n                if bitmap[bit / 8] & (1 << (bit % 8)) != 0 {\n                    \'1\'\n                } else {\n                    \'0\'\n                }\n            })\n            .collect::<String>();\n        let set = mask.bytes().filter(|value| *value == b\'1\').count();\n        set_counts.push(set);\n        unset_counts.push(column_count - set);\n        masks.push(mask);'
+          )
+          text = text.replace(
+              '        unset_counts,\n        "tc_row_bitmap_counts_validated".to_string(),',
+              '        unset_counts,\n        masks,\n        "tc_row_bitmap_masks_validated".to_string(),'
+          )
+          text = text.replace(
+              '        assert_eq!(report.bitmap_unset_counts, vec![14, 14, 14, 14]);\n        assert_eq!(report.bitmap_status, "tc_row_bitmap_counts_validated");',
+              '        assert_eq!(report.bitmap_unset_counts, vec![14, 14, 14, 14]);\n        assert_eq!(\n            report.bitmap_masks,\n            vec!["00000000000000"; 4]\n        );\n        assert_eq!(report.bitmap_status, "tc_row_bitmap_masks_validated");'
+          )
+          marker = '    #[test]\n    fn rejects_variable_duplicate_and_nonzero_start_layouts() {'
+          test = '''    #[test]\n    fn exposes_exact_masks_without_padding_bits() {\n        let mut row_data = vec![0u8; 104];\n        row_data[50] = 0b0101_0101;\n        row_data[51] = 0b1111_1111;\n        row_data[102] = 0b1010_1010;\n        row_data[103] = 0b1100_0011;\n        let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, row_data)];\n        let report = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1], 14, 50, 52);\n\n        assert_eq!(report.bitmap_masks, vec!["10101010111111", "01010101110000"]);\n        assert_eq!(report.bitmap_set_counts, vec![10, 7]);\n        assert_eq!(report.bitmap_unset_counts, vec![4, 7]);\n        assert_eq!(report.bitmap_status, "tc_row_bitmap_masks_validated");\n    }\n\n'''
+          text = text.replace(marker, test + marker)
+          rows.write_text(text)
+
+          reporting = Path('src/pst/tc_reporting.rs')
+          text = reporting.read_text()
+          text = text.replace(
+              '    pub bitmap_unset_counts: Vec<usize>,\n    pub bitmap_status: String,',
+              '    pub bitmap_unset_counts: Vec<usize>,\n    pub bitmap_masks: Vec<String>,\n    pub bitmap_status: String,'
+          )
+          text = text.replace(
+              '        let bitmap_unset_counts = self\n            .bitmap_unset_counts\n            .iter()\n            .map(usize::to_string)\n            .collect::<Vec<_>>()\n            .join(":");',
+              '        let bitmap_unset_counts = self\n            .bitmap_unset_counts\n            .iter()\n            .map(usize::to_string)\n            .collect::<Vec<_>>()\n            .join(":");\n        let bitmap_masks = self.bitmap_masks.join(":");'
+          )
+          text = text.replace(
+              'bitmap_rows={},bitmap_set_counts={},bitmap_unset_counts={},bitmap_status={}',
+              'bitmap_rows={},bitmap_set_counts={},bitmap_unset_counts={},bitmap_masks={},bitmap_status={}'
+          )
+          text = text.replace(
+              '            bitmap_unset_counts,\n            self.bitmap_status.replace',
+              '            bitmap_unset_counts,\n            bitmap_masks,\n            self.bitmap_status.replace'
+          )
+          text = text.replace(
+              '                        bitmap_unset_counts: subnode_rows\n                            .as_ref()\n                            .map_or_else(Vec::new, |rows| rows.bitmap_unset_counts.clone()),\n                        bitmap_status:',
+              '                        bitmap_unset_counts: subnode_rows\n                            .as_ref()\n                            .map_or_else(Vec::new, |rows| rows.bitmap_unset_counts.clone()),\n                        bitmap_masks: subnode_rows\n                            .as_ref()\n                            .map_or_else(Vec::new, |rows| rows.bitmap_masks.clone()),\n                        bitmap_status:'
+          )
+          text = text.replace(
+              '                    bitmap_unset_counts: Vec::new(),\n                    bitmap_status:',
+              '                    bitmap_unset_counts: Vec::new(),\n                    bitmap_masks: Vec::new(),\n                    bitmap_status:'
+          )
+          reporting.write_text(text)
+
+          doc = Path('docs/operations/pq57-row-bitmap-mask-evidence.md')
+          doc.write_text('''# PQ57: exact bounded row bitmap masks\n\n## Evidence basis\n\nPQ56 validated four 52-byte ordinal rows, a two-byte trailing bitmap at bytes `50..52`, and stable per-row counts of seven set and seven unset bits across the first 14 bitmap positions. Counts alone cannot establish whether the rows share the same mask or which positions differ.\n\n## Revised requirement\n\nPQ57 exposes one exact 14-character mask per validated row. Mask character order follows the existing bounded bitmap-index traversal: bit 0 through bit 13, least-significant bit first within each byte. The two padding bits in the second byte are excluded. Set bits remain raw structural evidence and are not described as present properties.\n\n## Safety boundary\n\n- Require a uniquely resolved fixed-width row payload.\n- Reuse only validated direct-offset or zero-based ordinal row modes.\n- Read only the validated bitmap range.\n- Preserve set/unset counts as consistency checks.\n- Do not decode column bytes, variable-value references, or property values.\n\n## Evidence required from the public fixture\n\nThe fixture must retain four analyzed rows, 52-byte row width, the validated `50..52` bitmap range, and stable extraction totals. It must publish four exact 14-bit masks and `tc_row_bitmap_masks_validated`.\n\n## PQ58 decision boundary\n\nIf masks are stable and structurally plausible, pair each bit position with its TCINFO bitmap index and column descriptor while continuing to report raw states only. If masks are inconsistent with the existing seven/set-seven/unset counts, stop and repair ordering or padding handling before associating columns.\n''')
+      - name: Format and test
+        run: |
+          cargo fmt --all
+          cargo test tc_subnode_rows
+          cargo test tc_reporting
+          cargo clippy --all-targets --all-features -- -D warnings
+      - name: Commit permanent implementation
+        run: |
+          rm .github/workflows/pq57-implementation.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pst/tc_subnode_rows.rs src/pst/tc_reporting.rs docs/operations/pq57-row-bitmap-mask-evidence.md .github/workflows/pq57-implementation.yml
+          git commit -m "feat(pq57): expose exact row bitmap masks"
+          git push origin HEAD:feature/pq57-expose-row-bitmap-masks
