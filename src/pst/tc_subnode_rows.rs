@@ -21,6 +21,7 @@ pub struct TcSubnodeRowResolutionReport {
     pub bitmap_rows_analyzed: usize,
     pub bitmap_set_counts: Vec<usize>,
     pub bitmap_unset_counts: Vec<usize>,
+    pub bitmap_masks: Vec<String>,
     pub bitmap_status: String,
     pub status: String,
 }
@@ -86,25 +87,27 @@ pub fn resolve_subnode_row_storage(
         ordinal_row_width
     };
     let fixed_width_rows = direct_fixed_width_rows || ordinal_index_rows;
-    let (bitmap_set_counts, bitmap_unset_counts, bitmap_status) = if resolved_payload_count == 1 {
-        analyze_bitmap_counts(
-            &matching_payloads[0].bytes,
-            row_references,
-            direct_fixed_width_rows,
-            ordinal_index_rows,
-            inferred_row_width,
-            column_count,
-            bitmap_start,
-            bitmap_end,
-        )
-    } else {
-        (
-            Vec::new(),
-            Vec::new(),
-            "tc_row_bitmap_payload_unavailable".to_string(),
-        )
-    };
-    let bitmap_rows_analyzed = bitmap_set_counts.len();
+    let (bitmap_set_counts, bitmap_unset_counts, bitmap_masks, bitmap_status) =
+        if resolved_payload_count == 1 {
+            analyze_bitmap_evidence(
+                &matching_payloads[0].bytes,
+                row_references,
+                direct_fixed_width_rows,
+                ordinal_index_rows,
+                inferred_row_width,
+                column_count,
+                bitmap_start,
+                bitmap_end,
+            )
+        } else {
+            (
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                "tc_row_bitmap_payload_unavailable".to_string(),
+            )
+        };
+    let bitmap_rows_analyzed = bitmap_masks.len();
     let status = match (matching_entry_count, resolved_payload_count) {
         (0, _) => "tc_subnode_rows_nid_missing".to_string(),
         (1, 0) => "tc_subnode_rows_payload_missing".to_string(),
@@ -136,12 +139,14 @@ pub fn resolve_subnode_row_storage(
         bitmap_rows_analyzed,
         bitmap_set_counts,
         bitmap_unset_counts,
+        bitmap_masks,
         bitmap_status,
         status,
     }
 }
 
-fn analyze_bitmap_counts(
+#[allow(clippy::too_many_arguments)]
+fn analyze_bitmap_evidence(
     row_data: &[u8],
     row_references: &[u32],
     direct_fixed_width_rows: bool,
@@ -150,9 +155,10 @@ fn analyze_bitmap_counts(
     column_count: usize,
     bitmap_start: usize,
     bitmap_end: usize,
-) -> (Vec<usize>, Vec<usize>, String) {
+) -> (Vec<usize>, Vec<usize>, Vec<String>, String) {
     if row_width == 0 || column_count == 0 || bitmap_start > bitmap_end || bitmap_end > row_width {
         return (
+            Vec::new(),
             Vec::new(),
             Vec::new(),
             "tc_row_bitmap_layout_invalid".to_string(),
@@ -160,6 +166,7 @@ fn analyze_bitmap_counts(
     }
     if (bitmap_end - bitmap_start) * 8 < column_count {
         return (
+            Vec::new(),
             Vec::new(),
             Vec::new(),
             "tc_row_bitmap_capacity_insufficient".to_string(),
@@ -180,12 +187,14 @@ fn analyze_bitmap_counts(
         return (
             Vec::new(),
             Vec::new(),
+            Vec::new(),
             "tc_row_bitmap_row_mode_unavailable".to_string(),
         );
     };
 
     let mut set_counts = Vec::with_capacity(row_offsets.len());
     let mut unset_counts = Vec::with_capacity(row_offsets.len());
+    let mut masks = Vec::with_capacity(row_offsets.len());
     for row_offset in row_offsets {
         let start = row_offset.saturating_add(bitmap_start);
         let end = row_offset.saturating_add(bitmap_end);
@@ -193,21 +202,31 @@ fn analyze_bitmap_counts(
             return (
                 Vec::new(),
                 Vec::new(),
+                Vec::new(),
                 "tc_row_bitmap_bytes_out_of_bounds".to_string(),
             );
         }
         let bitmap = &row_data[start..end];
-        let set = (0..column_count)
-            .filter(|bit| bitmap[*bit / 8] & (1 << (*bit % 8)) != 0)
-            .count();
+        let mask = (0..column_count)
+            .map(|bit| {
+                if bitmap[bit / 8] & (1 << (bit % 8)) != 0 {
+                    '1'
+                } else {
+                    '0'
+                }
+            })
+            .collect::<String>();
+        let set = mask.bytes().filter(|bit| *bit == b'1').count();
         set_counts.push(set);
         unset_counts.push(column_count - set);
+        masks.push(mask);
     }
 
     (
         set_counts,
         unset_counts,
-        "tc_row_bitmap_counts_validated".to_string(),
+        masks,
+        "tc_row_bitmap_masks_validated".to_string(),
     )
 }
 
@@ -302,12 +321,18 @@ mod tests {
         assert!(report.fixed_width_rows);
         assert_eq!(report.row_references, vec![0, 4, 8]);
         assert_eq!(report.row_spans, vec![4, 4, 4]);
+        assert_eq!(report.bitmap_masks, vec!["00000000"; 3]);
         assert_eq!(report.status, "tc_subnode_rows_fixed_width_validated_4");
     }
 
     #[test]
-    fn validates_contiguous_ordinal_row_references() {
-        let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 208])];
+    fn validates_contiguous_ordinal_row_references_and_exact_masks() {
+        let mut row_data = vec![0; 208];
+        for row in 0..4 {
+            row_data[row * 52 + 50] = 0b0101_0101;
+            row_data[row * 52 + 51] = 0b0001_0101;
+        }
+        let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, row_data)];
         let report = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2, 3], 14, 50, 52);
 
         assert_eq!(report.inferred_row_width, 52);
@@ -316,9 +341,10 @@ mod tests {
         assert_eq!(report.row_spans, vec![1, 1, 1, 205]);
         assert_eq!(report.status, "tc_subnode_rows_ordinal_index_validated_52");
         assert_eq!(report.bitmap_rows_analyzed, 4);
-        assert_eq!(report.bitmap_set_counts, vec![0, 0, 0, 0]);
-        assert_eq!(report.bitmap_unset_counts, vec![14, 14, 14, 14]);
-        assert_eq!(report.bitmap_status, "tc_row_bitmap_counts_validated");
+        assert_eq!(report.bitmap_set_counts, vec![7, 7, 7, 7]);
+        assert_eq!(report.bitmap_unset_counts, vec![7, 7, 7, 7]);
+        assert_eq!(report.bitmap_masks, vec!["10101010101010"; 4]);
+        assert_eq!(report.bitmap_status, "tc_row_bitmap_masks_validated");
     }
 
     #[test]
