@@ -72,10 +72,10 @@ pub fn resolve_tcinfo_from_heap(
 
     let status = if !row_index_resolved {
         "tc_heap_row_index_unresolved"
-    } else if !index_resolved {
-        "tc_heap_index_unresolved"
     } else if rows_requires_subnode_resolution {
         "tc_heap_rows_require_subnode_resolution"
+    } else if !index_resolved {
+        "tc_heap_index_unresolved"
     } else if matches!(tcinfo.rows_hnid_kind, HnidKind::HeapId) && !rows_hid_resolved {
         "tc_heap_rows_hid_unresolved"
     } else if row_references_out_of_bounds > 0 {
@@ -159,6 +159,20 @@ mod tests {
         assert_eq!(report.row_reference_count, 2);
         assert_eq!(report.row_references_in_bounds, 0);
         assert_eq!(report.row_references_out_of_bounds, 0);
+        assert_eq!(report.status, "tc_heap_rows_require_subnode_resolution");
+    }
+
+    #[test]
+    fn prioritizes_subnode_rows_over_optional_index_resolution() {
+        let mut bytes = sample_tc_heap(0x74, &[0, 3]);
+        let root_start = 16usize;
+        bytes[root_start + 18..root_start + 22].copy_from_slice(&0xe0u32.to_le_bytes());
+
+        let report = resolve_tcinfo_from_heap(&bytes, 0).unwrap();
+
+        assert!(!report.index_resolved);
+        assert!(report.rows_requires_subnode_resolution);
+        assert_eq!(report.rows_hnid, 0x74);
         assert_eq!(report.status, "tc_heap_rows_require_subnode_resolution");
     }
 
