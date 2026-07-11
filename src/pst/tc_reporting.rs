@@ -145,8 +145,8 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                 && payload.bytes[2] == HEAP_SIGNATURE
                 && payload.bytes[3] == HEAP_CLIENT_TABLE_CONTEXT
         })
-        .map(|payload| {
-            match resolve_tcinfo_from_heap(&payload.bytes, payload.block_ref.offset.0) {
+        .map(
+            |payload| match resolve_tcinfo_from_heap(&payload.bytes, payload.block_ref.offset.0) {
                 Ok(report) => {
                     let row_references = report
                         .row_index_report
@@ -211,8 +211,8 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                     status: "tc_heap_resolution_failed".to_string(),
                     error: Some(reason.to_string()),
                 },
-            }
-        })
+            },
+        )
         .collect::<Vec<_>>();
 
     let table_heap_count = diagnostics.len();
