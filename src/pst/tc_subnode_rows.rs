@@ -30,7 +30,11 @@ pub fn resolve_subnode_row_storage(
     let matching_entry_count = data_bids.len();
     let matching_payloads = data_bids
         .iter()
-        .flat_map(|bid| payloads.iter().filter(move |payload| payload.block_id.0 == *bid))
+        .flat_map(|bid| {
+            payloads
+                .iter()
+                .filter(move |payload| payload.block_id.0 == *bid)
+        })
         .collect::<Vec<_>>();
     let resolved_payload_count = matching_payloads.len();
     let row_data_byte_len = if resolved_payload_count == 1 {
@@ -47,16 +51,16 @@ pub fn resolve_subnode_row_storage(
         0
     };
     let row_references_out_of_bounds = if resolved_payload_count == 1 {
-        row_references.len().saturating_sub(row_references_in_bounds)
+        row_references
+            .len()
+            .saturating_sub(row_references_in_bounds)
     } else {
         0
     };
     let status = match (matching_entry_count, resolved_payload_count) {
         (0, _) => "tc_subnode_rows_nid_missing",
         (1, 0) => "tc_subnode_rows_payload_missing",
-        (1, 1) if row_references_out_of_bounds > 0 => {
-            "tc_subnode_rows_references_out_of_bounds"
-        }
+        (1, 1) if row_references_out_of_bounds > 0 => "tc_subnode_rows_references_out_of_bounds",
         (1, 1) => "tc_subnode_rows_references_validated",
         _ => "tc_subnode_rows_ambiguous",
     };
@@ -82,10 +86,8 @@ fn is_unicode_slblock(bytes: &[u8]) -> bool {
 
 fn matching_data_bids(bytes: &[u8], rows_nid: u32) -> Vec<u64> {
     let declared_entry_count = u16::from_le_bytes([bytes[2], bytes[3]]) as usize;
-    let available_entry_count = bytes
-        .len()
-        .saturating_sub(UNICODE_SLBLOCK_HEADER_BYTES)
-        / UNICODE_SLENTRY_BYTES;
+    let available_entry_count =
+        bytes.len().saturating_sub(UNICODE_SLBLOCK_HEADER_BYTES) / UNICODE_SLENTRY_BYTES;
     let parsed_entry_count = declared_entry_count.min(available_entry_count);
 
     (0..parsed_entry_count)
