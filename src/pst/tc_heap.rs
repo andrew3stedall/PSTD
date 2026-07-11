@@ -9,6 +9,8 @@ pub struct TcHeapResolutionReport {
     pub user_root_resolved: bool,
     pub column_count: usize,
     pub property_tags: Vec<u32>,
+    pub data_region_boundaries: [u16; 4],
+    pub maximum_column_end: usize,
     pub row_index_hid: u32,
     pub row_index_resolved: bool,
     pub row_index_report: Option<TcRowIndexReport>,
@@ -93,6 +95,13 @@ pub fn resolve_tcinfo_from_heap(
             .iter()
             .map(|column| column.property_tag)
             .collect(),
+        data_region_boundaries: tcinfo.data_region_boundaries,
+        maximum_column_end: tcinfo
+            .columns
+            .iter()
+            .map(|column| column.data_offset as usize + column.data_size as usize)
+            .max()
+            .unwrap_or(0),
         row_index_hid: tcinfo.row_index_hid,
         row_index_resolved,
         row_index_report,

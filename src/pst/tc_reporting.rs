@@ -20,6 +20,10 @@ pub struct TcHeapDiagnostic {
     pub subnode_row_match_count: usize,
     pub resolved_row_payload_count: usize,
     pub row_data_byte_len: usize,
+    pub row_width: usize,
+    pub fixed_width_rows: bool,
+    pub data_regions_in_bounds: bool,
+    pub column_extents_in_bounds: bool,
     pub status: String,
     pub error: Option<String>,
 }
@@ -28,7 +32,7 @@ impl TcHeapDiagnostic {
     fn status_fragment(&self) -> String {
         let error = self.error.as_deref().unwrap_or("none").replace(';', ",");
         format!(
-            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},status={},error={}",
+            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_width={},fixed_width={},regions_in_bounds={},columns_in_bounds={},status={},error={}",
             self.block_id,
             self.payload_byte_len,
             usize::from(self.resolved),
@@ -41,6 +45,10 @@ impl TcHeapDiagnostic {
             self.subnode_row_match_count,
             self.resolved_row_payload_count,
             self.row_data_byte_len,
+            self.row_width,
+            usize::from(self.fixed_width_rows),
+            usize::from(self.data_regions_in_bounds),
+            usize::from(self.column_extents_in_bounds),
             self.status.replace(';', ","),
             error
         )
@@ -160,7 +168,13 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         })
                         .unwrap_or_default();
                     let subnode_rows = report.rows_requires_subnode_resolution.then(|| {
-                        resolve_subnode_row_storage(payloads, report.rows_hnid, &row_references)
+                        resolve_subnode_row_storage(
+                            payloads,
+                            report.rows_hnid,
+                            &row_references,
+                            report.data_region_boundaries[3] as usize,
+                            report.maximum_column_end,
+                        )
                     });
                     TcHeapDiagnostic {
                         block_id: payload.block_id.0,
@@ -189,6 +203,16 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         row_data_byte_len: subnode_rows
                             .as_ref()
                             .map_or(report.row_data_byte_len, |rows| rows.row_data_byte_len),
+                        row_width: subnode_rows.as_ref().map_or(0, |rows| rows.row_width),
+                        fixed_width_rows: subnode_rows
+                            .as_ref()
+                            .is_some_and(|rows| rows.fixed_width_rows),
+                        data_regions_in_bounds: subnode_rows
+                            .as_ref()
+                            .is_some_and(|rows| rows.data_regions_in_bounds),
+                        column_extents_in_bounds: subnode_rows
+                            .as_ref()
+                            .is_some_and(|rows| rows.column_extents_in_bounds),
                         status: subnode_rows
                             .as_ref()
                             .map_or(report.status, |rows| rows.status.clone()),
@@ -208,6 +232,10 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                     subnode_row_match_count: 0,
                     resolved_row_payload_count: 0,
                     row_data_byte_len: 0,
+                    row_width: 0,
+                    fixed_width_rows: false,
+                    data_regions_in_bounds: false,
+                    column_extents_in_bounds: false,
                     status: "tc_heap_resolution_failed".to_string(),
                     error: Some(reason.to_string()),
                 },
