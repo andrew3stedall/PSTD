@@ -22,6 +22,13 @@ pub struct TcHeapDiagnostic {
     pub row_data_byte_len: usize,
     pub row_reference_values: Vec<u32>,
     pub row_spans: Vec<usize>,
+    pub inferred_row_width: usize,
+    pub tcinfo_data_region_boundaries: [u16; 4],
+    pub max_column_extent: usize,
+    pub bitmap_byte_len: usize,
+    pub bitmap_end: usize,
+    pub row_layout_extents_valid: bool,
+    pub row_layout_status: String,
     pub status: String,
     pub error: Option<String>,
 }
@@ -42,7 +49,7 @@ impl TcHeapDiagnostic {
             .collect::<Vec<_>>()
             .join(":");
         format!(
-            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_reference_values={},row_spans={},status={},error={}",
+            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_reference_values={},row_spans={},row_width={},tcinfo_regions={}:{}:{}:{},max_column_extent={},bitmap_bytes={},bitmap_end={},row_layout_valid={},row_layout_status={},status={},error={}",
             self.block_id,
             self.payload_byte_len,
             usize::from(self.resolved),
@@ -57,6 +64,16 @@ impl TcHeapDiagnostic {
             self.row_data_byte_len,
             row_reference_values,
             row_spans,
+            self.inferred_row_width,
+            self.tcinfo_data_region_boundaries[0],
+            self.tcinfo_data_region_boundaries[1],
+            self.tcinfo_data_region_boundaries[2],
+            self.tcinfo_data_region_boundaries[3],
+            self.max_column_extent,
+            self.bitmap_byte_len,
+            self.bitmap_end,
+            usize::from(self.row_layout_extents_valid),
+            self.row_layout_status.replace(';', ","),
             self.status.replace(';', ","),
             error
         )
@@ -178,6 +195,15 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                     let subnode_rows = report.rows_requires_subnode_resolution.then(|| {
                         resolve_subnode_row_storage(payloads, report.rows_hnid, &row_references)
                     });
+                    let inferred_row_width = subnode_rows
+                        .as_ref()
+                        .map_or(0, |rows| rows.inferred_row_width);
+                    let (row_layout_status, row_layout_extents_valid) = validate_row_layout_extents(
+                        inferred_row_width,
+                        report.data_region_boundaries,
+                        report.max_column_extent,
+                        report.bitmap_end,
+                    );
                     TcHeapDiagnostic {
                         block_id: payload.block_id.0,
                         payload_byte_len: payload.bytes.len(),
@@ -212,6 +238,13 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         row_spans: subnode_rows
                             .as_ref()
                             .map_or_else(Vec::new, |rows| rows.row_spans.clone()),
+                        inferred_row_width,
+                        tcinfo_data_region_boundaries: report.data_region_boundaries,
+                        max_column_extent: report.max_column_extent,
+                        bitmap_byte_len: report.bitmap_byte_len,
+                        bitmap_end: report.bitmap_end,
+                        row_layout_extents_valid,
+                        row_layout_status,
                         status: subnode_rows
                             .as_ref()
                             .map_or(report.status, |rows| rows.status.clone()),
@@ -233,6 +266,13 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                     row_data_byte_len: 0,
                     row_reference_values: Vec::new(),
                     row_spans: Vec::new(),
+                    inferred_row_width: 0,
+                    tcinfo_data_region_boundaries: [0; 4],
+                    max_column_extent: 0,
+                    bitmap_byte_len: 0,
+                    bitmap_end: 0,
+                    row_layout_extents_valid: false,
+                    row_layout_status: "tc_row_layout_width_unavailable".to_string(),
                     status: "tc_heap_resolution_failed".to_string(),
                     error: Some(reason.to_string()),
                 },
@@ -285,12 +325,44 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
     }
 }
 
+fn validate_row_layout_extents(
+    row_width: usize,
+    data_region_boundaries: [u16; 4],
+    max_column_extent: usize,
+    bitmap_end: usize,
+) -> (String, bool) {
+    if row_width == 0 {
+        return ("tc_row_layout_width_unavailable".to_string(), false);
+    }
+    let final_region_boundary = data_region_boundaries[3] as usize;
+    let valid = final_region_boundary <= row_width
+        && max_column_extent <= row_width
+        && bitmap_end <= row_width;
+    let status = if valid {
+        format!("tc_row_layout_extents_validated_{row_width}")
+    } else {
+        format!("tc_row_layout_extents_out_of_bounds_{row_width}")
+    };
+    (status, valid)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{report_subnode_table_heaps, report_table_heaps};
+    use super::{report_subnode_table_heaps, report_table_heaps, validate_row_layout_extents};
     use crate::pst::payload::PayloadBlock;
     use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, NodeId};
     use crate::pst::subnodes::SubnodeReference;
+
+    #[test]
+    fn validates_and_rejects_tcinfo_extents_against_row_width() {
+        let (status, valid) = validate_row_layout_extents(52, [4, 8, 10, 12], 48, 14);
+        assert!(valid);
+        assert_eq!(status, "tc_row_layout_extents_validated_52");
+
+        let (status, valid) = validate_row_layout_extents(52, [4, 8, 10, 54], 48, 56);
+        assert!(!valid);
+        assert_eq!(status, "tc_row_layout_extents_out_of_bounds_52");
+    }
 
     #[test]
     fn ignores_non_table_payloads() {
