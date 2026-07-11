@@ -27,6 +27,7 @@ pub mod recipients;
 pub mod subnodes;
 pub mod table_context;
 pub mod tc_bth;
+pub mod tc_extraction_reporting;
 pub mod tc_heap;
 pub mod tc_probe_collection;
 pub mod tc_reporting;
