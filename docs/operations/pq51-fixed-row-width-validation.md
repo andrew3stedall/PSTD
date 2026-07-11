@@ -36,6 +36,12 @@ Column-region and descriptor extent checks remain the next step only if the real
 
 PQ51 does not interpret property values, presence bitmaps, or TCINFO column extents. A fixed-width result proves only the partition of the row payload. It does not prove that any column offset or value type is safe to decode.
 
+## CI history
+
+GitHub Actions run #426 passed Rust build, Rust tests, Clippy, Python, and Docker. It failed only at `cargo fmt --check`, which required a mechanical layout change around the fixed-width inference conditional in `src/pst/tc_subnode_rows.rs`. The exact formatter output was committed without changing logic or test expectations. The CLI and public-PST job was skipped because it depends on the Rust job.
+
+The replacement run must validate the final branch head and produce the public fixture evidence before merge.
+
 ## Evidence required from CI
 
 The public fixture should retain the PQ50 extraction totals and replace `tc_subnode_rows_references_validated` with either:
