@@ -20,6 +20,8 @@ pub struct TcHeapDiagnostic {
     pub subnode_row_match_count: usize,
     pub resolved_row_payload_count: usize,
     pub row_data_byte_len: usize,
+    pub row_reference_values: Vec<u32>,
+    pub row_spans: Vec<usize>,
     pub status: String,
     pub error: Option<String>,
 }
@@ -27,8 +29,20 @@ pub struct TcHeapDiagnostic {
 impl TcHeapDiagnostic {
     fn status_fragment(&self) -> String {
         let error = self.error.as_deref().unwrap_or("none").replace(';', ",");
+        let row_reference_values = self
+            .row_reference_values
+            .iter()
+            .map(u32::to_string)
+            .collect::<Vec<_>>()
+            .join(":");
+        let row_spans = self
+            .row_spans
+            .iter()
+            .map(usize::to_string)
+            .collect::<Vec<_>>()
+            .join(":");
         format!(
-            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},status={},error={}",
+            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_reference_values={},row_spans={},status={},error={}",
             self.block_id,
             self.payload_byte_len,
             usize::from(self.resolved),
@@ -41,6 +55,8 @@ impl TcHeapDiagnostic {
             self.subnode_row_match_count,
             self.resolved_row_payload_count,
             self.row_data_byte_len,
+            row_reference_values,
+            row_spans,
             self.status.replace(';', ","),
             error
         )
@@ -189,6 +205,13 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         row_data_byte_len: subnode_rows
                             .as_ref()
                             .map_or(report.row_data_byte_len, |rows| rows.row_data_byte_len),
+                        row_reference_values: subnode_rows.as_ref().map_or_else(
+                            || row_references.clone(),
+                            |rows| rows.row_references.clone(),
+                        ),
+                        row_spans: subnode_rows
+                            .as_ref()
+                            .map_or_else(Vec::new, |rows| rows.row_spans.clone()),
                         status: subnode_rows
                             .as_ref()
                             .map_or(report.status, |rows| rows.status.clone()),
@@ -208,6 +231,8 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                     subnode_row_match_count: 0,
                     resolved_row_payload_count: 0,
                     row_data_byte_len: 0,
+                    row_reference_values: Vec::new(),
+                    row_spans: Vec::new(),
                     status: "tc_heap_resolution_failed".to_string(),
                     error: Some(reason.to_string()),
                 },
