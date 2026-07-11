@@ -46,7 +46,11 @@ pub fn resolve_tcinfo_from_heap(
         .max()
         .unwrap_or(0);
     let bitmap_byte_len = tcinfo.columns.len().div_ceil(8);
-    let bitmap_end = data_region_boundaries[3] as usize + bitmap_byte_len;
+    // The final TCINFO boundary is the end of the complete row layout, including
+    // the trailing existence bitmap. Adding the bitmap length to that boundary
+    // double-counts the bitmap and produced a false two-byte overflow for the
+    // public fixture (52-byte rows, 14 columns, final boundary 52).
+    let bitmap_end = data_region_boundaries[3] as usize;
 
     let row_index_result = parse_row_index_bth(&heap, bytes, tcinfo.row_index_hid, base_offset);
     let (row_index_report, row_index_error) = match row_index_result {
@@ -145,7 +149,7 @@ mod tests {
         assert_eq!(report.data_region_boundaries, [4, 8, 10, 12]);
         assert_eq!(report.max_column_extent, 8);
         assert_eq!(report.bitmap_byte_len, 1);
-        assert_eq!(report.bitmap_end, 13);
+        assert_eq!(report.bitmap_end, 12);
         assert_eq!(report.row_index_hid, 0x60);
         assert!(report.row_index_resolved);
         assert_eq!(report.row_reference_count, 2);
@@ -155,6 +159,17 @@ mod tests {
         assert!(report.rows_hid_resolved);
         assert!(report.index_resolved);
         assert_eq!(report.status, "tc_heap_row_references_validated");
+    }
+
+    #[test]
+    fn treats_final_tcinfo_boundary_as_bitmap_end() {
+        let bytes = sample_tc_heap(0xa0, &[0, 3]);
+        let report = resolve_tcinfo_from_heap(&bytes, 0).unwrap();
+
+        assert_eq!(report.data_region_boundaries[3], 12);
+        assert_eq!(report.bitmap_byte_len, 1);
+        assert_eq!(report.bitmap_end, 12);
+        assert_eq!(report.bitmap_end - report.bitmap_byte_len, 11);
     }
 
     #[test]
