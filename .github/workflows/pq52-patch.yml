@@ -1,0 +1,107 @@
+name: PQ52 branch patch
+
+on:
+  push:
+    branches:
+      - feature/pq52-expose-row-reference-spans
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[pq52-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/pq52-expose-row-reference-spans
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Apply deterministic PQ52 patch
+        shell: python
+        run: |
+          from pathlib import Path
+
+          rows = Path('src/pst/tc_subnode_rows.rs')
+          text = rows.read_text()
+          text = text.replace(
+              '    pub inferred_row_width: usize,\n    pub fixed_width_rows: bool,\n    pub status: String,',
+              '    pub inferred_row_width: usize,\n    pub fixed_width_rows: bool,\n    pub row_references: Vec<u32>,\n    pub row_spans: Vec<usize>,\n    pub status: String,'
+          )
+          text = text.replace(
+              '    let (inferred_row_width, fixed_width_rows) =\n        if resolved_payload_count == 1 && row_references_out_of_bounds == 0 {\n            infer_fixed_row_width(row_references, row_data_byte_len)\n        } else {\n            (0, false)\n        };',
+              '    let (inferred_row_width, fixed_width_rows, row_spans) =\n        if resolved_payload_count == 1 && row_references_out_of_bounds == 0 {\n            analyze_row_layout(row_references, row_data_byte_len)\n        } else {\n            (0, false, Vec::new())\n        };'
+          )
+          text = text.replace(
+              '        inferred_row_width,\n        fixed_width_rows,\n        status,',
+              '        inferred_row_width,\n        fixed_width_rows,\n        row_references: row_references.to_vec(),\n        row_spans,\n        status,'
+          )
+          text = text.replace(
+              'fn infer_fixed_row_width(row_references: &[u32], row_data_byte_len: usize) -> (usize, bool) {\n    if row_references.is_empty() {\n        return (0, false);\n    }',
+              'fn analyze_row_layout(\n    row_references: &[u32],\n    row_data_byte_len: usize,\n) -> (usize, bool, Vec<usize>) {\n    if row_references.is_empty() {\n        return (0, false, Vec::new());\n    }'
+          )
+          text = text.replace(
+              '    if offsets.windows(2).any(|pair| pair[0] >= pair[1]) {\n        return (0, false);\n    }',
+              '    if offsets.windows(2).any(|pair| pair[0] >= pair[1]) {\n        return (0, false, Vec::new());\n    }'
+          )
+          text = text.replace(
+              '    (inferred_row_width, fixed_width_rows)\n}',
+              '    (inferred_row_width, fixed_width_rows, widths)\n}'
+          )
+          text = text.replace(
+              '        assert_eq!(report.inferred_row_width, 4);\n        assert!(report.fixed_width_rows);',
+              '        assert_eq!(report.inferred_row_width, 4);\n        assert!(report.fixed_width_rows);\n        assert_eq!(report.row_references, vec![0, 4, 8]);\n        assert_eq!(report.row_spans, vec![4, 4, 4]);'
+          )
+          text = text.replace(
+              '            assert!(!report.fixed_width_rows);\n            assert_eq!(report.status, "tc_subnode_rows_variable_or_invalid_width");',
+              '            assert!(!report.fixed_width_rows);\n            assert_eq!(report.row_references, references);\n            assert_eq!(report.status, "tc_subnode_rows_variable_or_invalid_width");'
+          )
+          if 'pub row_references: Vec<u32>' not in text or 'analyze_row_layout' not in text:
+              raise SystemExit('PQ52 tc_subnode_rows patch assertions failed')
+          rows.write_text(text)
+
+          reporting = Path('src/pst/tc_reporting.rs')
+          text = reporting.read_text()
+          text = text.replace(
+              '    pub row_data_byte_len: usize,\n    pub status: String,',
+              '    pub row_data_byte_len: usize,\n    pub row_reference_values: Vec<u32>,\n    pub row_spans: Vec<usize>,\n    pub status: String,'
+          )
+          text = text.replace(
+              '        format!(\n            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},status={},error={}",',
+              '        let row_reference_values = self\n            .row_reference_values\n            .iter()\n            .map(u32::to_string)\n            .collect::<Vec<_>>()\n            .join(":");\n        let row_spans = self\n            .row_spans\n            .iter()\n            .map(usize::to_string)\n            .collect::<Vec<_>>()\n            .join(":");\n        format!(\n            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_reference_values={},row_spans={},status={},error={}",'
+          )
+          text = text.replace(
+              '            self.row_data_byte_len,\n            self.status.replace(\';\', ","),',
+              '            self.row_data_byte_len,\n            row_reference_values,\n            row_spans,\n            self.status.replace(\';\', ","),'
+          )
+          text = text.replace(
+              '                        row_data_byte_len: subnode_rows\n                            .as_ref()\n                            .map_or(report.row_data_byte_len, |rows| rows.row_data_byte_len),\n                        status:',
+              '                        row_data_byte_len: subnode_rows\n                            .as_ref()\n                            .map_or(report.row_data_byte_len, |rows| rows.row_data_byte_len),\n                        row_reference_values: subnode_rows\n                            .as_ref()\n                            .map_or_else(|| row_references.clone(), |rows| rows.row_references.clone()),\n                        row_spans: subnode_rows\n                            .as_ref()\n                            .map_or_else(Vec::new, |rows| rows.row_spans.clone()),\n                        status:'
+          )
+          text = text.replace(
+              '                    row_data_byte_len: 0,\n                    status: "tc_heap_resolution_failed".to_string(),',
+              '                    row_data_byte_len: 0,\n                    row_reference_values: Vec::new(),\n                    row_spans: Vec::new(),\n                    status: "tc_heap_resolution_failed".to_string(),'
+          )
+          if 'row_reference_values={}' not in text or 'pub row_spans: Vec<usize>' not in text:
+              raise SystemExit('PQ52 tc_reporting patch assertions failed')
+          reporting.write_text(text)
+
+          doc = Path('docs/operations/pq52-row-reference-span-evidence.md')
+          doc.write_text('''# PQ52 — expose row-reference span evidence\n\n## Evidence from PQ51\n\nGitHub Actions run #428 passed the complete CI matrix. The public PST fixture retained 11 folders, one extracted message, two body payloads, zero attachments, one tar shard, and 29,806 output bytes. The table probe still resolved one 208-byte NID-backed row payload with four in-bounds references, but reported `tc_subnode_rows_variable_or_invalid_width`.\n\nThis disproves the prior working assumption that the payload contains four equal 52-byte rows beginning at offset zero. It does not prove that the references are invalid; it only proves that the fixed-width interpretation is unsupported.\n\n## Revised requirement\n\nPQ52 records the exact row-reference values and the derived consecutive spans in the existing bounded table diagnostic. It makes no attempt to reinterpret the references or decode row values.\n\n## Changes\n\n- Preserve the exact row-reference sequence in `TcSubnodeRowResolutionReport`.\n- Preserve derived spans when references are unique, increasing, and in bounds.\n- Publish both sequences in the existing table diagnostic status.\n- Keep missing, ambiguous, and out-of-bounds behavior unchanged.\n- Add regression coverage for exact references and equal spans.\n\n## Safety boundary\n\nThis PQ is diagnostic only. It does not treat references as offsets, row IDs, or indices beyond the already tested bounds and ordering checks. It does not decode the presence bitmap, columns, or property values.\n\n## Evidence required from CI\n\nThe public fixture must expose the four exact row-reference values and their derived spans while preserving all PQ51 extraction totals. These values will determine whether the next PQ should investigate a leading header region, variable row records, or a non-offset interpretation.\n\n## Proposed PQ53 decision boundary\n\n- If references are increasing with a consistent span after a non-zero first reference, investigate a bounded leading row-data header.\n- If spans vary, inspect row-index key/value semantics and any row-size source before reading bytes.\n- If references are non-monotonic or repeated, stop treating them as direct byte offsets and trace the BTH row-index value representation.\n''')
+
+          workflow = Path('.github/workflows/pq52-patch.yml')
+          workflow.unlink()
+      - name: Format and test
+        run: |
+          cargo fmt --all
+          cargo test tc_subnode_rows --lib
+      - name: Commit permanent PQ52 implementation
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/pst/tc_subnode_rows.rs src/pst/tc_reporting.rs docs/operations/pq52-row-reference-span-evidence.md .github/workflows/pq52-patch.yml
+          git commit -m "PQ52: expose row reference span evidence [pq52-patched]"
+          git push origin HEAD:feature/pq52-expose-row-reference-spans
