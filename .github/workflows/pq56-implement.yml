@@ -1,0 +1,195 @@
+name: PQ56 implementation
+on:
+  push:
+    branches: [feature/pq56-count-row-bitmap-bits]
+permissions:
+  contents: write
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/pq56-count-row-bitmap-bits
+      - name: Apply bounded bitmap-count implementation
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('src/pst/tc_subnode_rows.rs')
+          s = p.read_text()
+          s = s.replace(
+              '    pub row_spans: Vec<usize>,\n    pub status: String,',
+              '    pub row_spans: Vec<usize>,\n    pub bitmap_rows_analyzed: usize,\n    pub bitmap_set_counts: Vec<usize>,\n    pub bitmap_unset_counts: Vec<usize>,\n    pub bitmap_status: String,\n    pub status: String,'
+          )
+          s = s.replace(
+              '    row_references: &[u32],\n) -> TcSubnodeRowResolutionReport {',
+              '    row_references: &[u32],\n    column_count: usize,\n    bitmap_start: usize,\n    bitmap_end: usize,\n) -> TcSubnodeRowResolutionReport {'
+          )
+          marker = '    let fixed_width_rows = direct_fixed_width_rows || ordinal_index_rows;\n'
+          insert = '''    let fixed_width_rows = direct_fixed_width_rows || ordinal_index_rows;\n    let (bitmap_set_counts, bitmap_unset_counts, bitmap_status) = if resolved_payload_count == 1 {\n        analyze_bitmap_counts(\n            &matching_payloads[0].bytes,\n            row_references,\n            direct_fixed_width_rows,\n            ordinal_index_rows,\n            inferred_row_width,\n            column_count,\n            bitmap_start,\n            bitmap_end,\n        )\n    } else {\n        (Vec::new(), Vec::new(), "tc_row_bitmap_payload_unavailable".to_string())\n    };\n    let bitmap_rows_analyzed = bitmap_set_counts.len();\n'''
+          assert marker in s
+          s = s.replace(marker, insert, 1)
+          s = s.replace(
+              '        row_references: row_references.to_vec(),\n        row_spans,\n        status,',
+              '        row_references: row_references.to_vec(),\n        row_spans,\n        bitmap_rows_analyzed,\n        bitmap_set_counts,\n        bitmap_unset_counts,\n        bitmap_status,\n        status,'
+          )
+          helper_marker = '\nfn analyze_row_layout(\n'
+          helper = r'''
+fn analyze_bitmap_counts(
+    row_data: &[u8],
+    row_references: &[u32],
+    direct_fixed_width_rows: bool,
+    ordinal_index_rows: bool,
+    row_width: usize,
+    column_count: usize,
+    bitmap_start: usize,
+    bitmap_end: usize,
+) -> (Vec<usize>, Vec<usize>, String) {
+    if row_width == 0 || column_count == 0 || bitmap_start > bitmap_end || bitmap_end > row_width {
+        return (
+            Vec::new(),
+            Vec::new(),
+            "tc_row_bitmap_layout_invalid".to_string(),
+        );
+    }
+    if (bitmap_end - bitmap_start) * 8 < column_count {
+        return (
+            Vec::new(),
+            Vec::new(),
+            "tc_row_bitmap_capacity_insufficient".to_string(),
+        );
+    }
+
+    let row_offsets = if direct_fixed_width_rows {
+        row_references
+            .iter()
+            .map(|reference| *reference as usize)
+            .collect::<Vec<_>>()
+    } else if ordinal_index_rows {
+        row_references
+            .iter()
+            .map(|reference| *reference as usize * row_width)
+            .collect::<Vec<_>>()
+    } else {
+        return (
+            Vec::new(),
+            Vec::new(),
+            "tc_row_bitmap_row_mode_unavailable".to_string(),
+        );
+    };
+
+    let mut set_counts = Vec::with_capacity(row_offsets.len());
+    let mut unset_counts = Vec::with_capacity(row_offsets.len());
+    for row_offset in row_offsets {
+        let start = row_offset.saturating_add(bitmap_start);
+        let end = row_offset.saturating_add(bitmap_end);
+        if end > row_data.len() || start > end {
+            return (
+                Vec::new(),
+                Vec::new(),
+                "tc_row_bitmap_bytes_out_of_bounds".to_string(),
+            );
+        }
+        let bitmap = &row_data[start..end];
+        let set = (0..column_count)
+            .filter(|bit| bitmap[*bit / 8] & (1 << (*bit % 8)) != 0)
+            .count();
+        set_counts.push(set);
+        unset_counts.push(column_count - set);
+    }
+
+    (
+        set_counts,
+        unset_counts,
+        "tc_row_bitmap_counts_validated".to_string(),
+    )
+}
+'''
+          assert helper_marker in s
+          s = s.replace(helper_marker, '\n' + helper + helper_marker, 1)
+          s = s.replace(
+              'resolve_subnode_row_storage(&payloads, 0x74, &[0, 4, 8])',
+              'resolve_subnode_row_storage(&payloads, 0x74, &[0, 4, 8], 8, 3, 4)'
+          )
+          s = s.replace(
+              'resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2, 3])',
+              'resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2, 3], 14, 50, 52)'
+          )
+          s = s.replace(
+              'resolve_subnode_row_storage(&payloads, 0x74, references)',
+              'resolve_subnode_row_storage(&payloads, 0x74, references, 8, 3, 4)'
+          )
+          s = s.replace(
+              'resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2])',
+              'resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2], 8, 3, 4)'
+          )
+          s = s.replace(
+              'resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 3])',
+              'resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 3], 8, 3, 4)'
+          )
+          s = s.replace(
+              'resolve_subnode_row_storage(&[], 0x74, &[0])',
+              'resolve_subnode_row_storage(&[], 0x74, &[0], 8, 3, 4)'
+          )
+          s = s.replace(
+              'resolve_subnode_row_storage(&payloads, 0x74, &[0]);',
+              'resolve_subnode_row_storage(&payloads, 0x74, &[0], 8, 3, 4);'
+          )
+          s = s.replace(
+              'resolve_subnode_row_storage(&payloads, 0x74, &[0, 4]);',
+              'resolve_subnode_row_storage(&payloads, 0x74, &[0, 4], 8, 3, 4);'
+          )
+          ordinal_assert = '        assert_eq!(report.status, "tc_subnode_rows_ordinal_index_validated_52");\n'
+          ordinal_extra = '''        assert_eq!(report.status, "tc_subnode_rows_ordinal_index_validated_52");\n        assert_eq!(report.bitmap_rows_analyzed, 4);\n        assert_eq!(report.bitmap_set_counts, vec![0, 0, 0, 0]);\n        assert_eq!(report.bitmap_unset_counts, vec![14, 14, 14, 14]);\n        assert_eq!(report.bitmap_status, "tc_row_bitmap_counts_validated");\n'''
+          assert ordinal_assert in s
+          s = s.replace(ordinal_assert, ordinal_extra, 1)
+          p.write_text(s)
+
+          p = Path('src/pst/tc_reporting.rs')
+          s = p.read_text()
+          s = s.replace(
+              '    pub bitmap_end: usize,\n    pub row_layout_extents_valid: bool,',
+              '    pub bitmap_end: usize,\n    pub bitmap_rows_analyzed: usize,\n    pub bitmap_set_counts: Vec<usize>,\n    pub bitmap_unset_counts: Vec<usize>,\n    pub bitmap_status: String,\n    pub row_layout_extents_valid: bool,'
+          )
+          s = s.replace(
+              '        let row_spans = self\n            .row_spans\n            .iter()\n            .map(usize::to_string)\n            .collect::<Vec<_>>()\n            .join(":");',
+              '        let row_spans = self\n            .row_spans\n            .iter()\n            .map(usize::to_string)\n            .collect::<Vec<_>>()\n            .join(":");\n        let bitmap_set_counts = self\n            .bitmap_set_counts\n            .iter()\n            .map(usize::to_string)\n            .collect::<Vec<_>>()\n            .join(":");\n        let bitmap_unset_counts = self\n            .bitmap_unset_counts\n            .iter()\n            .map(usize::to_string)\n            .collect::<Vec<_>>()\n            .join(":");'
+          )
+          s = s.replace(
+              'bitmap_bytes={},bitmap_end={},row_layout_valid={},row_layout_status={},status={},error={}",',
+              'bitmap_bytes={},bitmap_end={},bitmap_rows={},bitmap_set_counts={},bitmap_unset_counts={},bitmap_status={},row_layout_valid={},row_layout_status={},status={},error={}",'
+          )
+          s = s.replace(
+              '            self.bitmap_end,\n            usize::from(self.row_layout_extents_valid),',
+              '            self.bitmap_end,\n            self.bitmap_rows_analyzed,\n            bitmap_set_counts,\n            bitmap_unset_counts,\n            self.bitmap_status.replace(\';\', ","),\n            usize::from(self.row_layout_extents_valid),'
+          )
+          s = s.replace(
+              'resolve_subnode_row_storage(payloads, report.rows_hnid, &row_references)',
+              'resolve_subnode_row_storage(\n                            payloads,\n                            report.rows_hnid,\n                            &row_references,\n                            report.column_count,\n                            report.bitmap_end.saturating_sub(report.bitmap_byte_len),\n                            report.bitmap_end,\n                        )'
+          )
+          s = s.replace(
+              '                        bitmap_end: report.bitmap_end,\n                        row_layout_extents_valid,',
+              '                        bitmap_end: report.bitmap_end,\n                        bitmap_rows_analyzed: subnode_rows\n                            .as_ref()\n                            .map_or(0, |rows| rows.bitmap_rows_analyzed),\n                        bitmap_set_counts: subnode_rows\n                            .as_ref()\n                            .map_or_else(Vec::new, |rows| rows.bitmap_set_counts.clone()),\n                        bitmap_unset_counts: subnode_rows\n                            .as_ref()\n                            .map_or_else(Vec::new, |rows| rows.bitmap_unset_counts.clone()),\n                        bitmap_status: subnode_rows.as_ref().map_or_else(\n                            || "tc_row_bitmap_payload_unavailable".to_string(),\n                            |rows| rows.bitmap_status.clone(),\n                        ),\n                        row_layout_extents_valid,'
+          )
+          s = s.replace(
+              '                    bitmap_end: 0,\n                    row_layout_extents_valid: false,',
+              '                    bitmap_end: 0,\n                    bitmap_rows_analyzed: 0,\n                    bitmap_set_counts: Vec::new(),\n                    bitmap_unset_counts: Vec::new(),\n                    bitmap_status: "tc_row_bitmap_payload_unavailable".to_string(),\n                    row_layout_extents_valid: false,'
+          )
+          p.write_text(s)
+
+          Path('docs/operations/pq56-row-bitmap-counts.md').write_text('''# PQ56 — bounded row bitmap counts\n\n## Evidence from PQ55\n\nThe complete CI workflow passed after correcting the final TCINFO boundary semantics. The public fixture is expected to retain a 52-byte row width, `tcinfo_regions=48:48:50:52`, a two-byte trailing bitmap, `bitmap_end=52`, and `tc_row_layout_extents_validated_52`.\n\n## Revised requirement\n\nPQ56 reads only bytes `50..52` from each validated 52-byte row and counts set and unset bits across the 14 declared columns. It deliberately reports bit counts rather than claiming that a set bit means a semantically present property. Bit ordering and property-value decoding remain outside scope.\n\nThe implementation must:\n\n1. require a uniquely resolved row payload and validated fixed-width row mode;\n2. derive row byte offsets from direct offsets or zero-based ordinals as already proven;\n3. require the bitmap range to fit inside every row;\n4. require enough bitmap capacity for all columns;\n5. count only the first 14 bits, excluding padding bits;\n6. publish per-row set and unset counts plus a bounded bitmap status;\n7. avoid reading any column-value bytes.\n\n## Expected public-fixture evidence\n\nThe fixture should report four analyzed rows, four set-count values, four unset-count values, and `bitmap_status=tc_row_bitmap_counts_validated`. Extraction totals should remain unchanged.\n\n## PQ57 decision boundary\n\nIf the counts are stable and structurally valid, PQ57 should expose the exact 14-bit masks per row and compare them with the TCINFO column bitmap indices. It still should not decode property values. If bitmap access fails, PQ57 should inspect the exact final two bytes of each row without assigning semantics.\n''')
+      - name: Format and test
+        run: |
+          cargo fmt
+          cargo test tc_subnode_rows
+          cargo test tc_reporting
+      - name: Commit implementation and remove workflow
+        run: |
+          rm .github/workflows/pq56-implement.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/pst/tc_subnode_rows.rs src/pst/tc_reporting.rs docs/operations/pq56-row-bitmap-counts.md .github/workflows/pq56-implement.yml
+          git commit -m "PQ56: count bounded row bitmap bits"
+          git push origin HEAD:feature/pq56-count-row-bitmap-bits
