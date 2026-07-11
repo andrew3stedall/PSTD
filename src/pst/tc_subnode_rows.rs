@@ -61,20 +61,35 @@ pub fn resolve_subnode_row_storage(
     } else {
         0
     };
-    let (inferred_row_width, fixed_width_rows, row_spans) =
+    let (direct_row_width, direct_fixed_width_rows, row_spans) =
         if resolved_payload_count == 1 && row_references_out_of_bounds == 0 {
             analyze_row_layout(row_references, row_data_byte_len)
         } else {
             (0, false, Vec::new())
         };
+    let ordinal_row_width = if resolved_payload_count == 1 && !direct_fixed_width_rows {
+        infer_ordinal_row_width(row_references, row_data_byte_len)
+    } else {
+        0
+    };
+    let ordinal_index_rows = ordinal_row_width > 0;
+    let inferred_row_width = if direct_fixed_width_rows {
+        direct_row_width
+    } else {
+        ordinal_row_width
+    };
+    let fixed_width_rows = direct_fixed_width_rows || ordinal_index_rows;
     let status = match (matching_entry_count, resolved_payload_count) {
         (0, _) => "tc_subnode_rows_nid_missing".to_string(),
         (1, 0) => "tc_subnode_rows_payload_missing".to_string(),
         (1, 1) if row_references_out_of_bounds > 0 => {
             "tc_subnode_rows_references_out_of_bounds".to_string()
         }
-        (1, 1) if fixed_width_rows => {
+        (1, 1) if direct_fixed_width_rows => {
             format!("tc_subnode_rows_fixed_width_validated_{inferred_row_width}")
+        }
+        (1, 1) if ordinal_index_rows => {
+            format!("tc_subnode_rows_ordinal_index_validated_{inferred_row_width}")
         }
         (1, 1) => "tc_subnode_rows_variable_or_invalid_width".to_string(),
         _ => "tc_subnode_rows_ambiguous".to_string(),
@@ -122,6 +137,20 @@ fn analyze_row_layout(
         && offsets[0] == 0
         && widths.iter().all(|width| *width == inferred_row_width);
     (inferred_row_width, fixed_width_rows, widths)
+}
+
+fn infer_ordinal_row_width(row_references: &[u32], row_data_byte_len: usize) -> usize {
+    if row_references.is_empty() || row_data_byte_len % row_references.len() != 0 {
+        return 0;
+    }
+    if !row_references
+        .iter()
+        .enumerate()
+        .all(|(index, reference)| *reference as usize == index)
+    {
+        return 0;
+    }
+    row_data_byte_len / row_references.len()
 }
 
 fn is_unicode_slblock(bytes: &[u8]) -> bool {
@@ -177,6 +206,18 @@ mod tests {
     }
 
     #[test]
+    fn validates_contiguous_ordinal_row_references() {
+        let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 208])];
+        let report = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2, 3]);
+
+        assert_eq!(report.inferred_row_width, 52);
+        assert!(report.fixed_width_rows);
+        assert_eq!(report.row_references, vec![0, 1, 2, 3]);
+        assert_eq!(report.row_spans, vec![1, 1, 1, 205]);
+        assert_eq!(report.status, "tc_subnode_rows_ordinal_index_validated_52");
+    }
+
+    #[test]
     fn rejects_variable_duplicate_and_nonzero_start_layouts() {
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 12])];
 
@@ -186,6 +227,17 @@ mod tests {
             assert_eq!(report.row_references, references);
             assert_eq!(report.status, "tc_subnode_rows_variable_or_invalid_width");
         }
+    }
+
+    #[test]
+    fn rejects_noncontiguous_or_nondivisible_ordinal_references() {
+        let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 13])];
+        let nondivisible = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2]);
+        assert!(!nondivisible.fixed_width_rows);
+
+        let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 12])];
+        let noncontiguous = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 3]);
+        assert!(!noncontiguous.fixed_width_rows);
     }
 
     #[test]
