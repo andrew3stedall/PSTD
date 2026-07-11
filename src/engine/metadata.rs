@@ -32,6 +32,9 @@ use crate::pst::subnodes::{
     load_recursive_subnode_blocks, subnode_decode_plans, subnode_references_from_index,
     SubnodeReference,
 };
+use crate::pst::tc_extraction_reporting::finalize_table_probe_collection;
+use crate::pst::tc_probe_collection::record_subnode_payload_probe;
+use crate::pst::tc_run_reporting::TcRunProbeCollector;
 
 #[derive(Debug, Clone)]
 pub struct MetadataExtractionOutput {
@@ -114,6 +117,7 @@ pub fn extract_metadata(
     let mut pq14_message_subnode_blocks = 0usize;
     let mut pq14_message_subnode_failures = 0usize;
     let mut pq14_message_subnode_unsupported_layouts = 0usize;
+    let mut table_probe_collector = TcRunProbeCollector::new();
 
     let subnode_report = subnode_references_from_index(&nbt);
     let subnode_plans = subnode_decode_plans(&subnode_report.references, limits);
@@ -267,6 +271,11 @@ pub fn extract_metadata(
                             pq14_message_subnode_probe_attempts += 1;
                             let loaded_subnodes =
                                 load_recursive_subnode_blocks(&reader, &bbt, reference, 1, limits);
+                            record_subnode_payload_probe(
+                                &mut table_probe_collector,
+                                reference,
+                                &loaded_subnodes.payloads,
+                            );
                             subnode_decoded_blocks += loaded_subnodes.report.decoded_block_count;
                             subnode_child_references +=
                                 loaded_subnodes.report.recursive_child_reference_count;
@@ -303,6 +312,11 @@ pub fn extract_metadata(
                             subnode_decode_attempts += 1;
                             let loaded_subnodes =
                                 load_recursive_subnode_blocks(&reader, &bbt, reference, 1, limits);
+                            record_subnode_payload_probe(
+                                &mut table_probe_collector,
+                                reference,
+                                &loaded_subnodes.payloads,
+                            );
                             subnode_decoded_blocks += loaded_subnodes.report.decoded_block_count;
                             subnode_child_references +=
                                 loaded_subnodes.report.recursive_child_reference_count;
@@ -438,6 +452,12 @@ pub fn extract_metadata(
         }
     }
 
+    let table_probe_summary = finalize_table_probe_collection(run_id, table_probe_collector);
+    if let Some(issue) = table_probe_summary.issue.clone() {
+        issues.push(issue);
+    }
+    let table_probe_status = table_probe_summary.progress_status();
+
     let pq6_status = format!(
         "property_body_coverage; property_loaded_messages={pq6_property_loaded_messages}; property_unavailable_messages={pq6_property_unavailable_messages}; selected_properties={pq6_selected_property_count}; unknown_properties={pq6_unknown_property_count}; decode_errors={pq6_decode_error_count}; body_supported_property_messages={pq6_body_supported_property_messages}; body_payload_messages={pq6_body_payload_messages}; body_payload_records={pq6_body_payload_records}; body_fallback_records={pq6_body_fallback_records}; text_body_property_messages={pq6_text_body_property_messages}; html_body_property_messages={pq6_html_body_property_messages}; rtf_body_property_messages={pq6_rtf_body_property_messages}"
     );
@@ -508,7 +528,7 @@ pub fn extract_metadata(
         "message_subnode_probe; attempts={pq14_message_subnode_probe_attempts}; blocks={pq14_message_subnode_blocks}; failures={pq14_message_subnode_failures}; unsupported_layouts={pq14_message_subnode_unsupported_layouts}"
     );
     let status = format!(
-        "{}; bbt_status={}; nbt_status={}; pq4_status={}; pq4_folder_candidates={}; pq4_folder_property_loaded={}; pq4_folder_property_unavailable={}; pq5_status={}; pq5_message_candidates={}; pq5_table_candidates={}; pq5_linked_tables={}; pq5_unlinked_tables={}; pq6_status={}; pq14_status={}; folders_discovered={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; m23_status=attachment_metadata_fidelity; body_payloads={}; attachment_payloads={}; attachment_records={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
+        "{}; bbt_status={}; nbt_status={}; pq4_status={}; pq4_folder_candidates={}; pq4_folder_property_loaded={}; pq4_folder_property_unavailable={}; pq5_status={}; pq5_message_candidates={}; pq5_table_candidates={}; pq5_linked_tables={}; pq5_unlinked_tables={}; pq6_status={}; pq14_status={}; pq48_table_probe_status={}; folders_discovered={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; m23_status=attachment_metadata_fidelity; body_payloads={}; attachment_payloads={}; attachment_records={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
         metadata_status,
         bbt.status,
         nbt.status,
@@ -523,6 +543,7 @@ pub fn extract_metadata(
         message_table_discovery.unlinked_table_count,
         pq6_status,
         pq14_status,
+        table_probe_status,
         folders_discovered,
         body_payloads.len(),
         attachment_payloads.len(),
