@@ -27,6 +27,10 @@ pub struct TcHeapDiagnostic {
     pub max_column_extent: usize,
     pub bitmap_byte_len: usize,
     pub bitmap_end: usize,
+    pub bitmap_rows_analyzed: usize,
+    pub bitmap_set_counts: Vec<usize>,
+    pub bitmap_unset_counts: Vec<usize>,
+    pub bitmap_status: String,
     pub row_layout_extents_valid: bool,
     pub row_layout_status: String,
     pub status: String,
@@ -48,8 +52,20 @@ impl TcHeapDiagnostic {
             .map(usize::to_string)
             .collect::<Vec<_>>()
             .join(":");
+        let bitmap_set_counts = self
+            .bitmap_set_counts
+            .iter()
+            .map(usize::to_string)
+            .collect::<Vec<_>>()
+            .join(":");
+        let bitmap_unset_counts = self
+            .bitmap_unset_counts
+            .iter()
+            .map(usize::to_string)
+            .collect::<Vec<_>>()
+            .join(":");
         format!(
-            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_reference_values={},row_spans={},row_width={},tcinfo_regions={}:{}:{}:{},max_column_extent={},bitmap_bytes={},bitmap_end={},row_layout_valid={},row_layout_status={},status={},error={}",
+            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_reference_values={},row_spans={},row_width={},tcinfo_regions={}:{}:{}:{},max_column_extent={},bitmap_bytes={},bitmap_end={},bitmap_rows={},bitmap_set_counts={},bitmap_unset_counts={},bitmap_status={},row_layout_valid={},row_layout_status={},status={},error={}",
             self.block_id,
             self.payload_byte_len,
             usize::from(self.resolved),
@@ -72,6 +88,10 @@ impl TcHeapDiagnostic {
             self.max_column_extent,
             self.bitmap_byte_len,
             self.bitmap_end,
+            self.bitmap_rows_analyzed,
+            bitmap_set_counts,
+            bitmap_unset_counts,
+            self.bitmap_status.replace(';', ","),
             usize::from(self.row_layout_extents_valid),
             self.row_layout_status.replace(';', ","),
             self.status.replace(';', ","),
@@ -193,7 +213,14 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         })
                         .unwrap_or_default();
                     let subnode_rows = report.rows_requires_subnode_resolution.then(|| {
-                        resolve_subnode_row_storage(payloads, report.rows_hnid, &row_references)
+                        resolve_subnode_row_storage(
+                            payloads,
+                            report.rows_hnid,
+                            &row_references,
+                            report.column_count,
+                            report.bitmap_end.saturating_sub(report.bitmap_byte_len),
+                            report.bitmap_end,
+                        )
                     });
                     let inferred_row_width = subnode_rows
                         .as_ref()
@@ -243,6 +270,19 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         max_column_extent: report.max_column_extent,
                         bitmap_byte_len: report.bitmap_byte_len,
                         bitmap_end: report.bitmap_end,
+                        bitmap_rows_analyzed: subnode_rows
+                            .as_ref()
+                            .map_or(0, |rows| rows.bitmap_rows_analyzed),
+                        bitmap_set_counts: subnode_rows
+                            .as_ref()
+                            .map_or_else(Vec::new, |rows| rows.bitmap_set_counts.clone()),
+                        bitmap_unset_counts: subnode_rows
+                            .as_ref()
+                            .map_or_else(Vec::new, |rows| rows.bitmap_unset_counts.clone()),
+                        bitmap_status: subnode_rows.as_ref().map_or_else(
+                            || "tc_row_bitmap_payload_unavailable".to_string(),
+                            |rows| rows.bitmap_status.clone(),
+                        ),
                         row_layout_extents_valid,
                         row_layout_status,
                         status: subnode_rows
@@ -271,6 +311,10 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                     max_column_extent: 0,
                     bitmap_byte_len: 0,
                     bitmap_end: 0,
+                    bitmap_rows_analyzed: 0,
+                    bitmap_set_counts: Vec::new(),
+                    bitmap_unset_counts: Vec::new(),
+                    bitmap_status: "tc_row_bitmap_payload_unavailable".to_string(),
                     row_layout_extents_valid: false,
                     row_layout_status: "tc_row_layout_width_unavailable".to_string(),
                     status: "tc_heap_resolution_failed".to_string(),

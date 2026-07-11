@@ -18,6 +18,10 @@ pub struct TcSubnodeRowResolutionReport {
     pub fixed_width_rows: bool,
     pub row_references: Vec<u32>,
     pub row_spans: Vec<usize>,
+    pub bitmap_rows_analyzed: usize,
+    pub bitmap_set_counts: Vec<usize>,
+    pub bitmap_unset_counts: Vec<usize>,
+    pub bitmap_status: String,
     pub status: String,
 }
 
@@ -25,6 +29,9 @@ pub fn resolve_subnode_row_storage(
     payloads: &[PayloadBlock],
     rows_nid: u32,
     row_references: &[u32],
+    column_count: usize,
+    bitmap_start: usize,
+    bitmap_end: usize,
 ) -> TcSubnodeRowResolutionReport {
     let data_bids = payloads
         .iter()
@@ -79,6 +86,25 @@ pub fn resolve_subnode_row_storage(
         ordinal_row_width
     };
     let fixed_width_rows = direct_fixed_width_rows || ordinal_index_rows;
+    let (bitmap_set_counts, bitmap_unset_counts, bitmap_status) = if resolved_payload_count == 1 {
+        analyze_bitmap_counts(
+            &matching_payloads[0].bytes,
+            row_references,
+            direct_fixed_width_rows,
+            ordinal_index_rows,
+            inferred_row_width,
+            column_count,
+            bitmap_start,
+            bitmap_end,
+        )
+    } else {
+        (
+            Vec::new(),
+            Vec::new(),
+            "tc_row_bitmap_payload_unavailable".to_string(),
+        )
+    };
+    let bitmap_rows_analyzed = bitmap_set_counts.len();
     let status = match (matching_entry_count, resolved_payload_count) {
         (0, _) => "tc_subnode_rows_nid_missing".to_string(),
         (1, 0) => "tc_subnode_rows_payload_missing".to_string(),
@@ -107,8 +133,82 @@ pub fn resolve_subnode_row_storage(
         fixed_width_rows,
         row_references: row_references.to_vec(),
         row_spans,
+        bitmap_rows_analyzed,
+        bitmap_set_counts,
+        bitmap_unset_counts,
+        bitmap_status,
         status,
     }
+}
+
+fn analyze_bitmap_counts(
+    row_data: &[u8],
+    row_references: &[u32],
+    direct_fixed_width_rows: bool,
+    ordinal_index_rows: bool,
+    row_width: usize,
+    column_count: usize,
+    bitmap_start: usize,
+    bitmap_end: usize,
+) -> (Vec<usize>, Vec<usize>, String) {
+    if row_width == 0 || column_count == 0 || bitmap_start > bitmap_end || bitmap_end > row_width {
+        return (
+            Vec::new(),
+            Vec::new(),
+            "tc_row_bitmap_layout_invalid".to_string(),
+        );
+    }
+    if (bitmap_end - bitmap_start) * 8 < column_count {
+        return (
+            Vec::new(),
+            Vec::new(),
+            "tc_row_bitmap_capacity_insufficient".to_string(),
+        );
+    }
+
+    let row_offsets = if direct_fixed_width_rows {
+        row_references
+            .iter()
+            .map(|reference| *reference as usize)
+            .collect::<Vec<_>>()
+    } else if ordinal_index_rows {
+        row_references
+            .iter()
+            .map(|reference| *reference as usize * row_width)
+            .collect::<Vec<_>>()
+    } else {
+        return (
+            Vec::new(),
+            Vec::new(),
+            "tc_row_bitmap_row_mode_unavailable".to_string(),
+        );
+    };
+
+    let mut set_counts = Vec::with_capacity(row_offsets.len());
+    let mut unset_counts = Vec::with_capacity(row_offsets.len());
+    for row_offset in row_offsets {
+        let start = row_offset.saturating_add(bitmap_start);
+        let end = row_offset.saturating_add(bitmap_end);
+        if end > row_data.len() || start > end {
+            return (
+                Vec::new(),
+                Vec::new(),
+                "tc_row_bitmap_bytes_out_of_bounds".to_string(),
+            );
+        }
+        let bitmap = &row_data[start..end];
+        let set = (0..column_count)
+            .filter(|bit| bitmap[*bit / 8] & (1 << (*bit % 8)) != 0)
+            .count();
+        set_counts.push(set);
+        unset_counts.push(column_count - set);
+    }
+
+    (
+        set_counts,
+        unset_counts,
+        "tc_row_bitmap_counts_validated".to_string(),
+    )
 }
 
 fn analyze_row_layout(
@@ -191,7 +291,7 @@ mod tests {
     #[test]
     fn resolves_nid_backed_rows_and_validates_fixed_width() {
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 12])];
-        let report = resolve_subnode_row_storage(&payloads, 0x74, &[0, 4, 8]);
+        let report = resolve_subnode_row_storage(&payloads, 0x74, &[0, 4, 8], 8, 3, 4);
 
         assert_eq!(report.matching_entry_count, 1);
         assert_eq!(report.resolved_payload_count, 1);
@@ -208,13 +308,17 @@ mod tests {
     #[test]
     fn validates_contiguous_ordinal_row_references() {
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 208])];
-        let report = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2, 3]);
+        let report = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2, 3], 14, 50, 52);
 
         assert_eq!(report.inferred_row_width, 52);
         assert!(report.fixed_width_rows);
         assert_eq!(report.row_references, vec![0, 1, 2, 3]);
         assert_eq!(report.row_spans, vec![1, 1, 1, 205]);
         assert_eq!(report.status, "tc_subnode_rows_ordinal_index_validated_52");
+        assert_eq!(report.bitmap_rows_analyzed, 4);
+        assert_eq!(report.bitmap_set_counts, vec![0, 0, 0, 0]);
+        assert_eq!(report.bitmap_unset_counts, vec![14, 14, 14, 14]);
+        assert_eq!(report.bitmap_status, "tc_row_bitmap_counts_validated");
     }
 
     #[test]
@@ -222,7 +326,7 @@ mod tests {
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 12])];
 
         for references in [&[0, 4, 9][..], &[0, 4, 4][..], &[2, 6, 10][..]] {
-            let report = resolve_subnode_row_storage(&payloads, 0x74, references);
+            let report = resolve_subnode_row_storage(&payloads, 0x74, references, 8, 3, 4);
             assert!(!report.fixed_width_rows);
             assert_eq!(report.row_references, references);
             assert_eq!(report.status, "tc_subnode_rows_variable_or_invalid_width");
@@ -232,17 +336,17 @@ mod tests {
     #[test]
     fn rejects_noncontiguous_or_nondivisible_ordinal_references() {
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 13])];
-        let nondivisible = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2]);
+        let nondivisible = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2], 8, 3, 4);
         assert!(!nondivisible.fixed_width_rows);
 
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 12])];
-        let noncontiguous = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 3]);
+        let noncontiguous = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 3], 8, 3, 4);
         assert!(!noncontiguous.fixed_width_rows);
     }
 
     #[test]
     fn reports_missing_and_ambiguous_row_targets() {
-        let missing = resolve_subnode_row_storage(&[], 0x74, &[0]);
+        let missing = resolve_subnode_row_storage(&[], 0x74, &[0], 8, 3, 4);
         assert_eq!(missing.status, "tc_subnode_rows_nid_missing");
 
         let payloads = vec![
@@ -251,7 +355,7 @@ mod tests {
             payload(0x7a, vec![0; 8]),
             payload(0x7c, vec![0; 8]),
         ];
-        let ambiguous = resolve_subnode_row_storage(&payloads, 0x74, &[0]);
+        let ambiguous = resolve_subnode_row_storage(&payloads, 0x74, &[0], 8, 3, 4);
         assert_eq!(ambiguous.matching_entry_count, 2);
         assert_eq!(ambiguous.status, "tc_subnode_rows_ambiguous");
     }
@@ -259,7 +363,7 @@ mod tests {
     #[test]
     fn bounds_checks_resolved_row_references_before_width_inference() {
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, vec![0; 4])];
-        let report = resolve_subnode_row_storage(&payloads, 0x74, &[0, 4]);
+        let report = resolve_subnode_row_storage(&payloads, 0x74, &[0, 4], 8, 3, 4);
 
         assert_eq!(report.row_references_in_bounds, 1);
         assert_eq!(report.row_references_out_of_bounds, 1);
