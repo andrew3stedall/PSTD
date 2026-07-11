@@ -22,10 +22,7 @@ pub fn finalize_table_probe_collection(
         StatusRecord::info(
             run_id,
             "pq47_table_probe_evidence",
-            format!(
-                "Table-context probe evidence: {}",
-                report.progress_status()
-            ),
+            format!("Table-context probe evidence: {}", report.progress_status()),
         )
     });
 
@@ -44,11 +41,7 @@ mod tests {
     #[test]
     fn omits_issue_when_no_table_heap_is_observed() {
         let mut collector = TcRunProbeCollector::new();
-        record_subnode_payload_probe(
-            &mut collector,
-            &reference(1, 2),
-            &[payload(3, vec![0; 16])],
-        );
+        record_subnode_payload_probe(&mut collector, &reference(1, 2), &[payload(3, vec![0; 16])]);
 
         let summary = finalize_table_probe_collection("run-1", collector);
         assert_eq!(summary.report.probe_count, 1);
