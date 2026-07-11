@@ -18,6 +18,10 @@ The implementation must:
 6. publish per-row set and unset counts plus a bounded bitmap status;
 7. avoid reading any column-value bytes.
 
+## Implementation evidence
+
+The branch implementation workflow completed its targeted formatting and Rust tests successfully, committed the permanent Rust changes, and removed both temporary workflow files. The final branch head must still pass the repository's complete CI and public-PST fixture before merge.
+
 ## Expected public-fixture evidence
 
 The fixture should report four analyzed rows, four set-count values, four unset-count values, and `bitmap_status=tc_row_bitmap_counts_validated`. Extraction totals should remain unchanged.
