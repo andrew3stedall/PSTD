@@ -32,6 +32,7 @@ pub mod tc_heap;
 pub mod tc_probe_collection;
 pub mod tc_reporting;
 pub mod tc_run_reporting;
+pub mod tc_subnode_rows;
 pub mod tcinfo;
 pub mod threading;
 pub mod trailer;
