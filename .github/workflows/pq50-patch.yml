@@ -1,0 +1,122 @@
+name: PQ50 patch
+
+on:
+  push:
+    branches:
+      - feature/pq50-resolve-subnode-row-storage
+    paths:
+      - .github/workflows/pq50-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/pq50-resolve-subnode-row-storage
+      - name: Integrate subnode row resolution
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/pst/tc_reporting.rs')
+          text = path.read_text()
+          text = text.replace(
+              'use crate::pst::tc_heap::resolve_tcinfo_from_heap;\n',
+              'use crate::pst::tc_heap::resolve_tcinfo_from_heap;\nuse crate::pst::tc_subnode_rows::resolve_subnode_row_storage;\n'
+          )
+          text = text.replace(
+              '    pub rows_require_subnode_resolution: bool,\n    pub status: String,\n',
+              '    pub rows_require_subnode_resolution: bool,\n    pub rows_nid: u32,\n    pub subnode_row_match_count: usize,\n    pub resolved_row_payload_count: usize,\n    pub row_data_byte_len: usize,\n    pub status: String,\n'
+          )
+          text = text.replace(
+              '            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},status={},error={}",\n',
+              '            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},status={},error={}",\n'
+          )
+          text = text.replace(
+              '            usize::from(self.rows_require_subnode_resolution),\n            self.status.replace(\';\', ","),\n',
+              '            usize::from(self.rows_require_subnode_resolution),\n            self.rows_nid,\n            self.subnode_row_match_count,\n            self.resolved_row_payload_count,\n            self.row_data_byte_len,\n            self.status.replace(\';\', ","),\n'
+          )
+          start = text.index('        .map(\n            |payload| match resolve_tcinfo_from_heap')
+          end = text.index('        .collect::<Vec<_>>();', start)
+          replacement = '''        .map(|payload| {
+            match resolve_tcinfo_from_heap(&payload.bytes, payload.block_ref.offset.0) {
+                Ok(report) => {
+                    let row_references = report
+                        .row_index_report
+                        .as_ref()
+                        .map(|row_index| {
+                            row_index
+                                .entries
+                                .iter()
+                                .map(|entry| entry.row_reference)
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+                    let subnode_rows = report.rows_requires_subnode_resolution.then(|| {
+                        resolve_subnode_row_storage(payloads, report.rows_hnid, &row_references)
+                    });
+                    TcHeapDiagnostic {
+                        block_id: payload.block_id.0,
+                        payload_byte_len: payload.bytes.len(),
+                        resolved: true,
+                        column_count: report.column_count,
+                        row_reference_count: report.row_reference_count,
+                        row_references_in_bounds: subnode_rows
+                            .as_ref()
+                            .map_or(report.row_references_in_bounds, |rows| {
+                                rows.row_references_in_bounds
+                            }),
+                        row_references_out_of_bounds: subnode_rows
+                            .as_ref()
+                            .map_or(report.row_references_out_of_bounds, |rows| {
+                                rows.row_references_out_of_bounds
+                            }),
+                        rows_require_subnode_resolution: report.rows_requires_subnode_resolution,
+                        rows_nid: report.rows_hnid,
+                        subnode_row_match_count: subnode_rows
+                            .as_ref()
+                            .map_or(0, |rows| rows.matching_entry_count),
+                        resolved_row_payload_count: subnode_rows
+                            .as_ref()
+                            .map_or(0, |rows| rows.resolved_payload_count),
+                        row_data_byte_len: subnode_rows
+                            .as_ref()
+                            .map_or(report.row_data_byte_len, |rows| rows.row_data_byte_len),
+                        status: subnode_rows
+                            .as_ref()
+                            .map_or(report.status, |rows| rows.status.clone()),
+                        error: report.row_index_error,
+                    }
+                }
+                Err(reason) => TcHeapDiagnostic {
+                    block_id: payload.block_id.0,
+                    payload_byte_len: payload.bytes.len(),
+                    resolved: false,
+                    column_count: 0,
+                    row_reference_count: 0,
+                    row_references_in_bounds: 0,
+                    row_references_out_of_bounds: 0,
+                    rows_require_subnode_resolution: false,
+                    rows_nid: 0,
+                    subnode_row_match_count: 0,
+                    resolved_row_payload_count: 0,
+                    row_data_byte_len: 0,
+                    status: "tc_heap_resolution_failed".to_string(),
+                    error: Some(reason.to_string()),
+                },
+            }
+        })
+'''
+          text = text[:start] + replacement + text[end:]
+          path.write_text(text)
+          PY
+          cargo fmt
+          rm .github/workflows/pq50-patch.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/pst/tc_reporting.rs .github/workflows/pq50-patch.yml
+          git commit -m "PQ50 integrate subnode row evidence"
+          git push
