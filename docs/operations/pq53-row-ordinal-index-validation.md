@@ -30,6 +30,12 @@ For the current fixture, 208 bytes divided by four contiguous ordinal references
 
 Extraction totals must remain unchanged.
 
+## CI evidence
+
+GitHub Actions run #432 compiled successfully, passed the Rust tests, Python wrapper, and Docker build, but failed the Rust job at Clippy before rustfmt and the CLI/public-PST fixture could run. Clippy identified the manual remainder expression used for the divisibility guard and required `usize::is_multiple_of` under the repository's `-D warnings` policy.
+
+The implementation was updated mechanically to use `!row_data_byte_len.is_multiple_of(row_references.len())`. No row-index logic, acceptance criteria, test expectations, or extraction behavior changed. The replacement CI run must pass the complete matrix and publish the public-fixture result before merge.
+
 ## Safety boundary
 
 This PQ proves only the row-reference mode and fixed partition size. It does not prove that TCINFO column offsets fit within 52 bytes or that row bytes can be interpreted safely.
