@@ -1,5 +1,5 @@
 use crate::error::{PstdError, PstdResult};
-use crate::pst::tcinfo::TcInfo;
+use crate::pst::tcinfo::{TcColumnDescriptor, TcInfo};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TcDescriptorBitmapEvidence {
@@ -16,7 +16,14 @@ pub fn build_descriptor_bitmap_evidence(
     tcinfo: &TcInfo,
     bitmap_masks: &[String],
 ) -> PstdResult<Vec<TcDescriptorBitmapEvidence>> {
-    let column_count = tcinfo.columns.len();
+    build_descriptor_bitmap_evidence_from_columns(&tcinfo.columns, bitmap_masks)
+}
+
+pub fn build_descriptor_bitmap_evidence_from_columns(
+    columns: &[TcColumnDescriptor],
+    bitmap_masks: &[String],
+) -> PstdResult<Vec<TcDescriptorBitmapEvidence>> {
+    let column_count = columns.len();
     for (row_index, mask) in bitmap_masks.iter().enumerate() {
         if mask.len() != column_count {
             return Err(PstdError::pst_parse(
@@ -35,8 +42,39 @@ pub fn build_descriptor_bitmap_evidence(
         }
     }
 
-    let mut evidence = tcinfo
-        .columns
+    let mut seen_bitmap_bits = vec![false; column_count];
+    for (descriptor_order, descriptor) in columns.iter().enumerate() {
+        let bitmap_bit = descriptor.bitmap_bit as usize;
+        if bitmap_bit >= column_count {
+            return Err(PstdError::pst_parse(
+                None,
+                format!(
+                    "TCINFO descriptor {descriptor_order} bitmap index {bitmap_bit} is outside 0..{column_count}"
+                ),
+            ));
+        }
+        if seen_bitmap_bits[bitmap_bit] {
+            return Err(PstdError::pst_parse(
+                None,
+                format!("TCINFO bitmap index {bitmap_bit} is duplicated"),
+            ));
+        }
+        seen_bitmap_bits[bitmap_bit] = true;
+    }
+    if seen_bitmap_bits.iter().any(|seen| !seen) {
+        let missing = seen_bitmap_bits
+            .iter()
+            .enumerate()
+            .filter_map(|(bitmap_bit, seen)| (!seen).then_some(bitmap_bit.to_string()))
+            .collect::<Vec<_>>()
+            .join(":");
+        return Err(PstdError::pst_parse(
+            None,
+            format!("TCINFO bitmap mapping is incomplete; missing indices {missing}"),
+        ));
+    }
+
+    let mut evidence = columns
         .iter()
         .enumerate()
         .map(|(descriptor_order, descriptor)| {
@@ -89,8 +127,11 @@ pub fn format_descriptor_bitmap_evidence(evidence: &[TcDescriptorBitmapEvidence]
 
 #[cfg(test)]
 mod tests {
-    use super::{build_descriptor_bitmap_evidence, format_descriptor_bitmap_evidence};
-    use crate::pst::tcinfo::TcInfo;
+    use super::{
+        build_descriptor_bitmap_evidence, build_descriptor_bitmap_evidence_from_columns,
+        format_descriptor_bitmap_evidence,
+    };
+    use crate::pst::tcinfo::{TcColumnDescriptor, TcInfo};
 
     #[test]
     fn maps_descriptor_metadata_to_raw_row_states_in_bitmap_order() {
@@ -110,6 +151,33 @@ mod tests {
         assert_eq!(evidence[1].bitmap_bit, 1);
         assert_eq!(evidence[1].descriptor_order, 0);
         assert_eq!(evidence[1].row_states, "01");
+    }
+
+    #[test]
+    fn builds_identical_evidence_from_transported_columns() {
+        let info = TcInfo::parse(&sample_tcinfo([1, 0]), 0).unwrap();
+        let masks = vec!["10".to_string(), "01".to_string()];
+
+        let from_tcinfo = build_descriptor_bitmap_evidence(&info, &masks).unwrap();
+        let from_columns =
+            build_descriptor_bitmap_evidence_from_columns(&info.columns, &masks).unwrap();
+
+        assert_eq!(from_columns, from_tcinfo);
+    }
+
+    #[test]
+    fn validates_transported_descriptor_mapping_before_indexing_masks() {
+        let masks = vec!["10".to_string()];
+        let duplicate = vec![descriptor(0), descriptor(0)];
+        let out_of_range = vec![descriptor(0), descriptor(2)];
+
+        let duplicate_error =
+            build_descriptor_bitmap_evidence_from_columns(&duplicate, &masks).unwrap_err();
+        assert!(duplicate_error.to_string().contains("duplicated"));
+
+        let range_error =
+            build_descriptor_bitmap_evidence_from_columns(&out_of_range, &masks).unwrap_err();
+        assert!(range_error.to_string().contains("outside 0..2"));
     }
 
     #[test]
@@ -147,6 +215,15 @@ mod tests {
         let info = TcInfo::parse(&sample_tcinfo([0, 1]), 0).unwrap();
         let error = build_descriptor_bitmap_evidence(&info, &["1x".to_string()]).unwrap_err();
         assert!(error.to_string().contains("non-binary state"));
+    }
+
+    fn descriptor(bitmap_bit: u8) -> TcColumnDescriptor {
+        TcColumnDescriptor {
+            property_tag: 0x001f3001,
+            data_offset: 0,
+            data_size: 4,
+            bitmap_bit,
+        }
     }
 
     fn sample_tcinfo(bitmap_bits: [u8; 2]) -> Vec<u8> {
