@@ -14,12 +14,8 @@ pub fn build_validated_row_transport(
     row_width: usize,
     address_mode: TcRowAddressMode,
 ) -> Result<TcRowTransportEvidence, String> {
-    let absolute_row_offsets = derive_validated_row_offsets(
-        row_references,
-        row_width,
-        row_payload.len(),
-        address_mode,
-    )?;
+    let absolute_row_offsets =
+        derive_validated_row_offsets(row_references, row_width, row_payload.len(), address_mode)?;
 
     if absolute_row_offsets.len() != row_references.len() {
         return Err("validated row offset count does not match references".to_string());
@@ -87,13 +83,9 @@ mod tests {
 
     #[test]
     fn rejects_empty_references_without_retaining_payload() {
-        let error = build_validated_row_transport(
-            &[0; 12],
-            &[],
-            4,
-            TcRowAddressMode::DirectOffsets,
-        )
-        .expect_err("missing references must fail closed");
+        let error =
+            build_validated_row_transport(&[0; 12], &[], 4, TcRowAddressMode::DirectOffsets)
+                .expect_err("missing references must fail closed");
 
         assert_eq!(error, "row references are unavailable");
     }
