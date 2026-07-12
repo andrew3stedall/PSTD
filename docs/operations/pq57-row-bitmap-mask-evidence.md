@@ -30,3 +30,7 @@ The complete Rust, Python, Docker, CLI, and public-PST workflow must pass. The f
 If four stable masks are exposed, PQ58 should pair each mask position with the TCINFO column descriptor carrying that bitmap index and report only raw set/unset state, property tag, and property type. It must not decode values or assert semantic presence until the index mapping is independently validated.
 
 If masks cannot be produced, the following run should expose the exact trailing two bytes per row and reassess bit ordering and bitmap boundaries.
+
+## Reporting completion
+
+The row-resolution report carries the exact masks into `TcHeapDiagnostic`, whose bounded status fragment renders them as `bitmap_masks=...`. A reporting-level regression test verifies that four masks survive the full in-memory reporting path instead of being dropped after row analysis.
