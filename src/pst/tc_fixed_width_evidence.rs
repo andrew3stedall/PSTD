@@ -100,7 +100,11 @@ mod tests {
 
     #[test]
     fn selects_the_candidate_with_the_clearest_distinct_row_bytes() {
-        let columns = vec![descriptor(0, 0, 4), descriptor(1, 4, 4), descriptor(2, 8, 2)];
+        let columns = vec![
+            descriptor(0, 0, 4),
+            descriptor(1, 4, 4),
+            descriptor(2, 8, 2),
+        ];
         let masks = vec!["110".to_string(); 4];
         let mut rows = vec![0u8; 48];
         for row in 0..4 {
@@ -109,19 +113,16 @@ mod tests {
             rows[base + 4..base + 8].copy_from_slice(&[(row + 1) as u8, 0, 0, 0]);
         }
 
-        let evidence = select_fixed_width_row_evidence(
-            &columns,
-            &masks,
-            &rows,
-            &[0, 12, 24, 36],
-            12,
-            10,
-        )
-        .expect("bounded evidence should validate");
+        let evidence =
+            select_fixed_width_row_evidence(&columns, &masks, &rows, &[0, 12, 24, 36], 12, 10)
+                .expect("bounded evidence should validate");
 
         assert_eq!(evidence.bitmap_index, 1);
         assert_eq!(evidence.descriptor_order, 1);
-        assert_eq!(evidence.row_values_hex, vec!["01000000", "02000000", "03000000", "04000000"]);
+        assert_eq!(
+            evidence.row_values_hex,
+            vec!["01000000", "02000000", "03000000", "04000000"]
+        );
         assert_eq!(evidence.distinct_value_count, 4);
     }
 
