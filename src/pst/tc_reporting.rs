@@ -477,8 +477,7 @@ mod tests {
         assert_eq!(evidence, "none");
         assert_eq!(status, "tc_descriptor_evidence_unavailable");
 
-        let (evidence, status) =
-            build_descriptor_evidence_status(&columns, &["1".to_string()]);
+        let (evidence, status) = build_descriptor_evidence_status(&columns, &["1".to_string()]);
         assert_eq!(evidence, "none");
         assert_eq!(status, "tc_descriptor_evidence_construction_failed");
     }
@@ -529,7 +528,8 @@ mod tests {
         };
 
         let fragment = diagnostic.status_fragment();
-        assert!(fragment.contains("bitmap_masks=10101010101010:10101010101010:10101010101010:10101010101010"));
+        assert!(fragment
+            .contains("bitmap_masks=10101010101010:10101010101010:10101010101010:10101010101010"));
         assert!(fragment.contains("descriptor_evidence=b0-o1-t001f3001-y001f-d4-s4-r10"));
         assert!(fragment.contains("descriptor_evidence_status=tc_descriptor_evidence_validated"));
     }
