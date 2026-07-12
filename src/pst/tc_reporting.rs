@@ -461,9 +461,9 @@ mod tests {
             error: None,
         };
 
-        assert!(diagnostic.status_fragment().contains(
-            "bitmap_masks=10101010101010:10101010101010:10101010101010:10101010101010"
-        ));
+        assert!(diagnostic
+            .status_fragment()
+            .contains("bitmap_masks=10101010101010:10101010101010:10101010101010:10101010101010"));
     }
 
     #[test]
