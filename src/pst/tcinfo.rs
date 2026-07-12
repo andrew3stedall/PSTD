@@ -201,7 +201,9 @@ mod tests {
         let bytes = sample_tcinfo([0, 2]);
 
         let error = TcInfo::parse(&bytes, 0).unwrap_err();
-        assert!(error.to_string().contains("bitmap bit 2 exceeds column count 2"));
+        assert!(error
+            .to_string()
+            .contains("bitmap bit 2 exceeds column count 2"));
     }
 
     #[test]
