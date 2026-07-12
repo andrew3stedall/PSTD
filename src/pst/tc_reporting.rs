@@ -1,7 +1,11 @@
 use crate::pst::payload::PayloadBlock;
 use crate::pst::subnodes::SubnodeReference;
+use crate::pst::tc_descriptor_evidence::{
+    build_descriptor_bitmap_evidence_from_columns, format_descriptor_bitmap_evidence,
+};
 use crate::pst::tc_heap::resolve_tcinfo_from_heap;
 use crate::pst::tc_subnode_rows::resolve_subnode_row_storage;
+use crate::pst::tcinfo::TcColumnDescriptor;
 
 const HEAP_SIGNATURE: u8 = 0xec;
 const HEAP_CLIENT_TABLE_CONTEXT: u8 = 0x7c;
@@ -32,6 +36,8 @@ pub struct TcHeapDiagnostic {
     pub bitmap_unset_counts: Vec<usize>,
     pub bitmap_masks: Vec<String>,
     pub bitmap_status: String,
+    pub descriptor_evidence: String,
+    pub descriptor_evidence_status: String,
     pub row_layout_extents_valid: bool,
     pub row_layout_status: String,
     pub status: String,
@@ -67,7 +73,7 @@ impl TcHeapDiagnostic {
             .join(":");
         let bitmap_masks = self.bitmap_masks.join(":");
         format!(
-            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_reference_values={},row_spans={},row_width={},tcinfo_regions={}:{}:{}:{},max_column_extent={},bitmap_bytes={},bitmap_end={},bitmap_rows={},bitmap_set_counts={},bitmap_unset_counts={},bitmap_masks={},bitmap_status={},row_layout_valid={},row_layout_status={},status={},error={}",
+            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_reference_values={},row_spans={},row_width={},tcinfo_regions={}:{}:{}:{},max_column_extent={},bitmap_bytes={},bitmap_end={},bitmap_rows={},bitmap_set_counts={},bitmap_unset_counts={},bitmap_masks={},bitmap_status={},descriptor_evidence={},descriptor_evidence_status={},row_layout_valid={},row_layout_status={},status={},error={}",
             self.block_id,
             self.payload_byte_len,
             usize::from(self.resolved),
@@ -95,6 +101,8 @@ impl TcHeapDiagnostic {
             bitmap_unset_counts,
             bitmap_masks,
             self.bitmap_status.replace(';', ","),
+            self.descriptor_evidence,
+            self.descriptor_evidence_status.replace(';', ","),
             usize::from(self.row_layout_extents_valid),
             self.row_layout_status.replace(';', ","),
             self.status.replace(';', ","),
@@ -234,6 +242,13 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         report.max_column_extent,
                         report.bitmap_end,
                     );
+                    let (descriptor_evidence, descriptor_evidence_status) =
+                        build_descriptor_evidence_status(
+                            &report.column_descriptors,
+                            subnode_rows
+                                .as_ref()
+                                .map_or(&[][..], |rows| rows.bitmap_masks.as_slice()),
+                        );
                     TcHeapDiagnostic {
                         block_id: payload.block_id.0,
                         payload_byte_len: payload.bytes.len(),
@@ -289,6 +304,8 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                             || "tc_row_bitmap_payload_unavailable".to_string(),
                             |rows| rows.bitmap_status.clone(),
                         ),
+                        descriptor_evidence,
+                        descriptor_evidence_status,
                         row_layout_extents_valid,
                         row_layout_status,
                         status: subnode_rows
@@ -322,6 +339,8 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                     bitmap_unset_counts: Vec::new(),
                     bitmap_masks: Vec::new(),
                     bitmap_status: "tc_row_bitmap_payload_unavailable".to_string(),
+                    descriptor_evidence: "none".to_string(),
+                    descriptor_evidence_status: "tc_descriptor_evidence_unavailable".to_string(),
                     row_layout_extents_valid: false,
                     row_layout_status: "tc_row_layout_width_unavailable".to_string(),
                     status: "tc_heap_resolution_failed".to_string(),
@@ -376,6 +395,29 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
     }
 }
 
+fn build_descriptor_evidence_status(
+    columns: &[TcColumnDescriptor],
+    bitmap_masks: &[String],
+) -> (String, String) {
+    if columns.is_empty() || bitmap_masks.is_empty() {
+        return (
+            "none".to_string(),
+            "tc_descriptor_evidence_unavailable".to_string(),
+        );
+    }
+
+    match build_descriptor_bitmap_evidence_from_columns(columns, bitmap_masks) {
+        Ok(evidence) => (
+            format_descriptor_bitmap_evidence(&evidence),
+            "tc_descriptor_evidence_validated".to_string(),
+        ),
+        Err(_) => (
+            "none".to_string(),
+            "tc_descriptor_evidence_construction_failed".to_string(),
+        ),
+    }
+}
+
 fn validate_row_layout_extents(
     row_width: usize,
     data_region_boundaries: [u16; 4],
@@ -400,12 +442,13 @@ fn validate_row_layout_extents(
 #[cfg(test)]
 mod tests {
     use super::{
-        report_subnode_table_heaps, report_table_heaps, validate_row_layout_extents,
-        TcHeapDiagnostic,
+        build_descriptor_evidence_status, report_subnode_table_heaps, report_table_heaps,
+        validate_row_layout_extents, TcHeapDiagnostic,
     };
     use crate::pst::payload::PayloadBlock;
     use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, NodeId};
     use crate::pst::subnodes::SubnodeReference;
+    use crate::pst::tcinfo::TcColumnDescriptor;
 
     #[test]
     fn validates_and_rejects_tcinfo_extents_against_row_width() {
@@ -419,6 +462,27 @@ mod tests {
     }
 
     #[test]
+    fn distinguishes_valid_unavailable_and_failed_descriptor_evidence() {
+        let columns = vec![descriptor(1), descriptor(0)];
+        let masks = vec!["10".to_string(), "01".to_string()];
+
+        let (evidence, status) = build_descriptor_evidence_status(&columns, &masks);
+        assert_eq!(status, "tc_descriptor_evidence_validated");
+        assert_eq!(
+            evidence,
+            "b0-o1-t001f3001-y001f-d4-s4-r10~b1-o0-t001a0037-y001a-d0-s4-r01"
+        );
+
+        let (evidence, status) = build_descriptor_evidence_status(&columns, &[]);
+        assert_eq!(evidence, "none");
+        assert_eq!(status, "tc_descriptor_evidence_unavailable");
+
+        let (evidence, status) = build_descriptor_evidence_status(&columns, &["1".to_string()]);
+        assert_eq!(evidence, "none");
+        assert_eq!(status, "tc_descriptor_evidence_construction_failed");
+    }
+
+    #[test]
     fn ignores_non_table_payloads() {
         let report = report_table_heaps(&[payload(1, vec![0; 16])]);
         assert_eq!(report.payload_count, 1);
@@ -429,7 +493,7 @@ mod tests {
     }
 
     #[test]
-    fn renders_exact_bitmap_masks_in_diagnostic_status() {
+    fn renders_exact_bitmap_masks_and_descriptor_evidence_in_diagnostic_status() {
         let diagnostic = TcHeapDiagnostic {
             block_id: 0x7c,
             payload_byte_len: 208,
@@ -455,15 +519,19 @@ mod tests {
             bitmap_unset_counts: vec![7; 4],
             bitmap_masks: vec!["10101010101010".to_string(); 4],
             bitmap_status: "tc_row_bitmap_masks_validated".to_string(),
+            descriptor_evidence: "b0-o1-t001f3001-y001f-d4-s4-r10".to_string(),
+            descriptor_evidence_status: "tc_descriptor_evidence_validated".to_string(),
             row_layout_extents_valid: true,
             row_layout_status: "tc_row_layout_extents_validated_52".to_string(),
             status: "tc_subnode_rows_ordinal_index_validated_52".to_string(),
             error: None,
         };
 
-        assert!(diagnostic
-            .status_fragment()
+        let fragment = diagnostic.status_fragment();
+        assert!(fragment
             .contains("bitmap_masks=10101010101010:10101010101010:10101010101010:10101010101010"));
+        assert!(fragment.contains("descriptor_evidence=b0-o1-t001f3001-y001f-d4-s4-r10"));
+        assert!(fragment.contains("descriptor_evidence_status=tc_descriptor_evidence_validated"));
     }
 
     #[test]
@@ -478,6 +546,10 @@ mod tests {
         assert_eq!(report.failed_table_heap_count, 1);
         assert_eq!(report.diagnostics[0].block_id, 0x74);
         assert!(report.diagnostics[0].error.is_some());
+        assert_eq!(
+            report.diagnostics[0].descriptor_evidence_status,
+            "tc_descriptor_evidence_unavailable"
+        );
         assert_eq!(report.status, "tc_heap_report_failed");
         let status = report.progress_status();
         assert!(status.contains("pq42_failed_table_heaps=1"));
@@ -521,6 +593,20 @@ mod tests {
 
         let non_table = report_subnode_table_heaps(&reference, &[payload(3, vec![0; 16])]);
         assert_eq!(non_table.status, "pq43_no_table_heaps_detected");
+    }
+
+    fn descriptor(bitmap_bit: u8) -> TcColumnDescriptor {
+        let (property_tag, data_offset) = if bitmap_bit == 0 {
+            (0x001f3001, 4)
+        } else {
+            (0x001a0037, 0)
+        };
+        TcColumnDescriptor {
+            property_tag,
+            data_offset,
+            data_size: 4,
+            bitmap_bit,
+        }
     }
 
     fn payload(block_id: u64, bytes: Vec<u8>) -> PayloadBlock {
