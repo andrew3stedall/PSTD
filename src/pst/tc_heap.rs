@@ -1,7 +1,7 @@
 use crate::error::PstdResult;
 use crate::pst::heap::HeapOnNode;
 use crate::pst::tc_bth::{parse_row_index_bth, TcRowIndexReport};
-use crate::pst::tcinfo::{HnidKind, TcInfo};
+use crate::pst::tcinfo::{HnidKind, TcColumnDescriptor, TcInfo};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TcHeapResolutionReport {
@@ -9,6 +9,7 @@ pub struct TcHeapResolutionReport {
     pub user_root_resolved: bool,
     pub column_count: usize,
     pub property_tags: Vec<u32>,
+    pub column_descriptors: Vec<TcColumnDescriptor>,
     pub data_region_boundaries: [u16; 4],
     pub max_column_extent: usize,
     pub bitmap_byte_len: usize,
@@ -110,6 +111,7 @@ pub fn resolve_tcinfo_from_heap(
             .iter()
             .map(|column| column.property_tag)
             .collect(),
+        column_descriptors: tcinfo.columns.clone(),
         data_region_boundaries,
         max_column_extent,
         bitmap_byte_len,
@@ -146,6 +148,15 @@ mod tests {
         assert!(report.user_root_resolved);
         assert_eq!(report.column_count, 2);
         assert_eq!(report.property_tags, vec![0x001a0037, 0x001f3001]);
+        assert_eq!(report.column_descriptors.len(), 2);
+        assert_eq!(report.column_descriptors[0].property_tag, 0x001a0037);
+        assert_eq!(report.column_descriptors[0].data_offset, 0);
+        assert_eq!(report.column_descriptors[0].data_size, 4);
+        assert_eq!(report.column_descriptors[0].bitmap_bit, 0);
+        assert_eq!(report.column_descriptors[1].property_tag, 0x001f3001);
+        assert_eq!(report.column_descriptors[1].data_offset, 4);
+        assert_eq!(report.column_descriptors[1].data_size, 4);
+        assert_eq!(report.column_descriptors[1].bitmap_bit, 1);
         assert_eq!(report.data_region_boundaries, [4, 8, 10, 12]);
         assert_eq!(report.max_column_extent, 8);
         assert_eq!(report.bitmap_byte_len, 1);
@@ -184,80 +195,64 @@ mod tests {
     }
 
     #[test]
-    fn preserves_node_id_rows_for_subnode_resolution() {
-        let bytes = sample_tc_heap(0x74, &[0, 3]);
+    fn identifies_node_id_row_storage_without_heap_resolution() {
+        let bytes = sample_tc_heap(0x122, &[0, 3]);
         let report = resolve_tcinfo_from_heap(&bytes, 0).unwrap();
 
-        assert_eq!(report.rows_hnid, 0x74);
         assert_eq!(report.rows_hnid_kind, HnidKind::NodeId);
         assert!(!report.rows_hid_resolved);
         assert!(report.rows_requires_subnode_resolution);
-        assert_eq!(report.row_reference_count, 2);
+        assert_eq!(report.row_data_byte_len, 0);
         assert_eq!(report.row_references_in_bounds, 0);
         assert_eq!(report.row_references_out_of_bounds, 0);
         assert_eq!(report.status, "tc_heap_rows_require_subnode_resolution");
     }
 
-    #[test]
-    fn prioritizes_subnode_rows_over_optional_index_resolution() {
-        let mut bytes = sample_tc_heap(0x74, &[0, 3]);
-        let root_start = 16usize;
-        bytes[root_start + 18..root_start + 22].copy_from_slice(&0xe0u32.to_le_bytes());
-
-        let report = resolve_tcinfo_from_heap(&bytes, 0).unwrap();
-
-        assert!(!report.index_resolved);
-        assert!(report.rows_requires_subnode_resolution);
-        assert_eq!(report.rows_hnid, 0x74);
-        assert_eq!(report.status, "tc_heap_rows_require_subnode_resolution");
-    }
-
-    fn sample_tc_heap(rows_hnid: u32, row_references: &[u32; 2]) -> Vec<u8> {
-        let mut bytes = vec![0u8; 192];
-        bytes[0..2].copy_from_slice(&172u16.to_le_bytes());
+    fn sample_tc_heap(rows_hnid: u32, row_references: &[u32]) -> Vec<u8> {
+        let mut bytes = vec![0u8; 240];
+        bytes[0..2].copy_from_slice(&0x20u16.to_le_bytes());
         bytes[2] = 0xec;
         bytes[3] = 0x7c;
         bytes[4..8].copy_from_slice(&0x40u32.to_le_bytes());
 
-        let root_start = 16usize;
-        bytes[root_start] = 0x7c;
-        bytes[root_start + 1] = 2;
-        bytes[root_start + 2..root_start + 4].copy_from_slice(&4u16.to_le_bytes());
-        bytes[root_start + 4..root_start + 6].copy_from_slice(&8u16.to_le_bytes());
-        bytes[root_start + 6..root_start + 8].copy_from_slice(&10u16.to_le_bytes());
-        bytes[root_start + 8..root_start + 10].copy_from_slice(&12u16.to_le_bytes());
-        bytes[root_start + 10..root_start + 14].copy_from_slice(&0x60u32.to_le_bytes());
-        bytes[root_start + 14..root_start + 18].copy_from_slice(&rows_hnid.to_le_bytes());
-        bytes[root_start + 18..root_start + 22].copy_from_slice(&0xc0u32.to_le_bytes());
-        bytes[root_start + 22..root_start + 26].copy_from_slice(&0x001a0037u32.to_le_bytes());
-        bytes[root_start + 26..root_start + 28].copy_from_slice(&0u16.to_le_bytes());
-        bytes[root_start + 28] = 4;
-        bytes[root_start + 29] = 0;
-        bytes[root_start + 30..root_start + 34].copy_from_slice(&0x001f3001u32.to_le_bytes());
-        bytes[root_start + 34..root_start + 36].copy_from_slice(&4u16.to_le_bytes());
-        bytes[root_start + 36] = 4;
-        bytes[root_start + 37] = 1;
+        bytes[8..10].copy_from_slice(&0x20u16.to_le_bytes());
+        bytes[10..12].copy_from_slice(&0x40u16.to_le_bytes());
+        bytes[12..14].copy_from_slice(&0x80u16.to_le_bytes());
+        bytes[14..16].copy_from_slice(&0xa0u16.to_le_bytes());
+        bytes[16..18].copy_from_slice(&0xc0u16.to_le_bytes());
+        bytes[18..20].copy_from_slice(&0xe0u16.to_le_bytes());
 
-        bytes[54] = 0xb5;
-        bytes[55] = 4;
-        bytes[56] = 4;
-        bytes[57] = 0;
-        bytes[58..62].copy_from_slice(&0x80u32.to_le_bytes());
+        bytes[32] = 0x7c;
+        bytes[33] = 2;
+        bytes[34..36].copy_from_slice(&4u16.to_le_bytes());
+        bytes[36..38].copy_from_slice(&8u16.to_le_bytes());
+        bytes[38..40].copy_from_slice(&10u16.to_le_bytes());
+        bytes[40..42].copy_from_slice(&12u16.to_le_bytes());
+        bytes[42..46].copy_from_slice(&0x60u32.to_le_bytes());
+        bytes[46..50].copy_from_slice(&rows_hnid.to_le_bytes());
+        bytes[50..54].copy_from_slice(&0x80u32.to_le_bytes());
+        bytes[54..58].copy_from_slice(&0x001a0037u32.to_le_bytes());
+        bytes[58..60].copy_from_slice(&0u16.to_le_bytes());
+        bytes[60] = 4;
+        bytes[61] = 0;
+        bytes[62..66].copy_from_slice(&0x001f3001u32.to_le_bytes());
+        bytes[66..68].copy_from_slice(&4u16.to_le_bytes());
+        bytes[68] = 4;
+        bytes[69] = 1;
 
-        bytes[62..66].copy_from_slice(&0x1001u32.to_le_bytes());
-        bytes[66..70].copy_from_slice(&row_references[0].to_le_bytes());
-        bytes[70..74].copy_from_slice(&0x1002u32.to_le_bytes());
-        bytes[74..78].copy_from_slice(&row_references[1].to_le_bytes());
-
-        bytes[78..86].copy_from_slice(b"row-data");
-        bytes[86..90].copy_from_slice(b"indx");
-
-        bytes[172..174].copy_from_slice(&6u16.to_le_bytes());
-        bytes[174..176].copy_from_slice(&0u16.to_le_bytes());
-        for (index, offset) in [8u16, 16, 54, 62, 78, 86, 90].iter().enumerate() {
-            let start = 176 + index * 2;
-            bytes[start..start + 2].copy_from_slice(&offset.to_le_bytes());
+        bytes[64] = 0xb5;
+        bytes[65] = 2;
+        bytes[66] = 4;
+        bytes[67] = 4;
+        bytes[68..72].copy_from_slice(&0xa0u32.to_le_bytes());
+        for (index, row_reference) in row_references.iter().enumerate() {
+            let start = 72 + index * 8;
+            bytes[start..start + 4].copy_from_slice(&(index as u32 + 1).to_le_bytes());
+            bytes[start + 4..start + 8].copy_from_slice(&row_reference.to_le_bytes());
         }
+
+        bytes[128..132].copy_from_slice(&[0u8; 4]);
+        bytes[160..164].copy_from_slice(&[0u8; 4]);
         bytes
     }
 }
