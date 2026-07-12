@@ -1,7 +1,7 @@
 use crate::error::PstdResult;
 use crate::pst::heap::HeapOnNode;
 use crate::pst::tc_bth::{parse_row_index_bth, TcRowIndexReport};
-use crate::pst::tcinfo::{HnidKind, TcInfo};
+use crate::pst::tcinfo::{HnidKind, TcColumnDescriptor, TcInfo};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TcHeapResolutionReport {
@@ -9,6 +9,7 @@ pub struct TcHeapResolutionReport {
     pub user_root_resolved: bool,
     pub column_count: usize,
     pub property_tags: Vec<u32>,
+    pub column_descriptors: Vec<TcColumnDescriptor>,
     pub data_region_boundaries: [u16; 4],
     pub max_column_extent: usize,
     pub bitmap_byte_len: usize,
@@ -110,6 +111,7 @@ pub fn resolve_tcinfo_from_heap(
             .iter()
             .map(|column| column.property_tag)
             .collect(),
+        column_descriptors: tcinfo.columns.clone(),
         data_region_boundaries,
         max_column_extent,
         bitmap_byte_len,
@@ -146,6 +148,15 @@ mod tests {
         assert!(report.user_root_resolved);
         assert_eq!(report.column_count, 2);
         assert_eq!(report.property_tags, vec![0x001a0037, 0x001f3001]);
+        assert_eq!(report.column_descriptors.len(), 2);
+        assert_eq!(report.column_descriptors[0].property_tag, 0x001a0037);
+        assert_eq!(report.column_descriptors[0].data_offset, 0);
+        assert_eq!(report.column_descriptors[0].data_size, 4);
+        assert_eq!(report.column_descriptors[0].bitmap_bit, 0);
+        assert_eq!(report.column_descriptors[1].property_tag, 0x001f3001);
+        assert_eq!(report.column_descriptors[1].data_offset, 4);
+        assert_eq!(report.column_descriptors[1].data_size, 4);
+        assert_eq!(report.column_descriptors[1].bitmap_bit, 1);
         assert_eq!(report.data_region_boundaries, [4, 8, 10, 12]);
         assert_eq!(report.max_column_extent, 8);
         assert_eq!(report.bitmap_byte_len, 1);
