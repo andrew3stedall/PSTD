@@ -60,39 +60,27 @@ mod tests {
 
     #[test]
     fn converts_validated_ordinal_indices() {
-        let offsets = derive_validated_row_offsets(
-            &[0, 1, 2, 3],
-            52,
-            208,
-            TcRowAddressMode::OrdinalIndices,
-        )
-        .expect("ordinal indices should validate");
+        let offsets =
+            derive_validated_row_offsets(&[0, 1, 2, 3], 52, 208, TcRowAddressMode::OrdinalIndices)
+                .expect("ordinal indices should validate");
 
         assert_eq!(offsets, vec![0, 52, 104, 156]);
     }
 
     #[test]
     fn rejects_rows_outside_the_payload_without_partial_offsets() {
-        let error = derive_validated_row_offsets(
-            &[0, 1, 4],
-            52,
-            208,
-            TcRowAddressMode::OrdinalIndices,
-        )
-        .expect_err("out-of-bounds rows must fail closed");
+        let error =
+            derive_validated_row_offsets(&[0, 1, 4], 52, 208, TcRowAddressMode::OrdinalIndices)
+                .expect_err("out-of-bounds rows must fail closed");
 
         assert_eq!(error, "derived row is outside the resolved payload");
     }
 
     #[test]
     fn rejects_non_increasing_direct_offsets() {
-        let error = derive_validated_row_offsets(
-            &[0, 52, 52],
-            52,
-            208,
-            TcRowAddressMode::DirectOffsets,
-        )
-        .expect_err("duplicate offsets must fail closed");
+        let error =
+            derive_validated_row_offsets(&[0, 52, 52], 52, 208, TcRowAddressMode::DirectOffsets)
+                .expect_err("duplicate offsets must fail closed");
 
         assert_eq!(error, "derived row offsets are not strictly increasing");
     }
