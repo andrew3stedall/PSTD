@@ -60,9 +60,36 @@ pub fn build_descriptor_bitmap_evidence(
     Ok(evidence)
 }
 
+/// Formats validated descriptor evidence for embedding in the existing
+/// comma-delimited table diagnostic. Records are ordered by bitmap bit and use
+/// `~` as the record separator so they do not collide with the diagnostic's
+/// `,`, `:`, `;`, or `|` delimiters.
+pub fn format_descriptor_bitmap_evidence(evidence: &[TcDescriptorBitmapEvidence]) -> String {
+    if evidence.is_empty() {
+        return "none".to_string();
+    }
+
+    evidence
+        .iter()
+        .map(|item| {
+            format!(
+                "b{}-o{}-t{:08x}-y{:04x}-d{}-s{}-r{}",
+                item.bitmap_bit,
+                item.descriptor_order,
+                item.property_tag,
+                item.property_type,
+                item.data_offset,
+                item.data_size,
+                item.row_states
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("~")
+}
+
 #[cfg(test)]
 mod tests {
-    use super::build_descriptor_bitmap_evidence;
+    use super::{build_descriptor_bitmap_evidence, format_descriptor_bitmap_evidence};
     use crate::pst::tcinfo::TcInfo;
 
     #[test]
@@ -83,6 +110,29 @@ mod tests {
         assert_eq!(evidence[1].bitmap_bit, 1);
         assert_eq!(evidence[1].descriptor_order, 0);
         assert_eq!(evidence[1].row_states, "01");
+    }
+
+    #[test]
+    fn formats_evidence_deterministically_without_diagnostic_delimiters() {
+        let info = TcInfo::parse(&sample_tcinfo([1, 0]), 0).unwrap();
+        let masks = vec!["10".to_string(), "01".to_string()];
+        let evidence = build_descriptor_bitmap_evidence(&info, &masks).unwrap();
+
+        let formatted = format_descriptor_bitmap_evidence(&evidence);
+
+        assert_eq!(
+            formatted,
+            "b0-o1-t001f3001-y001f-d4-s4-r10~b1-o0-t001a0037-y001a-d0-s4-r01"
+        );
+        assert!(!formatted.contains(','));
+        assert!(!formatted.contains(':'));
+        assert!(!formatted.contains(';'));
+        assert!(!formatted.contains('|'));
+    }
+
+    #[test]
+    fn formats_empty_evidence_explicitly() {
+        assert_eq!(format_descriptor_bitmap_evidence(&[]), "none");
     }
 
     #[test]
