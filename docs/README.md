@@ -59,6 +59,7 @@ Historical milestone documents describe the decision and implementation at that 
 
 - [Local Validation](operations/local-validation.md)
 - [Public PST Progress Log](operations/public-pst-progress-log.md)
+- [PQ57 bounded row bitmap mask evidence](operations/pq57-row-bitmap-mask-evidence.md)
 - [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md)
 - [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
 - [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md)
