@@ -30,6 +30,7 @@ pub struct TcHeapDiagnostic {
     pub bitmap_rows_analyzed: usize,
     pub bitmap_set_counts: Vec<usize>,
     pub bitmap_unset_counts: Vec<usize>,
+    pub bitmap_masks: Vec<String>,
     pub bitmap_status: String,
     pub row_layout_extents_valid: bool,
     pub row_layout_status: String,
@@ -64,8 +65,9 @@ impl TcHeapDiagnostic {
             .map(usize::to_string)
             .collect::<Vec<_>>()
             .join(":");
+        let bitmap_masks = self.bitmap_masks.join(":");
         format!(
-            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_reference_values={},row_spans={},row_width={},tcinfo_regions={}:{}:{}:{},max_column_extent={},bitmap_bytes={},bitmap_end={},bitmap_rows={},bitmap_set_counts={},bitmap_unset_counts={},bitmap_status={},row_layout_valid={},row_layout_status={},status={},error={}",
+            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_reference_values={},row_spans={},row_width={},tcinfo_regions={}:{}:{}:{},max_column_extent={},bitmap_bytes={},bitmap_end={},bitmap_rows={},bitmap_set_counts={},bitmap_unset_counts={},bitmap_masks={},bitmap_status={},row_layout_valid={},row_layout_status={},status={},error={}",
             self.block_id,
             self.payload_byte_len,
             usize::from(self.resolved),
@@ -91,6 +93,7 @@ impl TcHeapDiagnostic {
             self.bitmap_rows_analyzed,
             bitmap_set_counts,
             bitmap_unset_counts,
+            bitmap_masks,
             self.bitmap_status.replace(';', ","),
             usize::from(self.row_layout_extents_valid),
             self.row_layout_status.replace(';', ","),
@@ -279,6 +282,9 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         bitmap_unset_counts: subnode_rows
                             .as_ref()
                             .map_or_else(Vec::new, |rows| rows.bitmap_unset_counts.clone()),
+                        bitmap_masks: subnode_rows
+                            .as_ref()
+                            .map_or_else(Vec::new, |rows| rows.bitmap_masks.clone()),
                         bitmap_status: subnode_rows.as_ref().map_or_else(
                             || "tc_row_bitmap_payload_unavailable".to_string(),
                             |rows| rows.bitmap_status.clone(),
@@ -314,6 +320,7 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                     bitmap_rows_analyzed: 0,
                     bitmap_set_counts: Vec::new(),
                     bitmap_unset_counts: Vec::new(),
+                    bitmap_masks: Vec::new(),
                     bitmap_status: "tc_row_bitmap_payload_unavailable".to_string(),
                     row_layout_extents_valid: false,
                     row_layout_status: "tc_row_layout_width_unavailable".to_string(),
@@ -392,7 +399,10 @@ fn validate_row_layout_extents(
 
 #[cfg(test)]
 mod tests {
-    use super::{report_subnode_table_heaps, report_table_heaps, validate_row_layout_extents};
+    use super::{
+        report_subnode_table_heaps, report_table_heaps, validate_row_layout_extents,
+        TcHeapDiagnostic,
+    };
     use crate::pst::payload::PayloadBlock;
     use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, NodeId};
     use crate::pst::subnodes::SubnodeReference;
@@ -416,6 +426,44 @@ mod tests {
         assert_eq!(report.status, "tc_heap_report_empty");
         assert!(report.progress_status().contains("pq42_table_heaps=0"));
         assert!(report.progress_status().contains("pq42_diagnostics=none"));
+    }
+
+    #[test]
+    fn renders_exact_bitmap_masks_in_diagnostic_status() {
+        let diagnostic = TcHeapDiagnostic {
+            block_id: 0x7c,
+            payload_byte_len: 208,
+            resolved: true,
+            column_count: 14,
+            row_reference_count: 4,
+            row_references_in_bounds: 4,
+            row_references_out_of_bounds: 0,
+            rows_require_subnode_resolution: true,
+            rows_nid: 0x809f,
+            subnode_row_match_count: 1,
+            resolved_row_payload_count: 1,
+            row_data_byte_len: 208,
+            row_reference_values: vec![0, 1, 2, 3],
+            row_spans: vec![1, 1, 1, 205],
+            inferred_row_width: 52,
+            tcinfo_data_region_boundaries: [48, 48, 50, 52],
+            max_column_extent: 50,
+            bitmap_byte_len: 2,
+            bitmap_end: 52,
+            bitmap_rows_analyzed: 4,
+            bitmap_set_counts: vec![7; 4],
+            bitmap_unset_counts: vec![7; 4],
+            bitmap_masks: vec!["10101010101010".to_string(); 4],
+            bitmap_status: "tc_row_bitmap_masks_validated".to_string(),
+            row_layout_extents_valid: true,
+            row_layout_status: "tc_row_layout_extents_validated_52".to_string(),
+            status: "tc_subnode_rows_ordinal_index_validated_52".to_string(),
+            error: None,
+        };
+
+        assert!(diagnostic
+            .status_fragment()
+            .contains("bitmap_masks=10101010101010:10101010101010:10101010101010:10101010101010"));
     }
 
     #[test]

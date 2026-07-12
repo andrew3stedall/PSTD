@@ -30,6 +30,8 @@ The artifact must contain summaries and bounded diagnostics only. It must not co
 
 | Date | Milestone / PR | Change type | Public-fixture result | Next blocker |
 |---|---|---|---|---|
+| 2026-07-12 | PQ57 / #399 | Diagnostic completion; output-neutral | Validated four 52-byte ordinal rows and exposed one bounded 14-bit mask per row: `11111011000000` for all four. Each mask contains seven set and seven unset bits, excludes the two padding bits, and preserves 11 folders, 1/1 extracted message, 2 body payloads, 0 attachments, 16 selected properties, and 19 unknown properties. | Map each mask position through the TCINFO descriptor's `bitmap_bit` only after proving that the 14 indices are unique and complete. Report raw state, property tag, and property type without decoding row values or asserting semantic presence. |
+| 2026-07-11 to 2026-07-12 | PQ38-PQ56 / #379-#398 | Table-context and row-layout validation | Resolved the real TC heap, row-index BTH, subnode-backed row payload, ordinal row references, 52-byte row width, TCINFO extents, and the bounded bitmap at bytes `50..52`. PQ56 measured seven set and seven unset bits per row without assigning property semantics. | Preserve the exact masks so column-index mapping can be validated before any value access. |
 | 2026-07-10 | PQ37 / #378 | Parser primitive; output-neutral | Added bounded parsing for the 22-byte TCINFO root and exact 8-byte TCOLDESC records. Preserved `hidRowIndex`, `hnidRows`, and `hidIndex` as unresolved typed HNID values. Extraction counts and PQ36 property/body results are intentionally unchanged. | Wire parsing to the actual `hidUserRoot` heap allocation and emit fixture evidence before row materialisation. |
 | 2026-07-10 | PQ36 / #377 | Material extraction progress | Decoded non-internal `NDB_CRYPT_PERMUTE` blocks, classified Heap-on-Node clients, and rejected invalid legacy table declarations. Selected properties increased **0 → 16**, unknown properties decreased **74 → 19**, text and RTF bodies were recovered, and fallback body rows decreased **1 → 0**. BID `0x74` remains an unresolved 208-byte payload. | Parse the real table-context root without assuming BID `0x74` is the row matrix. |
 | 2026-07-10 | PQ35 / #376 | Structural correctness | Resolved Unicode SLENTRY targets through the BBT with depth and cycle guards. Corrected false table rows/values from 1/2 to 0/0 and exposed the remaining permissive payload-admission problem. | Decode payload encryption and require structural client admission. |
@@ -44,9 +46,9 @@ The artifact must contain summaries and bounded diagnostics only. It must not co
 
 ## Interpretation
 
-The headline result is not that PSTD is complete. PQ36 proved that the previous extraction gap was substantially caused by payload decryption and structural admission, but table-context reference resolution is still incomplete. PQ37 reduces the risk of the next step by adding a bounded parser without guessing ownership or address spaces.
+The headline result is not that PSTD is complete. PQ38-PQ57 establish a validated structural path from the real table heap to four bounded row bitmaps, but no row property values have been decoded and the bitmap states have not yet been mapped to TCINFO columns.
 
-Do not treat parser-only milestones as extraction improvement. The next material progress requires resolving the correct Heap-on-Node allocation and then proving the row-index and row-storage chains.
+Do not treat parser-only milestones as extraction improvement. PQ58 must first prove that TCINFO `bitmap_bit` values form a unique, complete mapping for indices `0..13`; only later evidence may justify bounded value access.
 
 ## Completion report format
 

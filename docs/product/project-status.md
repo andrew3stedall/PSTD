@@ -14,8 +14,9 @@ Provide a single current-state view of what PSTD can do, what has been validated
 | Property and body coverage | PQ6-PQ10 complete | Coverage, selected/unknown property diagnostics, String8 support, tag-shape analysis, and Heap-on-Node/BTH parser foundations are present. |
 | Payload and subnode discovery | PQ11-PQ35 complete | Bounded payload scans, message subnode selection, recursive Unicode SLBLOCK/SLENTRY decoding, target resolution, cycle guards, and evidence artifacts are implemented. |
 | Payload decoding and structural admission | PQ36 complete | Non-internal `NDB_CRYPT_PERMUTE` blocks are decoded; internal blocks remain raw; Heap-on-Node clients are classified; invalid legacy table declarations are rejected. |
-| Table-context root parsing | PQ37 complete | A bounded 22-byte TCINFO parser and exact 8-byte TCOLDESC parser exist. HNID values are classified as null, HID, or NID without premature resolution. |
-| Table row materialisation | In progress | The real `hidUserRoot`, `hidRowIndex`, `hnidRows`, and `hidIndex` references still need resolution through the correct address spaces. |
+| Table-context and row-location parsing | PQ37-PQ50 complete | The real TC heap, row-index BTH, and NID-backed 208-byte row payload resolve through bounded address-space-specific paths. |
+| Table row structure | PQ51-PQ57 complete | Four ordinal rows resolve at 52 bytes each; TCINFO extents fit; bitmap bytes `50..52` yield four exact 14-bit masks. No row values are decoded. |
+| Table row materialisation | In progress | PQ58 must validate descriptor `bitmap_bit` uniqueness and coverage before any column values are accessed. |
 | EML reconstruction | Not implemented | Current canonical output remains structured TAR + JSONL. Full RFC-compliant EML reconstruction is later work after extraction coverage stabilises. |
 | Snowflake, UI, search, analytics | Parked | Downstream work remains out of scope until PST conversion coverage is reliable. |
 
@@ -31,6 +32,8 @@ Provide a single current-state view of what PSTD can do, what has been validated
 | PQ32-PQ35 | Invalid legacy descriptor assumption identified; raw payload captured as Unicode SLBLOCK; SLENTRY targets resolved recursively. |
 | PQ36 | Correct payload decryption and structural admission produced the first material property/body extraction improvement. |
 | PQ37 | Specification-aligned TCINFO root parser added without changing extraction output. |
+| PQ38-PQ48 | Resolved TC heap allocations and row-index BTH structures, then wired bounded table-probe evidence into the extraction run. |
+| PQ49-PQ57 | Resolved subnode row storage and validated row references, ordinal semantics, 52-byte row layout, bitmap boundaries, bit counts, and exact masks. |
 
 ## Latest validated fixture result
 
@@ -50,27 +53,27 @@ PQ36 corrected the property and body path:
 - RTF body recovered;
 - fallback body rows: **1 → 0**;
 - false table declarations rejected;
-- unresolved BID `0x74`: 208 bytes.
+- the NID-backed row payload now resolves as 208 bytes and is validated as four 52-byte rows.
 
-PQ37 is deliberately output-neutral. It adds safe parser primitives required for the next reference-resolution step.
+PQ57 remains extraction-output-neutral but proves the full bounded structural chain to four row masks. Each row reports `11111011000000`, with seven set and seven unset bits. The result does not yet establish semantic property presence.
 
 ## Current active blocker
 
-**PQ38: resolve and parse the real table-context root allocation.**
+**PQ58: validate the TCINFO column-to-bitmap index mapping.**
 
 Required outcome:
 
-1. Resolve the Heap-on-Node `hidUserRoot` allocation from the selected decoded payload.
-2. Parse TCINFO and TCOLDESC records from that bounded allocation rather than from a guessed block prefix.
-3. Preserve `hidRowIndex`, `hnidRows`, and `hidIndex` as typed references.
-4. Emit deterministic fixture evidence before attempting row materialisation.
-5. Do not assume BID `0x74` is the row matrix without reference-chain evidence.
+1. Preserve raw TCINFO descriptor metadata including property tag, property type, offset, size, and `bitmap_bit`.
+2. Prove the 14 bitmap indices are unique, in range, and complete over `0..13`.
+3. Pair each descriptor with only the raw set/unset state from each validated mask.
+4. Preserve descriptor order separately from bitmap-index order.
+5. Do not decode values or claim semantic property presence.
 
 ## Active conversion coverage roadmap
 
-1. **PQ38** — wire TCINFO parsing to the real `hidUserRoot` allocation and publish fixture evidence.
-2. **PQ39** — resolve row-index and row-storage references through the correct HID/NID address spaces, revised from PQ38 evidence.
-3. **PQ40+** — materialise rows and selected table properties only after structural bounds and reference ownership are proven.
+1. **PQ58** — validate and expose the TCINFO descriptor-to-bitmap index mapping.
+2. **PQ59** — if PQ58 validates, define a bounded descriptor-offset/value-access experiment; otherwise diagnose the exact mapping defect.
+3. **PQ60+** — materialise selected table properties only after bitmap mapping, bounds, value type, and indirection rules are proven.
 
 The exact requirements for each later PQ must be revised from the preceding CI artifact rather than fixed in advance.
 

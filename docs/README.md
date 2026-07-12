@@ -1,6 +1,6 @@
 # PSTD Documentation
 
-This tree is organised by audience. The M1-M25 foundation is complete; active work is the parser-quality sequence, currently complete through **PQ37** with **PQ38 next**.
+This tree is organised by audience. The M1-M25 foundation is complete; active work is the parser-quality sequence, currently validated through **PQ57** with **PQ58 next**.
 
 ## Start here
 
@@ -28,8 +28,9 @@ This tree is organised by audience. The M1-M25 foundation is complete; active wo
 | PQ24-PQ31 | Column, tag, descriptor, and source-propagation diagnostics. |
 | PQ32-PQ35 | Invalid legacy descriptor assumption identified; Unicode SLBLOCK captured and recursively resolved. |
 | PQ36 | `NDB_CRYPT_PERMUTE` decoding and structural payload admission; selected properties rose to 16 and body payloads were recovered. |
-| PQ37 | Bounded TCINFO/TCOLDESC parser with typed HNID classification. |
-| PQ38 next | Resolve `hidUserRoot`, parse the actual table-context allocation, and emit evidence before row materialisation. |
+| PQ37-PQ48 | Resolved the real TC heap, row-index BTH, and end-to-end table probe reporting. |
+| PQ49-PQ57 | Resolved subnode-backed row storage and validated row ordinals, 52-byte extents, bitmap boundaries, counts, and exact masks. |
+| PQ58 next | Validate the TCINFO descriptor-to-bitmap index mapping without decoding row values. |
 
 ## Product and planning
 
@@ -59,6 +60,8 @@ Historical milestone documents describe the decision and implementation at that 
 
 - [Local Validation](operations/local-validation.md)
 - [Public PST Progress Log](operations/public-pst-progress-log.md)
+- [PQ57 bounded row bitmap mask evidence](operations/pq57-row-bitmap-mask-evidence.md)
+- [PQ58 TCINFO column-to-bitmap index mapping](operations/pq58-column-bitmap-index-mapping.md)
 - [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md)
 - [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
 - [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md)
