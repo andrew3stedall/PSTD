@@ -48,6 +48,7 @@
 
 ## Changed
 
+- PQ57 now retains each validated row's bounded 14-bit bitmap mask in table-heap diagnostics and exposes the masks in public-fixture progress status without decoding property values.
 - Updated milestone execution instructions to require public PST progress logging after each completed milestone.
 - Updated PR/final-report standards to include public PST result and delta when a fixture is available.
 - Updated BBT and NBT page parsing to read B-tree metadata from byte offsets 488 through 491.
