@@ -1,5 +1,6 @@
 use crate::pst::payload::PayloadBlock;
 use crate::pst::tc_fixed_width_evidence::{select_fixed_width_row_evidence, FixedWidthRowEvidence};
+use crate::pst::tc_property_classification::classify_tc_property;
 use crate::pst::tc_row_payload_candidates::resolve_row_payload_candidates;
 use crate::pst::tc_row_resolution_transport::build_transport_from_row_resolution;
 use crate::pst::tc_subnode_rows::TcSubnodeRowResolutionReport;
@@ -50,9 +51,23 @@ pub fn project_fixed_width_row_evidence(
         };
     };
 
+    let (readable_columns, readable_masks) =
+        match filter_user_readable_columns(columns, bitmap_masks) {
+            Ok(filtered) => filtered,
+            Err(reason) => {
+                return TcFixedWidthProjectionReport {
+                    candidate_status: candidates.status,
+                    transport_status: transport.status,
+                    evidence_status: TC_FIXED_WIDTH_EVIDENCE_CONSTRUCTION_FAILED.to_string(),
+                    evidence: None,
+                    failure_reason: Some(reason),
+                };
+            }
+        };
+
     match select_fixed_width_row_evidence(
-        columns,
-        bitmap_masks,
+        &readable_columns,
+        &readable_masks,
         &transport_evidence.payload,
         &transport_evidence.absolute_row_offsets,
         transport_evidence.row_width,
@@ -75,6 +90,47 @@ pub fn project_fixed_width_row_evidence(
     }
 }
 
+fn filter_user_readable_columns(
+    columns: &[TcColumnDescriptor],
+    bitmap_masks: &[String],
+) -> Result<(Vec<TcColumnDescriptor>, Vec<String>), String> {
+    let retained = columns
+        .iter()
+        .filter(|column| classify_tc_property(column.property_tag).is_user_readable_candidate())
+        .collect::<Vec<_>>();
+
+    if retained.is_empty() {
+        return Ok((Vec::new(), vec![String::new(); bitmap_masks.len()]));
+    }
+
+    let mut filtered_columns = Vec::with_capacity(retained.len());
+    for (new_bitmap_index, column) in retained.iter().enumerate() {
+        let mut filtered = (*column).clone();
+        filtered.bitmap_bit = u8::try_from(new_bitmap_index)
+            .map_err(|_| "too many readable descriptors for bitmap indexing".to_string())?;
+        filtered_columns.push(filtered);
+    }
+
+    let mut filtered_masks = Vec::with_capacity(bitmap_masks.len());
+    for mask in bitmap_masks {
+        let bytes = mask.as_bytes();
+        let mut filtered = String::with_capacity(retained.len());
+        for column in &retained {
+            let original_index = column.bitmap_bit as usize;
+            let value = bytes
+                .get(original_index)
+                .ok_or_else(|| "bitmap mask does not cover retained descriptor".to_string())?;
+            if *value != b'0' && *value != b'1' {
+                return Err("bitmap mask contains a non-binary value".to_string());
+            }
+            filtered.push(char::from(*value));
+        }
+        filtered_masks.push(filtered);
+    }
+
+    Ok((filtered_columns, filtered_masks))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -94,7 +150,7 @@ mod tests {
         }
         let payloads = vec![slblock(0x82, &[(0x74, 0x7a)]), payload(0x7a, row_data)];
         let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2, 3], 1, 4, 4);
-        let columns = vec![descriptor(0, 0, 4, 0x0003)];
+        let columns = vec![descriptor(0, 0, 4, 0x3001, 0x0003)];
         let masks = vec!["1".to_string(); 4];
 
         let report =
@@ -102,12 +158,86 @@ mod tests {
 
         assert_eq!(report.evidence_status, TC_FIXED_WIDTH_EVIDENCE_VALIDATED);
         let evidence = report.evidence.expect("validated evidence expected");
-        assert_eq!(evidence.property_tag, 0x0003);
+        assert_eq!(evidence.property_tag, 0x3001_0003);
         assert_eq!(
             evidence.row_values_hex,
             vec!["01000000", "02000000", "03000000", "04000000"]
         );
         assert_eq!(evidence.decoded_values, vec!["1", "2", "3", "4"]);
+    }
+
+    #[test]
+    fn excludes_table_internal_row_identity_and_preserves_bitmap_alignment() {
+        let mut row_data = vec![0u8; 32];
+        for row in 0..4 {
+            let base = row * 8;
+            row_data[base..base + 4].copy_from_slice(&((row + 45) as i32).to_le_bytes());
+            row_data[base + 4..base + 8].copy_from_slice(&7i32.to_le_bytes());
+        }
+        let payloads = vec![slblock(0x82, &[(0x74, 0x7a)]), payload(0x7a, row_data)];
+        let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2, 3], 1, 8, 8);
+        let columns = vec![
+            descriptor(0, 0, 4, 0x67f2, 0x0003),
+            descriptor(1, 4, 4, 0x3001, 0x0003),
+        ];
+        let masks = vec!["11".to_string(); 4];
+
+        let report =
+            project_fixed_width_row_evidence(&payloads, 0x74, &resolution, &columns, &masks, 8);
+
+        assert_eq!(report.evidence_status, TC_FIXED_WIDTH_EVIDENCE_VALIDATED);
+        let evidence = report.evidence.expect("readable evidence expected");
+        assert_eq!(evidence.property_tag, 0x3001_0003);
+        assert_eq!(evidence.bitmap_index, 0);
+        assert_eq!(evidence.decoded_values, vec!["7", "7", "7", "7"]);
+    }
+
+    #[test]
+    fn fails_closed_when_only_table_internal_candidates_exist() {
+        let payloads = vec![slblock(0x82, &[(0x74, 0x7a)]), payload(0x7a, vec![0; 4])];
+        let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0], 1, 4, 4);
+        let report = project_fixed_width_row_evidence(
+            &payloads,
+            0x74,
+            &resolution,
+            &[descriptor(0, 0, 4, 0x67f2, 0x0003)],
+            &["1".to_string()],
+            4,
+        );
+
+        assert_eq!(
+            report.evidence_status,
+            TC_FIXED_WIDTH_EVIDENCE_CONSTRUCTION_FAILED
+        );
+        assert!(report.evidence.is_none());
+        assert_eq!(
+            report.failure_reason.as_deref(),
+            Some("fixed-width evidence inputs unavailable")
+        );
+    }
+
+    #[test]
+    fn fails_closed_when_retained_bitmap_index_is_out_of_range() {
+        let payloads = vec![slblock(0x82, &[(0x74, 0x7a)]), payload(0x7a, vec![0; 4])];
+        let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0], 1, 4, 4);
+        let report = project_fixed_width_row_evidence(
+            &payloads,
+            0x74,
+            &resolution,
+            &[descriptor(2, 0, 4, 0x3001, 0x0003)],
+            &["1".to_string()],
+            4,
+        );
+
+        assert_eq!(
+            report.evidence_status,
+            TC_FIXED_WIDTH_EVIDENCE_CONSTRUCTION_FAILED
+        );
+        assert!(report.evidence.is_none());
+        assert_eq!(
+            report.failure_reason.as_deref(),
+            Some("bitmap mask does not cover retained descriptor")
+        );
     }
 
     #[test]
@@ -117,7 +247,7 @@ mod tests {
             &[],
             0x74,
             &resolution,
-            &[descriptor(0, 0, 4, 0x0003)],
+            &[descriptor(0, 0, 4, 0x3001, 0x0003)],
             &["1".to_string()],
             4,
         );
@@ -135,7 +265,7 @@ mod tests {
             &payloads,
             0x74,
             &resolution,
-            &[descriptor(0, 0, 4, 0x0003)],
+            &[descriptor(0, 0, 4, 0x3001, 0x0003)],
             &["0".to_string()],
             4,
         );
@@ -152,10 +282,11 @@ mod tests {
         bitmap_bit: u8,
         data_offset: u16,
         data_size: u8,
+        property_id: u16,
         property_type: u16,
     ) -> TcColumnDescriptor {
         TcColumnDescriptor {
-            property_tag: property_type as u32,
+            property_tag: (u32::from(property_id) << 16) | u32::from(property_type),
             data_offset,
             data_size,
             bitmap_bit,
