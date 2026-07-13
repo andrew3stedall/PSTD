@@ -30,6 +30,7 @@ pub mod tc_bth;
 pub mod tc_descriptor_evidence;
 pub mod tc_extraction_reporting;
 pub mod tc_fixed_width_evidence;
+pub mod tc_fixed_width_projection;
 pub mod tc_heap;
 pub mod tc_probe_collection;
 pub mod tc_reporting;
