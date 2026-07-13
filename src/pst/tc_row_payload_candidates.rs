@@ -5,7 +5,7 @@ const SLBLOCK_LEAF_LEVEL: u8 = 0x00;
 const UNICODE_SLBLOCK_HEADER_BYTES: usize = 8;
 const UNICODE_SLENTRY_BYTES: usize = 24;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct TcRowPayloadCandidateReport<'a> {
     pub matching_entry_count: usize,
     pub payloads: Vec<&'a PayloadBlock>,
