@@ -61,11 +61,9 @@ pub fn classify_tc_property(property_tag: u32) -> TcPropertyClassification {
             "PidTagSmtpAddress",
             TcPropertyRole::RecipientMetadata,
         ),
-        PID_TAG_LTP_ROW_ID => classified(
-            property_id,
-            "PidTagLtpRowId",
-            TcPropertyRole::TableInternal,
-        ),
+        PID_TAG_LTP_ROW_ID => {
+            classified(property_id, "PidTagLtpRowId", TcPropertyRole::TableInternal)
+        }
         PID_TAG_LTP_ROW_VER => classified(
             property_id,
             "PidTagLtpRowVer",
