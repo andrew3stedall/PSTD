@@ -34,6 +34,7 @@ pub mod tc_fixed_width_evidence;
 pub mod tc_fixed_width_projection;
 pub mod tc_heap;
 pub mod tc_probe_collection;
+pub mod tc_property_classification;
 pub mod tc_reporting;
 pub mod tc_row_mode;
 pub mod tc_row_offsets;
