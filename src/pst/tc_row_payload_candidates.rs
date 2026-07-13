@@ -83,7 +83,10 @@ mod tests {
 
     #[test]
     fn resolves_exactly_one_matching_row_payload() {
-        let payloads = vec![slblock(0x82, &[(0x74, 0x7a)]), payload(0x7a, vec![0x5a; 208])];
+        let payloads = vec![
+            slblock(0x82, &[(0x74, 0x7a)]),
+            payload(0x7a, vec![0x5a; 208]),
+        ];
 
         let report = resolve_row_payload_candidates(&payloads, 0x74);
 
