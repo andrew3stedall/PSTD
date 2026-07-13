@@ -100,8 +100,7 @@ pub fn project_recipient_identity_strings(
 #[cfg(test)]
 mod tests {
     use super::{
-        project_recipient_identity_strings, RECIPIENT_IDENTITY_FAILED,
-        RECIPIENT_IDENTITY_VALIDATED,
+        project_recipient_identity_strings, RECIPIENT_IDENTITY_FAILED, RECIPIENT_IDENTITY_VALIDATED,
     };
     use crate::pst::payload::PayloadBlock;
     use crate::pst::primitives::{BlockId, BlockRef, ByteOffset};
