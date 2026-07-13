@@ -38,6 +38,7 @@ pub mod tc_row_offsets;
 pub mod tc_row_payload_candidates;
 pub mod tc_row_resolution_transport;
 pub mod tc_row_transport;
+pub mod tc_row_transport_metadata;
 pub mod tc_run_reporting;
 pub mod tc_subnode_rows;
 pub mod tcinfo;
