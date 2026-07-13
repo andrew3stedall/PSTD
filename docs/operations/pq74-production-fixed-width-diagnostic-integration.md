@@ -31,9 +31,25 @@ For non-subnode rows and failed TC heap resolution, reporting emits an explicit 
 
 ## Extraction impact
 
-This change does not claim a new semantic MAPI property and does not change message, body, or attachment counts. It makes the first validated fixed-width scalar evidence observable in the production fixture output. The exact public-fixture property tag and values must be recorded from the completed GitHub Actions run before selecting the next semantic milestone.
+This change does not assign semantic MAPI meaning and does not change message, body, or attachment counts. It makes the first validated fixed-width scalar evidence observable in the production fixture output.
 
-Current established baseline remains:
+GitHub Actions run 508 produced the following bounded evidence from the public fixture:
+
+- candidate status: `tc_row_payload_candidates_resolved`
+- transport status: `tc_row_transport_validated`
+- evidence status: `tc_fixed_width_evidence_validated`
+- selected property tag: `0x67f20003`
+- property identifier: `0x67f2`
+- property type: `0x0003` (`PT_LONG`, signed 32-bit integer)
+- data offset: `0`
+- data size: `4`
+- raw row values: `2d000000`, `30000000`, `33000000`, `36000000`
+- decoded row values: `45`, `48`, `51`, `54`
+- failure reason: `none`
+
+The values are structurally validated but are not yet assigned a semantic property name. Property identifier `0x67f2` is in the PST/LTP internal-property range rather than a user-facing message field, so PQ75 must verify its specification meaning before exposing it as typed metadata.
+
+Established extraction totals remain:
 
 - TCINFO descriptors: 14
 - rows: 4
@@ -45,13 +61,19 @@ Current established baseline remains:
 - body payloads: 2
 - attachments: 0
 
+No message-count, body, recipient, or attachment regression was observed.
+
+## CI outcome
+
+The first workflow attempt failed only at `cargo fmt --check`; Rust build, tests, Clippy, Python packaging, and Docker had passed. The rustfmt changes were applied to `src/pst/tc_reporting.rs` and GitHub Actions run 508 then passed Rust build, tests, Clippy, formatting, Python, Docker, CLI smoke checks, and the public PST fixture.
+
 ## Revised PQ75 requirements
 
 PQ75 must use the observed PQ74 fixture evidence rather than assuming a property meaning.
 
-1. Record the selected property tag, type, offset, size, raw values, and decoded values from the public fixture.
-2. Compare the tag against authoritative MAPI property definitions.
-3. If the tag has a stable fixed-width semantic meaning, expose that one property end-to-end with a typed name and retain the raw evidence.
-4. If the selected descriptor is not semantically useful, revise the selector to choose the highest-value supported fixed-width descriptor deterministically, with regression tests and no heuristic interpretation.
-5. Do not begin variable-width string, body, recipient, or attachment work until the fixed-width production evidence is confirmed.
+1. Verify property identifier `0x67f2` against the authoritative PST/LTP specification and record its exact role.
+2. Determine whether values `45`, `48`, `51`, and `54` are row identifiers, node identifiers, or another table-internal scalar.
+3. If the property has stable extraction value, expose that one property end-to-end with a typed name while retaining the raw evidence.
+4. If it is only table-internal bookkeeping, revise the selector to choose the highest-value supported fixed-width descriptor deterministically, with regression tests and no heuristic interpretation.
+5. Do not begin variable-width string, body, recipient, or attachment work until this fixed-width evidence is classified; after classification, proceed directly to the smallest observable metadata slice or to variable-width/HID/HNID resolution.
 6. Preserve fail-closed behaviour and rerun the public fixture after the change.
