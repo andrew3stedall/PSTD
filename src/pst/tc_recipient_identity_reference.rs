@@ -36,9 +36,9 @@ pub fn extract_recipient_identity_references(
         .filter(|column| column.data_size == 4)
         .filter(|column| {
             let index = column.bitmap_bit as usize;
-            bitmap_masks.iter().all(|mask| {
-                mask.as_bytes().get(index).copied() == Some(b'1')
-            })
+            bitmap_masks
+                .iter()
+                .all(|mask| mask.as_bytes().get(index).copied() == Some(b'1'))
         })
         .min_by_key(|column| identity_priority(column.property_tag))
         .ok_or_else(|| {
@@ -133,7 +133,10 @@ mod tests {
 
         assert_eq!(evidence.property_name, "PidTagDisplayName");
         assert_eq!(evidence.row_references, vec![0x60, 0x74]);
-        assert_eq!(evidence.reference_kinds, vec![HnidKind::HeapId, HnidKind::NodeId]);
+        assert_eq!(
+            evidence.reference_kinds,
+            vec![HnidKind::HeapId, HnidKind::NodeId]
+        );
     }
 
     #[test]
