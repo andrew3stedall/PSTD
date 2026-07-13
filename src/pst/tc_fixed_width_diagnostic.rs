@@ -1,5 +1,7 @@
 use crate::pst::tc_fixed_width_projection::TcFixedWidthProjectionReport;
-use crate::pst::tc_property_classification::{classify_tc_property, recipient_type_name, TcPropertyRole};
+use crate::pst::tc_property_classification::{
+    classify_tc_property, recipient_type_name, TcPropertyRole,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TcFixedWidthDiagnostic {
