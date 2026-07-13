@@ -1,6 +1,6 @@
 use crate::pst::tc_fixed_width_projection::TcFixedWidthProjectionReport;
 use crate::pst::tc_property_classification::{
-    classify_tc_property, recipient_type_name, TcPropertyRole,
+    classify_tc_property, recipient_type_name, PID_TAG_RECIPIENT_TYPE,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -82,7 +82,7 @@ pub fn build_fixed_width_diagnostic(
         .and_then(|item| item.canonical_name)
         .map(str::to_string);
     let semantic_values = match (classification, evidence.as_ref()) {
-        (Some(item), Some(evidence)) if item.role == TcPropertyRole::RecipientMetadata => evidence
+        (Some(item), Some(evidence)) if item.property_id == PID_TAG_RECIPIENT_TYPE => evidence
             .decoded_values
             .iter()
             .map(|value| recipient_type_name(value))
@@ -135,13 +135,16 @@ mod tests {
         });
 
         assert_eq!(diagnostic.property_tag, Some(0x3001_0003));
-        assert_eq!(diagnostic.property_name, None);
+        assert_eq!(
+            diagnostic.property_name.as_deref(),
+            Some("PidTagDisplayName")
+        );
         assert_eq!(diagnostic.row_values_hex, ["01000000", "02000000"]);
         assert_eq!(diagnostic.decoded_values, ["1", "2"]);
         assert!(diagnostic.semantic_values.is_empty());
         let fragment = diagnostic.status_fragment();
         assert!(fragment.contains("fixed_property_tag=0x30010003"));
-        assert!(fragment.contains("fixed_property_name=none"));
+        assert!(fragment.contains("fixed_property_name=PidTagDisplayName"));
         assert!(fragment.contains("fixed_decoded_values=1:2"));
         assert!(fragment.contains("fixed_semantic_values=none"));
     }
