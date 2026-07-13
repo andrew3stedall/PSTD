@@ -1,7 +1,5 @@
 use crate::pst::payload::PayloadBlock;
-use crate::pst::tc_fixed_width_evidence::{
-    select_fixed_width_row_evidence, FixedWidthRowEvidence,
-};
+use crate::pst::tc_fixed_width_evidence::{select_fixed_width_row_evidence, FixedWidthRowEvidence};
 use crate::pst::tc_row_payload_candidates::resolve_row_payload_candidates;
 use crate::pst::tc_row_resolution_transport::build_transport_from_row_resolution;
 use crate::pst::tc_subnode_rows::TcSubnodeRowResolutionReport;
@@ -99,14 +97,8 @@ mod tests {
         let columns = vec![descriptor(0, 0, 4, 0x0003)];
         let masks = vec!["1".to_string(); 4];
 
-        let report = project_fixed_width_row_evidence(
-            &payloads,
-            0x74,
-            &resolution,
-            &columns,
-            &masks,
-            4,
-        );
+        let report =
+            project_fixed_width_row_evidence(&payloads, 0x74, &resolution, &columns, &masks, 4);
 
         assert_eq!(report.evidence_status, TC_FIXED_WIDTH_EVIDENCE_VALIDATED);
         let evidence = report.evidence.expect("validated evidence expected");
