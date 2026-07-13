@@ -29,20 +29,45 @@ Tests prove that:
 4. a table containing only internal fixed-width candidates emits no partial evidence;
 5. unavailable and malformed evidence paths continue to fail closed.
 
-## Acceptance evidence required from CI
+## Public fixture acceptance evidence
 
-The public PST fixture should now produce one of two useful outcomes:
+GitHub Actions run 515 completed successfully on commit `aec65bc006a08d6cccdf2ae4a11c71df43704083`.
 
-1. a different fixed-width property tag with raw and decoded values; or
-2. explicit proof that no supported non-internal fixed-width property is present in the currently validated table.
+The public PST fixture selected the next non-internal fixed-width property:
 
-The result must be recorded before assigning semantic meaning or choosing the next extraction milestone.
+- property tag: `0x0c150003`;
+- property identifier: `0x0c15`;
+- property type: `PT_LONG`;
+- raw values: `01000000`, `01000000`, `02000000`, `02000000`;
+- decoded values: `1`, `1`, `2`, `2`;
+- affected table rows: `4`;
+- candidate status: `tc_row_payload_candidates_resolved`;
+- transport status: `tc_row_transport_validated`;
+- evidence status: `tc_fixed_width_evidence_validated`;
+- failure reason: none.
+
+This is a real extraction change: the production fixture no longer reports the known internal `PidTagLtpRowId` values and instead exposes a distinct supported property. Semantic naming is intentionally deferred until the property identifier is validated against the MAPI specification.
+
+## Before-versus-after extraction result
+
+| Measure | Before | After |
+|---|---:|---:|
+| Messages discovered | 1 | 1 |
+| Messages extracted | 1 | 1 |
+| Body payload records | 2 | 2 |
+| Recipient records emitted | 0 | 0 |
+| Attachments extracted | 0 | 0 |
+| EML files emitted | 0 | 0 |
+| Output bytes | 33,739 | 33,739 |
+| Selected fixed-width property | `0x67f20003` | `0x0c150003` |
+| Selected decoded values | `45,48,51,54` | `1,1,2,2` |
+
+No message, body, attachment, archive, or output-byte regression was observed.
 
 ## Extraction impact
 
-This milestone does not itself claim a newly readable subject, sender, timestamp, recipient, body, or attachment. It corrects candidate selection so that the next observed value is not known table bookkeeping.
+This milestone does not yet claim a readable subject, sender, timestamp, recipient, body, or attachment. It produces observable non-internal property data and removes a confirmed false-positive internal property from production selection.
 
 ## Next milestone decision
 
-- If CI exposes a plausible non-internal fixed-width property, validate its MAPI identity and publish that one field end to end.
-- If no supported candidate remains, stop extending fixed-width diagnostics and move directly to variable-width/HID/HNID resolution aimed at the first subject-like string.
+Validate property identifier `0x0c15` against the authoritative MAPI property specification. If it is a user-meaningful property, publish its semantic name and interpreted values. If it is table-specific or recipient-specific rather than message metadata, use that evidence to move directly into the corresponding vertical extraction path instead of adding another selector or diagnostic layer.
