@@ -51,19 +51,19 @@ pub fn project_fixed_width_row_evidence(
         };
     };
 
-    let (readable_columns, readable_masks) = match filter_user_readable_columns(columns, bitmap_masks)
-    {
-        Ok(filtered) => filtered,
-        Err(reason) => {
-            return TcFixedWidthProjectionReport {
-                candidate_status: candidates.status,
-                transport_status: transport.status,
-                evidence_status: TC_FIXED_WIDTH_EVIDENCE_CONSTRUCTION_FAILED.to_string(),
-                evidence: None,
-                failure_reason: Some(reason),
-            };
-        }
-    };
+    let (readable_columns, readable_masks) =
+        match filter_user_readable_columns(columns, bitmap_masks) {
+            Ok(filtered) => filtered,
+            Err(reason) => {
+                return TcFixedWidthProjectionReport {
+                    candidate_status: candidates.status,
+                    transport_status: transport.status,
+                    evidence_status: TC_FIXED_WIDTH_EVIDENCE_CONSTRUCTION_FAILED.to_string(),
+                    evidence: None,
+                    failure_reason: Some(reason),
+                };
+            }
+        };
 
     match select_fixed_width_row_evidence(
         &readable_columns,
