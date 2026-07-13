@@ -63,11 +63,11 @@ pub fn build_recipient_identity_diagnostic(
             (Some(references), Some(strings)) => (
                 Some(references.property_tag),
                 Some(references.property_name.clone()),
-                references.row_references.iter().map(|item| item.value).collect(),
+                references.row_references.clone(),
                 references
-                    .row_references
+                    .reference_kinds
                     .iter()
-                    .map(|item| item.kind.clone())
+                    .map(|kind| format!("{kind:?}"))
                     .collect(),
                 strings.row_values.clone(),
             ),
