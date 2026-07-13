@@ -2,7 +2,7 @@
 
 ## Objective
 
-Connect the validated recipient identity projection to the production Table Context reporting path so the public PST fixture publishes either real recipient strings or an exact bounded failure reason.
+Connect the validated recipient identity projection to the production Table Context reporting path so the public PST fixture publishes real recipient strings or an exact bounded failure reason.
 
 ## Repository evidence reviewed
 
@@ -24,43 +24,60 @@ For every resolved subnode-backed Table Context heap, `report_table_heaps` now:
 
 Failed heap resolution and non-subnode paths publish the explicit unavailable recipient diagnostic. No row payload or heap allocation bytes are serialized.
 
-## Acceptance boundary
+## Public fixture acceptance evidence
 
-The public fixture must now produce one of two evidence-backed outcomes:
+GitHub Actions run #538 completed successfully on commit `0c28984a3b35acf0d4c21ff4ec9ceb51fb763843` and produced validated recipient identity evidence:
 
-- `tc_recipient_identity_validated`, with a canonical property name, HNIDs, kinds, and decoded row strings; or
-- `tc_recipient_identity_failed` / `tc_recipient_identity_unavailable`, with no partial property or string output and an exact failure reason where available.
+- identity status: `tc_recipient_identity_validated`
+- property tag: `0x3001001f`
+- property name: `PidTagDisplayName`
+- HNIDs: `0x000000a0`, `0x00000140`, `0x000001e0`, `0x00000280`
+- reference kinds: `HeapId`, `HeapId`, `HeapId`, `HeapId`
+- decoded strings: `Recipient 1`, `Recipient 2`, `Recipient 3`, `Recipient 4`
+- failure reason: none
 
-A green build without fixture evidence is not sufficient to claim readable recipients.
+Combined with the already validated recipient-role sequence, the fixture contains:
 
-## Extraction baseline
+1. `To` — `Recipient 1`
+2. `To` — `Recipient 2`
+3. `Cc` — `Recipient 3`
+4. `Cc` — `Recipient 4`
 
-- Messages extracted: 1
-- Body payload records: 2
-- Recipient rows identified: 4
-- Recipient roles decoded: 4 (`To`, `To`, `Cc`, `Cc`)
-- Real recipient names confirmed before this change: 0
-- Real recipient addresses confirmed before this change: 0
-- Attachments extracted: 0
-- EML files emitted: 0
+This is the first production-fixture recovery of readable recipient identity values from Table Context rows. The values remain diagnostic evidence; complete recipient output records are not yet emitted.
+
+## Before-versus-after extraction result
+
+| Measure | Before | After |
+|---|---:|---:|
+| Messages discovered | 1 | 1 |
+| Messages extracted | 1 | 1 |
+| Body payload records | 2 | 2 |
+| Recipient roles decoded | 4 | 4 |
+| Readable recipient names | 0 | 4 |
+| Readable recipient addresses | 0 | 0 |
+| Complete recipient records emitted | 0 | 0 |
+| Attachments extracted | 0 | 0 |
+| EML files emitted | 0 | 0 |
+| Output bytes | 33,961 | 35,332 |
+
+The 1,371-byte increase is bounded progress and diagnostic output carrying the recipient identity evidence. Message, body, attachment, and EML counts did not regress.
 
 ## Safety properties
 
 - Existing fixed-width, bitmap, descriptor, row-layout, and aggregate reporting fields are preserved.
 - Recipient metadata is published only after complete reference and string validation.
 - Node-resident references continue to fail closed rather than being interpreted heuristically.
-- No payload bytes are added to diagnostic output.
+- No row payload or heap allocation bytes are added to diagnostic output.
+- Property semantics come from the exact `PidTagDisplayName` descriptor and are not inferred from string contents.
 
-## Evidence required for the following run
+## Remaining blockers
 
-Inspect the public-PST CLI fixture output for:
+- Assemble role and identity values into complete recipient records associated with the extracted message.
+- Resolve and expose `PidTagEmailAddress` and, where present, SMTP address values.
+- Emit To/Cc/Bcc fields in structured output and eventual EML reconstruction.
+- Normalize HTML or RTF content.
+- Extract attachment tables, payloads, and embedded messages.
 
-- `recipient_identity_status`
-- `recipient_property_tag`
-- `recipient_property_name`
-- `recipient_references`
-- `recipient_reference_kinds`
-- `recipient_values`
-- `recipient_failure`
+## Next vertical milestone
 
-If real strings are published, the next vertical milestone should assemble role and identity values into complete recipient records. If the fixture reports node-resident HNIDs, the next milestone should resolve those exact subnodes. If the selected property is absent, inspect the descriptor and bitmap evidence before changing property-selection order.
+Emit four structured recipient records by pairing the validated role sequence (`To`, `To`, `Cc`, `Cc`) with the four validated display names. The same change should attempt exact address-property resolution using the existing HNID path, but it must not block display-name record emission when address evidence is absent.
