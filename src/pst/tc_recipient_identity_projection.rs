@@ -120,7 +120,7 @@ mod tests {
         let mut rows = Vec::new();
         for reference in [0x20u32, 0x40u32] {
             rows.extend_from_slice(&reference.to_le_bytes());
-            rows.push(0x80);
+            rows.push(0x01);
         }
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, rows)];
         let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1], 1, 4, 5);
@@ -154,7 +154,7 @@ mod tests {
         let table_heap = sample_heap(&[b"Alice\0".to_vec()]);
         let mut rows = Vec::new();
         rows.extend_from_slice(&0x24u32.to_le_bytes());
-        rows.push(0x80);
+        rows.push(0x01);
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, rows)];
         let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0], 1, 4, 5);
         let columns = vec![TcColumnDescriptor {
