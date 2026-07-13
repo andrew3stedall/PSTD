@@ -55,7 +55,7 @@ pub fn project_fixed_width_row_evidence(
     match select_fixed_width_row_evidence(
         columns,
         bitmap_masks,
-        &transport_evidence.row_payload,
+        &transport_evidence.payload,
         &transport_evidence.absolute_row_offsets,
         transport_evidence.row_width,
         fixed_data_end,
@@ -111,7 +111,10 @@ mod tests {
         assert_eq!(report.evidence_status, TC_FIXED_WIDTH_EVIDENCE_VALIDATED);
         let evidence = report.evidence.expect("validated evidence expected");
         assert_eq!(evidence.property_tag, 0x0003);
-        assert_eq!(evidence.row_values_hex, vec!["01000000", "02000000", "03000000", "04000000"]);
+        assert_eq!(
+            evidence.row_values_hex,
+            vec!["01000000", "02000000", "03000000", "04000000"]
+        );
         assert_eq!(evidence.decoded_values, vec!["1", "2", "3", "4"]);
     }
 
@@ -145,12 +148,20 @@ mod tests {
             4,
         );
 
-        assert_eq!(report.evidence_status, TC_FIXED_WIDTH_EVIDENCE_CONSTRUCTION_FAILED);
+        assert_eq!(
+            report.evidence_status,
+            TC_FIXED_WIDTH_EVIDENCE_CONSTRUCTION_FAILED
+        );
         assert!(report.evidence.is_none());
         assert!(report.failure_reason.is_some());
     }
 
-    fn descriptor(bitmap_bit: u8, data_offset: u16, data_size: u8, property_type: u16) -> TcColumnDescriptor {
+    fn descriptor(
+        bitmap_bit: u8,
+        data_offset: u16,
+        data_size: u8,
+        property_type: u16,
+    ) -> TcColumnDescriptor {
         TcColumnDescriptor {
             property_tag: property_type as u32,
             data_offset,
