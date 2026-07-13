@@ -61,7 +61,7 @@ fn decode_string(bytes: &[u8], property_type: u16) -> Result<String, String> {
                 .map_err(|_| "recipient identity STRING8 value is not valid UTF-8".to_string())
         }
         PT_UNICODE => {
-            if bytes.len() % 2 != 0 {
+            if !bytes.len().is_multiple_of(2) {
                 return Err("recipient identity Unicode value has odd byte length".to_string());
             }
             let units = bytes
