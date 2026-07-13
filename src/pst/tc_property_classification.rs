@@ -5,6 +5,9 @@
 //! not infer semantics for unknown identifiers.
 
 pub const PID_TAG_RECIPIENT_TYPE: u16 = 0x0c15;
+pub const PID_TAG_DISPLAY_NAME: u16 = 0x3001;
+pub const PID_TAG_EMAIL_ADDRESS: u16 = 0x3003;
+pub const PID_TAG_SMTP_ADDRESS: u16 = 0x39fe;
 pub const PID_TAG_LTP_ROW_ID: u16 = 0x67f2;
 pub const PID_TAG_LTP_ROW_VER: u16 = 0x67f3;
 
@@ -38,26 +41,53 @@ impl TcPropertyClassification {
 pub fn classify_tc_property(property_tag: u32) -> TcPropertyClassification {
     let property_id = (property_tag >> 16) as u16;
     match property_id {
-        PID_TAG_RECIPIENT_TYPE => TcPropertyClassification {
+        PID_TAG_RECIPIENT_TYPE => classified(
             property_id,
-            canonical_name: Some("PidTagRecipientType"),
-            role: TcPropertyRole::RecipientMetadata,
-        },
-        PID_TAG_LTP_ROW_ID => TcPropertyClassification {
+            "PidTagRecipientType",
+            TcPropertyRole::RecipientMetadata,
+        ),
+        PID_TAG_DISPLAY_NAME => classified(
             property_id,
-            canonical_name: Some("PidTagLtpRowId"),
-            role: TcPropertyRole::TableInternal,
-        },
-        PID_TAG_LTP_ROW_VER => TcPropertyClassification {
+            "PidTagDisplayName",
+            TcPropertyRole::RecipientMetadata,
+        ),
+        PID_TAG_EMAIL_ADDRESS => classified(
             property_id,
-            canonical_name: Some("PidTagLtpRowVer"),
-            role: TcPropertyRole::TableInternal,
-        },
+            "PidTagEmailAddress",
+            TcPropertyRole::RecipientMetadata,
+        ),
+        PID_TAG_SMTP_ADDRESS => classified(
+            property_id,
+            "PidTagSmtpAddress",
+            TcPropertyRole::RecipientMetadata,
+        ),
+        PID_TAG_LTP_ROW_ID => classified(
+            property_id,
+            "PidTagLtpRowId",
+            TcPropertyRole::TableInternal,
+        ),
+        PID_TAG_LTP_ROW_VER => classified(
+            property_id,
+            "PidTagLtpRowVer",
+            TcPropertyRole::TableInternal,
+        ),
         _ => TcPropertyClassification {
             property_id,
             canonical_name: None,
             role: TcPropertyRole::Unknown,
         },
+    }
+}
+
+fn classified(
+    property_id: u16,
+    canonical_name: &'static str,
+    role: TcPropertyRole,
+) -> TcPropertyClassification {
+    TcPropertyClassification {
+        property_id,
+        canonical_name: Some(canonical_name),
+        role,
     }
 }
 
@@ -88,6 +118,19 @@ mod tests {
     }
 
     #[test]
+    fn classifies_recipient_identity_properties() {
+        for (tag, name) in [
+            (0x3001_001f, "PidTagDisplayName"),
+            (0x3003_001f, "PidTagEmailAddress"),
+            (0x39fe_001f, "PidTagSmtpAddress"),
+        ] {
+            let classification = classify_tc_property(tag);
+            assert_eq!(classification.canonical_name, Some(name));
+            assert_eq!(classification.role, TcPropertyRole::RecipientMetadata);
+        }
+    }
+
+    #[test]
     fn interprets_recipient_type_values_without_guessing() {
         assert_eq!(recipient_type_name("0"), "originator");
         assert_eq!(recipient_type_name("1"), "to");
@@ -109,7 +152,6 @@ mod tests {
     #[test]
     fn classifies_ltp_row_version_as_table_internal() {
         let classification = classify_tc_property(0x67f3_0003);
-
         assert_eq!(classification.canonical_name, Some("PidTagLtpRowVer"));
         assert_eq!(classification.role, TcPropertyRole::TableInternal);
         assert!(!classification.is_user_readable_candidate());
@@ -117,9 +159,8 @@ mod tests {
 
     #[test]
     fn leaves_unverified_properties_unknown_without_guessing() {
-        let classification = classify_tc_property(0x3001_001f);
-
-        assert_eq!(classification.property_id, 0x3001);
+        let classification = classify_tc_property(0x1234_001f);
+        assert_eq!(classification.property_id, 0x1234);
         assert_eq!(classification.canonical_name, None);
         assert_eq!(classification.role, TcPropertyRole::Unknown);
         assert!(classification.is_user_readable_candidate());
