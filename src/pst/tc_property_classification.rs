@@ -82,10 +82,7 @@ mod tests {
         let classification = classify_tc_property(0x0c15_0003);
 
         assert_eq!(classification.property_id, 0x0c15);
-        assert_eq!(
-            classification.canonical_name,
-            Some("PidTagRecipientType")
-        );
+        assert_eq!(classification.canonical_name, Some("PidTagRecipientType"));
         assert_eq!(classification.role, TcPropertyRole::RecipientMetadata);
         assert!(classification.is_user_readable_candidate());
     }
