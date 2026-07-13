@@ -31,11 +31,13 @@ pub fn resolve_row_transport_metadata(
         Some(evidence) => TcRowTransportMetadata {
             candidate_status: candidates.status,
             transport_status: transport.status,
-            address_mode: Some(match evidence.address_mode {
-                TcRowAddressMode::DirectOffsets => "direct_offsets",
-                TcRowAddressMode::OrdinalIndices => "ordinal_indices",
-            }
-            .to_string()),
+            address_mode: Some(
+                match evidence.address_mode {
+                    TcRowAddressMode::DirectOffsets => "direct_offsets",
+                    TcRowAddressMode::OrdinalIndices => "ordinal_indices",
+                }
+                .to_string(),
+            ),
             row_width: Some(evidence.row_width),
             absolute_row_offsets: evidence.absolute_row_offsets,
             failure_reason: None,
@@ -66,7 +68,10 @@ mod tests {
 
         let metadata = resolve_row_transport_metadata(&payloads, 0x74, &resolution);
 
-        assert_eq!(metadata.candidate_status, "tc_row_payload_candidates_resolved");
+        assert_eq!(
+            metadata.candidate_status,
+            "tc_row_payload_candidates_resolved"
+        );
         assert_eq!(metadata.transport_status, "tc_row_transport_validated");
         assert_eq!(metadata.address_mode.as_deref(), Some("ordinal_indices"));
         assert_eq!(metadata.row_width, Some(52));
@@ -94,7 +99,10 @@ mod tests {
 
         let metadata = resolve_row_transport_metadata(&[], 0x74, &resolution);
 
-        assert_eq!(metadata.candidate_status, "tc_row_payload_candidates_nid_missing");
+        assert_eq!(
+            metadata.candidate_status,
+            "tc_row_payload_candidates_nid_missing"
+        );
         assert_eq!(metadata.transport_status, "tc_row_transport_unavailable");
         assert_eq!(metadata.address_mode, None);
         assert_eq!(metadata.row_width, None);
@@ -114,7 +122,10 @@ mod tests {
 
         let metadata = resolve_row_transport_metadata(&payloads, 0x74, &resolution);
 
-        assert_eq!(metadata.candidate_status, "tc_row_payload_candidates_ambiguous");
+        assert_eq!(
+            metadata.candidate_status,
+            "tc_row_payload_candidates_ambiguous"
+        );
         assert_eq!(
             metadata.transport_status,
             "tc_row_transport_construction_failed"
