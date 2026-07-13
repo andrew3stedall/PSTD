@@ -1,5 +1,6 @@
 use crate::pst::payload::PayloadBlock;
 use crate::pst::tc_fixed_width_evidence::{select_fixed_width_row_evidence, FixedWidthRowEvidence};
+use crate::pst::tc_property_classification::classify_tc_property;
 use crate::pst::tc_row_payload_candidates::resolve_row_payload_candidates;
 use crate::pst::tc_row_resolution_transport::build_transport_from_row_resolution;
 use crate::pst::tc_subnode_rows::TcSubnodeRowResolutionReport;
@@ -50,8 +51,14 @@ pub fn project_fixed_width_row_evidence(
         };
     };
 
+    let readable_columns = columns
+        .iter()
+        .filter(|column| classify_tc_property(column.property_tag).is_user_readable_candidate())
+        .cloned()
+        .collect::<Vec<_>>();
+
     match select_fixed_width_row_evidence(
-        columns,
+        &readable_columns,
         bitmap_masks,
         &transport_evidence.payload,
         &transport_evidence.absolute_row_offsets,
@@ -94,7 +101,7 @@ mod tests {
         }
         let payloads = vec![slblock(0x82, &[(0x74, 0x7a)]), payload(0x7a, row_data)];
         let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2, 3], 1, 4, 4);
-        let columns = vec![descriptor(0, 0, 4, 0x0003)];
+        let columns = vec![descriptor(0, 0, 4, 0x3001, 0x0003)];
         let masks = vec!["1".to_string(); 4];
 
         let report =
@@ -102,12 +109,61 @@ mod tests {
 
         assert_eq!(report.evidence_status, TC_FIXED_WIDTH_EVIDENCE_VALIDATED);
         let evidence = report.evidence.expect("validated evidence expected");
-        assert_eq!(evidence.property_tag, 0x0003);
+        assert_eq!(evidence.property_tag, 0x3001_0003);
         assert_eq!(
             evidence.row_values_hex,
             vec!["01000000", "02000000", "03000000", "04000000"]
         );
         assert_eq!(evidence.decoded_values, vec!["1", "2", "3", "4"]);
+    }
+
+    #[test]
+    fn excludes_table_internal_row_identity_before_selecting_evidence() {
+        let mut row_data = vec![0u8; 32];
+        for row in 0..4 {
+            let base = row * 8;
+            row_data[base..base + 4].copy_from_slice(&((row + 45) as i32).to_le_bytes());
+            row_data[base + 4..base + 8].copy_from_slice(&7i32.to_le_bytes());
+        }
+        let payloads = vec![slblock(0x82, &[(0x74, 0x7a)]), payload(0x7a, row_data)];
+        let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2, 3], 1, 8, 8);
+        let columns = vec![
+            descriptor(0, 0, 4, 0x67f2, 0x0003),
+            descriptor(1, 4, 4, 0x3001, 0x0003),
+        ];
+        let masks = vec!["11".to_string(); 4];
+
+        let report =
+            project_fixed_width_row_evidence(&payloads, 0x74, &resolution, &columns, &masks, 8);
+
+        assert_eq!(report.evidence_status, TC_FIXED_WIDTH_EVIDENCE_VALIDATED);
+        let evidence = report.evidence.expect("readable evidence expected");
+        assert_eq!(evidence.property_tag, 0x3001_0003);
+        assert_eq!(evidence.decoded_values, vec!["7", "7", "7", "7"]);
+    }
+
+    #[test]
+    fn fails_closed_when_only_table_internal_candidates_exist() {
+        let payloads = vec![slblock(0x82, &[(0x74, 0x7a)]), payload(0x7a, vec![0; 4])];
+        let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0], 1, 4, 4);
+        let report = project_fixed_width_row_evidence(
+            &payloads,
+            0x74,
+            &resolution,
+            &[descriptor(0, 0, 4, 0x67f2, 0x0003)],
+            &["1".to_string()],
+            4,
+        );
+
+        assert_eq!(
+            report.evidence_status,
+            TC_FIXED_WIDTH_EVIDENCE_CONSTRUCTION_FAILED
+        );
+        assert!(report.evidence.is_none());
+        assert_eq!(
+            report.failure_reason.as_deref(),
+            Some("fixed-width evidence inputs unavailable")
+        );
     }
 
     #[test]
@@ -117,7 +173,7 @@ mod tests {
             &[],
             0x74,
             &resolution,
-            &[descriptor(0, 0, 4, 0x0003)],
+            &[descriptor(0, 0, 4, 0x3001, 0x0003)],
             &["1".to_string()],
             4,
         );
@@ -135,7 +191,7 @@ mod tests {
             &payloads,
             0x74,
             &resolution,
-            &[descriptor(0, 0, 4, 0x0003)],
+            &[descriptor(0, 0, 4, 0x3001, 0x0003)],
             &["0".to_string()],
             4,
         );
@@ -152,10 +208,11 @@ mod tests {
         bitmap_bit: u8,
         data_offset: u16,
         data_size: u8,
+        property_id: u16,
         property_type: u16,
     ) -> TcColumnDescriptor {
         TcColumnDescriptor {
-            property_tag: property_type as u32,
+            property_tag: (u32::from(property_id) << 16) | u32::from(property_type),
             data_offset,
             data_size,
             bitmap_bit,
