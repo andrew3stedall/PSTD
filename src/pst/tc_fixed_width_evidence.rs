@@ -100,7 +100,9 @@ pub fn select_fixed_width_row_evidence(
                 .cmp(&right.distinct_value_count)
                 .then_with(|| right.bitmap_index.cmp(&left.bitmap_index))
         })
-        .ok_or_else(|| "no bounded supported fixed-width descriptor is set in every row".to_string())
+        .ok_or_else(|| {
+            "no bounded supported fixed-width descriptor is set in every row".to_string()
+        })
 }
 
 fn is_supported_fixed_width_type(property_tag: u32, data_size: u8) -> bool {
@@ -113,10 +115,9 @@ fn is_supported_fixed_width_type(property_tag: u32, data_size: u8) -> bool {
 fn decode_fixed_width_value(property_tag: u32, value: &[u8]) -> Result<String, String> {
     match property_tag as u16 {
         PT_I2 if value.len() == 2 => Ok(i16::from_le_bytes([value[0], value[1]]).to_string()),
-        PT_LONG if value.len() == 4 => Ok(i32::from_le_bytes([
-            value[0], value[1], value[2], value[3],
-        ])
-        .to_string()),
+        PT_LONG if value.len() == 4 => {
+            Ok(i32::from_le_bytes([value[0], value[1], value[2], value[3]]).to_string())
+        }
         PT_BOOLEAN if value.len() == 2 => match u16::from_le_bytes([value[0], value[1]]) {
             0 => Ok("false".to_string()),
             1 => Ok("true".to_string()),
@@ -167,9 +168,21 @@ mod tests {
     #[test]
     fn decodes_signed_short_long_and_i8_values() {
         let cases = [
-            (descriptor(0, 0, 2, 0x0002), (-2i16).to_le_bytes().to_vec(), "-2"),
-            (descriptor(0, 0, 4, 0x0003), (-3i32).to_le_bytes().to_vec(), "-3"),
-            (descriptor(0, 0, 8, 0x0014), (-4i64).to_le_bytes().to_vec(), "-4"),
+            (
+                descriptor(0, 0, 2, 0x0002),
+                (-2i16).to_le_bytes().to_vec(),
+                "-2",
+            ),
+            (
+                descriptor(0, 0, 4, 0x0003),
+                (-3i32).to_le_bytes().to_vec(),
+                "-3",
+            ),
+            (
+                descriptor(0, 0, 8, 0x0014),
+                (-4i64).to_le_bytes().to_vec(),
+                "-4",
+            ),
         ];
 
         for (column, bytes, expected) in cases {
@@ -220,10 +233,7 @@ mod tests {
 
     #[test]
     fn uses_the_lowest_bitmap_index_as_a_deterministic_tie_breaker() {
-        let columns = vec![
-            descriptor(1, 4, 4, 0x0003),
-            descriptor(0, 0, 4, 0x0003),
-        ];
+        let columns = vec![descriptor(1, 4, 4, 0x0003), descriptor(0, 0, 4, 0x0003)];
         let masks = vec!["11".to_string(); 2];
         let rows = vec![0u8; 16];
 
