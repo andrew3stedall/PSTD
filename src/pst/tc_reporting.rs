@@ -9,6 +9,11 @@ use crate::pst::tc_fixed_width_projection::{
     TC_FIXED_WIDTH_EVIDENCE_UNAVAILABLE,
 };
 use crate::pst::tc_heap::resolve_tcinfo_from_heap;
+use crate::pst::tc_recipient_identity_diagnostic::{
+    build_recipient_identity_diagnostic, unavailable_recipient_identity_diagnostic,
+    TcRecipientIdentityDiagnostic,
+};
+use crate::pst::tc_recipient_identity_projection::project_recipient_identity_strings;
 use crate::pst::tc_subnode_rows::resolve_subnode_row_storage;
 use crate::pst::tcinfo::TcColumnDescriptor;
 
@@ -46,6 +51,7 @@ pub struct TcHeapDiagnostic {
     pub row_layout_extents_valid: bool,
     pub row_layout_status: String,
     pub fixed_width: TcFixedWidthDiagnostic,
+    pub recipient_identity: TcRecipientIdentityDiagnostic,
     pub status: String,
     pub error: Option<String>,
 }
@@ -79,7 +85,7 @@ impl TcHeapDiagnostic {
             .join(":");
         let bitmap_masks = self.bitmap_masks.join(":");
         format!(
-            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_reference_values={},row_spans={},row_width={},tcinfo_regions={}:{}:{}:{},max_column_extent={},bitmap_bytes={},bitmap_end={},bitmap_rows={},bitmap_set_counts={},bitmap_unset_counts={},bitmap_masks={},bitmap_status={},descriptor_evidence={},descriptor_evidence_status={},row_layout_valid={},row_layout_status={},status={},error={},{}",
+            "bid=0x{:x},bytes={},resolved={},columns={},row_refs={},in_bounds={},out_of_bounds={},subnode_rows={},rows_nid=0x{:x},row_matches={},row_payloads={},row_bytes={},row_reference_values={},row_spans={},row_width={},tcinfo_regions={}:{}:{}:{},max_column_extent={},bitmap_bytes={},bitmap_end={},bitmap_rows={},bitmap_set_counts={},bitmap_unset_counts={},bitmap_masks={},bitmap_status={},descriptor_evidence={},descriptor_evidence_status={},row_layout_valid={},row_layout_status={},status={},error={},{},{}",
             self.block_id,
             self.payload_byte_len,
             usize::from(self.resolved),
@@ -114,6 +120,7 @@ impl TcHeapDiagnostic {
             self.status.replace(';', ","),
             error,
             self.fixed_width.status_fragment(),
+            self.recipient_identity.status_fragment(),
         )
     }
 }
@@ -267,6 +274,21 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                             ))
                         },
                     );
+                    let recipient_identity = subnode_rows.as_ref().map_or_else(
+                        unavailable_recipient_identity_diagnostic,
+                        |rows| {
+                            build_recipient_identity_diagnostic(project_recipient_identity_strings(
+                                payloads,
+                                report.rows_hnid,
+                                rows,
+                                &report.column_descriptors,
+                                bitmap_masks,
+                                &payload.bytes,
+                                payload.block_ref.offset.0,
+                                report.data_region_boundaries[3] as usize,
+                            ))
+                        },
+                    );
                     TcHeapDiagnostic {
                         block_id: payload.block_id.0,
                         payload_byte_len: payload.bytes.len(),
@@ -327,6 +349,7 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         row_layout_extents_valid,
                         row_layout_status,
                         fixed_width,
+                        recipient_identity,
                         status: subnode_rows
                             .as_ref()
                             .map_or(report.status, |rows| rows.status.clone()),
@@ -363,6 +386,7 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                     row_layout_extents_valid: false,
                     row_layout_status: "tc_row_layout_width_unavailable".to_string(),
                     fixed_width: unavailable_fixed_width_diagnostic(),
+                    recipient_identity: unavailable_recipient_identity_diagnostic(),
                     status: "tc_heap_resolution_failed".to_string(),
                     error: Some(reason.to_string()),
                 },
