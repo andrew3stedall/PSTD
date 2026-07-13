@@ -56,7 +56,10 @@ pub fn resolve_recipient_identity_heap_strings(
 fn decode_string(bytes: &[u8], property_type: u16) -> Result<String, String> {
     match property_type {
         PT_STRING8 => {
-            let end = bytes.iter().position(|byte| *byte == 0).unwrap_or(bytes.len());
+            let end = bytes
+                .iter()
+                .position(|byte| *byte == 0)
+                .unwrap_or(bytes.len());
             String::from_utf8(bytes[..end].to_vec())
                 .map_err(|_| "recipient identity STRING8 value is not valid UTF-8".to_string())
         }
@@ -86,7 +89,10 @@ mod tests {
     #[test]
     fn resolves_unicode_heap_strings_for_each_recipient_row() {
         let heap_bytes = sample_heap(&[
-            "Alice\0".encode_utf16().flat_map(u16::to_le_bytes).collect(),
+            "Alice\0"
+                .encode_utf16()
+                .flat_map(u16::to_le_bytes)
+                .collect(),
             "Bob\0".encode_utf16().flat_map(u16::to_le_bytes).collect(),
         ]);
         let heap = HeapOnNode::parse(&heap_bytes, 0).unwrap();
