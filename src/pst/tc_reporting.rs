@@ -3,9 +3,7 @@ use crate::pst::subnodes::SubnodeReference;
 use crate::pst::tc_descriptor_evidence::{
     build_descriptor_bitmap_evidence_from_columns, format_descriptor_bitmap_evidence,
 };
-use crate::pst::tc_fixed_width_diagnostic::{
-    build_fixed_width_diagnostic, TcFixedWidthDiagnostic,
-};
+use crate::pst::tc_fixed_width_diagnostic::{build_fixed_width_diagnostic, TcFixedWidthDiagnostic};
 use crate::pst::tc_fixed_width_projection::{
     project_fixed_width_row_evidence, TcFixedWidthProjectionReport,
     TC_FIXED_WIDTH_EVIDENCE_UNAVAILABLE,
@@ -460,9 +458,7 @@ fn validate_row_layout_extents(
         return ("tc_row_layout_width_unavailable".to_string(), false);
     }
     let final_region_boundary = data_region_boundaries[3] as usize;
-    if final_region_boundary > row_width
-        || max_column_extent > row_width
-        || bitmap_end > row_width
+    if final_region_boundary > row_width || max_column_extent > row_width || bitmap_end > row_width
     {
         return ("tc_row_layout_extents_out_of_bounds".to_string(), false);
     }
