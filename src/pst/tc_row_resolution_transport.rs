@@ -1,13 +1,10 @@
 use crate::pst::tc_row_mode::select_validated_row_address_mode;
-use crate::pst::tc_row_transport::{
-    build_validated_row_transport, TcRowTransportEvidence,
-};
+use crate::pst::tc_row_transport::{build_validated_row_transport, TcRowTransportEvidence};
 use crate::pst::tc_subnode_rows::TcSubnodeRowResolutionReport;
 
 pub const TC_ROW_TRANSPORT_VALIDATED: &str = "tc_row_transport_validated";
 pub const TC_ROW_TRANSPORT_UNAVAILABLE: &str = "tc_row_transport_unavailable";
-pub const TC_ROW_TRANSPORT_CONSTRUCTION_FAILED: &str =
-    "tc_row_transport_construction_failed";
+pub const TC_ROW_TRANSPORT_CONSTRUCTION_FAILED: &str = "tc_row_transport_construction_failed";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TcRowResolutionTransportReport {
@@ -101,14 +98,15 @@ mod tests {
     fn builds_validated_ordinal_transport_from_resolution() {
         let row_data = vec![0x5a; 208];
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, row_data.clone())];
-        let resolution =
-            resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2, 3], 14, 50, 52);
+        let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2, 3], 14, 50, 52);
 
         let report = build_transport_from_row_resolution(&resolution, &[&row_data]);
 
         assert_eq!(report.status, TC_ROW_TRANSPORT_VALIDATED);
         assert_eq!(report.failure_reason, None);
-        let evidence = report.evidence.expect("validated transport must be retained");
+        let evidence = report
+            .evidence
+            .expect("validated transport must be retained");
         assert_eq!(evidence.absolute_row_offsets, vec![0, 52, 104, 156]);
         assert_eq!(evidence.address_mode, TcRowAddressMode::OrdinalIndices);
         assert_eq!(evidence.payload, row_data);
@@ -118,13 +116,14 @@ mod tests {
     fn builds_validated_direct_transport_from_resolution() {
         let row_data = vec![0x3c; 12];
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, row_data.clone())];
-        let resolution =
-            resolve_subnode_row_storage(&payloads, 0x74, &[0, 4, 8], 8, 3, 4);
+        let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0, 4, 8], 8, 3, 4);
 
         let report = build_transport_from_row_resolution(&resolution, &[&row_data]);
 
         assert_eq!(report.status, TC_ROW_TRANSPORT_VALIDATED);
-        let evidence = report.evidence.expect("validated transport must be retained");
+        let evidence = report
+            .evidence
+            .expect("validated transport must be retained");
         assert_eq!(evidence.absolute_row_offsets, vec![0, 4, 8]);
         assert_eq!(evidence.address_mode, TcRowAddressMode::DirectOffsets);
     }
@@ -151,8 +150,7 @@ mod tests {
         ];
         let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0], 8, 3, 4);
 
-        let report =
-            build_transport_from_row_resolution(&resolution, &[&row_data, &row_data]);
+        let report = build_transport_from_row_resolution(&resolution, &[&row_data, &row_data]);
 
         assert_eq!(report.status, TC_ROW_TRANSPORT_CONSTRUCTION_FAILED);
         assert_eq!(report.evidence, None);
@@ -166,8 +164,7 @@ mod tests {
     fn rejects_payload_length_mismatch_without_partial_evidence() {
         let row_data = vec![0; 12];
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, row_data.clone())];
-        let resolution =
-            resolve_subnode_row_storage(&payloads, 0x74, &[0, 4, 8], 8, 3, 4);
+        let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0, 4, 8], 8, 3, 4);
         let truncated = &row_data[..8];
 
         let report = build_transport_from_row_resolution(&resolution, &[truncated]);
