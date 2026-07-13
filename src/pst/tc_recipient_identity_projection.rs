@@ -228,8 +228,10 @@ mod tests {
             block_ref: BlockRef {
                 block_id: BlockId(block_id),
                 offset: ByteOffset(0),
+                size: bytes.len() as u64,
             },
             bytes,
+            status: "test".to_string(),
         }
     }
 }
