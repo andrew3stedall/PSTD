@@ -25,14 +25,8 @@ mod tests {
 
     #[test]
     fn selects_validated_direct_offsets() {
-        let mode = select_validated_row_address_mode(
-            &[0, 52, 104, 156],
-            52,
-            208,
-            true,
-            false,
-        )
-        .expect("direct layout evidence should select direct addressing");
+        let mode = select_validated_row_address_mode(&[0, 52, 104, 156], 52, 208, true, false)
+            .expect("direct layout evidence should select direct addressing");
 
         assert_eq!(mode, TcRowAddressMode::DirectOffsets);
     }
