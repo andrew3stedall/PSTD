@@ -1,16 +1,16 @@
 name: Apply structured recipient output integration
 
 on:
-  push:
-    branches:
-      - feature/emit-structured-message-recipients
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   apply:
-    if: github.actor != 'github-actions[bot]'
+    if: github.head_ref == 'feature/emit-structured-message-recipients' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -104,7 +104,7 @@ Connect the validated message-attributed Table Context recipient projection to `
 
 ## Requirement revision
 
-The preceding vertical completed a fail-closed selection-to-output operation. The next highest-value step is therefore production integration, not another recipient abstraction. The extraction loop must retain the typed probe returned by `record_subnode_payload_probe`, build recipient output against the matching message key, and append records only when the exactly-one-table rule succeeds.
+The preceding vertical completed a fail-closed selection-to-output operation. The next highest-value step is production integration, not another recipient abstraction. The extraction loop must retain the typed probe returned by `record_subnode_payload_probe`, build recipient output against the matching message key, and append records only when the exactly-one-table rule succeeds.
 
 ## Implementation
 
@@ -149,8 +149,7 @@ Existing message, body, attachment, and byte-count baselines must remain stable.
 Once structured recipients are fixture-confirmed, the next milestone should consume those records in message export, beginning with deterministic `To` and `Cc` header construction. If the repository does not yet have a complete EML writer boundary, first attach recipient records to the message export model rather than adding further Table Context diagnostics.
 ''')
 
-          workflow = Path('.github/workflows/agent-apply-recipient-output.yml')
-          workflow.unlink()
+          Path('.github/workflows/agent-apply-recipient-output.yml').unlink()
       - name: Commit implementation
         run: |
           git config user.name "github-actions[bot]"
