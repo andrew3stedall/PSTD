@@ -311,9 +311,7 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         .map_or(report.status, |rows| rows.status.clone());
                     let status = complete_recipients
                         .as_ref()
-                        .map(|projection| {
-                            format!("{base_status};{}", projection.status_fragment())
-                        })
+                        .map(|projection| format!("{base_status};{}", projection.status_fragment()))
                         .unwrap_or(base_status);
                     TcHeapDiagnostic {
                         block_id: payload.block_id.0,
