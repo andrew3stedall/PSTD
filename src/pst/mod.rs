@@ -39,6 +39,7 @@ pub mod tc_recipient_identity_diagnostic;
 pub mod tc_recipient_identity_projection;
 pub mod tc_recipient_identity_reference;
 pub mod tc_recipient_identity_string;
+pub mod tc_recipient_records;
 pub mod tc_reporting;
 pub mod tc_row_mode;
 pub mod tc_row_offsets;
