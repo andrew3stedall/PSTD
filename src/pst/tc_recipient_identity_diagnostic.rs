@@ -21,6 +21,7 @@ impl TcRecipientIdentityDiagnostic {
             .property_tag
             .map_or_else(|| "none".to_string(), |tag| format!("0x{tag:08x}"));
         let property_name = self.property_name.as_deref().unwrap_or("none");
+        let value_kind = recipient_value_kind(self.property_name.as_deref());
         let references = self
             .reference_values
             .iter()
@@ -41,17 +42,28 @@ impl TcRecipientIdentityDiagnostic {
             .replace([';', '|'], ",");
 
         format!(
-            "recipient_candidate_status={},recipient_transport_status={},recipient_identity_status={},recipient_property_tag={},recipient_property_name={},recipient_references={},recipient_reference_kinds={},recipient_values={},recipient_failure={}",
+            "recipient_candidate_status={},recipient_transport_status={},recipient_identity_status={},recipient_property_tag={},recipient_property_name={},recipient_value_kind={},recipient_references={},recipient_reference_kinds={},recipient_values={},recipient_failure={}",
             self.candidate_status.replace(';', ","),
             self.transport_status.replace(';', ","),
             self.identity_status.replace(';', ","),
             property_tag,
             property_name.replace(';', ","),
+            value_kind,
             references,
             kinds,
             values,
             failure,
         )
+    }
+}
+
+fn recipient_value_kind(property_name: Option<&str>) -> &'static str {
+    match property_name {
+        Some("PidTagSmtpAddress") => "smtp_address",
+        Some("PidTagEmailAddress") => "native_email_address",
+        Some("PidTagDisplayName") => "display_name",
+        Some(_) => "unknown",
+        None => "none",
     }
 }
 
@@ -103,10 +115,53 @@ pub fn unavailable_recipient_identity_diagnostic() -> TcRecipientIdentityDiagnos
 
 #[cfg(test)]
 mod tests {
-    use super::build_recipient_identity_diagnostic;
+    use super::{build_recipient_identity_diagnostic, TcRecipientIdentityDiagnostic};
     use crate::pst::tc_recipient_identity_projection::{
         RecipientIdentityProjectionReport, RECIPIENT_IDENTITY_FAILED,
     };
+
+    #[test]
+    fn publishes_native_email_address_kind_for_fixture_property() {
+        let diagnostic = TcRecipientIdentityDiagnostic {
+            candidate_status: "candidate".to_string(),
+            transport_status: "transport".to_string(),
+            identity_status: "validated".to_string(),
+            property_tag: Some(0x3003_001f),
+            property_name: Some("PidTagEmailAddress".to_string()),
+            reference_values: vec![0xe0],
+            reference_kinds: vec!["HeapId".to_string()],
+            row_values: vec!["to1@domain.com".to_string()],
+            failure_reason: None,
+        };
+
+        assert!(diagnostic
+            .status_fragment()
+            .contains("recipient_value_kind=native_email_address"));
+    }
+
+    #[test]
+    fn distinguishes_smtp_addresses_from_native_email_addresses() {
+        let mut diagnostic = TcRecipientIdentityDiagnostic {
+            candidate_status: "candidate".to_string(),
+            transport_status: "transport".to_string(),
+            identity_status: "validated".to_string(),
+            property_tag: Some(0x39fe_001f),
+            property_name: Some("PidTagSmtpAddress".to_string()),
+            reference_values: vec![0xe0],
+            reference_kinds: vec!["HeapId".to_string()],
+            row_values: vec!["to1@domain.com".to_string()],
+            failure_reason: None,
+        };
+
+        assert!(diagnostic
+            .status_fragment()
+            .contains("recipient_value_kind=smtp_address"));
+
+        diagnostic.property_name = Some("PidTagDisplayName".to_string());
+        assert!(diagnostic
+            .status_fragment()
+            .contains("recipient_value_kind=display_name"));
+    }
 
     #[test]
     fn failed_projection_exposes_no_partial_identity_values() {
@@ -122,6 +177,9 @@ mod tests {
         assert!(diagnostic.property_tag.is_none());
         assert!(diagnostic.reference_values.is_empty());
         assert!(diagnostic.row_values.is_empty());
+        assert!(diagnostic
+            .status_fragment()
+            .contains("recipient_value_kind=none"));
         assert!(diagnostic.status_fragment().contains("recipient_values="));
     }
 }
