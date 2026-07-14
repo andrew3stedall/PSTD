@@ -313,8 +313,7 @@ mod tests {
 
         let mut ambiguous = message();
         ambiguous.transport_message_headers = Some(
-            "Date: 19 Aug 2015 11:07:26 +0000\r\nDate: 20 Aug 2015 11:07:26 +0000\r\n"
-                .to_string(),
+            "Date: 19 Aug 2015 11:07:26 +0000\r\nDate: 20 Aug 2015 11:07:26 +0000\r\n".to_string(),
         );
         assert!(validated_transport_date(&ambiguous).is_none());
     }
