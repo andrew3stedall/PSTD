@@ -1,0 +1,62 @@
+name: Readable RTF fixture
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  public-pst-rtf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test --all
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Find public PST fixture
+        id: fixture
+        shell: bash
+        run: |
+          fixture=$(find . -type f -iname '*.pst' | sort | head -n 1 || true)
+          echo "fixture=$fixture" >> "$GITHUB_OUTPUT"
+          if [[ -z "$fixture" ]]; then
+            echo "No public PST fixture found" >&2
+            exit 1
+          fi
+      - name: Decode readable RTF
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="${{ steps.fixture.outputs.fixture }}"
+          evidence_dir="/tmp/pstd-public-pst-rtf"
+          rtf_dir="$evidence_dir/rtf"
+          mkdir -p "$rtf_dir"
+          cargo run --bin pstd-rtf -- "$fixture" "$rtf_dir" | tee "$evidence_dir/rtf-summary.txt"
+          find "$rtf_dir" -type f -name '*.rtf' -print | sort > "$evidence_dir/rtf-files.txt"
+          test "$(wc -l < "$evidence_dir/rtf-files.txt")" -eq 1
+          rtf_file=$(head -n 1 "$evidence_dir/rtf-files.txt")
+          stat -c '%s' "$rtf_file" > "$evidence_dir/rtf-size-bytes.txt"
+          python - <<'PY'
+          from pathlib import Path
+
+          evidence = Path('/tmp/pstd-public-pst-rtf')
+          rtf_path = Path(evidence.joinpath('rtf-files.txt').read_text(encoding='utf-8').strip())
+          raw = rtf_path.read_bytes()
+          if not raw.startswith(b'{\\rtf'):
+              raise SystemExit('decoded payload is not an RTF document')
+          text = raw.decode('latin-1')
+          if 'This is an evaluation copy of Aspose.Email for Java' not in text:
+              raise SystemExit('decoded RTF is missing the fixture body text')
+          evidence.joinpath('message.rtf').write_bytes(raw)
+          evidence.joinpath('rtf-prefix.txt').write_text(text[:512], encoding='utf-8')
+          PY
+      - name: Upload readable RTF evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-pst-readable-rtf
+          path: /tmp/pstd-public-pst-rtf
+          if-no-files-found: error
