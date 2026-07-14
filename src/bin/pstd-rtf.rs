@@ -116,22 +116,25 @@ fn decompress_rtf(input: &[u8]) -> Option<Vec<u8>> {
     }
     let payload = &input[16..];
 
-    let decoded = match magic {
+    match magic {
         MELA_MAGIC => {
-            if expected_crc != 0 || payload.len() != raw_size {
+            if expected_crc != 0
+                || compressed_size != raw_size
+                || payload.len().checked_add(12)? != raw_size
+            {
                 return None;
             }
-            payload.to_vec()
+            Some(payload.to_vec())
         }
         LZFU_MAGIC => {
             if crc32(payload) != expected_crc {
                 return None;
             }
-            decompress_lzfu(payload, raw_size)?
+            let decoded = decompress_lzfu(payload, raw_size)?;
+            (decoded.len() == raw_size).then_some(decoded)
         }
-        _ => return None,
-    };
-    (decoded.len() == raw_size).then_some(decoded)
+        _ => None,
+    }
 }
 
 fn decompress_lzfu(input: &[u8], raw_size: usize) -> Option<Vec<u8>> {
@@ -212,9 +215,10 @@ mod tests {
     use pstd::pst::messages::body_payload;
 
     fn wrap_uncompressed(raw: &[u8]) -> Vec<u8> {
+        let framed_size = raw.len() + 12;
         let mut value = Vec::new();
-        value.extend_from_slice(&((raw.len() + 12) as u32).to_le_bytes());
-        value.extend_from_slice(&(raw.len() as u32).to_le_bytes());
+        value.extend_from_slice(&(framed_size as u32).to_le_bytes());
+        value.extend_from_slice(&(framed_size as u32).to_le_bytes());
         value.extend_from_slice(&MELA_MAGIC.to_le_bytes());
         value.extend_from_slice(&0u32.to_le_bytes());
         value.extend_from_slice(raw);
@@ -241,7 +245,7 @@ mod tests {
         assert!(decompress_rtf(&invalid_mela_crc).is_none());
 
         let mut bad_size = wrap_uncompressed(raw);
-        bad_size[0] ^= 1;
+        bad_size[4] ^= 1;
         assert!(decompress_rtf(&bad_size).is_none());
 
         let mut bad_magic = wrap_uncompressed(raw);
