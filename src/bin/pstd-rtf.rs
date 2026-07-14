@@ -56,12 +56,15 @@ fn run() -> Result<(), String> {
 
     println!("rtf_files_emitted={emitted}");
     if emitted == 0 {
-        return Err("no validated compressed RTF body could be decoded".to_string());
+        return Err("no validated RTF body could be emitted".to_string());
     }
     Ok(())
 }
 
 fn validated_rtf(payload: &BodyPayload) -> Option<Vec<u8>> {
+    if payload.bytes.starts_with(b"{\\rtf") {
+        return Some(payload.bytes.clone());
+    }
     let decoded = decompress_rtf(&payload.bytes)?;
     decoded.starts_with(b"{\\rtf").then_some(decoded)
 }
@@ -183,12 +186,15 @@ mod tests {
     }
 
     #[test]
-    fn validates_uncompressed_rtf_container() {
+    fn validates_direct_and_uncompressed_rtf_payloads() {
         let raw = b"{\\rtf1\\ansi Hello}";
+        let direct = body_payload("message", "rtf", raw.to_vec(), None);
+        assert_eq!(validated_rtf(&direct).as_deref(), Some(raw.as_slice()));
+
         let compressed = wrap_uncompressed(raw);
         assert_eq!(decompress_rtf(&compressed).as_deref(), Some(raw.as_slice()));
-        let payload = body_payload("message", "rtf", compressed, None);
-        assert_eq!(validated_rtf(&payload).as_deref(), Some(raw.as_slice()));
+        let wrapped = body_payload("message", "rtf", compressed, None);
+        assert_eq!(validated_rtf(&wrapped).as_deref(), Some(raw.as_slice()));
     }
 
     #[test]
@@ -206,7 +212,10 @@ mod tests {
         bad_magic[8] ^= 1;
         assert!(decompress_rtf(&bad_magic).is_none());
 
-        let payload = body_payload("message", "rtf", wrap_uncompressed(b"plain"), None);
-        assert!(validated_rtf(&payload).is_none());
+        let direct_plain = body_payload("message", "rtf", b"plain".to_vec(), None);
+        assert!(validated_rtf(&direct_plain).is_none());
+
+        let wrapped_plain = body_payload("message", "rtf", wrap_uncompressed(b"plain"), None);
+        assert!(validated_rtf(&wrapped_plain).is_none());
     }
 }
