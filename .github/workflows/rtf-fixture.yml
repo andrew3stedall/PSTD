@@ -48,8 +48,14 @@ jobs:
           if not raw.startswith(b'{\\rtf'):
               raise SystemExit('decoded payload is not an RTF document')
           text = raw.decode('latin-1')
-          if 'This is an evaluation copy of Aspose.Email for Java' not in text:
-              raise SystemExit('decoded RTF is missing the fixture body text')
+          required = (
+              'This line is in bold.',
+              'This line is in blue color',
+              '\\fromhtml1',
+          )
+          missing = [value for value in required if value not in text]
+          if missing:
+              raise SystemExit(f'decoded RTF is missing fixture rich-text evidence: {missing}')
           evidence.joinpath('message.rtf').write_bytes(raw)
           evidence.joinpath('rtf-prefix.txt').write_text(text[:512], encoding='utf-8')
           PY
