@@ -2,11 +2,11 @@
 
 ## Context
 
-The public PST fixture already proves four recipient rows, their roles (`To`, `To`, `Cc`, `Cc`), and four heap-resident `PidTagDisplayName` values. The same Table Context descriptor evidence also includes `PidTagEmailAddress`, while `PidTagSmtpAddress` has not been observed.
+The public PST fixture already proved four recipient rows, their roles (`To`, `To`, `Cc`, `Cc`), and four heap-resident `PidTagDisplayName` values. The same Table Context descriptor evidence includes `PidTagEmailAddress`, while `PidTagSmtpAddress` has not been observed.
 
 The previous recipient identity selector preferred display names. That was appropriate for proving the first readable identity, but it prevented the production pipeline from advancing to actual recipient addresses once names were already validated.
 
-## Revised requirement
+## Requirement
 
 Prefer address-bearing recipient properties in this order:
 
@@ -27,26 +27,64 @@ Regression tests cover:
 - display name retained as the fallback;
 - existing row completeness, type, size, and boundary failures.
 
-## Acceptance evidence required from CI
+## Public fixture acceptance evidence
 
-The public-PST fixture must report one of the following on the exact PR head:
+GitHub Actions run `#548` completed successfully on commit `3097ec72866c9c77e3e1e137bc6513c526444b9f`.
 
-- `PidTagEmailAddress` with four decoded row values;
-- `PidTagSmtpAddress` with four decoded row values; or
-- a bounded failure proving why the observed address property cannot be decoded.
+The public fixture selected `PidTagEmailAddress` (`0x3003001f`) and resolved four heap-backed Unicode strings:
 
-The milestone must not claim four usable Internet addresses merely because four strings decode. Native Exchange legacy distinguished names remain native addresses unless an SMTP property or authoritative conversion evidence is available.
+| Row | Verified role | HNID | Reference kind | Decoded address |
+|---:|---|---|---|---|
+| 0 | To | `0x000000e0` | `HeapId` | `to1@domain.com` |
+| 1 | To | `0x00000180` | `HeapId` | `to2@domain.com` |
+| 2 | Cc | `0x00000220` | `HeapId` | `cc1@domain.com` |
+| 3 | Cc | `0x000002c0` | `HeapId` | `cc2@domain.com` |
 
-## Baseline before this change
+The fixture reports `tc_recipient_identity_validated` with no failure reason. These values are syntactically Internet addresses and match the fixture transport headers, but they remain classified as `PidTagEmailAddress`; the parser does not relabel them as `PidTagSmtpAddress`.
 
-- messages extracted: 1;
-- recipient rows: 4;
-- recipient roles: two To, two Cc;
-- recipient display names: four;
-- recipient addresses: zero confirmed;
-- attachments: zero;
-- EML output: zero.
+## Before versus after
+
+| Measure | Before | After |
+|---|---:|---:|
+| Messages discovered | 1 | 1 |
+| Messages extracted | 1 | 1 |
+| Body payload records | 2 | 2 |
+| Recipient roles decoded | 4 | 4 |
+| Recipient display names decoded | 4 | 4 |
+| Readable recipient addresses | 0 | 4 |
+| Complete role/name/address records emitted | 0 | 0 |
+| Attachments extracted | 0 | 0 |
+| EML files emitted | 0 | 0 |
+| Output bytes | 35,332 | 35,371 |
+
+The 39-byte increase reflects the shorter selected address strings replacing the prior display-name diagnostic values plus the changed property metadata. Message, body, attachment, and EML counts did not regress.
+
+## Architectural decisions
+
+- Reused the existing validated row selector, HNID classifier, Heap-on-Node resolver, string decoder, and production projection.
+- Changed only deterministic property priority; no new transport or reporting layer was introduced.
+- Required the selected property to be present on every validated row.
+- Preserved `PidTagDisplayName` as a fallback so fixtures without address properties retain prior behavior.
+- Kept native email and SMTP property semantics distinct.
+
+## Remaining blockers
+
+- Retain display names and addresses simultaneously instead of selecting only one identity property.
+- Assemble role, display name, and address by the same validated row index.
+- Publish structured recipients in message output and eventual EML headers.
+- Normalize HTML and RTF bodies.
+- Extract attachment tables, payloads, and embedded messages.
+- Emit complete EML files and validate against broader fixtures.
 
 ## Following vertical milestone
 
-If four address strings validate, retain display name and address simultaneously and assemble role/name/address recipient records for message output. If the values are native Exchange addresses, the next milestone should search the same rows for `PidTagSmtpAddress` or a validated address-book mapping rather than relabelling native values as SMTP.
+Resolve display name and email address in parallel and emit four structured recipient records while preserving row alignment:
+
+```text
+To: Recipient 1 <to1@domain.com>
+To: Recipient 2 <to2@domain.com>
+Cc: Recipient 3 <cc1@domain.com>
+Cc: Recipient 4 <cc2@domain.com>
+```
+
+The next milestone must modify production message output, not add another standalone selector, wrapper, formatter, or diagnostic type.
