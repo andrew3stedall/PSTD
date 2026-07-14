@@ -34,6 +34,7 @@ pub mod tc_fixed_width_diagnostic;
 pub mod tc_fixed_width_evidence;
 pub mod tc_fixed_width_projection;
 pub mod tc_heap;
+pub mod tc_message_recipient_selection;
 pub mod tc_message_recipients;
 pub mod tc_probe_collection;
 pub mod tc_property_classification;
