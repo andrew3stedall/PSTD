@@ -193,13 +193,15 @@ pub fn assemble_complete_recipient_records(
         .zip(&display_names.row_values)
         .zip(&addresses.row_values)
         .enumerate()
-        .map(|(row_index, ((role, display_name), address))| TcCompleteRecipientRecord {
-            row_index,
-            role: role.clone(),
-            display_name: display_name.clone(),
-            address: address.clone(),
-            address_kind: address_kind.to_string(),
-        })
+        .map(
+            |(row_index, ((role, display_name), address))| TcCompleteRecipientRecord {
+                row_index,
+                role: role.clone(),
+                display_name: display_name.clone(),
+                address: address.clone(),
+                address_kind: address_kind.to_string(),
+            },
+        )
         .collect();
 
     TcCompleteRecipientRecordReport {
@@ -282,7 +284,12 @@ mod tests {
             ),
             &identities(
                 "PidTagEmailAddress",
-                &["to1@domain.com", "to2@domain.com", "cc1@domain.com", "cc2@domain.com"],
+                &[
+                    "to1@domain.com",
+                    "to2@domain.com",
+                    "cc1@domain.com",
+                    "cc2@domain.com",
+                ],
             ),
         );
         assert_eq!(report.status, RECIPIENT_RECORDS_VALIDATED);
@@ -292,9 +299,9 @@ mod tests {
         assert_eq!(report.records[0].address_kind, "native_email_address");
         assert_eq!(report.records[2].role, "cc");
         assert!(report.failure_reason.is_none());
-        assert!(report.status_fragment().contains(
-            "0:to:Recipient 1:to1@domain.com:native_email_address"
-        ));
+        assert!(report
+            .status_fragment()
+            .contains("0:to:Recipient 1:to1@domain.com:native_email_address"));
     }
 
     #[test]
