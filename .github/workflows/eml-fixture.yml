@@ -51,10 +51,10 @@ jobs:
               raise SystemExit('EML contains bare LF line endings')
           text = raw.decode('utf-8')
           required = [
-              'From: ',
+              'From: Sender Name <from@domain.com>\r\n',
               'To: Recipient 1 <to1@domain.com>, Recipient 2 <to2@domain.com>\r\n',
               'Cc: Recipient 3 <cc1@domain.com>, Recipient 4 <cc2@domain.com>\r\n',
-              'Subject: ',
+              'Subject: New message created by Aspose.Email for Java(Aspose.Email Evaluation)\r\n',
               'MIME-Version: 1.0\r\n',
               'Content-Type: text/plain; charset=utf-8\r\n',
           ]
@@ -62,6 +62,9 @@ jobs:
           if missing:
               raise SystemExit(f'EML missing required readable content: {missing!r}')
           headers, body = text.split('\r\n\r\n', 1)
+          controls = [character for character in headers if ord(character) < 32 and character not in '\t\r\n']
+          if controls:
+              raise SystemExit(f'EML headers contain control characters: {controls!r}')
           if not body.strip():
               raise SystemExit('EML plain-text body is empty')
           evidence.joinpath('message.eml').write_bytes(raw)
