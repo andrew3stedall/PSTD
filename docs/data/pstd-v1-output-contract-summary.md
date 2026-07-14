@@ -1,60 +1,57 @@
-# PSTD v1 Data and Output Contract Summary
+# PSTD Structured Output Contract
+
+_Last reviewed: 14 July 2026._
 
 ## Purpose
 
-Define the v1 structured archive contract at a level that implementation agents can follow and future Snowflake/search/tagging work can consume.
+Define the canonical structured output boundary and distinguish the intended record families from the extraction coverage currently proven on real fixtures.
 
-This summary updates the earlier repo reference from an EML-centred shape toward the v1 structured TAR contract. EML may be generated later, but it is not the default canonical output for v1.
+PSTD does not currently use EML as its canonical output. It emits deterministic TAR shards and JSONL records so extracted evidence can be validated, joined, reviewed, and later assembled into EML or loaded downstream.
 
-## Release-candidate status
+## Contract versus capability
 
-M25 completes the planned v1 milestone lane. The v1 output contract is release-candidate ready for local/Docker extraction once M25 CI passes and the milestone PR is merged.
+The existence of a record type or archive path means the output layer supports that shape. It does not mean every source field is currently recovered from every PST.
 
-The contract remains evidence-driven: unsupported or uncommon PST layouts should produce explicit statuses rather than silent success.
+| Record family | Contract state | Current extraction maturity |
+|---|---|---|
+| Run, progress, manifest, error, and summary records | Implemented | Operational |
+| Folder records and inventory | Implemented | Public fixture produces 11 folders |
+| Message records | Implemented | Public fixture produces one true/extracted message; metadata coverage remains incomplete |
+| Selected MAPI property records | Implemented | Public fixture produces 16 selected and 19 unknown properties |
+| Body records and raw body artefacts | Implemented | Public fixture recovers two body payloads; format coverage remains incomplete |
+| Recipient records | Implemented as a contract | Validated role/name/address evidence exists, but complete records are not yet published through one production fixture execution |
+| Message-reference records | Implemented as a contract | Coverage is not yet sufficient to claim complete threading fidelity |
+| Attachment records and raw attachment artefacts | Implemented as a contract | Public fixture currently emits zero attachments |
+| EML | Not canonical and not implemented | Deferred until extracted data is sufficiently complete |
 
-## Default output strategy
-
-```text
-PST
-  -> Rust extraction engine
-  -> structured records
-  -> raw body files
-  -> raw attachment files
-  -> TAR shards
-  -> diagnostics and summaries
-```
-
-## Single-PST output root shape
+## Single-PST output root
 
 ```text
 <output-root>/
   run_summary.json
   progress.jsonl
-
-  archives/
-    <pst_id>_000001.tar
-    <pst_id>_000002.tar
-
   logs/
     run_errors.jsonl
+  archives/
+    <pst-id>_000001.tar
+    <pst-id>_000002.tar
 ```
 
-## Batch output root shape
+## Batch output root
 
 ```text
 <batch-output-root>/
   batch_summary.json
   batch_checkpoint.jsonl
   batch_progress.jsonl
-
   <safe-pst-output-dir>/
     run_summary.json
     progress.jsonl
     archives/
-      <pst_id>_000001.tar
+      <pst-id>_000001.tar
 ```
 
-## TAR shard shape
+## TAR shard layout
 
 ```text
 _pstfast/
@@ -66,28 +63,28 @@ _pstfast/
   run_config.json
 
 data/
+  folders.jsonl
   messages.jsonl
   recipients.jsonl
   message_references.jsonl
   bodies.jsonl
   attachments.jsonl
-  folders.jsonl
   selected_mapi_properties.jsonl
 
 bodies/
-  <message_key>.txt
-  <message_key>.html
+  <message-key>.txt
+  <message-key>.html
 
 attachments/
-  <message_key>/
-    <attachment_key>_<safe_filename>
+  <message-key>/
+    <attachment-key>_<safe-filename>
 ```
 
-## Stable IDs
+Files may be absent or empty when the command or source data does not produce that family. Completeness must be represented by statuses and summaries rather than inferred from the directory name alone.
 
-Every record should include enough stable IDs for later Snowflake joins, tagging, review, generated email download, and graph construction.
+## Stable identifiers
 
-Required key families:
+Record families should use deterministic join keys:
 
 ```text
 run_id
@@ -100,353 +97,45 @@ attachment_key
 reference_key
 ```
 
-Recommended key strategy:
+Keys must derive from stable source identity and ordinal/node information rather than mutable display text.
 
-- `pst_id`: deterministic ID from source path plus size/hash metadata where available.
-- `folder_key`: `pst_id` plus folder node ID/path identity.
-- `message_key`: `pst_id` plus message node ID or equivalent stable PST identity.
-- `recipient_key`: `message_key` plus recipient type and ordinal.
-- `body_key`: `message_key` plus body type.
-- `attachment_key`: `message_key` plus attachment ordinal or attachment node ID.
-- `reference_key`: `message_key` plus reference ordinal.
+## Core record expectations
 
-## Required JSONL files
+### Messages
 
-### `data/messages.jsonl`
+Message records should retain source identity, folder relationship, item type, subject/sender/date identifiers where validated, body and attachment indicators, threading fields, transport headers, and per-domain completeness statuses.
 
-One row per discovered email-like item.
+### Recipients
 
-Important fields:
-
-```text
-run_id
-pst_id
-folder_key
-message_key
-message_node_id
-folder_path
-item_type
-subject
-sender_name
-sender_email
-sender_raw_address
-sender_address_type
-sent_at
-received_at
-created_at
-modified_at
-transport_message_headers
-internet_message_id
-in_reply_to_id
-conversation_index
-conversation_topic
-normalized_subject
-has_text_body
-has_html_body
-has_attachments
-attachment_count
-metadata_status
-threading_status
-body_status
-attachment_status
-extraction_status
-```
-
-### `data/recipients.jsonl`
-
-One row per recipient.
-
-Important fields:
+Recipient records should retain:
 
 ```text
 message_key
 recipient_key
+ordinal
 recipient_type
 display_name
 raw_address
 address_type
 smtp_address
 resolution_status
-ordinal
 ```
 
-### `data/message_references.jsonl`
+A native `PidTagEmailAddress` value must not be labelled SMTP unless authoritative SMTP evidence exists. Complete records must preserve row alignment and must not combine evidence from separate parser executions.
 
-One row per `References` or reply relationship item.
+### Bodies
 
-Important fields:
+Body records should identify body type, archive path, encoding, size, hash, and status. Raw body artefacts should be stored as files rather than embedded in JSON.
 
-```text
-message_key
-reference_key
-reference_type
-referenced_internet_message_id
-ordinal
-source
-```
+### Attachments
 
-### `data/bodies.jsonl`
+Attachment records should preserve known metadata even when payload bytes are unavailable, empty, unsupported, or deferred. Raw extracted bytes belong in TAR entries, not base64 JSON.
 
-One row per body artefact.
+### Errors and completeness
 
-Important fields:
+Errors and warnings should carry scope, severity, code, source identity, recoverability, and bounded location evidence where safe.
 
-```text
-message_key
-body_key
-body_type
-archive_path
-encoding
-size_bytes
-sha256
-status
-```
-
-### `data/attachments.jsonl`
-
-One row per attachment metadata record. Rows may represent extracted attachment bytes, unavailable payloads, empty payloads, or deferred embedded-message payloads.
-
-Important fields:
-
-```text
-message_key
-attachment_key
-filename_original
-filename_safe
-content_type
-extension
-size_bytes
-declared_size_bytes
-size_status
-sha256
-is_inline
-content_id
-attachment_method
-ordinal
-archive_path
-extraction_status
-```
-
-### `data/folders.jsonl`
-
-One row per folder.
-
-Important fields:
-
-```text
-pst_id
-folder_key
-parent_folder_key
-folder_path
-folder_name
-folder_node_id
-item_count_total
-child_folder_count
-status
-```
-
-### `data/selected_mapi_properties.jsonl`
-
-Optional selected property rows for debug/audit and future enrichment.
-
-Important fields:
-
-```text
-message_key
-property_id
-property_name
-property_type
-value_summary
-source
-status
-```
-
-### `_pstfast/folder_inventory.jsonl`
-
-One row per folder inventory summary.
-
-Important fields:
-
-```text
-pst_id
-folder_key
-folder_path
-item_count_total
-item_count_email
-item_count_calendar
-item_count_contact
-item_count_task
-item_count_unknown
-child_folder_count
-inventory_status
-```
-
-### `_pstfast/errors.jsonl`
-
-One row per warning/error.
-
-Important fields:
-
-```text
-run_id
-source_pst
-scope
-severity
-code
-message
-source_folder_path
-message_key
-attachment_key
-timestamp_utc
-recoverable
-raw_offset
-```
-
-### `_pstfast/manifest.jsonl`
-
-One row per discovered item or output artefact.
-
-Important fields:
-
-```text
-run_id
-pst_id
-message_key
-folder_key
-artefact_type
-archive_path
-sha256
-size_bytes
-status
-error_count
-```
-
-### `_pstfast/summary.json`
-
-Per-PST summary.
-
-Important fields:
-
-```text
-pst_id
-source_pst_path
-pst_size_bytes
-started_at
-finished_at
-duration_seconds
-folders_discovered
-messages_discovered
-messages_extracted
-messages_failed
-attachments_extracted
-attachments_failed
-bytes_read
-bytes_written
-tar_shards_written
-throughput_messages_per_second
-throughput_mb_per_second
-status
-```
-
-## Batch summary and progress files
-
-### `batch_summary.json`
-
-One JSON document per batch run.
-
-Important fields:
-
-```text
-batch_id
-started_at
-finished_at
-duration_seconds
-input_root
-output_root
-pst_total
-pst_discovered
-pst_attempted
-pst_completed
-pst_partial
-pst_failed
-pst_skipped
-pst_not_run
-continue_on_error
-status
-operator_message
-checkpoint_path
-progress_path
-items
-```
-
-Each item includes:
-
-```text
-pst_path
-pst_output
-status
-run_id
-pst_id
-started_at
-finished_at
-duration_seconds
-messages_discovered
-messages_extracted
-messages_not_extracted
-attachments_extracted
-attachments_not_extracted
-tar_shards_written
-bytes_written
-output_exists
-message
-```
-
-### `batch_checkpoint.jsonl`
-
-Append-only checkpoint stream with one `BatchItemSummary` row per PST that was processed, skipped, or failed before the batch stopped.
-
-### `batch_progress.jsonl`
-
-Append-only operator progress stream. Event types include:
-
-```text
-batch_started
-pst_started
-pst_finished
-batch_finished
-```
-
-Progress rows include the batch ID, event type, timestamp, optional PST path/output path, optional item status, aggregate counters, and a human-readable message.
-
-## Body and attachment storage rules
-
-- Do not base64 encode attachments into JSON.
-- Write attachment bytes as raw TAR entries when payloads are extracted.
-- Preserve attachment metadata rows even when payload bytes are unavailable or deferred.
-- Preserve text and HTML bodies as files where available.
-- Preserve raw transport headers on `data/messages.jsonl` when available.
-- Record hashes, byte sizes, declared sizes, size status, and attachment methods for future validation.
-- Record missing, failed, empty, or deferred extraction explicitly.
-
-## Batch operation rules
-
-- Keep discovered PST counts separate from attempted PST counts.
-- Count skipped existing outputs separately from completed or partial extraction attempts.
-- Count not-run PSTs when fail-fast mode stops before all discovered files are attempted.
-- Use `partial_success` for successful extraction attempts with recoverable message, attachment, or metadata gaps.
-- Keep batch output deterministic so reruns can skip existing per-PST output directories unless `--overwrite` is set.
-
-## EML policy
-
-EML is not the v1 canonical output. Future generated download is supported by storing enough structured metadata, body content, headers, and attachments to reconstruct a display-equivalent `.eml` later.
-
-If exact-preservation archive behaviour becomes required, a later milestone must add raw MIME/EML preservation or richer raw property capture.
-
-## Error and completeness status
-
-Records should distinguish extraction failure from partial extraction.
-
-Recommended statuses:
+Recommended statuses include:
 
 ```text
 success
@@ -454,38 +143,44 @@ partial_success
 failed
 missing
 unsupported
+unavailable
 skipped_unsupported_type
 skipped_corrupt
 skipped_completed
 failed_stopped_early
 ```
 
-Recommended completeness fields:
+Domain completeness should remain separate:
 
 ```text
 metadata_status
 threading_status
 body_status
 attachment_status
+recipient_status
 ```
 
-## Future Snowflake readiness
+## Batch rules
 
-The archive contract should support later loading into tables such as:
+- Keep discovered, attempted, completed, partial, failed, skipped, and not-run counts separate.
+- Preserve append-only checkpoint and progress streams.
+- Make reruns deterministic and explicit when outputs are skipped or overwritten.
+- Do not report batch success when individual PSTs are partial or failed without preserving those counts.
 
-```text
-EMAIL_MESSAGE
-EMAIL_RECIPIENT
-EMAIL_MESSAGE_REFERENCE
-EMAIL_BODY
-EMAIL_ATTACHMENT
-EMAIL_FOLDER
-EMAIL_ERROR
-EMAIL_TAG
-```
+## Privacy and payload rules
 
-Future search and graph work should consume these outputs. They should not require reparsing the source PST files.
+- Never place private PST files in source control or CI artifacts.
+- Do not publish complete message bodies or attachment payloads in diagnostic artifacts.
+- Do not base64 raw attachment data into JSONL.
+- Bound diagnostic strings and sanitise delimiters.
+- Preserve hashes and byte counts where available for later verification.
 
-## Post-v1 boundary
+## EML policy
 
-Snowflake ingestion is the first post-v1 planning phase. The v1 output contract should be treated as the source for that planning rather than expanding the v1 milestone lane.
+EML generation is a future assembly layer. It should be introduced only after the structured records reliably contain the metadata, recipients, headers, body forms, and attachment bytes required for the intended fidelity level. Exact preservation may require additional raw-property or MIME evidence beyond the current contract.
+
+## Downstream boundary
+
+Snowflake, search, UI, tagging, graph, and LLM/RAG systems should consume this contract. They must not compensate for missing extraction by reparsing source PST files or silently inventing absent values.
+
+The Rust source record types under `src/output/` are the implementation authority when this summary and code diverge. Any contract change must update both the code and this document.
