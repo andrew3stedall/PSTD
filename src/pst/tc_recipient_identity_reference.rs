@@ -165,22 +165,13 @@ mod tests {
 
     #[test]
     fn prefers_native_email_address_when_smtp_is_absent() {
-        let columns = vec![
-            descriptor(0, 0, 0x3001_001f),
-            descriptor(1, 4, 0x3003_001f),
-        ];
+        let columns = vec![descriptor(0, 0, 0x3001_001f), descriptor(1, 4, 0x3003_001f)];
         let mut row = vec![0u8; 8];
         row[4..8].copy_from_slice(&0x40u32.to_le_bytes());
 
-        let evidence = extract_recipient_identity_references(
-            &columns,
-            &["11".to_string()],
-            &row,
-            &[0],
-            8,
-            8,
-        )
-        .expect("native email address should validate");
+        let evidence =
+            extract_recipient_identity_references(&columns, &["11".to_string()], &row, &[0], 8, 8)
+                .expect("native email address should validate");
 
         assert_eq!(evidence.property_name, "PidTagEmailAddress");
         assert_eq!(evidence.row_references, vec![0x40]);
@@ -192,15 +183,9 @@ mod tests {
         let mut row = vec![0u8; 4];
         row.copy_from_slice(&0x20u32.to_le_bytes());
 
-        let evidence = extract_recipient_identity_references(
-            &columns,
-            &["1".to_string()],
-            &row,
-            &[0],
-            4,
-            4,
-        )
-        .expect("display name fallback should validate");
+        let evidence =
+            extract_recipient_identity_references(&columns, &["1".to_string()], &row, &[0], 4, 4)
+                .expect("display name fallback should validate");
 
         assert_eq!(evidence.property_name, "PidTagDisplayName");
         assert_eq!(evidence.row_references, vec![0x20]);
