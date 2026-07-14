@@ -8,7 +8,7 @@ pub const MESSAGE_RECIPIENTS_ATTACHED: &str = "tc_message_recipients_attached";
 pub const MESSAGE_RECIPIENTS_UNAVAILABLE: &str = "tc_message_recipients_unavailable";
 pub const MESSAGE_RECIPIENTS_FAILED: &str = "tc_message_recipients_failed";
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct TcMessageRecipientReport {
     pub status: String,
     pub recipients: Vec<RecipientRecord>,
