@@ -1,137 +1,167 @@
 # PSTD Developer Guide
 
+_Last reviewed: 14 July 2026._
+
 ## Purpose
 
-This guide gives developers and coding agents the minimum context needed to work safely in PSTD.
+Give developers and coding agents the minimum context needed to change PSTD safely without reintroducing invalid parser assumptions or confusing historical plans with current capability.
+
+## Read first
+
+1. [Root README](../../README.md)
+2. [Project Status](../product/project-status.md)
+3. [Public PST Progress Log](../operations/public-pst-progress-log.md)
+4. [Roadmap](../product/pstd-v1-roadmap.md)
+5. [Codebase Map](codebase-map.md)
+6. [Local Validation](../operations/local-validation.md)
+7. `AGENTS.md`
+
+Before starting work, check open pull requests, active branches, recent commits, and CI. Continue an existing vertical implementation when one is already underway.
 
 ## Repository shape
 
 ```text
-Cargo.toml                 Rust crate and binary definition
 src/                       Rust implementation
-  cli.rs                   Command-line interface
+  cli.rs                   Command surface
   config.rs                Runtime configuration
   engine/                  Extraction orchestration
-  output/                  TAR/JSONL output writers and records
-  progress.rs              Progress event records
-  pst/                     PST parser and metadata extraction layers
-python/                    Python wrapper boundary
-docker/                    Local Docker build scaffold
-tests/                     Rust smoke and unit tests
-fixtures/                  Fixture policy and placeholder location
-docs/                      Product, engineering, architecture, data, operations, and wiki docs
-.agents/skills/            Repo-scoped planning and execution skills
+  output/                  TAR/JSONL records and writers
+  pst/                     Storage, parser, projection, and extraction modules
+python/                    Thin operator wrapper
+docker/                    Container packaging
+tests/                     Unit, regression, integration, and CLI tests
+scripts/                   Fixture-progress and diagnostic helpers
+docs/                      Current guidance and historical evidence
+.agents/skills/            Repository-scoped reusable instructions
+.github/workflows/          CI and public-fixture artifact generation
 ```
 
-## Main commands
+## Commands
 
 ```text
 pstd --help
-pstd inspect --help
-pstd inspect --input <approved-small-fixture.pst>
-pstd inspect --input <approved-small-fixture.pst> --json
-pstd extract --input <approved-small-fixture.pst> --output <tmp-output> --manifest-only
+pstd version
+pstd inspect --input <approved-fixture.pst>
+pstd inspect --input <approved-fixture.pst> --json
+pstd extract --input <approved-fixture.pst> --output <tmp-output>
+pstd batch --input <approved-file-or-directory> --output <tmp-output>
+python -m pstd --help
 ```
 
-## Validation commands
+## Current development model
 
-Run before claiming a branch is validated:
+The M1-M25 milestone lane and PQ1-PQ74 parser-quality lane are complete. Active work uses vertical extraction milestones.
+
+A vertical milestone must:
+
+- expose one new observable extraction behaviour or remove one concrete blocker;
+- reuse existing validated storage and parser components;
+- preserve row order, property identity, address kind, encoding, and source boundaries;
+- fail closed without partial evidence;
+- remain tightly scoped;
+- include focused regression tests;
+- rerun the public fixture and update current-state documentation.
+
+Do not add a new abstraction merely because a parser layer could be made more general. It must unlock a measured extraction need.
+
+## Validation
+
+Run before claiming a branch is valid:
 
 ```text
 cargo fmt --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all
-pstd --help
-pstd inspect --help
-pstd inspect --input <approved-small-fixture.pst>
-pstd extract --input <approved-small-fixture.pst> --output <tmp-output> --manifest-only
+cargo run -- --help
+cargo run -- version
+cargo run -- inspect --help
+cargo run -- batch --help
 python -m pstd --help
 docker build -t pstd:local -f docker/Dockerfile .
 ```
 
-If these are not run, say so in the PR.
+Approved fixture checks:
+
+```text
+cargo run -- inspect --input <approved-fixture.pst>
+cargo run -- inspect --input <approved-fixture.pst> --json
+cargo run -- extract --input <approved-fixture.pst> --output <tmp-output>
+cargo run -- batch --input <approved-file-or-directory> --output <tmp-batch-output>
+```
+
+Inspect the public-progress and milestone-specific artifacts. Record the exact extraction delta, including unchanged counters when a milestone is structural or diagnostic only.
 
 ## Fixture policy
 
-- Do not commit private PST files.
-- Prefer tiny synthetic byte fixtures for unit tests.
-- Use approved small PST fixtures only locally or in secure fixture storage.
-- Document fixture assumptions when tests require a local PST.
+- Never commit private PST files.
+- Prefer synthetic byte fixtures for unit and regression tests.
+- Use only approved public or sanitised PST files for integration checks.
+- Keep CI artifacts bounded and free of full bodies or attachment bytes.
+- Treat a passing fixture as evidence for that layout, not general compatibility.
 
-## Implementation boundaries
+## Ownership boundaries
 
-### Rust owns
+### Rust parser owns
 
-- PST byte reading and parsing.
-- Metadata extraction.
-- Output writing.
-- TAR shard creation.
-- JSONL record creation.
-- Progress and status records.
+- PST byte reading and bounds validation;
+- header, BBT/NBT, block, node, subnode, heap, BTH, Property Context, and Table Context interpretation;
+- selected MAPI decoding;
+- fail-closed evidence objects.
+
+### Rust extraction engine owns
+
+- conversion of validated evidence into folders, messages, bodies, recipients, references, attachments, and completeness states;
+- orchestration and progress reporting.
+
+### Rust output layer owns
+
+- deterministic stable IDs;
+- JSONL records;
+- raw body/attachment archive entries;
+- TAR shards and summaries.
 
 ### Python owns
 
-- Operator convenience wrapper.
-- Future batch orchestration.
-- Future reports.
+- operator convenience and invoking the Rust binary.
 
-Python must not parse PST internals or sit in the per-message hot path.
+Python must not parse PST internals or duplicate the Rust extraction path.
 
-### Future systems consume outputs
+### Future systems own
 
-Snowflake, search, graph, and web UI work should consume the structured TAR + JSONL contract. They should not be introduced into the Rust parser milestones unless a milestone explicitly says so.
+Snowflake, search, UI, tagging, graph, and LLM/RAG systems consume PSTD output. They do not parse source PST files.
 
-## Current parser layers
+## Current extraction baseline
 
-| Layer | Module | Status |
-|---|---|---|
-| Byte reader | `src/pst/reader.rs` | Foundation implemented |
-| Header parser | `src/pst/header.rs` | Foundation implemented |
-| Primitive IDs | `src/pst/primitives.rs` | Foundation implemented |
-| Binary helpers | `src/pst/binary.rs` | Foundation implemented |
-| BBT/NBT skeletons | `src/pst/bbt.rs`, `src/pst/nbt.rs` | Skeleton implemented |
-| Logical node access | `src/pst/logical.rs` | Foundation implemented |
-| Heap/BTH | `src/pst/heap.rs`, `src/pst/bth.rs` | Foundation implemented |
-| Property/table contexts | `src/pst/property_context.rs`, `src/pst/table_context.rs` | Scaffold implemented |
-| MAPI registry | `src/pst/mapi.rs` | Selected properties only |
-| Folder/message metadata | `src/pst/folder_tree.rs`, `src/pst/message_metadata.rs` | Metadata/status output foundation |
+On `main`, the public fixture validates 50 BBT entries, 63 NBT entries, 11 folders, one extracted message, two body payloads, zero attachments, four 52-byte Table Context rows, and four complete recipient records at the assembly boundary.
 
-## Output contract
+The current remaining recipient boundary is same-run production projection and publication. Draft PR #430 addresses the same-run projection but is not merged capability.
 
-The canonical v1 output is structured TAR + JSONL. EML is not the default output.
+## Failure rules
 
-Read:
-
-- [Output Contract Summary](../data/pstd-v1-output-contract-summary.md)
-- [Output Contract Reference](../../.agents/skills/roles/data/references/output-contract.md)
-
-## Work process
-
-1. Read `AGENTS.md` and `.agents/skills/README.md`.
-2. Identify the milestone or issue scope.
-3. Check the relevant milestone, epic, dependency map, and implementation plan.
-4. Keep changes inside scope.
-5. Add/update tests where practical.
-6. Update docs and changelog.
-7. Record validation that was run or deferred.
+- Use checked arithmetic for offsets, counts, and lengths.
+- Reject partial or non-binary bitmap evidence.
+- Reject duplicate/out-of-range descriptor mappings.
+- Do not decode unsupported MAPI types as if they were known.
+- Do not treat native Exchange or `PidTagEmailAddress` values as SMTP without authoritative evidence.
+- Do not combine names and addresses from separate fixture executions.
+- Suppress partial records when evidence counts or properties disagree.
+- Preserve explicit unavailable, failed, unsupported, and partial states.
 
 ## Pull request checklist
 
 Every PR should include:
 
-- Purpose.
-- Scope.
-- Files changed.
-- Tests run.
-- Tests deferred.
-- Documentation updated.
-- Data impact.
-- Operational impact.
-- Follow-up work.
+- extraction objective;
+- evidence entering the change;
+- exact scope and exclusions;
+- components reused;
+- safety and fail-closed behaviour;
+- tests and validation;
+- public-fixture result and delta;
+- output/data impact;
+- remaining blocker and next vertical candidate;
+- documentation updated.
 
-## Current limitations
+## Documentation rule
 
-- M1-M3 were merged without local validation.
-- Real-world PST parsing is incomplete.
-- Folder/message metadata output is still foundational.
-- Recipients, threading, bodies, and attachments are not implemented.
+Update current truth in the root README, project status, public progress log, roadmap, and affected technical guide. Add a point-in-time vertical record for the implementation. Historical milestone/PQ files should remain accurate records of their original decision boundary rather than being rewritten to appear current.

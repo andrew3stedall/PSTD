@@ -1,86 +1,90 @@
 # PSTD Documentation
 
-This tree is organised by audience. The M1-M25 foundation is complete; active work is the parser-quality sequence, currently validated through **PQ57** with **PQ58 next**.
+_Last reviewed: 14 July 2026._
+
+This documentation tree contains both current operating guidance and historical delivery evidence. Use the current-state pages below for present capability and next work. Milestone, PQ, vertical, issue-plan, and implementation-plan files record what was known at the time they were written.
 
 ## Start here
 
-| Need | Page |
+| Need | Authoritative page |
 |---|---|
-| Current implementation and next blocker | [Project Status](product/project-status.md) |
-| Real-fixture conversion evidence | [Public PST Progress Log](operations/public-pst-progress-log.md) |
-| Product scope and completed v1 foundation | [PSTD v1 Roadmap](product/pstd-v1-roadmap.md) |
-| Local validation commands | [Local Validation](operations/local-validation.md) |
-| Operator use | [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md) |
-| Known unsupported/deferred areas | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
-| Developer onboarding | [Developer Guide](engineering/developer-guide.md) |
-| Code navigation | [Codebase Map](engineering/codebase-map.md) |
+| Project intent, headline progress, and commands | [Root README](../README.md) |
+| Current merged capability and active blocker | [Project Status](product/project-status.md) |
+| Real-fixture evidence over time | [Public PST Progress Log](operations/public-pst-progress-log.md) |
+| Current extraction roadmap | [PSTD Roadmap](product/pstd-v1-roadmap.md) |
+| Documentation freshness and history policy | [Documentation Status](DOCUMENTATION_STATUS.md) |
 | Architecture | [System Overview](architecture/system-overview.md) |
-| Output schema | [PSTD v1 Output Contract Summary](data/pstd-v1-output-contract-summary.md) |
+| Code navigation | [Codebase Map](engineering/codebase-map.md) |
+| Developer workflow | [Developer Guide](engineering/developer-guide.md) |
+| Validation commands | [Local Validation](operations/local-validation.md) |
+| Structured output contract | [Output Contract Summary](data/pstd-v1-output-contract-summary.md) |
+| Known gaps and deferred systems | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
 
-## Current parser-quality state
+## Current extraction state
 
-| Range | Outcome |
+| Delivery phase | Current outcome |
 |---|---|
-| PQ1-PQ5 | Corrected root/index traversal and real folder/message candidate discovery. |
-| PQ6-PQ10 | Property/body coverage, selected dictionary expansion, tag-shape diagnostics, and Heap-on-Node/BTH foundations. |
-| PQ11-PQ16 | Payload boundary, source selection, subnode decoding, interpretation, and classification. |
-| PQ17-PQ23 | Table probes, counters, row-matrix measurement, and property candidates. |
-| PQ24-PQ31 | Column, tag, descriptor, and source-propagation diagnostics. |
-| PQ32-PQ35 | Invalid legacy descriptor assumption identified; Unicode SLBLOCK captured and recursively resolved. |
-| PQ36 | `NDB_CRYPT_PERMUTE` decoding and structural payload admission; selected properties rose to 16 and body payloads were recovered. |
-| PQ37-PQ48 | Resolved the real TC heap, row-index BTH, and end-to-end table probe reporting. |
-| PQ49-PQ57 | Resolved subnode-backed row storage and validated row ordinals, 52-byte extents, bitmap boundaries, counts, and exact masks. |
-| PQ58 next | Validate the TCINFO descriptor-to-bitmap index mapping without decoding row values. |
+| M1-M25 | Product foundation complete: CLI, Python wrapper, Docker, TAR/JSONL outputs, batch/resume, diagnostics, and operator handoff. |
+| PQ1-PQ35 | Corrected traversal and discovered real folder, message, property, payload, and subnode structures. |
+| PQ36 | Material body/property fidelity improvement and stricter structural admission. |
+| PQ37-PQ57 | Validated the real Table Context heap and four bounded 52-byte rows. |
+| PQ58-PQ74 | Validated column mapping, row transport, fixed-width value decoding, and production diagnostic publication. |
+| Vertical 1-13 | Extracted and assembled recipient roles, display names, addresses, and address kinds into complete row-aligned records. |
+| Draft PR #430 | Same-run complete recipient projection is under review and is not yet merged capability. |
 
-## Product and planning
+The next merged behaviour should project complete recipient records from one validated execution and publish them through production Table Context reporting. The exact follow-up after that must be chosen from the resulting fixture evidence.
+
+## Current guidance by audience
+
+### Product and planning
 
 - [Project Status](product/project-status.md)
 - [PSTD v1 MVP PRD](product/pstd-v1-mvp-prd.md)
-- [PSTD v1 Roadmap](product/pstd-v1-roadmap.md)
-- [Planning council overview](product/council-overview.md)
-- [Phone-first operating model](product/phone-first-operating-model.md)
+- [PSTD Roadmap](product/pstd-v1-roadmap.md)
+- [Phone-first Operating Model](product/phone-first-operating-model.md)
 
-## Milestone history
-
-The detailed M1-M25 and PQ1+ milestone, issue-plan, and implementation documents remain under:
-
-- [`milestones/`](milestones/)
-- [`issues/`](issues/)
-- [`engineering/`](engineering/)
-- [`operations/`](operations/)
-
-Historical milestone documents describe the decision and implementation at that point in time. For the current truth, use [Project Status](product/project-status.md) and the [Public PST Progress Log](operations/public-pst-progress-log.md).
-
-## Architecture and data
+### Engineering and architecture
 
 - [System Overview](architecture/system-overview.md)
-- [PSTD v1 Output Contract Summary](data/pstd-v1-output-contract-summary.md)
+- [Codebase Map](engineering/codebase-map.md)
+- [Developer Guide](engineering/developer-guide.md)
+- [Table-led Extraction Note](architecture/table-led-extraction-note.md)
+- [PST Parser Research](research/pst-parser-research.md)
 
-## Operations
+### Operations and evidence
 
-- [Local Validation](operations/local-validation.md)
 - [Public PST Progress Log](operations/public-pst-progress-log.md)
-- [PQ57 bounded row bitmap mask evidence](operations/pq57-row-bitmap-mask-evidence.md)
-- [PQ58 TCINFO column-to-bitmap index mapping](operations/pq58-column-bitmap-index-mapping.md)
-- [v1 Release-Candidate Checklist](operations/v1-release-candidate-checklist.md)
+- [Local Validation](operations/local-validation.md)
 - [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
 - [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md)
-- [Decoder Backlog Review Workflow](operations/decoder-backlog-review-workflow.md)
-- [Candidate Selection Workflow](operations/candidate-selection-workflow.md)
-- [Public and Sanitized Fixture Triage](operations/public-sanitized-fixture-triage.md)
+- [Vertical 13: Complete Recipient Records](operations/vertical-13-assemble-complete-recipient-records.md)
 
-## Decisions
+### Data contract
 
-- [ADR-0001: Codex planning council](decisions/ADR-0001-codex-planning-council.md)
-- [ADR-0002: Mobile planning workflow](decisions/ADR-0002-phone-first-planning.md)
-- [ADR-0003: Milestone execution mode](decisions/ADR-0003-milestone-execution-mode.md)
+- [PSTD v1 Output Contract Summary](data/pstd-v1-output-contract-summary.md)
 
-## Wiki and changelog
+### Wiki
 
 - [Wiki Home](wiki/Home.md)
 - [Developer Onboarding](wiki/developer-onboarding.md)
-- [Unreleased changelog](changelog/unreleased.md)
 
-## Repo skills
+### Change history
 
-Repo-scoped skill instructions live under `.agents/skills/`. Use `.agents/skills/README.md` as the skill index.
+- [Unreleased Changelog](changelog/unreleased.md)
+
+## Historical records
+
+The following directories are retained as point-in-time evidence:
+
+- `milestones/` — completed M1-M25 and PQ milestone reports;
+- `issues/` — ordered issue plans written for earlier delivery phases;
+- `engineering/` — implementation plans, alongside current engineering guides;
+- `operations/` — fixture findings, PQ reports, vertical reports, and current operating guides;
+- `epics/` — early epic definitions;
+- `decisions/` — architecture and operating-model decisions.
+
+A historical document can accurately describe an old blocker even when that blocker has since been resolved. Do not use those files alone to determine the current roadmap.
+
+## Repository skills
+
+Repo-scoped instructions live under `.agents/skills/`. Start with [the skills index](../.agents/skills/README.md). `AGENTS.md` and the current project-status documents override older skill wording when the delivery model has changed.

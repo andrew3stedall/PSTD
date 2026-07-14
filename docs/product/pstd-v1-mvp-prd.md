@@ -1,185 +1,153 @@
-# PSTD v1 MVP PRD
+# PSTD Product Requirements
+
+_Last reviewed: 14 July 2026._
 
 ## Status
 
-M1-M25 are implemented through milestone branches and intended for CI validation before merge. The bounded v1 milestone lane is complete after M25. This document defines the local/Docker v1 MVP only.
+The M1-M25 product-foundation lane is complete, but the product outcome is not complete. Active development is focused on extraction fidelity through small vertical milestones. PSTD is not yet a broadly reliable PST-to-email or PST-to-EML converter.
 
 ## Problem
 
-PSTD needs to extract email data from PST files quickly and reliably without using third-party PST parsers such as `libpff`, `pypff`, `readpst`, Outlook COM automation, or other PST extraction libraries. The first implementation must prioritise fast extraction and archive creation while preserving enough metadata, body content, attachments, diagnostics, and stable IDs for future Snowflake search, semantic search, tagging, graph construction, and web review.
+PSTD must extract email data from Microsoft Outlook PST files quickly, correctly, and transparently without relying on external PST parsing libraries or Outlook automation. It must preserve enough metadata, recipients, bodies, threading information, attachments, folder context, and diagnostics to support later EML assembly and downstream loading.
+
+The main risk is not missing infrastructure. It is silently producing incomplete or incorrectly interpreted email data from complex PST structures.
 
 ## Users
 
-- Primary operator: developer or data engineer running PSTD locally or inside Docker.
-- Future operator: Snowpark Container Services worker or batch job orchestrator.
-- Future end user: person searching, reviewing, tagging, and downloading extracted email records from a web interface.
+- Primary operator: developer or data engineer running PSTD locally or in Docker.
+- Future operator: automated batch worker after local extraction is proven.
+- Future end user: person searching, reviewing, tagging, or downloading reconstructed email data.
 
 ## Desired outcome
 
-A v1 local/Docker extraction tool that can process one or many PST files and emit structured TAR archives containing:
+A local/Docker extraction tool that can process one or many PST files and produce deterministic structured archives containing, where present and validated:
 
-- Message metadata.
-- Recipient records.
-- Threading/reference metadata.
-- Text and HTML bodies.
-- Extracted attachment files.
-- Folder inventory.
-- Manifest records.
-- Structured errors.
-- Summary statistics.
-- Progress logs.
-- Stable IDs for future table joins and tagging.
+- folder hierarchy and inventory;
+- message identity and metadata;
+- sender and recipient records;
+- threading/reference data;
+- text, HTML, and RTF-derived body representations;
+- attachment metadata and raw payloads;
+- selected MAPI evidence needed for audit and completeness;
+- manifests, structured warnings/errors, summaries, progress, and stable IDs.
 
-## Primary success metric
+## Success criteria
 
-Speed of extracting and archiving emails from PST files.
+Correctness and completeness take precedence over throughput until extraction fidelity is reliable.
 
-## Secondary success metrics
+Primary measures:
 
-- Completeness of extracted metadata, bodies, and attachments.
-- Ability to recover as many emails as possible from corrupt PST files.
-- Clear diagnostics when extraction is incomplete.
-- Deterministic, Snowflake-ready output contracts.
-- Operator visibility through progress logs and summaries.
+1. percentage of real messages discovered without false positives;
+2. completeness of required metadata, recipients, bodies, and attachments;
+3. explicit unsupported/partial statuses instead of silent omission or guessing;
+4. deterministic output and no regressions across the approved fixture corpus;
+5. safe continuation around recoverable corruption;
+6. throughput and resource use once correctness requirements are met.
 
-## Input assumptions
+## Current validated baseline
 
-- Typical PST size: 5-10 GB.
-- Normal maximum PST size: around 10 GB.
-- Normal run size: 20-100 PST files.
-- Extreme run size: up to 50,000 PST files in future orchestration scenarios.
-- Typical email count: 5,000-10,000 messages per PST.
-- Potential total run volume: millions of emails.
-- Attachments are common and usually under 5 MB.
-- Common attachment types include PDF, Word, Excel, text, images, attached emails, and web pages.
-- Most PSTs originate from Exchange, with some from Google-derived exports or migrations.
-- Some addresses may appear in Exchange/X.400 format and should be preserved raw and resolved to SMTP where possible.
+The public fixture currently produces:
 
-## MVP scope
+- 50 BBT entries and 63 NBT entries;
+- 11 folders;
+- one true and extracted message;
+- two body payloads;
+- zero attachments;
+- 16 selected and 19 unknown properties;
+- four validated 52-byte Table Context rows;
+- two To and two Cc recipient roles;
+- four display names and four native email-address values;
+- complete row-aligned recipient assembly at the library boundary.
 
-### In scope
+Same-run complete recipient projection and production publication remain incomplete.
 
-- Rust-based PST parser and extraction engine built from scratch.
-- Python orchestration wrapper for local and Docker execution.
-- TAR shard output.
-- Structured JSONL metadata files.
-- Body and attachment extraction.
-- Stable join keys.
-- Folder inventory with item counts and type counts where possible.
-- Structured error model and continue-on-error behaviour.
-- Batch processing across multiple PST files.
-- PST-level checkpointing.
-- Live console progress and JSONL progress logs.
-- Batch-level progress logs, checkpoints, summary counters, and deterministic resume-by-skip behaviour.
-- Release-candidate checklist and local/Docker operator handoff.
-- Unsupported/deferred area documentation.
+## In scope
 
-### v1 milestone coverage
+- Rust PST parser and extraction engine built from repository-owned code.
+- Thin Python operator wrapper.
+- Local and Docker execution.
+- Single-PST and batch processing.
+- Bounded PST traversal and selected MAPI decoding.
+- Structured TAR/JSONL output.
+- Folder, message, recipient, body, threading, and attachment extraction.
+- Stable identifiers and explicit completeness statuses.
+- Continue-on-error and deterministic batch resume/skip behaviour.
+- Synthetic regression fixtures and approved public/sanitised integration fixtures.
+- Public progress artifacts and evidence-led roadmap revision.
+- Later optional EML assembly after source extraction is sufficiently complete.
 
-| Milestone range | PRD risk reduced |
-|---|---|
-| M1-M6 | Core CLI, output archive contract, PST binary foundation, metadata, recipients/threading, body/attachment foundations, and batch orchestration. |
-| M7-M12 | Parser depth, traversal, payload/subnode handling, payload wiring, extraction integration, and attachment subnode integration. |
-| M13-M24 | Fixture compatibility, observed layout triage, decoder workflow, body/header fidelity, attachment fidelity, and batch hardening. |
-| M25 | Release-candidate validation, operator handoff, unsupported/deferred boundary, and post-v1 planning boundary. |
+## Out of scope until extraction is reliable
 
-### Out of scope for v1
-
-- Snowflake ingestion implementation.
-- Snowpark Container Services deployment.
-- React, Vite, Bun, or web UI.
-- Keyword search implementation.
-- Semantic search implementation.
-- Embeddings.
-- Knowledge graph construction.
-- Email tagging UI or storage.
-- Exact-preservation audit archive mode.
-- Using external PST parsing libraries.
-- Secrets, billing, deployment, production access, or destructive data behaviour.
-
-## Output strategy
-
-PSTD v1 does not use EML as the default canonical output. The default output is structured TAR + JSONL + body files + attachment files.
-
-EML generation may be added later as an optional compatibility or download reconstruction feature, but the v1 archive contract avoids converting PST to EML only to parse EML again for Snowflake later.
+- Snowflake ingestion and Snowpark deployment.
+- React/Vite or other web UI.
+- Keyword or semantic search.
+- Embeddings, graph construction, tagging, and LLM/RAG workflows.
+- Distributed orchestration beyond measured need.
+- Secrets, billing, production access, or destructive source behaviour.
+- External PST parser libraries or Outlook COM automation.
 
 ## Required metadata fidelity
 
-Capture where available:
+Capture when present and authoritative:
 
-- Subject.
-- Sender name.
-- Sender email.
-- Sender raw address.
-- Sender address type.
-- Reply-to.
-- To, CC, BCC recipients.
-- Sent timestamp.
-- Received timestamp.
-- Created timestamp.
-- Modified timestamp.
-- Folder path.
-- Importance or priority if available.
-- Read/unread status if available.
-- Attachment count.
-- Message size if available.
-- Internet Message-ID.
-- In-Reply-To.
-- References.
-- Conversation-Index.
-- Conversation-Topic.
-- Normalized subject.
-- Raw transport headers when available.
-- Selected MAPI properties.
+- subject and normalized subject;
+- sender name, raw address, address type, and SMTP address when proven;
+- reply-to and To/Cc/Bcc recipients with display names and usable addresses;
+- sent, received, created, and modified timestamps;
+- folder path and source node identity;
+- importance, priority, read state, message size, and attachment count;
+- Internet Message-ID, In-Reply-To, References, Conversation-Index, and Conversation-Topic;
+- transport headers;
+- selected MAPI property identity, type, source, and completeness status.
+
+Do not infer SMTP from native address values, combine values from separate runs, or publish partial row-aligned records.
 
 ## Required body fidelity
 
-- Preserve plain text body when available.
-- Preserve HTML body when available, including reachable binary and Unicode/string HTML properties.
-- Preserve body encoding, size, hash, and status.
-- Do not invent missing body representations.
-- Record body extraction failures in structured errors.
+- Preserve plain text when present.
+- Preserve HTML when present, including validated binary or string property forms.
+- Handle RTF-derived content according to an explicit fidelity policy.
+- Preserve encoding, source property, size, hash, and status.
+- Do not invent a missing body representation.
+- Record unavailable, unsupported, or malformed bodies explicitly.
 
 ## Required attachment fidelity
 
-- Extract attachment bytes as raw files inside TAR when available.
-- Preserve original filename in metadata.
-- Write safe deterministic archive filename.
-- Capture content type, extension, extracted size, declared size, size status, hash, inline flag, content ID, attachment method, attachment order, and extraction status where available.
-- Preserve metadata-only rows for known attachments whose payload bytes are unavailable, empty, or deferred.
-- Preserve and identify attached emails where possible; embedded-message payload decoding remains deferred unless bytes are directly available through the current parser path.
-- Record failed attachments without failing the whole message when recoverable.
+- Preserve metadata for every validated attachment row.
+- Extract raw bytes into TAR entries when available.
+- Preserve original and safe filenames, media type, extension, size, declared size, hash, inline state, content ID, method, ordinal, archive path, and status.
+- Retain metadata-only rows for unavailable, empty, unsupported, or deferred payloads.
+- Treat embedded messages explicitly rather than as ordinary opaque files when evidence permits.
+- Avoid failing unrelated messages for recoverable attachment defects.
 
 ## Required batch fidelity
 
-- Preserve discovered PST counts separately from attempted PST counts.
-- Distinguish completed, partial, failed, skipped, and not-run PSTs.
-- Write `batch_checkpoint.jsonl` as a per-PST append-only checkpoint stream.
-- Write `batch_progress.jsonl` as a root-level operator progress stream.
-- Write `batch_summary.json` with checkpoint/progress paths and aggregate counters.
-- Keep resume-by-skip deterministic unless `--overwrite` is set.
+- Keep discovered, attempted, completed, partial, failed, skipped, and not-run PST counts separate.
+- Write append-only checkpoint and progress streams.
+- Make resume-by-skip deterministic unless overwrite is requested.
+- Preserve per-PST output and status even when a later PST fails.
+- Support large PST files without loading entire archives into memory.
 
-## Corruption behaviour
+## Corruption and ambiguity behaviour
 
-Continue on error by default. A corrupt message, folder, attachment, body, or PST should not stop unrelated recoverable extraction when continue-on-error mode is enabled. Final statuses must distinguish:
+- Use bounded reads and checked arithmetic.
+- Apply depth, count, allocation, and cycle limits.
+- Continue around recoverable local defects.
+- Fail closed when candidate selection, property identity, row mapping, reference type, encoding, or payload bounds are ambiguous.
+- Never weaken validation solely to recover a previous counter.
+- Distinguish `success`, `partial_success`, `failed`, `missing`, `unsupported`, `unavailable`, `skipped`, and stopped-early states.
 
-- `success`
-- `partial_success`
-- `failed`
-- `skipped_unsupported_type`
-- `skipped_corrupt`
-- `skipped_completed`
-- `failed_stopped_early`
+## Output strategy
 
-## Future context
+The canonical output remains structured TAR + JSONL plus raw body and attachment files. EML is a future assembly/download format, not the parser’s primary internal representation. Exact-preservation requirements may require richer raw evidence than the current output contract.
 
-Future PSTD phases may load outputs into Snowflake for keyword search, semantic search, tagging, web review, generated email downloads, and possible knowledge graph or LLM/RAG workflows. V1 preserves stable IDs and output contracts so those later phases do not need to reparse raw PST files.
+## Delivery model
 
-Post-v1 should begin with Snowflake ingestion planning.
+- M1-M25 established the product and operating foundation.
+- PQ1-PQ74 established the validated parser and Table Context foundation.
+- Current work uses evidence-led vertical extraction milestones.
+- Every milestone must add observable extraction value, preserve existing behaviour, pass full CI, rerun the public fixture, and revise the next milestone from measured output.
 
-## Resolved and remaining product questions
+## Product completion boundary
 
-- The v1 Rust crate and binary name is `pstd`.
-- EML reconstruction remains deferred from the canonical v1 output path; structured TAR + JSONL + body files + attachment files remains the v1 contract.
-- ANSI PST support should remain explicitly statused as unsupported until evidence requires a focused milestone.
-- Full MAPI property dump mode remains optional audit/debug work unless a later fixture-backed issue proves it is needed for v1 fidelity.
+The product is not complete until a representative fixture corpus demonstrates reliable folder, message, metadata, recipient, body, threading, and attachment extraction with explicit completeness states and deterministic outputs sufficient for the chosen EML or downstream fidelity target.

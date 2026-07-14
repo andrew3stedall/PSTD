@@ -1,74 +1,110 @@
-# PSTD v1 Roadmap
+# PSTD Roadmap
+
+_Last reviewed: 14 July 2026._
+
+## Objective
+
+Deliver reliable PST email extraction before investing in downstream storage or user-interface systems. Progress is measured by new, correct, observable data extracted from approved PST fixtures while preserving bounded and fail-closed behaviour.
 
 ## Roadmap principles
 
-- Build v1 as a local/Docker Rust + Python extraction tool.
-- Keep Snowflake, frontend, deployment, search, semantic search, and graph work out of v1 implementation.
-- Make the output contract future-ready for Snowflake search, semantic search, tagging, review, download, and graph work.
-- Work at milestone and epic level.
-- Keep parser expansion narrow, evidence-backed, and test-first.
-- Defer phone-only local validation only when necessary, but always record what should be run later.
+- Prioritise end-to-end extraction capability over parser infrastructure for its own sake.
+- Implement the smallest coherent vertical slice that exposes new behaviour.
+- Reuse validated parser components and avoid duplicate interpretations of the same bytes.
+- Fail closed when bounds, row counts, property identity, types, references, or encodings do not validate.
+- Preserve existing extraction behaviour and add regression tests for every new path.
+- Re-run the public fixture after every milestone and revise the next milestone from the artifact.
+- Keep Snowflake, UI, search, analytics, semantic search, and graph work parked.
+- Treat EML generation as a later assembly layer over reliable extracted data, not as a substitute for parser coverage.
 
-## Current roadmap position
+## Completed foundation
 
-M1-M25 are implemented through milestone branches and intended for CI validation before merge. M25 closes the planned v1 milestone lane with release-candidate checklist, local/Docker operator handoff, and unsupported/deferred area documentation.
+### M1-M25: product and operating foundation
 
-There are **no remaining planned v1 milestones after M25**.
+Complete. This lane delivered the Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, stable IDs, bodies/attachment record foundations, batch/resume support, diagnostics, fixture workflows, and operator handoff.
 
-## Roadmap overview
+### PQ1-PQ74: validated parser and Table Context foundation
 
-```text
-M1: Extraction Foundation and Archive Contract [implemented, CI validated]
-M2: PST Binary Foundation [implemented, CI validated]
-M3: Folder and Metadata Extraction [implemented, CI validated]
-M4: Recipients, Threading, and Address Resolution [implemented, CI validated]
-M5: Message Bodies and Attachments [implemented, CI validated]
-M6: Batch Orchestration and Resume [implemented, CI validated]
-M7: Parser Depth Hardening [implemented, CI validated]
-M8: Traversal Expansion [implemented, CI validated]
-M9: Payload and Subnode Traversal [implemented, CI validated]
-M10: Payload Wiring [implemented, CI validated]
-M11: Extraction Path Integration [implemented, CI validated]
-M12: Attachment Table and Subnode Integration [implemented, CI validated]
-M13: Payload Fixture Expansion and Parser Compatibility [implemented, CI validated]
-M14: Recursive Subnode Layout Exploration [implemented, CI validated]
-M15: Observed Layout Compatibility and Public Fixture Triage [implemented, CI validated]
-M16: Fixture-Backed Decoder Expansion [implemented, CI validated]
-M17: Compatibility Triage Reporting and Decoder Backlog [implemented, CI validated]
-M18: Decoder Backlog Review Workflow [implemented, CI validated]
-M19: Focused Decoder Candidate Selection [implemented, CI validated]
-M20: Focused Candidate Implementation [implemented, CI validated]
-M21: Focused Decoder Evidence Expansion [implemented, CI validated]
-M22: Body and Header Fidelity Expansion [implemented, CI validated]
-M23: Attachment Payload Fidelity [implemented, CI validated]
-M24: Batch Scale, Performance, and Corruption Hardening [implemented, CI validated]
-M25: v1 Release Candidate and Operator Handoff [implemented, CI pending]
-```
+Complete. This lane corrected PST traversal, identified real folder/message candidates, improved property and body extraction, resolved Heap-on-Node/BTH/subnode/Table Context structures, validated row addressing and transport, decoded supported fixed-width MAPI values, and integrated bounded diagnostics.
 
-## Completed milestone groups
+### Vertical 1-13: recipient extraction
 
-| Range | Outcome |
-|---|---|
-| M1-M6 | Established the local/Docker extraction archive contract, Rust/Python CLI surface, PST binary primitives, metadata output, recipient/threading foundation, body/attachment output foundation, and batch orchestration. |
-| M7-M12 | Added parser depth diagnostics, bounded traversal, payload/subnode traversal, payload wiring, extraction path integration, and attachment table/subnode integration. |
-| M13-M24 | Added fixture compatibility coverage, recursive subnode layout exploration, observed-layout triage, fixture-backed decoder expansion, decoder backlog reporting, review workflow outputs, candidate selection outputs, one focused `CATW` attachment-table decoder, UTF-16 compact decoder evidence classification, Unicode HTML body extraction, transport-header metadata, attachment metadata fidelity, and hardened batch progress/status accounting. |
-| M25 | Added release-candidate checklist, local/Docker operator handoff, unsupported/deferred area review, and post-v1 planning boundary. |
+Complete on `main`. This lane progressed from the first real semantic row property to:
 
-## Completed M25 milestone
+- recipient roles;
+- display-name and address string references;
+- heap-resident string decoding;
+- end-to-end recipient identity projection;
+- production recipient diagnostics;
+- row-aligned role/name records;
+- address-property selection and address-kind classification;
+- complete recipient records retaining role, display name, address, and address kind.
 
-### M25: v1 Release Candidate and Operator Handoff
+## Current milestone
 
-Tracking issue: #141.
+### Vertical 14: project complete recipient records in one run
 
-M25 closes the bounded v1 lane. It documents the final validation gate, local and Docker operating model, expected output review process, unsupported/deferred areas, and post-v1 boundary.
+Draft PR #430 is the active implementation. It must independently project `PidTagDisplayName` and the preferred address property from the same validated rows and Table Context heap, then assemble complete records without joining evidence from separate executions.
 
-## Post-v1 roadmap
+Acceptance boundary:
 
-```text
-Post-v1 Phase 1: Snowflake ingestion planning
-Post-v1 Phase 2: Snowflake ingestion implementation
-Post-v1 Phase 3: Search and review web application planning
-Post-v1 Phase 4: Semantic search, tagging, graph, and LLM/RAG planning
-```
+- exact same-row and same-heap projection;
+- existing validated role projection reused;
+- SMTP address preferred over native email address when authoritative and complete;
+- separate name and address diagnostics retained;
+- no partial records on mismatch or failure;
+- full CI and public-fixture evidence on the exact head.
 
-These phases remain outside the completed v1 implementation lane.
+This capability is not part of `main` until the PR is green and merged.
+
+## Next milestone candidate
+
+### Vertical 15: publish complete recipient records through production reporting
+
+After Vertical 14 validates:
+
+1. attach the complete-recipient projection to the production Table Context reporting path;
+2. emit one bounded complete-record diagnostic from the public fixture;
+3. confirm all four rows retain role, name, address, and address kind in one execution;
+4. preserve explicit unavailable/failed states without partial values;
+5. update the public progress log with the exact artifact result.
+
+Do not widen this milestone into EML generation or unrelated metadata work.
+
+## Following decision point
+
+After complete recipient publication, review the full fixture artifact and select the single largest remaining gap preventing a reconstructable email. Likely candidates include:
+
+- missing or incomplete core message metadata;
+- body-form coverage or encoding fidelity;
+- attachment table and payload extraction;
+- threading/reference fidelity;
+- production output wiring from validated diagnostics into structured records.
+
+These are candidates, not a fixed queue. The artifact must determine the order.
+
+## Completion definition for reliable extraction
+
+PSTD should not be described as conversion-complete until a representative fixture corpus demonstrates, with explicit completeness statuses:
+
+- folder hierarchy preservation;
+- message discovery without false positives;
+- subject, sender, dates, identifiers, and transport headers where present;
+- To/Cc/Bcc recipients with names and usable addresses;
+- plain text, HTML, and RTF handling appropriate to the source;
+- attachment metadata and bytes, including explicit handling for embedded messages;
+- deterministic structured output suitable for EML assembly;
+- corruption and unsupported-layout behaviour that fails closed rather than guessing;
+- no regressions across the approved fixture set.
+
+## Deferred roadmap
+
+The following remain intentionally outside the active extraction lane:
+
+1. EML assembly and exact-preservation policy.
+2. Snowflake ingestion.
+3. Search and review web application.
+4. Semantic search, embeddings, tagging, graph, and LLM/RAG workflows.
+5. Distributed orchestration beyond the current local/Docker batch model.
+
+They should begin only after extraction coverage is reliable enough that downstream systems will not institutionalise incomplete data.

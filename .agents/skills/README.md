@@ -1,52 +1,82 @@
 # PSTD Skills Index
 
-This folder contains reusable planning and execution instructions for PSTD.
+_Last reviewed: 14 July 2026._
+
+This folder contains reusable planning, implementation, review, documentation, data, and platform instructions for PSTD.
+
+## Precedence
+
+When instructions conflict, use this order:
+
+1. explicit user request;
+2. root `AGENTS.md`;
+3. current project status, roadmap, and public fixture log;
+4. the relevant skill;
+5. historical milestone, PQ, issue-plan, or implementation-plan documents.
+
+Some skills were written during the completed M1-M25 milestone-planning lane. Their techniques remain useful, but current work uses evidence-led vertical extraction milestones.
+
+## Current mode
+
+`vertical-extraction`
+
+Before implementing:
+
+- inspect open PRs, active branches, recent commits, and CI;
+- continue existing work rather than creating a conflicting branch;
+- identify the highest-value extraction gap from current fixture evidence;
+- complete one coherent vertical slice;
+- fail closed and reuse validated components;
+- rerun the full CI and public fixture workflow;
+- update current-state and point-in-time documentation.
+
+Local testing must not be claimed when it was not run. CI must pass on the exact head before merge.
 
 ## References and assets
 
 - [References and assets index](references-and-assets.md)
 
-Use skill references and assets before inventing new output formats, PR wording, CLI behaviour, or extraction examples.
+Use repository references before inventing output formats, CLI behaviour, property semantics, diagnostic shapes, or fixture claims.
 
 ## Core skills
 
-- `planning-council`: orchestrates the planning role loop.
-- `issue-writer`: creates developer-ready issue bodies.
-- `docs-writer`: maintains documentation.
-- `github-planning-loop`: supports ChatGPT mobile plus GitHub connector work.
+- `planning-council`: structured multi-role planning when a genuinely new product/architecture decision is required.
+- `issue-writer`: developer-ready issue bodies.
+- `docs-writer`: current-state and point-in-time documentation.
+- `github-planning-loop`: mobile/connector repository workflow.
 
 ## Role skills
 
 - `roles/executive-sponsor`: alignment and scope control.
-- `roles/product`: product value and MVP scope.
-- `roles/business-analyst`: issue and requirement decomposition.
-- `roles/ux`: user, CLI, API, and developer experience.
-- `roles/developer-feasibility`: implementation feasibility before coding.
-- `roles/full-stack-developer`: implementation planning across Rust, Python, React, Vite, APIs, data outputs, and future Snowflake integration.
-- `roles/metrics`: measurement and evaluation.
-- `roles/data`: data contracts and output readiness.
-- `roles/platform`: run, validation, and environment concerns.
+- `roles/product`: product value and extraction priority.
+- `roles/business-analyst`: requirements and acceptance boundaries.
+- `roles/ux`: CLI, API, and developer experience.
+- `roles/developer-feasibility`: implementation feasibility.
+- `roles/full-stack-developer`: implementation planning; downstream stacks remain parked unless explicitly activated.
+- `roles/metrics`: fixture measurements and progress signals.
+- `roles/data`: output contracts and completeness states.
+- `roles/platform`: validation, CI, Docker, and operating constraints.
 - `roles/integration`: sequencing and overlap checks.
-- `roles/reviewer`: quality and readiness review.
+- `roles/reviewer`: correctness, scope, and readiness review.
 
 ## Process skills
 
-- `process/prd-intake`: capture a clean PRD input.
-- `process/milestone-planner`: group work into milestones.
-- `process/epic`: turn goals into epics.
-- `process/dependency-mapper`: order work and dependencies.
-- `process/risk-reviewer`: review delivery and data risks.
-- `process/readiness-check`: confirm planning output is ready.
-- `process/feedback-refiner`: incorporate review feedback.
+- `process/prd-intake`
+- `process/milestone-planner`
+- `process/epic`
+- `process/dependency-mapper`
+- `process/risk-reviewer`
+- `process/readiness-check`
+- `process/feedback-refiner`
+
+Use these when the work requires planning. Do not force a planning council over a small, already evidenced vertical extraction change.
 
 ## Execution skills
 
-- `execution/milestone-executor`: build an approved milestone or epic.
-- `execution/epic-workforce`: coordinate role skills across an epic.
-- `execution/implementation-worker`: make scoped code changes.
-- `execution/milestone-branch-manager`: manage milestone branch and PR shape.
-- `execution/deferred-testing`: document tests that must be run later.
+- `execution/milestone-executor`
+- `execution/epic-workforce`
+- `execution/implementation-worker`
+- `execution/milestone-branch-manager`
+- `execution/deferred-testing`
 
-## Current mode
-
-Milestone execution is allowed when a milestone or epic is approved. Local testing may be deferred until Codex is available on the user's laptop. Do not claim tests passed unless they were actually run.
+Treat “milestone” in older skill names as a scoped delivery unit. For current parser work, that unit should be one coherent vertical extraction milestone.

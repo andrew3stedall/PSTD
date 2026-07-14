@@ -1,35 +1,68 @@
 # PSTD
 
-PSTD is a Rust-first PST email data extraction tool. The primary command is `pstd`.
+PSTD is a Rust-first tool for extracting email data from Microsoft Outlook PST files. The immediate objective is reliable, evidence-backed PST conversion coverage. Downstream Snowflake, search, UI, analytics, and graph work remain parked until extraction fidelity is substantially broader.
 
-The M1-M25 v1 foundation is complete. Active development is now focused exclusively on increasing PST conversion coverage through evidence-led parser-quality (PQ) milestones. The merged implementation has reached **PQ37**.
+## Current position
 
-## Current status
+_Last reviewed: 14 July 2026._
 
-| Workstream | Status | Current result |
+| Area | State on `main` | Current result |
 |---|---|---|
-| M1-M25 product foundation | Complete and CI validated | CLI, structured TAR/JSONL outputs, folder/message records, body and attachment foundations, batch/resume, diagnostics, Docker support, and operator handoff. |
-| PQ1-PQ35 parser discovery | Complete and CI validated | Corrected root/index traversal, real folder and message candidate discovery, property/subnode diagnostics, Unicode SLBLOCK decoding, and recursive SLENTRY target resolution. |
-| PQ36 payload decoding and admission | Complete and CI validated | Decodes `NDB_CRYPT_PERMUTE` data blocks, classifies Heap-on-Node clients, and prevents structurally invalid payloads from entering the legacy table fallback. |
-| PQ37 TCINFO root parser | Complete and CI validated | Adds a bounded parser for the 22-byte table-context root and exact TCOLDESC records while preserving unresolved HNID references. |
-| PQ38 | Next | Resolve the real `hidUserRoot` heap allocation, parse the fixture TCINFO from that allocation, and emit evidence before row materialisation. |
+| Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
+| Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
+| Vertical extraction sequence | Complete through Vertical 13 / PR #429 | Four row-aligned recipient records can retain recipient role, display name, address, and authoritative address kind without partial or heuristic assembly. |
+| Active implementation | Draft PR #430, not part of `main` | Projects display names and preferred addresses from the same validated rows and heap in one invocation. Its current CI state must be checked on the PR before it is treated as merged capability. |
+| EML reconstruction | Not implemented | Canonical output remains structured TAR + JSONL. |
 
-## Public fixture progress
+## Intent
 
-The checked-in public PST remains the primary conversion-quality signal.
+PSTD is intended to become a dependable PST-to-email extraction engine that:
 
-The most important corrected result arrived in PQ36:
+- preserves folder and message relationships;
+- extracts message metadata, bodies, recipients, threading data, and attachments;
+- fails closed when a PST structure is unsupported or ambiguous;
+- records explicit diagnostics instead of silently guessing;
+- produces deterministic structured output suitable for later EML generation or downstream loading;
+- validates every material parser change against synthetic tests and an approved public PST fixture.
 
-- selected properties increased from **0 to 16**;
-- unknown properties decreased from **74 to 19**;
-- text and RTF body payloads were recovered;
-- fallback body rows decreased from **1 to 0**;
-- false table declarations were rejected;
-- BID `0x74` remains an unresolved 208-byte payload and must not be assumed to be the row matrix.
+## Validated public-fixture evidence
 
-PQ37 intentionally adds parser primitives only, so it does not change extraction output. Its purpose is to make PQ38 reference resolution safe and specification-aligned.
+The checked-in public PST is the primary end-to-end progress signal. The current stable baseline is:
 
-## What works now
+| Metric | Validated result |
+|---|---:|
+| BBT entries | 50 |
+| NBT entries | 63 |
+| Folders | 11 |
+| True message candidates | 1 |
+| Extracted messages | 1 |
+| Body payloads | 2 |
+| Attachments emitted | 0 |
+| Selected properties | 16 |
+| Unknown properties | 19 |
+
+The Table Context path now validates four 52-byte rows. The fixture has separately produced:
+
+- recipient roles: `to`, `to`, `cc`, `cc`;
+- display names: `Recipient 1` through `Recipient 4`;
+- native email-address values: `to1@domain.com`, `to2@domain.com`, `cc1@domain.com`, and `cc2@domain.com`.
+
+On `main`, these values can be assembled into complete row-aligned recipient records when the validated diagnostics are supplied together. Production reporting does not yet publish the complete records from one public-fixture execution.
+
+## Progress over time
+
+| Phase | Outcome |
+|---|---|
+| M1-M25 | Built the local/Docker product foundation, command surface, structured output contract, batch operations, diagnostics, and handoff documentation. |
+| PQ1-PQ35 | Corrected root and index traversal, identified real folders/messages, investigated property and subnode paths, and replaced invalid table assumptions with measured evidence. |
+| PQ36 | Produced the first major fidelity improvement by decoding permitted blocks, rejecting false table declarations, recovering text/RTF bodies, and reducing unknown properties. |
+| PQ37-PQ57 | Resolved the real Table Context heap, row-index BTH, subnode-backed row storage, four 52-byte rows, and exact bounded bitmap masks. |
+| PQ58-PQ74 | Validated descriptor mapping, constructed bounded row transport, decoded supported fixed-width MAPI values, and integrated fail-closed diagnostics into production reporting. |
+| Vertical 1-13 | Progressed from classifying a real recipient property to extracting recipient roles, names, addresses, address kinds, and complete row-aligned recipient records. |
+
+Detailed point-in-time milestone and experiment records are retained under `docs/`. They are historical evidence, not the current roadmap.
+
+## What works
 
 ```text
 pstd version
@@ -40,21 +73,13 @@ pstd batch --input <pst-file-or-directory> --output <output-dir>
 python -m pstd --help
 ```
 
-Current capabilities include:
+Implemented capabilities include bounded parsing of PST headers, BBT/NBT pages, blocks, subnodes, Heap-on-Node allocations, BTH structures, Property Contexts, Table Contexts, row storage, selected MAPI values, folder/message candidates, bodies, recipient evidence, structured outputs, batch state, and public-fixture diagnostics.
 
-- bounded PST header, BBT, NBT, block, subnode, Heap-on-Node, BTH, SLBLOCK, and table-context parsing;
-- explicit parser limits and cycle guards;
-- folder and true message-candidate discovery;
-- selected MAPI property extraction and unknown-property diagnostics;
-- text, HTML, RTF, transport-header, recipient, threading, and attachment output foundations;
-- structured TAR + JSONL outputs with run and batch status;
-- public-fixture CI artifacts that expose parser progress and the next measured blocker.
+## Important limitations
 
-## Current limitation
+PSTD is not yet a general-purpose or absolute-coverage PST-to-EML converter. Current evidence is fixture-limited. Attachment output remains zero on the public fixture, complete recipient records are not yet emitted through the production reporting path in one run, and uncommon/corrupt PST layouts remain incomplete. Do not infer broad compatibility from the milestone count.
 
-PSTD is not yet an absolute-coverage PST-to-EML converter. The public fixture now yields materially better property and body extraction, but table-context reference resolution and row materialisation are still incomplete. Snowflake ingestion, UI, search, and downstream analytics remain parked until conversion fidelity is reliable.
-
-## Required validation gate
+## Validation gate
 
 ```text
 cargo fmt --check
@@ -68,23 +93,18 @@ python -m pstd --help
 docker build -t pstd:local -f docker/Dockerfile .
 ```
 
-For approved fixtures only:
+Approved fixtures must also pass inspect, extract, batch, and deterministic public-progress artifact checks. Never commit private PST data.
 
-```text
-cargo run -- inspect --input <approved-small-fixture.pst>
-cargo run -- extract --input <approved-small-fixture.pst> --output <tmp-output>
-cargo run -- batch --input <approved-fixture-directory-or-file> --output <tmp-output>
-```
-
-Do not commit private PST files. Use synthetic byte fixtures in tests and approved public or sanitised PST fixtures only.
-
-## Start here
+## Documentation
 
 - [Documentation index](docs/README.md)
-- [Project status](docs/product/project-status.md)
+- [Current project status](docs/product/project-status.md)
 - [Public PST progress log](docs/operations/public-pst-progress-log.md)
-- [PSTD v1 roadmap](docs/product/pstd-v1-roadmap.md)
-- [Developer guide](docs/engineering/developer-guide.md)
-- [Codebase map](docs/engineering/codebase-map.md)
+- [Extraction roadmap](docs/product/pstd-v1-roadmap.md)
 - [System overview](docs/architecture/system-overview.md)
-- [Local validation guide](docs/operations/local-validation.md)
+- [Codebase map](docs/engineering/codebase-map.md)
+- [Developer guide](docs/engineering/developer-guide.md)
+- [Local validation](docs/operations/local-validation.md)
+- [Output contract](docs/data/pstd-v1-output-contract-summary.md)
+- [Unsupported and deferred areas](docs/operations/v1-unsupported-deferred-areas.md)
+- [Documentation status and history policy](docs/DOCUMENTATION_STATUS.md)
