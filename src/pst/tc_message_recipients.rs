@@ -101,10 +101,34 @@ mod tests {
     #[test]
     fn converts_the_four_fixture_recipients_without_relabelling_native_addresses_as_smtp() {
         let report = validated(vec![
-            record(0, "to", "Recipient 1", "to1@domain.com", "native_email_address"),
-            record(1, "to", "Recipient 2", "to2@domain.com", "native_email_address"),
-            record(2, "cc", "Recipient 3", "cc1@domain.com", "native_email_address"),
-            record(3, "cc", "Recipient 4", "cc2@domain.com", "native_email_address"),
+            record(
+                0,
+                "to",
+                "Recipient 1",
+                "to1@domain.com",
+                "native_email_address",
+            ),
+            record(
+                1,
+                "to",
+                "Recipient 2",
+                "to2@domain.com",
+                "native_email_address",
+            ),
+            record(
+                2,
+                "cc",
+                "Recipient 3",
+                "cc1@domain.com",
+                "native_email_address",
+            ),
+            record(
+                3,
+                "cc",
+                "Recipient 4",
+                "cc2@domain.com",
+                "native_email_address",
+            ),
         ]);
 
         let converted = message_recipients_from_complete_records("msg_123", &report);
@@ -114,9 +138,15 @@ mod tests {
         assert_eq!(converted.recipients[0].recipient_type, "to");
         assert_eq!(converted.recipients[2].recipient_type, "cc");
         assert_eq!(converted.recipients[3].ordinal, 3);
-        assert_eq!(converted.recipients[0].raw_address.as_deref(), Some("to1@domain.com"));
+        assert_eq!(
+            converted.recipients[0].raw_address.as_deref(),
+            Some("to1@domain.com")
+        );
         assert_eq!(converted.recipients[0].smtp_address, None);
-        assert_eq!(converted.recipients[0].resolution_status, "raw_address_preserved");
+        assert_eq!(
+            converted.recipients[0].resolution_status,
+            "raw_address_preserved"
+        );
     }
 
     #[test]
@@ -131,8 +161,14 @@ mod tests {
 
         let converted = message_recipients_from_complete_records("msg_123", &report);
 
-        assert_eq!(converted.recipients[0].smtp_address.as_deref(), Some("recipient@example.com"));
-        assert_eq!(converted.recipients[0].address_type.as_deref(), Some("SMTP"));
+        assert_eq!(
+            converted.recipients[0].smtp_address.as_deref(),
+            Some("recipient@example.com")
+        );
+        assert_eq!(
+            converted.recipients[0].address_type.as_deref(),
+            Some("SMTP")
+        );
         assert_eq!(converted.recipients[0].resolution_status, "smtp_available");
     }
 
