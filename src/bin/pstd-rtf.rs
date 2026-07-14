@@ -115,18 +115,20 @@ fn decompress_rtf(input: &[u8]) -> Option<Vec<u8>> {
         return None;
     }
     let payload = &input[16..];
-    if crc32(payload) != expected_crc {
-        return None;
-    }
 
     let decoded = match magic {
         MELA_MAGIC => {
-            if payload.len() != raw_size {
+            if expected_crc != 0 || payload.len() != raw_size {
                 return None;
             }
             payload.to_vec()
         }
-        LZFU_MAGIC => decompress_lzfu(payload, raw_size)?,
+        LZFU_MAGIC => {
+            if crc32(payload) != expected_crc {
+                return None;
+            }
+            decompress_lzfu(payload, raw_size)?
+        }
         _ => return None,
     };
     (decoded.len() == raw_size).then_some(decoded)
@@ -214,7 +216,7 @@ mod tests {
         value.extend_from_slice(&((raw.len() + 12) as u32).to_le_bytes());
         value.extend_from_slice(&(raw.len() as u32).to_le_bytes());
         value.extend_from_slice(&MELA_MAGIC.to_le_bytes());
-        value.extend_from_slice(&crc32(raw).to_le_bytes());
+        value.extend_from_slice(&0u32.to_le_bytes());
         value.extend_from_slice(raw);
         value
     }
@@ -232,11 +234,11 @@ mod tests {
     }
 
     #[test]
-    fn rejects_bad_crc_size_magic_and_non_rtf_output() {
+    fn rejects_invalid_crc_size_magic_and_non_rtf_output() {
         let raw = b"{\\rtf1 Hello}";
-        let mut bad_crc = wrap_uncompressed(raw);
-        bad_crc[12] ^= 1;
-        assert!(decompress_rtf(&bad_crc).is_none());
+        let mut invalid_mela_crc = wrap_uncompressed(raw);
+        invalid_mela_crc[12] = 1;
+        assert!(decompress_rtf(&invalid_mela_crc).is_none());
 
         let mut bad_size = wrap_uncompressed(raw);
         bad_size[0] ^= 1;
