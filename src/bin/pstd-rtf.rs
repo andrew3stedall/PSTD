@@ -38,12 +38,14 @@ fn run() -> Result<(), String> {
         .map_err(|error| format!("metadata extraction failed: {error}"))?;
 
     let mut emitted = 0usize;
+    let mut diagnostics = Vec::new();
     for payload in metadata
         .body_payloads
         .iter()
         .filter(|payload| payload.record.body_type == "rtf")
     {
         let Some(rtf) = validated_rtf(payload) else {
+            diagnostics.push(payload_diagnostic(payload));
             continue;
         };
         let path = output.join(format!(
@@ -54,11 +56,43 @@ fn run() -> Result<(), String> {
         emitted += 1;
     }
 
+    if !diagnostics.is_empty() {
+        fs::write(
+            output.join("rtf-payload-diagnostic.txt"),
+            diagnostics.join("\n"),
+        )
+        .map_err(|error| error.to_string())?;
+    }
+
     println!("rtf_files_emitted={emitted}");
     if emitted == 0 {
         return Err("no validated RTF body could be emitted".to_string());
     }
     Ok(())
+}
+
+fn payload_diagnostic(payload: &BodyPayload) -> String {
+    let prefix_len = payload.bytes.len().min(64);
+    let prefix = hex::encode(&payload.bytes[..prefix_len]);
+    let header = if payload.bytes.len() >= 16 {
+        format!(
+            "compressed_size={:?};raw_size={:?};magic={:?};crc={:?}",
+            read_u32(&payload.bytes, 0),
+            read_u32(&payload.bytes, 4),
+            read_u32(&payload.bytes, 8).map(|value| format!("0x{value:08x}")),
+            read_u32(&payload.bytes, 12).map(|value| format!("0x{value:08x}")),
+        )
+    } else {
+        "compressed_header=unavailable".to_string()
+    };
+    format!(
+        "message_key={};size_bytes={};sha256={};prefix_hex={};{}",
+        payload.record.message_key,
+        payload.bytes.len(),
+        payload.record.sha256,
+        prefix,
+        header,
+    )
 }
 
 fn validated_rtf(payload: &BodyPayload) -> Option<Vec<u8>> {
@@ -217,5 +251,15 @@ mod tests {
 
         let wrapped_plain = body_payload("message", "rtf", wrap_uncompressed(b"plain"), None);
         assert!(validated_rtf(&wrapped_plain).is_none());
+    }
+
+    #[test]
+    fn reports_invalid_payload_boundary_without_exposing_full_content() {
+        let payload = body_payload("message", "rtf", vec![1, 2, 3, 4], None);
+        let diagnostic = payload_diagnostic(&payload);
+        assert!(diagnostic.contains("message_key=message"));
+        assert!(diagnostic.contains("size_bytes=4"));
+        assert!(diagnostic.contains("prefix_hex=01020304"));
+        assert!(diagnostic.contains("compressed_header=unavailable"));
     }
 }
