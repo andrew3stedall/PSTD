@@ -2,147 +2,102 @@
 
 ## Repository purpose
 
-PSTD is a PST email data extractor. The current stated direction is to use Rust to process PST files and extract individual emails. Future planning may include Python, React/Vite, and Snowflake components, but planning must not assume those components exist until the repository contains them.
+PSTD is a Rust-first PST email extraction engine. The current priority is end-to-end extraction coverage and correctness: reliably recover folders, messages, metadata, bodies, recipients, threading information, and attachments before starting downstream Snowflake, UI, search, analytics, or graph work.
 
-## Operating model
+## Current operating mode
 
-This repository uses a Codex Delivery Council model with two lanes:
+Mode: `vertical-extraction`.
 
-1. Planning lane: turn product intent into milestones, epics, issues, docs, and risks.
-2. Execution lane: build approved milestones or epics on milestone branches.
+The M1-M25 product-foundation lane is complete. The former PQ sequence established validated parser boundaries through PQ74. New work should implement the smallest coherent vertical slice that exposes new observable extraction behaviour rather than adding parser infrastructure for its own sake.
 
-The current operating path is phone-first:
+## Required workflow
 
-- The user prompts from ChatGPT on mobile.
-- The assistant uses the GitHub connector to read and update repo artefacts.
-- Planning, docs, issues, branches, and PRs are created through GitHub.
-- Local testing may be deferred until the user has Codex running on a laptop.
-- Repo-scoped skills live under `.agents/skills/` for future Codex runtimes and as reusable instructions.
+1. Review `README.md`, `docs/product/project-status.md`, and `docs/operations/public-pst-progress-log.md`.
+2. Check open pull requests, branches, recent commits, and current CI before creating work. Continue an existing implementation when one is already in progress instead of creating conflicting changes.
+3. Compare the current parser behaviour with the PST specification and measured fixture evidence.
+4. Identify the single highest-value extraction gap that can be completed safely.
+5. Implement exactly one coherent vertical milestone on a dedicated branch.
+6. Reuse validated components and avoid duplicate parsing logic.
+7. Fail closed on ambiguity, malformed structures, unsupported types, or incomplete evidence.
+8. Add focused regression tests and preserve existing behaviour.
+9. Run the full validation gate and inspect the public-PST artifact.
+10. Update the current-state documentation, point-in-time milestone record, and changelog.
+11. Open a pull request with explicit extraction impact, validation evidence, risks, and the next measured blocker.
+12. Squash merge only after the exact head is green and review threads are resolved.
 
-## Current mode
-
-Mode: `milestone-execution`.
+## Scope rules
 
 Allowed:
 
-- Read product requirements and repo context.
-- Convert PRDs into epics, milestones, and GitHub issues.
-- Define acceptance criteria, dependencies, risks, and documentation requirements.
-- Build an approved milestone or epic without requiring a new prompt for every issue.
-- Follow the ordered issue list defined by the milestone or epic.
-- Use milestone or epic branches.
-- Update application code within the approved milestone or epic scope.
-- Add or update tests where practical.
-- Document tests that were not run locally.
-- Update docs and open PRs.
-- Merge PRs when the user explicitly asks.
+- bounded PST parser and extraction changes;
+- CLI, output, batch, and diagnostics changes required by a coherent extraction slice;
+- synthetic and approved public-fixture tests;
+- documentation, issues, branches, pull requests, and CI follow-up;
+- revision of the proposed next milestone when repository evidence identifies a higher-value path.
 
-Not allowed:
+Not allowed without explicit approval:
 
-- Unrelated broad refactors.
-- Direct commits to `main` unless explicitly requested.
-- Secret, billing, deployment, authentication, or production access changes.
-- Claiming tests passed when they were not run.
-- Creating broad architecture without an ADR.
+- unrelated broad refactors;
+- direct commits to `main`;
+- secret, billing, authentication, production-access, or deployment changes;
+- Snowflake, UI, search, analytics, semantic search, or graph implementation;
+- heuristic interpretation of unvalidated PST bytes;
+- claims that tests, fixtures, or compatibility passed when they were not verified.
 
-## Skills
+## Correctness principles
 
-Use `.agents/skills/README.md` as the skills index.
+- Prefer one complete vertical behaviour over several new abstractions.
+- Preserve raw evidence and authoritative property identity where needed for validation.
+- Keep address kinds, encodings, row order, and source boundaries explicit.
+- Never combine values from separate runs and present them as one extraction result.
+- Return no partial record when row counts, bounds, types, mappings, or references disagree.
+- Keep diagnostic output bounded and exclude private payload data.
+- Treat one public fixture as evidence, not proof of general PST compatibility.
 
-Core skills:
+## Validation gate
 
-- `.agents/skills/planning-council/SKILL.md`
-- `.agents/skills/issue-writer/SKILL.md`
-- `.agents/skills/docs-writer/SKILL.md`
-- `.agents/skills/github-planning-loop/SKILL.md`
+Every extraction pull request must pass:
 
-Role skills:
+```text
+cargo fmt --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all
+cargo run -- --help
+cargo run -- version
+cargo run -- inspect --help
+cargo run -- batch --help
+python -m pstd --help
+docker build -t pstd:local -f docker/Dockerfile .
+```
 
-- `roles/executive-sponsor`
-- `roles/product`
-- `roles/business-analyst`
-- `roles/ux`
-- `roles/developer-feasibility`
-- `roles/full-stack-developer`
-- `roles/metrics`
-- `roles/data`
-- `roles/platform`
-- `roles/integration`
-- `roles/reviewer`
-
-Process skills:
-
-- `process/prd-intake`
-- `process/milestone-planner`
-- `process/epic`
-- `process/dependency-mapper`
-- `process/risk-reviewer`
-- `process/readiness-check`
-- `process/feedback-refiner`
-
-Execution skills:
-
-- `execution/milestone-executor`
-- `execution/epic-workforce`
-- `execution/implementation-worker`
-- `execution/milestone-branch-manager`
-- `execution/deferred-testing`
-
-## Planning role sequence
-
-1. Executive Sponsor.
-2. Product.
-3. Business Analyst.
-4. UX.
-5. Metrics.
-6. Data.
-7. Platform.
-8. Developer Feasibility.
-9. Full-Stack Developer.
-10. Docs Writer.
-11. Integration.
-12. Reviewer.
-
-## Execution workflow
-
-1. Start from an approved milestone or epic.
-2. Confirm the ordered issue list.
-3. Create or use a milestone branch.
-4. Implement the issue set in the milestone order.
-5. Keep unrelated work out.
-6. Add or update tests when practical.
-7. Record tests that could not be run.
-8. Update docs.
-9. Open a milestone PR.
-10. Wait for CI to complete.
-11. Inspect the `public-pst-progress` CI artifact and update `docs/operations/public-pst-progress-log.md` with the checked-in public PST result.
-12. Include the latest public PST result and delta in the final milestone report.
-13. Merge when the user explicitly asks.
-
-## Planning rules
-
-- Work from repository evidence and explicit user instructions.
-- Do not invent test, build, lint, or typecheck commands when they are unknown.
-- If the repo lacks code or tooling, document the gap instead of assuming a stack is already implemented.
-- Every planned issue must include scope, out-of-scope items, acceptance criteria, dependencies, risks, and documentation requirements.
-- Prefer small, dependency-aware issues within coherent milestones.
-- Mark work as on hold if product intent, data access, operating model, or acceptance criteria are missing.
+For approved fixtures, also run inspect, extract, batch, and the deterministic public-PST progress workflow. Record the exact result and delta.
 
 ## Pull request standard
 
-Every PR must include:
+Every PR must state:
 
-- Purpose.
-- Scope.
-- Files changed.
-- Tests or validation performed.
-- Public PST progress result, when a fixture is available.
-- Tests or validation deferred.
-- Documentation updated.
-- Data impact.
-- Operational impact.
-- Follow-up work.
+- objective and user-visible extraction value;
+- previous evidence and the exact gap addressed;
+- implementation scope and out-of-scope items;
+- files changed and components reused;
+- fail-closed behaviour and safety boundaries;
+- tests and validation performed;
+- public-PST result and delta;
+- operational and data-contract impact;
+- remaining blocker and proposed next vertical milestone.
 
-## Documentation standard
+## Documentation model
 
-Every meaningful planning or execution change must update docs. Use audience-specific folders under `docs/` rather than placing all notes in one file.
+Current truth belongs in:
+
+- `README.md`;
+- `docs/product/project-status.md`;
+- `docs/operations/public-pst-progress-log.md`;
+- `docs/product/pstd-v1-roadmap.md`;
+- the relevant architecture, engineering, data, and operations guides.
+
+Milestone, PQ, vertical, issue-plan, and implementation-plan files are point-in-time records. Do not rewrite their historical conclusions as though they were current; link them from the current-state documents and classify them through `docs/DOCUMENTATION_STATUS.md`.
+
+## Skills
+
+Use `.agents/skills/README.md` as the repository skills index. Skills remain reusable guidance, but this file and the current project-status documents take precedence when an older skill still refers to the completed milestone-planning lane.
