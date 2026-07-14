@@ -46,7 +46,10 @@ fn run() -> Result<(), String> {
         let Some(rtf) = validated_rtf(payload) else {
             continue;
         };
-        let path = output.join(format!("{}.rtf", safe_filename(&payload.record.message_key)));
+        let path = output.join(format!(
+            "{}.rtf",
+            safe_filename(&payload.record.message_key)
+        ));
         fs::write(path, rtf).map_err(|error| error.to_string())?;
         emitted += 1;
     }
@@ -135,7 +138,9 @@ fn decompress_lzfu(input: &[u8], raw_size: usize) -> Option<Vec<u8>> {
 }
 
 fn read_u32(input: &[u8], offset: usize) -> Option<u32> {
-    Some(u32::from_le_bytes(input.get(offset..offset + 4)?.try_into().ok()?))
+    Some(u32::from_le_bytes(
+        input.get(offset..offset + 4)?.try_into().ok()?,
+    ))
 }
 
 fn crc32(bytes: &[u8]) -> u32 {
