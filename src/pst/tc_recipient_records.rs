@@ -19,6 +19,38 @@ pub struct TcRecipientRecordReport {
     pub failure_reason: Option<String>,
 }
 
+impl TcRecipientRecordReport {
+    pub fn status_fragment(&self) -> String {
+        let records = if self.records.is_empty() {
+            "none".to_string()
+        } else {
+            self.records
+                .iter()
+                .map(|record| {
+                    format!(
+                        "{}:{}:{}",
+                        record.row_index,
+                        sanitize(&record.role),
+                        sanitize(&record.identity)
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("|")
+        };
+        let failure = self
+            .failure_reason
+            .as_deref()
+            .map(sanitize)
+            .unwrap_or_else(|| "none".to_string());
+        format!(
+            "recipient_records_status={};recipient_records={};recipient_records_failure={}",
+            sanitize(&self.status),
+            records,
+            failure
+        )
+    }
+}
+
 pub fn assemble_recipient_records(
     recipient_types: &TcFixedWidthDiagnostic,
     identities: &TcRecipientIdentityDiagnostic,
@@ -63,6 +95,13 @@ pub fn assemble_recipient_records(
         records,
         failure_reason: None,
     }
+}
+
+fn sanitize(value: &str) -> String {
+    value
+        .replace(';', ",")
+        .replace('|', "/")
+        .replace(':', "-")
 }
 
 #[cfg(test)]
@@ -122,6 +161,33 @@ mod tests {
     }
 
     #[test]
+    fn publishes_fixture_records_in_a_stable_bounded_fragment() {
+        let report = assemble_recipient_records(
+            &recipient_types(&["to", "to", "cc", "cc"]),
+            &identities(&["Recipient 1", "Recipient 2", "Recipient 3", "Recipient 4"]),
+        );
+
+        assert_eq!(
+            report.status_fragment(),
+            "recipient_records_status=tc_recipient_records_validated;recipient_records=0:to:Recipient 1|1:to:Recipient 2|2:cc:Recipient 3|3:cc:Recipient 4;recipient_records_failure=none"
+        );
+    }
+
+    #[test]
+    fn sanitizes_record_and_failure_delimiters() {
+        let mut report = assemble_recipient_records(
+            &recipient_types(&["to"]),
+            &identities(&["Name;with|delimiters:here"]),
+        );
+        report.failure_reason = Some("reason;with|delimiters:here".to_string());
+
+        assert_eq!(
+            report.status_fragment(),
+            "recipient_records_status=tc_recipient_records_validated;recipient_records=0:to:Name,with/delimiters-here;recipient_records_failure=reason,with/delimiters-here"
+        );
+    }
+
+    #[test]
     fn mismatched_row_counts_fail_closed_without_partial_records() {
         let report = assemble_recipient_records(
             &recipient_types(&["to", "cc"]),
@@ -131,6 +197,7 @@ mod tests {
         assert_eq!(report.status, RECIPIENT_RECORDS_FAILED);
         assert!(report.records.is_empty());
         assert!(report.failure_reason.is_some());
+        assert!(report.status_fragment().contains("recipient_records=none"));
     }
 
     #[test]
