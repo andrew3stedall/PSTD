@@ -98,10 +98,7 @@ pub fn assemble_recipient_records(
 }
 
 fn sanitize(value: &str) -> String {
-    value
-        .replace(';', ",")
-        .replace('|', "/")
-        .replace(':', "-")
+    value.replace(';', ",").replace('|', "/").replace(':', "-")
 }
 
 #[cfg(test)]
