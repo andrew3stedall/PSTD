@@ -3,8 +3,7 @@ use crate::pst::tc_recipient_records::{
 };
 use crate::pst::tc_reporting::TcSubnodeProbeReport;
 
-pub const MESSAGE_RECIPIENT_PROJECTION_SELECTED: &str =
-    "tc_message_recipient_projection_selected";
+pub const MESSAGE_RECIPIENT_PROJECTION_SELECTED: &str = "tc_message_recipient_projection_selected";
 pub const MESSAGE_RECIPIENT_PROJECTION_UNAVAILABLE: &str =
     "tc_message_recipient_projection_unavailable";
 pub const MESSAGE_RECIPIENT_PROJECTION_AMBIGUOUS: &str =
@@ -41,9 +40,7 @@ fn select_complete_record_report<'a>(
     reports: impl Iterator<Item = &'a TcCompleteRecipientRecordReport>,
 ) -> TcMessageRecipientSelectionReport {
     let mut candidates = reports
-        .filter(|report| {
-            report.status == RECIPIENT_RECORDS_VALIDATED && !report.records.is_empty()
-        })
+        .filter(|report| report.status == RECIPIENT_RECORDS_VALIDATED && !report.records.is_empty())
         .cloned()
         .collect::<Vec<_>>();
     let candidate_count = candidates.len();
