@@ -101,9 +101,9 @@ fn is_recipient_identity_string(property_tag: u32) -> bool {
 
 fn identity_priority(property_tag: u32) -> u8 {
     match (property_tag >> 16) as u16 {
-        PID_TAG_DISPLAY_NAME => 0,
-        PID_TAG_SMTP_ADDRESS => 1,
-        PID_TAG_EMAIL_ADDRESS => 2,
+        PID_TAG_SMTP_ADDRESS => 0,
+        PID_TAG_EMAIL_ADDRESS => 1,
+        PID_TAG_DISPLAY_NAME => 2,
         _ => u8::MAX,
     }
 }
@@ -140,11 +140,11 @@ mod tests {
     }
 
     #[test]
-    fn prefers_display_name_then_smtp_then_native_email_address() {
+    fn prefers_smtp_then_native_email_then_display_name() {
         let columns = vec![
-            descriptor(0, 0, 0x3003_001f),
-            descriptor(1, 4, 0x39fe_001f),
-            descriptor(2, 8, 0x3001_001f),
+            descriptor(0, 0, 0x3001_001f),
+            descriptor(1, 4, 0x3003_001f),
+            descriptor(2, 8, 0x39fe_001f),
         ];
         let mut row = vec![0u8; 12];
         row[8..12].copy_from_slice(&0x60u32.to_le_bytes());
@@ -159,8 +159,36 @@ mod tests {
         )
         .expect("preferred identity should validate");
 
-        assert_eq!(evidence.property_name, "PidTagDisplayName");
+        assert_eq!(evidence.property_name, "PidTagSmtpAddress");
         assert_eq!(evidence.row_references, vec![0x60]);
+    }
+
+    #[test]
+    fn prefers_native_email_address_when_smtp_is_absent() {
+        let columns = vec![descriptor(0, 0, 0x3001_001f), descriptor(1, 4, 0x3003_001f)];
+        let mut row = vec![0u8; 8];
+        row[4..8].copy_from_slice(&0x40u32.to_le_bytes());
+
+        let evidence =
+            extract_recipient_identity_references(&columns, &["11".to_string()], &row, &[0], 8, 8)
+                .expect("native email address should validate");
+
+        assert_eq!(evidence.property_name, "PidTagEmailAddress");
+        assert_eq!(evidence.row_references, vec![0x40]);
+    }
+
+    #[test]
+    fn falls_back_to_display_name_when_no_address_property_is_available() {
+        let columns = vec![descriptor(0, 0, 0x3001_001f)];
+        let mut row = vec![0u8; 4];
+        row.copy_from_slice(&0x20u32.to_le_bytes());
+
+        let evidence =
+            extract_recipient_identity_references(&columns, &["1".to_string()], &row, &[0], 4, 4)
+                .expect("display name fallback should validate");
+
+        assert_eq!(evidence.property_name, "PidTagDisplayName");
+        assert_eq!(evidence.row_references, vec![0x20]);
     }
 
     #[test]
