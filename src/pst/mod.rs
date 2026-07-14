@@ -27,6 +27,7 @@ pub mod recipients;
 pub mod subnodes;
 pub mod table_context;
 pub mod tc_bth;
+pub mod tc_complete_recipient_projection;
 pub mod tc_descriptor_evidence;
 pub mod tc_extraction_reporting;
 pub mod tc_fixed_width_diagnostic;
