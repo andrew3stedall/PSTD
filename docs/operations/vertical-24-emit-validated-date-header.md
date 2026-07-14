@@ -23,17 +23,19 @@ This slice:
 
 It does not infer a delivery or submission timestamp, and it does not relabel the transport Date as a MAPI property.
 
-## Expected public fixture result
+## Public fixture result
+
+The fixture now emits exactly one canonical Date header:
 
 ```text
 Date: Wed, 19 Aug 2015 11:07:26 +0000
 ```
 
-The exact EML byte count and final workflow result will be recorded from the pull-request artifact before merge.
+Readable EML workflow run #9 passed and retained a 613-byte EML artifact. The Date header accounts for the exact 39-byte increase from the previous 574-byte EML.
 
 ## Before versus after
 
-| Measure | Before | Expected after |
+| Measure | Before | After |
 |---|---:|---:|
 | Messages extracted | 1 | 1 |
 | Body payload records | 2 | 2 |
@@ -42,7 +44,8 @@ The exact EML byte count and final workflow result will be recorded from the pul
 | EML files emitted | 1 | 1 |
 | EML Date headers | 0 | 1 |
 | Structured extraction bytes | 40,722 | 40,722 |
-| EML bytes | 574 | pending fixture run |
+| EML bytes | 574 | 613 |
+| Combined observable bytes | 41,296 | 41,335 |
 
 ## Safety boundary
 
@@ -50,4 +53,4 @@ A malformed or ambiguous transport Date does not prevent an otherwise readable E
 
 ## Next decision
 
-After the validated Date is emitted, the next vertical milestone should be chosen from fixture evidence. The likely priority is HTML/RTF body handling or broader fixture validation; attachment work should not be selected solely because it appears later in a predetermined sequence.
+The fixture currently reports both text and RTF body payload records but emits only plain text. The next smallest observable fidelity milestone is to validate the RTF payload and either recover readable rich text or prove that it is compressed/unsupported and select the next body-format slice from that evidence. Attachment extraction should not be selected solely because it appears later in a predetermined sequence.
