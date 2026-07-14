@@ -1,20 +1,12 @@
 # Local Validation
 
+_Last reviewed: 14 July 2026._
+
 ## Purpose
 
-This page lists the checks to run before treating PSTD as release-ready.
+Define the checks required before treating a PSTD branch as valid and the additional evidence required before claiming extraction progress.
 
-## Status
-
-M1-M25 are implemented through milestone branches and expected to pass GitHub Actions CI before merge. Local validation should still be repeated before using PSTD against non-fixture data.
-
-See also:
-
-- [v1 Release-Candidate Checklist](v1-release-candidate-checklist.md)
-- [Local and Docker Operator Handoff](local-docker-operator-handoff.md)
-- [Unsupported and Deferred Areas](v1-unsupported-deferred-areas.md)
-
-## Commands
+## Full repository gate
 
 ```text
 cargo fmt --check
@@ -28,82 +20,110 @@ python -m pstd --help
 docker build -t pstd:local -f docker/Dockerfile .
 ```
 
-## Approved fixture commands
+Do not claim validation if any command was skipped, failed, or ran against a different commit. Record deferred checks explicitly.
 
-Use only approved small PST fixtures:
+## Approved fixture checks
 
-```text
-cargo run -- inspect --input <small-approved-fixture.pst>
-cargo run -- inspect --input <small-approved-fixture.pst> --json
-cargo run -- extract --input <small-approved-fixture.pst> --output <tmp-output> --manifest-only
-cargo run -- batch --input <approved-fixture-directory-or-file> --output <tmp-batch-output>
-```
-
-## Fixture guidance
-
-Use synthetic byte fixtures for unit tests where possible. Use small approved PST fixtures for local integration checks.
-
-Do not commit private PST files.
-
-## Expected single-PST metadata output
-
-A metadata extraction should create:
+Use only approved public or sanitised fixtures:
 
 ```text
-run_summary.json
-progress.jsonl
-archives/<pst-id>_000001.tar
+cargo run -- inspect --input <approved-fixture.pst>
+cargo run -- inspect --input <approved-fixture.pst> --json
+cargo run -- extract --input <approved-fixture.pst> --output <tmp-output>
+cargo run -- batch --input <approved-file-or-directory> --output <tmp-batch-output>
 ```
 
-The TAR should include:
+Never commit private PST files or publish full body/attachment payloads in CI artifacts.
+
+## Public fixture regression baseline
+
+The checked-in public fixture should retain at least the current stable evidence unless the change intentionally and correctly revises it:
+
+| Metric | Baseline |
+|---|---:|
+| BBT entries | 50 |
+| NBT entries | 63 |
+| Folders | 11 |
+| True message candidates | 1 |
+| Extracted messages | 1 |
+| Body payloads | 2 |
+| Attachments | 0 |
+| Selected properties | 16 |
+| Unknown properties | 19 |
+| Table Context rows | 4 × 52 bytes |
+
+Current recipient evidence includes two To and two Cc rows, display names `Recipient 1` through `Recipient 4`, and four native email-address values. A branch changing this path must show the exact previous and new bounded output.
+
+## Milestone artifact review
+
+For every extraction milestone:
+
+1. open the complete CI run for the exact head SHA;
+2. verify all jobs passed;
+3. inspect `public-pst-progress` and the milestone-specific artifact;
+4. compare extraction counts and bounded diagnostics with the previous merged baseline;
+5. classify the change as material extraction progress, structural correction, diagnostic only, or regression;
+6. update `docs/operations/public-pst-progress-log.md`;
+7. revise the next milestone from the observed result.
+
+A green unit suite without fixture evidence is not sufficient for a claim about real PST extraction.
+
+## Expected single-PST output
+
+```text
+<output-root>/
+  run_summary.json
+  progress.jsonl
+  archives/<pst-id>_000001.tar
+```
+
+The TAR may contain:
 
 ```text
 _pstfast/summary.json
 _pstfast/manifest.jsonl
 _pstfast/errors.jsonl
 _pstfast/folder_inventory.jsonl
+_pstfast/extraction_warnings.jsonl
+_pstfast/run_config.json
 data/folders.jsonl
 data/messages.jsonl
+data/recipients.jsonl
+data/message_references.jsonl
+data/bodies.jsonl
 data/attachments.jsonl
+data/selected_mapi_properties.jsonl
+bodies/
+attachments/
 ```
+
+Validate file presence against the command and extracted data. Do not assume every contract family is populated for every fixture.
 
 ## Expected batch output
 
-A batch extraction should create:
-
 ```text
-batch_summary.json
-batch_checkpoint.jsonl
-batch_progress.jsonl
-<safe-pst-output-dir>/run_summary.json
-<safe-pst-output-dir>/progress.jsonl
-<safe-pst-output-dir>/archives/<pst-id>_000001.tar
+<batch-output-root>/
+  batch_summary.json
+  batch_checkpoint.jsonl
+  batch_progress.jsonl
+  <safe-pst-output-dir>/
+    run_summary.json
+    progress.jsonl
+    archives/<pst-id>_000001.tar
 ```
 
-`batch_summary.json` should report:
+Check discovered, attempted, completed, partial, failed, skipped, and not-run counters separately. Inspect checkpoint/progress streams before deleting failed-run output.
 
-```text
-pst_discovered
-pst_attempted
-pst_completed
-pst_partial
-pst_failed
-pst_skipped
-pst_not_run
-status
-operator_message
-checkpoint_path
-progress_path
-```
+## Failure review
 
-`batch_progress.jsonl` should contain root-level operator events such as `batch_started`, `pst_started`, `pst_finished`, and `batch_finished`.
+When a parser or fixture check fails:
 
-## Failure handling
+- identify whether it is a code defect, stale expected artifact, environment issue, or unsupported structure;
+- preserve fail-closed behaviour while fixing it;
+- do not weaken validation or introduce fallback guessing merely to restore a green counter;
+- add a regression test for the exact defect;
+- rerun the full gate on the final head.
 
-When validation fails, fix the current baseline before adding post-v1 implementation work. Update docs if command behaviour or output shape changes.
+## Merge rule
 
-For batch validation, inspect `batch_checkpoint.jsonl` and `batch_progress.jsonl` before deleting temporary output. These files should make failed, skipped, partial, and not-run PSTs visible without opening every per-PST output directory.
-
-## Release-candidate rule
-
-M25 CI is the required repo gate. Local and fixture validation remain recommended before using PSTD on important data because fixture coverage is evidence-driven and not exhaustive.
+Squash merge only when the exact PR head is green, required artifacts have been inspected, review threads are resolved, and current-state documentation reflects the measured result.
