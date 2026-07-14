@@ -1,5 +1,6 @@
 use crate::pst::payload::PayloadBlock;
 use crate::pst::subnodes::SubnodeReference;
+use crate::pst::tc_complete_recipient_projection::project_complete_recipient_records;
 use crate::pst::tc_descriptor_evidence::{
     build_descriptor_bitmap_evidence_from_columns, format_descriptor_bitmap_evidence,
 };
@@ -289,6 +290,26 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                             ))
                         },
                     );
+                    let complete_recipient_status = subnode_rows.as_ref().map(|rows| {
+                        project_complete_recipient_records(
+                            payloads,
+                            report.rows_hnid,
+                            rows,
+                            &report.column_descriptors,
+                            bitmap_masks,
+                            &payload.bytes,
+                            payload.block_ref.offset.0,
+                            report.data_region_boundaries[3] as usize,
+                            &fixed_width,
+                        )
+                        .status_fragment()
+                    });
+                    let base_status = subnode_rows
+                        .as_ref()
+                        .map_or(report.status, |rows| rows.status.clone());
+                    let status = complete_recipient_status
+                        .map(|fragment| format!("{base_status};{fragment}"))
+                        .unwrap_or(base_status);
                     TcHeapDiagnostic {
                         block_id: payload.block_id.0,
                         payload_byte_len: payload.bytes.len(),
@@ -350,9 +371,7 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         row_layout_status,
                         fixed_width,
                         recipient_identity,
-                        status: subnode_rows
-                            .as_ref()
-                            .map_or(report.status, |rows| rows.status.clone()),
+                        status,
                         error: report.row_index_error,
                     }
                 }

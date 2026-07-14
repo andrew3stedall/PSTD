@@ -27,59 +27,56 @@ Complete. This lane delivered the Rust CLI, Python wrapper, Docker packaging, st
 
 Complete. This lane corrected PST traversal, identified real folder/message candidates, improved property and body extraction, resolved Heap-on-Node/BTH/subnode/Table Context structures, validated row addressing and transport, decoded supported fixed-width MAPI values, and integrated bounded diagnostics.
 
-### Vertical 1-13: recipient extraction
+### Vertical 1-16: recipient extraction and production evidence
 
-Complete on `main`. This lane progressed from the first real semantic row property to:
+Complete through production reporting. This lane progressed from the first real semantic row property to:
 
 - recipient roles;
 - display-name and address string references;
 - heap-resident string decoding;
 - end-to-end recipient identity projection;
-- production recipient diagnostics;
-- row-aligned role/name records;
+- row-aligned role/name/address records;
 - address-property selection and address-kind classification;
-- complete recipient records retaining role, display name, address, and address kind.
+- complete recipient records retaining role, display name, address, and address kind;
+- one production public-fixture execution publishing all four complete records.
+
+The public fixture now exposes:
+
+```text
+To: Recipient 1 <to1@domain.com>
+To: Recipient 2 <to2@domain.com>
+Cc: Recipient 3 <cc1@domain.com>
+Cc: Recipient 4 <cc2@domain.com>
+```
+
+The current output remains diagnostic evidence rather than message-model recipient fields.
 
 ## Current milestone
 
-### Vertical 14: project complete recipient records in one run
+### Vertical 17: attach complete recipients to the extracted message
 
-Draft PR #430 is the active implementation. It must independently project `PidTagDisplayName` and the preferred address property from the same validated rows and Table Context heap, then assemble complete records without joining evidence from separate executions.
+The next milestone must consume the already validated complete-recipient projection and place the four records on the extracted message model. It must not introduce another standalone projection, formatter, diagnostic, or transport wrapper.
 
 Acceptance boundary:
 
-- exact same-row and same-heap projection;
-- existing validated role projection reused;
-- SMTP address preferred over native email address when authoritative and complete;
-- separate name and address diagnostics retained;
-- no partial records on mismatch or failure;
-- full CI and public-fixture evidence on the exact head.
+- role, display name, address, and address kind are available on the message result;
+- row order and To/Cc meaning remain unchanged;
+- incomplete combined evidence yields no partial message recipients;
+- the public fixture emits four structured message recipients in one run;
+- existing message, body, attachment, and output behaviour does not regress;
+- full CI and public-fixture evidence pass on the exact head.
 
-This capability is not part of `main` until the PR is green and merged.
-
-## Next milestone candidate
-
-### Vertical 15: publish complete recipient records through production reporting
-
-After Vertical 14 validates:
-
-1. attach the complete-recipient projection to the production Table Context reporting path;
-2. emit one bounded complete-record diagnostic from the public fixture;
-3. confirm all four rows retain role, name, address, and address kind in one execution;
-4. preserve explicit unavailable/failed states without partial values;
-5. update the public progress log with the exact artifact result.
-
-Do not widen this milestone into EML generation or unrelated metadata work.
+Where the existing serializer boundary permits without widening the slice materially, the same validated records should feed EML `To` and `Cc` headers. Otherwise EML header emission is the immediately following milestone.
 
 ## Following decision point
 
-After complete recipient publication, review the full fixture artifact and select the single largest remaining gap preventing a reconstructable email. Likely candidates include:
+After recipients are attached to the message model, review the full fixture artifact and select the largest remaining gap preventing a reconstructable email. Likely candidates include:
 
-- missing or incomplete core message metadata;
-- body-form coverage or encoding fidelity;
+- EML header and file emission;
+- preferred body selection and encoding fidelity;
+- HTML/RTF normalization;
 - attachment table and payload extraction;
-- threading/reference fidelity;
-- production output wiring from validated diagnostics into structured records.
+- embedded-message extraction.
 
 These are candidates, not a fixed queue. The artifact must determine the order.
 
@@ -101,10 +98,9 @@ PSTD should not be described as conversion-complete until a representative fixtu
 
 The following remain intentionally outside the active extraction lane:
 
-1. EML assembly and exact-preservation policy.
-2. Snowflake ingestion.
-3. Search and review web application.
-4. Semantic search, embeddings, tagging, graph, and LLM/RAG workflows.
-5. Distributed orchestration beyond the current local/Docker batch model.
+1. Snowflake ingestion.
+2. Search and review web application.
+3. Semantic search, embeddings, tagging, graph, and LLM/RAG workflows.
+4. Distributed orchestration beyond the current local/Docker batch model.
 
-They should begin only after extraction coverage is reliable enough that downstream systems will not institutionalise incomplete data.
+EML assembly is no longer treated as generally deferred: it should begin incrementally once validated message fields are attached to the message model, while exact-preservation policy remains a later hardening concern.
