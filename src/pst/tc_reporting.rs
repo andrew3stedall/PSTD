@@ -1,6 +1,8 @@
 use crate::pst::payload::PayloadBlock;
 use crate::pst::subnodes::SubnodeReference;
-use crate::pst::tc_complete_recipient_projection::project_complete_recipient_records;
+use crate::pst::tc_complete_recipient_projection::{
+    project_complete_recipient_records, TcCompleteRecipientProjectionReport,
+};
 use crate::pst::tc_descriptor_evidence::{
     build_descriptor_bitmap_evidence_from_columns, format_descriptor_bitmap_evidence,
 };
@@ -53,6 +55,7 @@ pub struct TcHeapDiagnostic {
     pub row_layout_status: String,
     pub fixed_width: TcFixedWidthDiagnostic,
     pub recipient_identity: TcRecipientIdentityDiagnostic,
+    pub complete_recipients: Option<TcCompleteRecipientProjectionReport>,
     pub status: String,
     pub error: Option<String>,
 }
@@ -290,7 +293,7 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                             ))
                         },
                     );
-                    let complete_recipient_status = subnode_rows.as_ref().map(|rows| {
+                    let complete_recipients = subnode_rows.as_ref().map(|rows| {
                         project_complete_recipient_records(
                             payloads,
                             report.rows_hnid,
@@ -302,13 +305,15 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                             report.data_region_boundaries[3] as usize,
                             &fixed_width,
                         )
-                        .status_fragment()
                     });
                     let base_status = subnode_rows
                         .as_ref()
                         .map_or(report.status, |rows| rows.status.clone());
-                    let status = complete_recipient_status
-                        .map(|fragment| format!("{base_status};{fragment}"))
+                    let status = complete_recipients
+                        .as_ref()
+                        .map(|projection| {
+                            format!("{base_status};{}", projection.status_fragment())
+                        })
                         .unwrap_or(base_status);
                     TcHeapDiagnostic {
                         block_id: payload.block_id.0,
@@ -371,6 +376,7 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         row_layout_status,
                         fixed_width,
                         recipient_identity,
+                        complete_recipients,
                         status,
                         error: report.row_index_error,
                     }
@@ -406,6 +412,7 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                     row_layout_status: "tc_row_layout_width_unavailable".to_string(),
                     fixed_width: unavailable_fixed_width_diagnostic(),
                     recipient_identity: unavailable_recipient_identity_diagnostic(),
+                    complete_recipients: None,
                     status: "tc_heap_resolution_failed".to_string(),
                     error: Some(reason.to_string()),
                 },
