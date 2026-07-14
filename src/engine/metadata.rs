@@ -33,6 +33,9 @@ use crate::pst::subnodes::{
     SubnodeReference,
 };
 use crate::pst::tc_extraction_reporting::finalize_table_probe_collection;
+use crate::pst::tc_message_recipient_output::{
+    build_message_recipient_output, MESSAGE_RECIPIENT_OUTPUT_ATTACHED,
+};
 use crate::pst::tc_probe_collection::record_subnode_payload_probe;
 use crate::pst::tc_run_reporting::TcRunProbeCollector;
 
@@ -86,7 +89,7 @@ pub fn extract_metadata(
     let (mut root_folder, mut root_inventory) = root_folder_from_header(pst_id, &header);
     let mut messages = Vec::new();
     let mut issues = Vec::new();
-    let recipients: Vec<RecipientRecord> = Vec::new();
+    let mut recipients: Vec<RecipientRecord> = Vec::new();
     let message_references: Vec<MessageReferenceRecord> = Vec::new();
     let mut bodies: Vec<BodyRecord> = Vec::new();
     let mut body_payloads: Vec<BodyPayload> = Vec::new();
@@ -271,11 +274,16 @@ pub fn extract_metadata(
                             pq14_message_subnode_probe_attempts += 1;
                             let loaded_subnodes =
                                 load_recursive_subnode_blocks(&reader, &bbt, reference, 1, limits);
-                            record_subnode_payload_probe(
+                            let probe = record_subnode_payload_probe(
                                 &mut table_probe_collector,
                                 reference,
                                 &loaded_subnodes.payloads,
                             );
+                            let recipient_output =
+                                build_message_recipient_output(&message.message_key, &probe);
+                            if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
+                                recipients.extend(recipient_output.recipients);
+                            }
                             subnode_decoded_blocks += loaded_subnodes.report.decoded_block_count;
                             subnode_child_references +=
                                 loaded_subnodes.report.recursive_child_reference_count;
@@ -312,11 +320,16 @@ pub fn extract_metadata(
                             subnode_decode_attempts += 1;
                             let loaded_subnodes =
                                 load_recursive_subnode_blocks(&reader, &bbt, reference, 1, limits);
-                            record_subnode_payload_probe(
+                            let probe = record_subnode_payload_probe(
                                 &mut table_probe_collector,
                                 reference,
                                 &loaded_subnodes.payloads,
                             );
+                            let recipient_output =
+                                build_message_recipient_output(&message.message_key, &probe);
+                            if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
+                                recipients.extend(recipient_output.recipients);
+                            }
                             subnode_decoded_blocks += loaded_subnodes.report.decoded_block_count;
                             subnode_child_references +=
                                 loaded_subnodes.report.recursive_child_reference_count;
