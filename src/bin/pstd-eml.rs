@@ -172,12 +172,15 @@ fn quote_display_name(value: &str) -> String {
 }
 
 fn clean_header(value: &str) -> Option<String> {
-    let value = value.trim();
-    if value.is_empty() || value.contains('\r') || value.contains('\n') {
-        None
-    } else {
-        Some(value.to_string())
+    if value.contains('\r') || value.contains('\n') {
+        return None;
     }
+    let cleaned = value
+        .chars()
+        .filter(|character| !character.is_control() || *character == '\t')
+        .collect::<String>();
+    let cleaned = cleaned.trim();
+    (!cleaned.is_empty()).then(|| cleaned.to_string())
 }
 
 fn push_header(output: &mut String, name: &str, value: &str) {
@@ -220,7 +223,7 @@ mod tests {
             message_node_id: None,
             folder_path: "/Inbox".to_string(),
             item_type: "message".to_string(),
-            subject: Some("Fixture subject".to_string()),
+            subject: Some("\u{1}\u{1}Fixture subject".to_string()),
             sender_name: Some("Fixture Sender".to_string()),
             sender_email: Some("sender@example.com".to_string()),
             sender_raw_address: None,
@@ -274,6 +277,7 @@ mod tests {
         assert!(eml.contains("To: Recipient 1 <to1@domain.com>, Recipient 2 <to2@domain.com>\r\n"));
         assert!(eml.contains("Cc: Recipient 3 <cc1@domain.com>\r\n"));
         assert!(eml.contains("Subject: Fixture subject\r\n"));
+        assert!(!eml.contains('\u{1}'));
         assert!(eml.ends_with("\r\n\r\nHello\r\nworld\r\n"));
     }
 
