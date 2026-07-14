@@ -197,16 +197,22 @@ mod tests {
 
         assert_eq!(report.complete_records.status, RECIPIENT_RECORDS_VALIDATED);
         assert_eq!(report.complete_records.records.len(), 4);
-        assert_eq!(report.complete_records.records[0].display_name, "Recipient 1");
+        assert_eq!(
+            report.complete_records.records[0].display_name,
+            "Recipient 1"
+        );
         assert_eq!(report.complete_records.records[0].address, "to1@domain.com");
         assert_eq!(report.complete_records.records[1].role, "to");
-        assert_eq!(report.complete_records.records[2].display_name, "Recipient 3");
+        assert_eq!(
+            report.complete_records.records[2].display_name,
+            "Recipient 3"
+        );
         assert_eq!(report.complete_records.records[2].address, "cc1@domain.com");
         assert_eq!(report.complete_records.records[3].role, "cc");
         assert_eq!(report.complete_records.records[3].address, "cc2@domain.com");
-        assert!(report.status_fragment().contains(
-            "3:cc:Recipient 4:cc2@domain.com:native_email_address"
-        ));
+        assert!(report
+            .status_fragment()
+            .contains("3:cc:Recipient 4:cc2@domain.com:native_email_address"));
     }
 
     fn recipient_types(values: &[&str]) -> TcFixedWidthDiagnostic {
