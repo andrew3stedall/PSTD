@@ -88,7 +88,11 @@ fn text_bodies_by_message(payloads: &[BodyPayload]) -> BTreeMap<String, Vec<u8>>
     bodies
 }
 
-fn build_eml(message: &MessageRecord, recipients: &[RecipientRecord], body: &[u8]) -> Option<Vec<u8>> {
+fn build_eml(
+    message: &MessageRecord,
+    recipients: &[RecipientRecord],
+    body: &[u8],
+) -> Option<Vec<u8>> {
     let subject = clean_header(message.subject.as_deref()?)?;
     let sender_address = message
         .sender_email
@@ -114,7 +118,11 @@ fn build_eml(message: &MessageRecord, recipients: &[RecipientRecord], body: &[u8
         push_header(&mut eml, "Cc", &cc);
     }
     push_header(&mut eml, "Subject", &subject);
-    if let Some(message_id) = message.internet_message_id.as_deref().and_then(clean_header) {
+    if let Some(message_id) = message
+        .internet_message_id
+        .as_deref()
+        .and_then(clean_header)
+    {
         push_header(&mut eml, "Message-ID", &message_id);
     }
     push_header(&mut eml, "MIME-Version", "1.0");
@@ -180,7 +188,10 @@ fn push_header(output: &mut String, name: &str, value: &str) {
 }
 
 fn normalize_crlf(value: &str) -> String {
-    value.replace("\r\n", "\n").replace('\r', "\n").replace('\n', "\r\n")
+    value
+        .replace("\r\n", "\n")
+        .replace('\r', "\n")
+        .replace('\n', "\r\n")
 }
 
 fn safe_filename(value: &str) -> String {
@@ -260,9 +271,7 @@ mod tests {
         let eml = build_eml(&message(), &recipients, b"Hello\nworld").unwrap();
         let eml = String::from_utf8(eml).unwrap();
         assert!(eml.contains("From: Fixture Sender <sender@example.com>\r\n"));
-        assert!(eml.contains(
-            "To: Recipient 1 <to1@domain.com>, Recipient 2 <to2@domain.com>\r\n"
-        ));
+        assert!(eml.contains("To: Recipient 1 <to1@domain.com>, Recipient 2 <to2@domain.com>\r\n"));
         assert!(eml.contains("Cc: Recipient 3 <cc1@domain.com>\r\n"));
         assert!(eml.contains("Subject: Fixture subject\r\n"));
         assert!(eml.ends_with("\r\n\r\nHello\r\nworld\r\n"));
