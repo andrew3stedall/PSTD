@@ -26,7 +26,7 @@ jobs:
             echo "No public PST fixture found" >&2
             exit 1
           fi
-      - name: Emit readable EML
+      - name: Emit readable multipart EML
         shell: bash
         run: |
           set -euo pipefail
@@ -40,39 +40,43 @@ jobs:
           eml_file=$(head -n 1 "$evidence_dir/eml-files.txt")
           stat -c '%s' "$eml_file" > "$evidence_dir/eml-size-bytes.txt"
           python - <<'PY'
+          from email import policy
+          from email.parser import BytesParser
           from pathlib import Path
 
           evidence = Path('/tmp/pstd-public-pst-eml')
           eml_path = Path(evidence.joinpath('eml-files.txt').read_text(encoding='utf-8').strip())
           raw = eml_path.read_bytes()
-          if b'\r\n\r\n' not in raw:
-              raise SystemExit('EML is missing the CRLF header/body separator')
           if b'\n' in raw.replace(b'\r\n', b''):
               raise SystemExit('EML contains bare LF line endings')
-          text = raw.decode('utf-8')
-          required = [
-              'From: Sender Name <from@domain.com>\r\n',
-              'To: Recipient 1 <to1@domain.com>, Recipient 2 <to2@domain.com>\r\n',
-              'Cc: Recipient 3 <cc1@domain.com>, Recipient 4 <cc2@domain.com>\r\n',
-              'Subject: New message created by Aspose.Email for Java(Aspose.Email Evaluation)\r\n',
-              'Date: Wed, 19 Aug 2015 11:07:26 +0000\r\n',
-              'MIME-Version: 1.0\r\n',
-              'Content-Type: text/plain; charset=utf-8\r\n',
-          ]
-          missing = [value for value in required if value not in text]
-          if missing:
-              raise SystemExit(f'EML missing required readable content: {missing!r}')
-          headers, body = text.split('\r\n\r\n', 1)
-          if headers.count('\r\nDate: ') != 1:
-              raise SystemExit('EML must contain exactly one validated Date header')
-          controls = [character for character in headers if ord(character) < 32 and character not in '\t\r\n']
-          if controls:
-              raise SystemExit(f'EML headers contain control characters: {controls!r}')
-          if not body.strip():
-              raise SystemExit('EML plain-text body is empty')
+          message = BytesParser(policy=policy.default).parsebytes(raw)
+          if message.get_content_type() != 'multipart/alternative':
+              raise SystemExit(f'unexpected root content type: {message.get_content_type()}')
+          parts = list(message.iter_parts())
+          if [part.get_content_type() for part in parts] != ['text/plain', 'text/rtf']:
+              raise SystemExit(f'unexpected alternative parts: {[part.get_content_type() for part in parts]!r}')
+          plain = parts[0].get_content()
+          rich = parts[1].get_content()
+          if 'This is an evaluation copy of Aspose.Email for Java' not in plain:
+              raise SystemExit('plain-text part is missing known fixture content')
+          if not rich.startswith('{\\rtf'):
+              raise SystemExit('RTF part is not a readable RTF document')
+          for expected in ['This line is in bold.', 'This line is in blue color']:
+              if expected not in rich:
+                  raise SystemExit(f'RTF part is missing {expected!r}')
+          required_headers = {
+              'From': 'Sender Name <from@domain.com>',
+              'To': 'Recipient 1 <to1@domain.com>, Recipient 2 <to2@domain.com>',
+              'Cc': 'Recipient 3 <cc1@domain.com>, Recipient 4 <cc2@domain.com>',
+              'Subject': 'New message created by Aspose.Email for Java(Aspose.Email Evaluation)',
+              'Date': 'Wed, 19 Aug 2015 11:07:26 +0000',
+          }
+          for name, expected in required_headers.items():
+              if str(message[name]) != expected:
+                  raise SystemExit(f'{name} mismatch: {message[name]!r}')
           evidence.joinpath('message.eml').write_bytes(raw)
-          evidence.joinpath('headers.txt').write_text(headers + '\n', encoding='utf-8')
-          evidence.joinpath('body.txt').write_text(body, encoding='utf-8')
+          evidence.joinpath('plain-body.txt').write_text(plain, encoding='utf-8')
+          evidence.joinpath('rich-body.rtf').write_text(rich, encoding='utf-8')
           PY
       - name: Upload readable EML evidence
         if: always()
