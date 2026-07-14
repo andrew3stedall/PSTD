@@ -139,10 +139,19 @@ mod tests {
             &recipient_types(&["to", "cc"]),
         );
 
-        assert_eq!(report.complete_records.status, RECIPIENT_RECORDS_VALIDATED);
+        assert_eq!(
+            report.complete_records.status,
+            RECIPIENT_RECORDS_VALIDATED
+        );
         assert_eq!(report.complete_records.records.len(), 2);
-        assert_eq!(report.complete_records.records[0].display_name, "Recipient 1");
-        assert_eq!(report.complete_records.records[0].address, "to1@domain.com");
+        assert_eq!(
+            report.complete_records.records[0].display_name,
+            "Recipient 1"
+        );
+        assert_eq!(
+            report.complete_records.records[0].address,
+            "to1@domain.com"
+        );
         assert_eq!(report.complete_records.records[1].role, "cc");
         assert!(report
             .status_fragment()
