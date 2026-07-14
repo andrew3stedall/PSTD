@@ -122,10 +122,7 @@ mod tests {
         }
         let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, rows)];
         let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1], 2, 8, 9);
-        let columns = vec![
-            descriptor(0, 0, 0x3001_001f),
-            descriptor(1, 4, 0x3003_001f),
-        ];
+        let columns = vec![descriptor(0, 0, 0x3001_001f), descriptor(1, 4, 0x3003_001f)];
 
         let report = project_complete_recipient_records(
             &payloads,
@@ -139,19 +136,13 @@ mod tests {
             &recipient_types(&["to", "cc"]),
         );
 
-        assert_eq!(
-            report.complete_records.status,
-            RECIPIENT_RECORDS_VALIDATED
-        );
+        assert_eq!(report.complete_records.status, RECIPIENT_RECORDS_VALIDATED);
         assert_eq!(report.complete_records.records.len(), 2);
         assert_eq!(
             report.complete_records.records[0].display_name,
             "Recipient 1"
         );
-        assert_eq!(
-            report.complete_records.records[0].address,
-            "to1@domain.com"
-        );
+        assert_eq!(report.complete_records.records[0].address, "to1@domain.com");
         assert_eq!(report.complete_records.records[1].role, "cc");
         assert!(report
             .status_fragment()
