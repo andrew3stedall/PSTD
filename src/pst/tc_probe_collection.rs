@@ -56,7 +56,8 @@ mod tests {
         bytes[2] = 0xec;
         bytes[3] = 0x7c;
 
-        let probe = record_subnode_payload_probe(&mut collector, &reference, &[payload(0x74, bytes)]);
+        let probe =
+            record_subnode_payload_probe(&mut collector, &reference, &[payload(0x74, bytes)]);
 
         assert_eq!(probe.root_node_id, 0x122);
         assert_eq!(probe.root_subnode_block_id, 0x244);
@@ -78,7 +79,8 @@ mod tests {
         bytes[2] = 0xec;
         bytes[3] = 0x7c;
 
-        let probe = record_subnode_payload_probe(&mut collector, &reference, &[payload(0x74, bytes)]);
+        let probe =
+            record_subnode_payload_probe(&mut collector, &reference, &[payload(0x74, bytes)]);
         let aggregate = collector.finish();
 
         assert_eq!(probe.decoded_payload_count, aggregate.decoded_payload_count);
