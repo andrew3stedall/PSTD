@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use pstd::engine::metadata::extract_metadata;
 use pstd::output::metadata::{MessageRecord, RecipientRecord};
