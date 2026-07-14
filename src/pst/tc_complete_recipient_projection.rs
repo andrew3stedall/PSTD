@@ -149,6 +149,66 @@ mod tests {
             .contains("0:to:Recipient 1:to1@domain.com:native_email_address"));
     }
 
+    #[test]
+    fn projects_the_four_public_fixture_recipient_rows_in_order() {
+        let values = [
+            "Recipient 1\0",
+            "Recipient 2\0",
+            "Recipient 3\0",
+            "Recipient 4\0",
+            "to1@domain.com\0",
+            "to2@domain.com\0",
+            "cc1@domain.com\0",
+            "cc2@domain.com\0",
+        ]
+        .map(|value| {
+            value
+                .encode_utf16()
+                .flat_map(u16::to_le_bytes)
+                .collect::<Vec<_>>()
+        });
+        let table_heap = sample_heap(&values);
+        let mut rows = Vec::new();
+        for (display_hid, address_hid) in [
+            (0x20u32, 0xa0u32),
+            (0x40u32, 0xc0u32),
+            (0x60u32, 0xe0u32),
+            (0x80u32, 0x100u32),
+        ] {
+            rows.extend_from_slice(&display_hid.to_le_bytes());
+            rows.extend_from_slice(&address_hid.to_le_bytes());
+            rows.push(0x03);
+        }
+        let payloads = vec![slblock(0x82, 0x74, 0x7a), payload(0x7a, rows)];
+        let resolution = resolve_subnode_row_storage(&payloads, 0x74, &[0, 1, 2, 3], 2, 8, 9);
+        let columns = vec![descriptor(0, 0, 0x3001_001f), descriptor(1, 4, 0x3003_001f)];
+
+        let report = project_complete_recipient_records(
+            &payloads,
+            0x74,
+            &resolution,
+            &columns,
+            &resolution.bitmap_masks,
+            &table_heap,
+            0,
+            8,
+            &recipient_types(&["to", "to", "cc", "cc"]),
+        );
+
+        assert_eq!(report.complete_records.status, RECIPIENT_RECORDS_VALIDATED);
+        assert_eq!(report.complete_records.records.len(), 4);
+        assert_eq!(report.complete_records.records[0].display_name, "Recipient 1");
+        assert_eq!(report.complete_records.records[0].address, "to1@domain.com");
+        assert_eq!(report.complete_records.records[1].role, "to");
+        assert_eq!(report.complete_records.records[2].display_name, "Recipient 3");
+        assert_eq!(report.complete_records.records[2].address, "cc1@domain.com");
+        assert_eq!(report.complete_records.records[3].role, "cc");
+        assert_eq!(report.complete_records.records[3].address, "cc2@domain.com");
+        assert!(report.status_fragment().contains(
+            "3:cc:Recipient 4:cc2@domain.com:native_email_address"
+        ));
+    }
+
     fn recipient_types(values: &[&str]) -> TcFixedWidthDiagnostic {
         TcFixedWidthDiagnostic {
             candidate_status: "candidate".to_string(),
