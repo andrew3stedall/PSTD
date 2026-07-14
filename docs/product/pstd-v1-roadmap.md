@@ -1,6 +1,6 @@
 # PSTD Roadmap
 
-_Last reviewed: 14 July 2026._
+_Last reviewed: 15 July 2026._
 
 ## Objective
 
@@ -15,7 +15,7 @@ Deliver reliable PST email extraction before investing in downstream storage or 
 - Preserve existing extraction behaviour and add regression tests for every new path.
 - Re-run the public fixture after every milestone and revise the next milestone from the artifact.
 - Keep Snowflake, UI, search, analytics, semantic search, and graph work parked.
-- Treat EML generation as a later assembly layer over reliable extracted data, not as a substitute for parser coverage.
+- Treat EML generation as an assembly layer over validated extracted data, not as a substitute for parser coverage.
 
 ## Completed foundation
 
@@ -27,9 +27,9 @@ Complete. This lane delivered the Rust CLI, Python wrapper, Docker packaging, st
 
 Complete. This lane corrected PST traversal, identified real folder/message candidates, improved property and body extraction, resolved Heap-on-Node/BTH/subnode/Table Context structures, validated row addressing and transport, decoded supported fixed-width MAPI values, and integrated bounded diagnostics.
 
-### Vertical 1-16: recipient extraction and production evidence
+### Vertical recipient lane: roles through structured output
 
-Complete through production reporting. This lane progressed from the first real semantic row property to:
+Complete. This lane progressed from the first real semantic recipient property to:
 
 - recipient roles;
 - display-name and address string references;
@@ -38,9 +38,10 @@ Complete through production reporting. This lane progressed from the first real 
 - row-aligned role/name/address records;
 - address-property selection and address-kind classification;
 - complete recipient records retaining role, display name, address, and address kind;
-- one production public-fixture execution publishing all four complete records.
+- one production public-fixture execution publishing all four complete records;
+- four actual `RecipientRecord` JSONL rows attached to the extracted message.
 
-The public fixture now exposes:
+The public fixture now emits:
 
 ```text
 To: Recipient 1 <to1@domain.com>
@@ -49,34 +50,38 @@ Cc: Recipient 3 <cc1@domain.com>
 Cc: Recipient 4 <cc2@domain.com>
 ```
 
-The current output remains diagnostic evidence rather than message-model recipient fields.
+The exact run preserved one message, two body payload records, zero attachments, and zero EML files while increasing output from 39,622 to 40,722 bytes. The four recipient records account for the 1,100-byte increase.
 
 ## Current milestone
 
-### Vertical 17: attach complete recipients to the extracted message
+### First complete readable EML
 
-The next milestone must consume the already validated complete-recipient projection and place the four records on the extracted message model. It must not introduce another standalone projection, formatter, diagnostic, or transport wrapper.
+The next milestone must assemble one real `.eml` file from data already validated on the public fixture. It must not introduce another recipient transport, projection, formatter, or diagnostic layer.
 
 Acceptance boundary:
 
-- role, display name, address, and address kind are available on the message result;
-- row order and To/Cc meaning remain unchanged;
-- incomplete combined evidence yields no partial message recipients;
-- the public fixture emits four structured message recipients in one run;
-- existing message, body, attachment, and output behaviour does not regress;
-- full CI and public-fixture evidence pass on the exact head.
+- emit one EML artifact for the one extracted fixture message;
+- use the validated subject and sender fields;
+- generate `To` and `Cc` headers from the four structured recipient records;
+- include the existing plain-text body payload;
+- preserve native recipient-address semantics internally while rendering usable RFC-style address headers;
+- use deterministic CRLF line endings and header/body separation;
+- fail closed when required message, recipient, or body evidence is unavailable or ambiguous;
+- add focused serialization tests and a public-fixture assertion over the emitted EML;
+- preserve existing message, body, recipient, and attachment outputs;
+- pass full CI on the exact merge head.
 
-Where the existing serializer boundary permits without widening the slice materially, the same validated records should feed EML `To` and `Cc` headers. Otherwise EML header emission is the immediately following milestone.
+HTML/RTF multipart selection and attachments are outside this first EML slice unless strictly required to emit the fixture's readable plain-text message.
 
 ## Following decision point
 
-After recipients are attached to the message model, review the full fixture artifact and select the largest remaining gap preventing a reconstructable email. Likely candidates include:
+After the first EML exists, review the full fixture artifact and choose the largest remaining gap preventing broad conversion coverage. Likely candidates include:
 
-- EML header and file emission;
 - preferred body selection and encoding fidelity;
-- HTML/RTF normalization;
+- HTML and RTF normalization or multipart alternatives;
 - attachment table and payload extraction;
-- embedded-message extraction.
+- embedded-message extraction;
+- broader fixture validation and malformed-input coverage.
 
 These are candidates, not a fixed queue. The artifact must determine the order.
 
@@ -90,7 +95,7 @@ PSTD should not be described as conversion-complete until a representative fixtu
 - To/Cc/Bcc recipients with names and usable addresses;
 - plain text, HTML, and RTF handling appropriate to the source;
 - attachment metadata and bytes, including explicit handling for embedded messages;
-- deterministic structured output suitable for EML assembly;
+- deterministic structured output and EML assembly;
 - corruption and unsupported-layout behaviour that fails closed rather than guessing;
 - no regressions across the approved fixture set.
 
@@ -103,4 +108,4 @@ The following remain intentionally outside the active extraction lane:
 3. Semantic search, embeddings, tagging, graph, and LLM/RAG workflows.
 4. Distributed orchestration beyond the current local/Docker batch model.
 
-EML assembly is no longer treated as generally deferred: it should begin incrementally once validated message fields are attached to the message model, while exact-preservation policy remains a later hardening concern.
+EML assembly is now active. Exact-preservation policy and large-corpus hardening remain later concerns after the first complete readable message is emitted.
