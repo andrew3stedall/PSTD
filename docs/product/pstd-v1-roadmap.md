@@ -52,42 +52,49 @@ Cc: Recipient 4 <cc2@domain.com>
 
 The exact run preserved one message, two body payload records, zero attachments, and increased structured output from 39,622 to 40,722 bytes. The four recipient records account for the 1,100-byte increase.
 
-### First complete readable EML
+### First complete readable EML and Date header
 
-Complete. The public fixture emits one deterministic CRLF `.eml` assembled from validated sender, subject, recipient, and plain-text-body data. The EML is 574 bytes before the Date-header milestone.
+Complete. The public fixture emits one deterministic CRLF `.eml` assembled from validated sender, subject, recipient, plain-text-body, and transport Date data. The EML is 613 bytes and contains:
+
+```text
+Date: Wed, 19 Aug 2015 11:07:26 +0000
+```
+
+### Readable RTF body
+
+Complete pending final green merge. The fixture's 336-byte `PidTagRtfCompressed` value is a validated zero-CRC `MELA` container with matching 332-byte framing fields. It produces one 320-byte standalone RTF document for message `msg_ad9f58792ae34dfc`.
+
+The RTF exposes rich-text content absent from the plain-text body:
+
+```text
+This line is in bold.
+This line is in blue color
+```
+
+It also carries `\\fromhtml1`, confirming that this representation contains HTML-derived formatting information rather than merely duplicating the existing plain text.
 
 ## Current milestone
 
-### Validated Date header
+### Multipart readable EML
 
-The next slice adds one authoritative timestamp to the readable EML using the exact Date field already present in the extracted transport-header block:
-
-```text
-Date: 19 Aug 2015 11:07:26 +0000
-```
+Integrate the validated 320-byte rich-text representation into the existing readable EML while preserving the current plain-text alternative.
 
 Acceptance boundary:
 
-- require exactly one Date field in the transport-header block;
-- parse it using RFC 2822 date semantics;
-- emit `Date: Wed, 19 Aug 2015 11:07:26 +0000`;
-- omit Date when absent, duplicated, malformed, or unsafe rather than guessing;
-- do not relabel the value as a MAPI sent, received, created, or modified timestamp;
-- preserve one message, two body payloads, four recipients, zero attachments, and one EML;
+- emit one standards-compliant multipart EML for the public fixture;
+- retain the existing readable text/plain body;
+- include the validated rich representation without reparsing PST bytes;
+- use deterministic boundaries and CRLF formatting;
+- preserve one message, two body payload records, four recipients, zero attachments, and one EML;
+- fail closed when the rich body is unavailable or invalid;
 - add focused tests and a public-fixture assertion;
 - pass full CI on the exact merge head.
 
-The structured timestamp fields remain null on the fixture. This milestone therefore improves the readable message using authoritative transport evidence without claiming a fixed-width MAPI timestamp extraction that has not occurred.
+The exact MIME representation must be selected from the validated artifact. A wrapper-only or diagnostics-only milestone is not justified.
 
 ## Following decision point
 
-After the Date header is validated, review the complete fixture artifact and choose the largest remaining fidelity gap. Likely candidates include:
-
-- preferred body selection and encoding fidelity;
-- HTML and RTF normalization or multipart alternatives;
-- attachment table and payload extraction;
-- embedded-message extraction;
-- broader fixture validation and malformed-input coverage.
+After multipart body assembly, inspect the fixture for the next largest observable extraction gap. The likely next target is attachment-table and attachment-payload extraction, followed by embedded-message handling and broader fixture validation.
 
 These are candidates, not a fixed queue. The artifact must determine the order.
 
