@@ -27,9 +27,8 @@ pub fn message_recipients_from_complete_records(
         };
     }
 
-    let mut expected_row_index = 0usize;
     let mut recipients = Vec::with_capacity(report.records.len());
-    for record in &report.records {
+    for (expected_row_index, record) in report.records.iter().enumerate() {
         if record.row_index != expected_row_index {
             return failed(format!(
                 "recipient row order is not contiguous: expected {expected_row_index}, observed {}",
@@ -71,7 +70,6 @@ pub fn message_recipients_from_complete_records(
             resolution_status,
             ordinal: record.row_index as u64,
         });
-        expected_row_index += 1;
     }
 
     TcMessageRecipientReport {
