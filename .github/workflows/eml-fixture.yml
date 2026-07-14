@@ -55,6 +55,7 @@ jobs:
               'To: Recipient 1 <to1@domain.com>, Recipient 2 <to2@domain.com>\r\n',
               'Cc: Recipient 3 <cc1@domain.com>, Recipient 4 <cc2@domain.com>\r\n',
               'Subject: New message created by Aspose.Email for Java(Aspose.Email Evaluation)\r\n',
+              'Date: Wed, 19 Aug 2015 11:07:26 +0000\r\n',
               'MIME-Version: 1.0\r\n',
               'Content-Type: text/plain; charset=utf-8\r\n',
           ]
@@ -62,6 +63,8 @@ jobs:
           if missing:
               raise SystemExit(f'EML missing required readable content: {missing!r}')
           headers, body = text.split('\r\n\r\n', 1)
+          if headers.count('\r\nDate: ') != 1:
+              raise SystemExit('EML must contain exactly one validated Date header')
           controls = [character for character in headers if ord(character) < 32 and character not in '\t\r\n']
           if controls:
               raise SystemExit(f'EML headers contain control characters: {controls!r}')
