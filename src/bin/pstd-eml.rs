@@ -3,6 +3,7 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
+use chrono::{DateTime, FixedOffset};
 use pstd::engine::metadata::extract_metadata;
 use pstd::output::metadata::{MessageRecord, RecipientRecord};
 use pstd::pst::messages::BodyPayload;
@@ -118,6 +119,9 @@ fn build_eml(
         push_header(&mut eml, "Cc", &cc);
     }
     push_header(&mut eml, "Subject", &subject);
+    if let Some(date) = validated_transport_date(message) {
+        push_header(&mut eml, "Date", &date);
+    }
     if let Some(message_id) = message
         .internet_message_id
         .as_deref()
@@ -134,6 +138,22 @@ fn build_eml(
         eml.push_str("\r\n");
     }
     Some(eml.into_bytes())
+}
+
+fn validated_transport_date(message: &MessageRecord) -> Option<String> {
+    let headers = message.transport_message_headers.as_deref()?;
+    let mut dates = headers.lines().filter_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        name.eq_ignore_ascii_case("Date")
+            .then(|| clean_header(value))
+            .flatten()
+    });
+    let value = dates.next()?;
+    if dates.next().is_some() {
+        return None;
+    }
+    let parsed: DateTime<FixedOffset> = DateTime::parse_from_rfc2822(&value).ok()?;
+    Some(parsed.format("%a, %d %b %Y %H:%M:%S %z").to_string())
 }
 
 fn recipient_header(records: &[RecipientRecord], role: &str) -> Option<String> {
@@ -232,7 +252,10 @@ mod tests {
             received_at: None,
             created_at: None,
             modified_at: None,
-            transport_message_headers: None,
+            transport_message_headers: Some(
+                "From: Fixture Sender <sender@example.com>\r\nDate: 19 Aug 2015 11:07:26 +0000\r\n"
+                    .to_string(),
+            ),
             internet_message_id: Some("<fixture@example.com>".to_string()),
             in_reply_to_id: None,
             conversation_index: None,
@@ -277,8 +300,22 @@ mod tests {
         assert!(eml.contains("To: Recipient 1 <to1@domain.com>, Recipient 2 <to2@domain.com>\r\n"));
         assert!(eml.contains("Cc: Recipient 3 <cc1@domain.com>\r\n"));
         assert!(eml.contains("Subject: Fixture subject\r\n"));
+        assert!(eml.contains("Date: Wed, 19 Aug 2015 11:07:26 +0000\r\n"));
         assert!(!eml.contains('\u{1}'));
         assert!(eml.ends_with("\r\n\r\nHello\r\nworld\r\n"));
+    }
+
+    #[test]
+    fn omits_unvalidated_or_ambiguous_transport_dates() {
+        let mut invalid = message();
+        invalid.transport_message_headers = Some("Date: not-a-date\r\n".to_string());
+        assert!(validated_transport_date(&invalid).is_none());
+
+        let mut ambiguous = message();
+        ambiguous.transport_message_headers = Some(
+            "Date: 19 Aug 2015 11:07:26 +0000\r\nDate: 20 Aug 2015 11:07:26 +0000\r\n".to_string(),
+        );
+        assert!(validated_transport_date(&ambiguous).is_none());
     }
 
     #[test]
