@@ -389,9 +389,7 @@ mod tests {
             received_at: None,
             created_at: None,
             modified_at: None,
-            transport_message_headers: Some(
-                "Date: 19 Aug 2015 11:07:26 +0000\r\n".to_string(),
-            ),
+            transport_message_headers: Some("Date: 19 Aug 2015 11:07:26 +0000\r\n".to_string()),
             internet_message_id: Some("<fixture@example.com>".to_string()),
             in_reply_to_id: None,
             conversation_index: None,
