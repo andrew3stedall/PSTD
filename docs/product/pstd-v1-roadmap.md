@@ -29,19 +29,7 @@ Complete. This lane corrected PST traversal, identified real folder/message cand
 
 ### Vertical recipient lane: roles through structured output
 
-Complete. This lane progressed from the first real semantic recipient property to:
-
-- recipient roles;
-- display-name and address string references;
-- heap-resident string decoding;
-- end-to-end recipient identity projection;
-- row-aligned role/name/address records;
-- address-property selection and address-kind classification;
-- complete recipient records retaining role, display name, address, and address kind;
-- one production public-fixture execution publishing all four complete records;
-- four actual `RecipientRecord` JSONL rows attached to the extracted message.
-
-The public fixture now emits:
+Complete. The public fixture emits four actual `RecipientRecord` rows:
 
 ```text
 To: Recipient 1 <to1@domain.com>
@@ -50,53 +38,55 @@ Cc: Recipient 3 <cc1@domain.com>
 Cc: Recipient 4 <cc2@domain.com>
 ```
 
-The exact run preserved one message, two body payload records, zero attachments, and increased structured output from 39,622 to 40,722 bytes. The four recipient records account for the 1,100-byte increase.
+The exact run preserved one message, two body payload records, zero attachments, and increased structured output from 39,622 to 40,722 bytes.
 
 ### First complete readable EML and Date header
 
-Complete. The public fixture emits one deterministic CRLF `.eml` assembled from validated sender, subject, recipient, plain-text-body, and transport Date data. The EML is 613 bytes and contains:
-
-```text
-Date: Wed, 19 Aug 2015 11:07:26 +0000
-```
+Complete. The public fixture emits one deterministic CRLF `.eml` assembled from validated sender, subject, recipient, plain-text-body, and transport Date data.
 
 ### Readable RTF body
 
-Complete pending final green merge. The fixture's 336-byte `PidTagRtfCompressed` value is a validated zero-CRC `MELA` container with matching 332-byte framing fields. It produces one 320-byte standalone RTF document for message `msg_ad9f58792ae34dfc`.
-
-The RTF exposes rich-text content absent from the plain-text body:
+Complete. The fixture's 336-byte `PidTagRtfCompressed` value produces one validated 320-byte standalone RTF document for message `msg_ad9f58792ae34dfc` containing:
 
 ```text
 This line is in bold.
 This line is in blue color
 ```
 
-It also carries `\\fromhtml1`, confirming that this representation contains HTML-derived formatting information rather than merely duplicating the existing plain text.
+### Multipart readable EML
+
+Complete. The public fixture emits one 1,175-byte `multipart/alternative` EML containing ordered `text/plain` and `text/rtf` parts while preserving sender, recipients, subject, Date, and Message-ID.
+
+### Readable HTML body
+
+Complete. The validated 320-byte `\fromhtml1` RTF produces one 95-byte standalone HTML document for message `msg_ad9f58792ae34dfc` containing bold and blue-text markup with no raw RTF control data.
+
+The milestone preserved one message, two body payload records, four recipients, zero attachments, one 1,175-byte EML, and one 320-byte standalone RTF while increasing combined observable EML, RTF, and HTML output from 1,495 to 1,590 bytes.
 
 ## Current milestone
 
-### Multipart readable EML
+### Emit plain-text and HTML EML alternatives
 
-Integrate the validated 320-byte rich-text representation into the existing readable EML while preserving the current plain-text alternative.
+Replace the EML's `text/rtf` alternative with the newly validated `text/html` representation while retaining the existing `text/plain` part.
 
 Acceptance boundary:
 
-- emit one standards-compliant multipart EML for the public fixture;
-- retain the existing readable text/plain body;
-- include the validated rich representation without reparsing PST bytes;
-- use deterministic boundaries and CRLF formatting;
-- preserve one message, two body payload records, four recipients, zero attachments, and one EML;
-- fail closed when the rich body is unavailable or invalid;
-- add focused tests and a public-fixture assertion;
-- pass full CI on the exact merge head.
+- reuse the validated HTML recovery path rather than reinterpreting RTF independently;
+- emit one deterministic `multipart/alternative` EML with ordered `text/plain` and `text/html` parts;
+- preserve sender, To, Cc, Subject, Date, and Message-ID;
+- preserve the known plain-text body and recovered bold and blue-text HTML markup;
+- emit no raw RTF controls in the EML body;
+- fail closed when HTML recovery is unavailable, malformed, or unsafe;
+- record the exact EML byte count;
+- pass focused regression tests and all exact-head fixture workflows.
 
-The exact MIME representation must be selected from the validated artifact. A wrapper-only or diagnostics-only milestone is not justified.
+Attachment work remains deferred because the current public fixture contains zero attachment candidates. Adding attachment abstractions against it would not produce observable attachment data.
 
 ## Following decision point
 
-After multipart body assembly, inspect the fixture for the next largest observable extraction gap. The likely next target is attachment-table and attachment-payload extraction, followed by embedded-message handling and broader fixture validation.
+After HTML-backed EML assembly, obtain or add an approved fixture containing at least one real attachment before extending attachment extraction. Do not create attachment-only infrastructure without observable fixture evidence.
 
-These are candidates, not a fixed queue. The artifact must determine the order.
+These are evidence-led candidates, not a fixed queue.
 
 ## Completion definition for reliable extraction
 
@@ -113,8 +103,6 @@ PSTD should not be described as conversion-complete until a representative fixtu
 - no regressions across the approved fixture set.
 
 ## Deferred roadmap
-
-The following remain intentionally outside the active extraction lane:
 
 1. Snowflake ingestion.
 2. Search and review web application.
