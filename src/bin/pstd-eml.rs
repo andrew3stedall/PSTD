@@ -284,7 +284,9 @@ fn read_control(input: &[u8], start: usize) -> Option<(String, Option<i32>, usiz
     while input.get(index).is_some_and(u8::is_ascii_alphabetic) {
         index += 1;
     }
-    let word = std::str::from_utf8(input.get(word_start..index)?).ok()?.to_string();
+    let word = std::str::from_utf8(input.get(word_start..index)?)
+        .ok()?
+        .to_string();
     let mut sign = 1i32;
     if input.get(index) == Some(&b'-') {
         sign = -1;
