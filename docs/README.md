@@ -1,6 +1,6 @@
 # PSTD Documentation
 
-_Last reviewed: 14 July 2026._
+_Last reviewed: 16 July 2026._
 
 This documentation tree contains both current operating guidance and historical delivery evidence. Use the current-state pages below for present capability and next work. Milestone, PQ, vertical, issue-plan, and implementation-plan files record what was known at the time they were written.
 
@@ -11,6 +11,7 @@ This documentation tree contains both current operating guidance and historical 
 | Project intent, headline progress, and commands | [Root README](../README.md) |
 | Current merged capability and active blocker | [Project Status](product/project-status.md) |
 | Real-fixture evidence over time | [Public PST Progress Log](operations/public-pst-progress-log.md) |
+| Approved upstream fixtures, provenance, hashes, and development order | [Upstream PST Fixture Corpus](operations/upstream-pst-fixture-corpus.md) |
 | Current extraction roadmap | [PSTD Roadmap](product/pstd-v1-roadmap.md) |
 | Documentation freshness and history policy | [Documentation Status](DOCUMENTATION_STATUS.md) |
 | Architecture | [System Overview](architecture/system-overview.md) |
@@ -25,14 +26,13 @@ This documentation tree contains both current operating guidance and historical 
 | Delivery phase | Current outcome |
 |---|---|
 | M1-M25 | Product foundation complete: CLI, Python wrapper, Docker, TAR/JSONL outputs, batch/resume, diagnostics, and operator handoff. |
-| PQ1-PQ35 | Corrected traversal and discovered real folder, message, property, payload, and subnode structures. |
-| PQ36 | Material body/property fidelity improvement and stricter structural admission. |
-| PQ37-PQ57 | Validated the real Table Context heap and four bounded 52-byte rows. |
-| PQ58-PQ74 | Validated column mapping, row transport, fixed-width value decoding, and production diagnostic publication. |
-| Vertical 1-13 | Extracted and assembled recipient roles, display names, addresses, and address kinds into complete row-aligned records. |
-| Draft PR #430 | Same-run complete recipient projection is under review and is not yet merged capability. |
+| PQ1-PQ74 | Validated parser foundation through bounded traversal, Table Context row transport, and fixed-width value decoding. |
+| Recipient verticals | Four structured To/Cc recipient records with names and usable addresses are emitted from the original public fixture. |
+| Readable message verticals | One deterministic 956-byte EML is emitted with sender, recipients, subject, Date, Message-ID, plain text, and recovered HTML. |
+| Upstream fixture corpus | Three pinned public PSTs now cover attachments, multiple folders/messages, body forms, appointments, recurrence, contacts, distribution lists, and legacy Exchange addresses. |
+| Current milestone | Extract the first validated attachment field from the known DOCX-bearing message in `tika-testPST.pst`. |
 
-The next merged behaviour should project complete recipient records from one validated execution and publish them through production Table Context reporting. The exact follow-up after that must be chosen from the resulting fixture evidence.
+The current roadmap and fixture-corpus guide define the active evidence-led sequence. Historical milestone and PQ documents remain useful for implementation context but do not define the next task.
 
 ## Current guidance by audience
 
@@ -54,10 +54,11 @@ The next merged behaviour should project complete recipient records from one val
 ### Operations and evidence
 
 - [Public PST Progress Log](operations/public-pst-progress-log.md)
+- [Upstream PST Fixture Corpus](operations/upstream-pst-fixture-corpus.md)
 - [Local Validation](operations/local-validation.md)
 - [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
 - [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md)
-- [Vertical 13: Complete Recipient Records](operations/vertical-13-assemble-complete-recipient-records.md)
+- [Vertical 28: Plain-text and HTML EML](operations/vertical-28-emit-plain-html-eml.md)
 
 ### Data contract
 
