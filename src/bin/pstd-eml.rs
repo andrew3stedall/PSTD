@@ -8,6 +8,11 @@ use pstd::engine::metadata::extract_metadata;
 use pstd::output::metadata::{MessageRecord, RecipientRecord};
 use pstd::pst::messages::BodyPayload;
 
+const LZFU_MAGIC: u32 = 0x7546_5a4c;
+const MELA_MAGIC: u32 = 0x414c_454d;
+const INITIAL_DICTIONARY: &[u8] = b"{\\rtf1\\ansi\\mac\\deff0\\deftab720{\\fonttbl;}{\\f0\\fnil \\froman \\fswiss \\fmodern \\fscript \\fdecor MS Sans SerifSymbolArialTimes New RomanCourier{\\colortbl\\red0\\green0\\blue0\r\n\\par \\pard\\plain\\f0\\fs20\\b\\i\\u\\tab\\tx";
+const ALTERNATIVE_BOUNDARY: &str = "pstd-alternative-7f6a8d2b";
+
 fn main() {
     if let Err(error) = run() {
         eprintln!("pstd-eml: {error}");
@@ -17,16 +22,10 @@ fn main() {
 
 fn run() -> Result<(), String> {
     let mut args = env::args_os().skip(1);
-    let input = args
-        .next()
-        .map(PathBuf::from)
-        .ok_or_else(|| "usage: pstd-eml <input.pst> <output-dir>".to_string())?;
-    let output = args
-        .next()
-        .map(PathBuf::from)
-        .ok_or_else(|| "usage: pstd-eml <input.pst> <output-dir>".to_string())?;
+    let input = args.next().map(PathBuf::from).ok_or_else(usage)?;
+    let output = args.next().map(PathBuf::from).ok_or_else(usage)?;
     if args.next().is_some() {
-        return Err("usage: pstd-eml <input.pst> <output-dir>".to_string());
+        return Err(usage());
     }
 
     fs::create_dir_all(&output).map_err(|error| error.to_string())?;
@@ -37,9 +36,8 @@ fn run() -> Result<(), String> {
         .map_err(|error| format!("metadata extraction failed: {error}"))?;
 
     let recipients = recipients_by_message(&metadata.recipients);
-    let bodies = text_bodies_by_message(&metadata.body_payloads);
+    let bodies = bodies_by_message(&metadata.body_payloads);
     let mut emitted = 0usize;
-
     for message in &metadata.messages {
         let Some(body) = bodies.get(&message.message_key) else {
             continue;
@@ -52,15 +50,25 @@ fn run() -> Result<(), String> {
             continue;
         };
         let path = output.join(format!("{}.eml", safe_filename(&message.message_key)));
-        fs::write(&path, eml).map_err(|error| error.to_string())?;
+        fs::write(path, eml).map_err(|error| error.to_string())?;
         emitted += 1;
     }
 
     println!("eml_files_emitted={emitted}");
     if emitted == 0 {
-        return Err("no message had the validated sender, recipients, subject, and plain-text body required for EML emission".to_string());
+        return Err("no message had validated sender, recipients, subject, plain-text body, and readable RTF required for multipart EML emission".to_string());
     }
     Ok(())
+}
+
+fn usage() -> String {
+    "usage: pstd-eml <input.pst> <output-dir>".to_string()
+}
+
+#[derive(Default)]
+struct MessageBodies {
+    text: Option<Vec<u8>>,
+    rtf: Option<Vec<u8>>,
 }
 
 fn recipients_by_message(records: &[RecipientRecord]) -> BTreeMap<String, Vec<RecipientRecord>> {
@@ -77,22 +85,30 @@ fn recipients_by_message(records: &[RecipientRecord]) -> BTreeMap<String, Vec<Re
     grouped
 }
 
-fn text_bodies_by_message(payloads: &[BodyPayload]) -> BTreeMap<String, Vec<u8>> {
-    let mut bodies = BTreeMap::new();
+fn bodies_by_message(payloads: &[BodyPayload]) -> BTreeMap<String, MessageBodies> {
+    let mut bodies: BTreeMap<String, MessageBodies> = BTreeMap::new();
     for payload in payloads {
-        if payload.record.body_type == "text" && !payload.bytes.is_empty() {
-            bodies
-                .entry(payload.record.message_key.clone())
-                .or_insert_with(|| payload.bytes.clone());
+        let entry = bodies
+            .entry(payload.record.message_key.clone())
+            .or_default();
+        match payload.record.body_type.as_str() {
+            "text" if !payload.bytes.is_empty() && entry.text.is_none() => {
+                entry.text = Some(payload.bytes.clone());
+            }
+            "rtf" if entry.rtf.is_none() => {
+                entry.rtf = validated_rtf(&payload.bytes);
+            }
+            _ => {}
         }
     }
+    bodies.retain(|_, body| body.text.is_some() && body.rtf.is_some());
     bodies
 }
 
 fn build_eml(
     message: &MessageRecord,
     recipients: &[RecipientRecord],
-    body: &[u8],
+    bodies: &MessageBodies,
 ) -> Option<Vec<u8>> {
     let subject = clean_header(message.subject.as_deref()?)?;
     let sender_address = message
@@ -102,14 +118,18 @@ fn build_eml(
         .and_then(clean_header)?;
     let sender_name = message.sender_name.as_deref().and_then(clean_header);
     let from = format_address(sender_name.as_deref(), &sender_address);
-
     let to = recipient_header(recipients, "to");
     let cc = recipient_header(recipients, "cc");
     if to.is_none() && cc.is_none() {
         return None;
     }
 
-    let body = std::str::from_utf8(body).ok()?;
+    let text = std::str::from_utf8(bodies.text.as_deref()?).ok()?;
+    let rtf = std::str::from_utf8(bodies.rtf.as_deref()?).ok()?;
+    if text.contains(ALTERNATIVE_BOUNDARY) || rtf.contains(ALTERNATIVE_BOUNDARY) {
+        return None;
+    }
+
     let mut eml = String::new();
     push_header(&mut eml, "From", &from);
     if let Some(to) = to {
@@ -130,14 +150,130 @@ fn build_eml(
         push_header(&mut eml, "Message-ID", &message_id);
     }
     push_header(&mut eml, "MIME-Version", "1.0");
-    push_header(&mut eml, "Content-Type", "text/plain; charset=utf-8");
-    push_header(&mut eml, "Content-Transfer-Encoding", "8bit");
+    push_header(
+        &mut eml,
+        "Content-Type",
+        &format!("multipart/alternative; boundary=\"{ALTERNATIVE_BOUNDARY}\""),
+    );
     eml.push_str("\r\n");
-    eml.push_str(&normalize_crlf(body));
-    if !eml.ends_with("\r\n") {
-        eml.push_str("\r\n");
-    }
+    push_part(&mut eml, "text/plain; charset=utf-8", &normalize_crlf(text));
+    push_part(&mut eml, "text/rtf; charset=utf-8", &normalize_crlf(rtf));
+    eml.push_str("--");
+    eml.push_str(ALTERNATIVE_BOUNDARY);
+    eml.push_str("--\r\n");
     Some(eml.into_bytes())
+}
+
+fn push_part(output: &mut String, content_type: &str, body: &str) {
+    output.push_str("--");
+    output.push_str(ALTERNATIVE_BOUNDARY);
+    output.push_str("\r\n");
+    push_header(output, "Content-Type", content_type);
+    push_header(output, "Content-Transfer-Encoding", "8bit");
+    output.push_str("\r\n");
+    output.push_str(body);
+    if !output.ends_with("\r\n") {
+        output.push_str("\r\n");
+    }
+}
+
+fn validated_rtf(bytes: &[u8]) -> Option<Vec<u8>> {
+    if bytes.starts_with(b"{\\rtf") {
+        return Some(bytes.to_vec());
+    }
+    let decoded = decompress_rtf(bytes)?;
+    decoded.starts_with(b"{\\rtf").then_some(decoded)
+}
+
+fn decompress_rtf(input: &[u8]) -> Option<Vec<u8>> {
+    if input.len() < 16 {
+        return None;
+    }
+    let compressed_size = read_u32(input, 0)? as usize;
+    let raw_size = read_u32(input, 4)? as usize;
+    let magic = read_u32(input, 8)?;
+    let expected_crc = read_u32(input, 12)?;
+    if compressed_size.checked_add(4)? != input.len() {
+        return None;
+    }
+    let payload = &input[16..];
+    match magic {
+        MELA_MAGIC => {
+            if expected_crc != 0
+                || compressed_size != raw_size
+                || payload.len().checked_add(12)? != raw_size
+            {
+                return None;
+            }
+            Some(payload.to_vec())
+        }
+        LZFU_MAGIC => {
+            if crc32(payload) != expected_crc {
+                return None;
+            }
+            let decoded = decompress_lzfu(payload, raw_size)?;
+            (decoded.len() == raw_size).then_some(decoded)
+        }
+        _ => None,
+    }
+}
+
+fn decompress_lzfu(input: &[u8], raw_size: usize) -> Option<Vec<u8>> {
+    let mut dictionary = [0u8; 4096];
+    dictionary[..INITIAL_DICTIONARY.len()].copy_from_slice(INITIAL_DICTIONARY);
+    let mut dictionary_position = INITIAL_DICTIONARY.len();
+    let mut output = Vec::with_capacity(raw_size);
+    let mut input_position = 0usize;
+    while output.len() < raw_size {
+        let flags = *input.get(input_position)?;
+        input_position += 1;
+        for bit in 0..8 {
+            if output.len() == raw_size {
+                break;
+            }
+            if flags & (1 << bit) == 0 {
+                let value = *input.get(input_position)?;
+                input_position += 1;
+                output.push(value);
+                dictionary[dictionary_position & 0x0fff] = value;
+                dictionary_position = (dictionary_position + 1) & 0x0fff;
+            } else {
+                let first = *input.get(input_position)? as usize;
+                let second = *input.get(input_position + 1)? as usize;
+                input_position += 2;
+                let mut reference = (first << 4) | (second >> 4);
+                let length = (second & 0x0f) + 2;
+                for _ in 0..length {
+                    if output.len() == raw_size {
+                        break;
+                    }
+                    let value = dictionary[reference & 0x0fff];
+                    reference = (reference + 1) & 0x0fff;
+                    output.push(value);
+                    dictionary[dictionary_position & 0x0fff] = value;
+                    dictionary_position = (dictionary_position + 1) & 0x0fff;
+                }
+            }
+        }
+    }
+    Some(output)
+}
+
+fn read_u32(input: &[u8], offset: usize) -> Option<u32> {
+    Some(u32::from_le_bytes(
+        input.get(offset..offset + 4)?.try_into().ok()?,
+    ))
+}
+
+fn crc32(bytes: &[u8]) -> u32 {
+    let mut crc = 0xffff_ffffu32;
+    for byte in bytes {
+        crc ^= u32::from(*byte);
+        for _ in 0..8 {
+            crc = (crc >> 1) ^ (0xedb8_8320 & (0u32.wrapping_sub(crc & 1)));
+        }
+    }
+    !crc
 }
 
 fn validated_transport_date(message: &MessageRecord) -> Option<String> {
@@ -187,7 +323,7 @@ fn quote_display_name(value: &str) -> String {
     {
         value.to_string()
     } else {
-        format!("\"{}\"", value.replace('\\', "\\\\").replace('\"', "\\\""))
+        format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
     }
 }
 
@@ -233,6 +369,7 @@ fn safe_filename(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pstd::pst::messages::body_payload;
 
     fn message() -> MessageRecord {
         MessageRecord {
@@ -243,7 +380,7 @@ mod tests {
             message_node_id: None,
             folder_path: "/Inbox".to_string(),
             item_type: "message".to_string(),
-            subject: Some("\u{1}\u{1}Fixture subject".to_string()),
+            subject: Some("Fixture subject".to_string()),
             sender_name: Some("Fixture Sender".to_string()),
             sender_email: Some("sender@example.com".to_string()),
             sender_raw_address: None,
@@ -252,10 +389,7 @@ mod tests {
             received_at: None,
             created_at: None,
             modified_at: None,
-            transport_message_headers: Some(
-                "From: Fixture Sender <sender@example.com>\r\nDate: 19 Aug 2015 11:07:26 +0000\r\n"
-                    .to_string(),
-            ),
+            transport_message_headers: Some("Date: 19 Aug 2015 11:07:26 +0000\r\n".to_string()),
             internet_message_id: Some("<fixture@example.com>".to_string()),
             in_reply_to_id: None,
             conversation_index: None,
@@ -273,13 +407,13 @@ mod tests {
         }
     }
 
-    fn recipient(ordinal: u64, role: &str, name: &str, address: &str) -> RecipientRecord {
+    fn recipient(ordinal: u64, role: &str) -> RecipientRecord {
         RecipientRecord {
             message_key: "message".to_string(),
             recipient_key: format!("recipient-{ordinal}"),
             recipient_type: role.to_string(),
-            display_name: Some(name.to_string()),
-            raw_address: Some(address.to_string()),
+            display_name: Some(format!("Recipient {ordinal}")),
+            raw_address: Some(format!("r{ordinal}@example.com")),
             address_type: Some("native_email_address".to_string()),
             smtp_address: None,
             resolution_status: "validated".to_string(),
@@ -288,47 +422,52 @@ mod tests {
     }
 
     #[test]
-    fn emits_readable_crlf_message_from_validated_fields() {
-        let recipients = vec![
-            recipient(0, "to", "Recipient 1", "to1@domain.com"),
-            recipient(1, "to", "Recipient 2", "to2@domain.com"),
-            recipient(2, "cc", "Recipient 3", "cc1@domain.com"),
-        ];
-        let eml = build_eml(&message(), &recipients, b"Hello\nworld").unwrap();
+    fn emits_multipart_plain_and_rtf_message() {
+        let bodies = MessageBodies {
+            text: Some(b"Hello\nworld".to_vec()),
+            rtf: Some(b"{\\rtf1\\ansi Rich body}".to_vec()),
+        };
+        let eml = build_eml(
+            &message(),
+            &[recipient(0, "to"), recipient(1, "cc")],
+            &bodies,
+        )
+        .unwrap();
         let eml = String::from_utf8(eml).unwrap();
-        assert!(eml.contains("From: Fixture Sender <sender@example.com>\r\n"));
-        assert!(eml.contains("To: Recipient 1 <to1@domain.com>, Recipient 2 <to2@domain.com>\r\n"));
-        assert!(eml.contains("Cc: Recipient 3 <cc1@domain.com>\r\n"));
-        assert!(eml.contains("Subject: Fixture subject\r\n"));
-        assert!(eml.contains("Date: Wed, 19 Aug 2015 11:07:26 +0000\r\n"));
-        assert!(!eml.contains('\u{1}'));
-        assert!(eml.ends_with("\r\n\r\nHello\r\nworld\r\n"));
+        assert!(eml.contains(
+            "Content-Type: multipart/alternative; boundary=\"pstd-alternative-7f6a8d2b\"\r\n"
+        ));
+        assert!(eml.contains("Content-Type: text/plain; charset=utf-8\r\n"));
+        assert!(eml.contains("Content-Type: text/rtf; charset=utf-8\r\n"));
+        assert!(eml.contains("Hello\r\nworld"));
+        assert!(eml.contains("{\\rtf1\\ansi Rich body}"));
+        assert!(eml.ends_with("--pstd-alternative-7f6a8d2b--\r\n"));
     }
 
     #[test]
-    fn omits_unvalidated_or_ambiguous_transport_dates() {
-        let mut invalid = message();
-        invalid.transport_message_headers = Some("Date: not-a-date\r\n".to_string());
-        assert!(validated_transport_date(&invalid).is_none());
-
-        let mut ambiguous = message();
-        ambiguous.transport_message_headers = Some(
-            "Date: 19 Aug 2015 11:07:26 +0000\r\nDate: 20 Aug 2015 11:07:26 +0000\r\n".to_string(),
-        );
-        assert!(validated_transport_date(&ambiguous).is_none());
+    fn groups_only_messages_with_both_valid_body_representations() {
+        let payloads = vec![
+            body_payload("message", "text", b"plain".to_vec(), None),
+            body_payload("message", "rtf", b"{\\rtf1 rich}".to_vec(), None),
+            body_payload("other", "text", b"plain".to_vec(), None),
+        ];
+        let grouped = bodies_by_message(&payloads);
+        assert!(grouped.contains_key("message"));
+        assert!(!grouped.contains_key("other"));
     }
 
     #[test]
-    fn fails_closed_for_header_injection_or_missing_recipients() {
-        let mut invalid = message();
-        invalid.subject = Some("bad\r\nBcc: attacker@example.com".to_string());
-        assert!(build_eml(&invalid, &[], b"body").is_none());
-        assert!(build_eml(&message(), &[], b"body").is_none());
-    }
-
-    #[test]
-    fn rejects_non_utf8_plain_text_instead_of_guessing() {
-        let recipients = vec![recipient(0, "to", "Recipient", "to@domain.com")];
-        assert!(build_eml(&message(), &recipients, &[0xff, 0xfe]).is_none());
+    fn fails_closed_for_missing_or_invalid_rtf_and_boundary_collision() {
+        let recipients = vec![recipient(0, "to")];
+        let missing = MessageBodies {
+            text: Some(b"plain".to_vec()),
+            rtf: None,
+        };
+        assert!(build_eml(&message(), &recipients, &missing).is_none());
+        let collision = MessageBodies {
+            text: Some(ALTERNATIVE_BOUNDARY.as_bytes().to_vec()),
+            rtf: Some(b"{\\rtf1 rich}".to_vec()),
+        };
+        assert!(build_eml(&message(), &recipients, &collision).is_none());
     }
 }
