@@ -1,6 +1,6 @@
 # Unreleased
 
-_Last reviewed: 14 July 2026._
+_Last reviewed: 15 July 2026._
 
 ## Added
 
@@ -16,15 +16,16 @@ _Last reviewed: 14 July 2026._
 - Safe PST header/root selection, bounded byte reads, checked arithmetic, BBT/NBT traversal, block and subnode access, depth/cycle guards, Heap-on-Node, BTH, Property Context, and Table Context parsing.
 - Public PST progress workflow and deterministic bounded artifacts.
 - Table Context descriptor evidence, bitmap mapping, row-payload candidate resolution, direct/ordinal addressing, validated row transport, fixed-width scalar decoding, and production diagnostics through PQ74.
-- Recipient extraction verticals through Vertical 13:
-  - semantic `PidTagRecipientType` values;
-  - recipient identity HNID extraction;
-  - heap-resident `PT_UNICODE` and `PT_STRING8` decoding;
-  - end-to-end recipient identity projection;
-  - bounded production diagnostics;
-  - row-aligned role/name records;
-  - SMTP/native/display-name value classification;
-  - complete records retaining role, display name, address, and authoritative address kind.
+- End-to-end recipient extraction from Table Context rows, including:
+  - `PidTagRecipientType` role interpretation;
+  - display-name, native email-address, and SMTP-address string resolution;
+  - HNID and heap-resident value handling;
+  - fail-closed row alignment and table attribution;
+  - four structured `RecipientRecord` rows in production output.
+- Readable EML assembly from validated message metadata, recipients, transport Date, Message-ID, and body payloads.
+- Validated standalone RTF extraction for direct, MELA, and LZFu representations.
+- HTML recovery from validated `\fromhtml1` RTF with bounded destination handling.
+- Deterministic 956-byte `multipart/alternative` EML output with ordered `text/plain` and `text/html` parts.
 
 ## Changed
 
@@ -38,6 +39,7 @@ _Last reviewed: 14 July 2026._
 - Replaced legacy table assumptions with the real TC heap, row-index BTH, subnode-backed row storage, and four validated 52-byte rows.
 - Prevented internal LTP row bookkeeping properties from being reported as user-readable fields.
 - Preferred authoritative SMTP/native address properties over display-name fallback while retaining display names separately at the complete-record boundary.
+- Replaced the public fixture EML's raw `text/rtf` alternative with validated recovered `text/html` while retaining plain text and all validated headers.
 - Rebuilt the root README and current-state documentation so historical milestone/PQ files are no longer presented as the live roadmap.
 
 ## Current public-fixture result
@@ -54,24 +56,31 @@ Recipient roles: to, to, cc, cc
 Recipient display names: Recipient 1..4
 Recipient addresses: to1@domain.com, to2@domain.com, cc1@domain.com, cc2@domain.com
 Address classification: native_email_address
+Structured recipient records: 4
+EML files: 1
+EML MIME alternatives: text/plain, text/html
+EML bytes: 956
+Standalone RTF bytes: 320
+Standalone HTML bytes: 95
 ```
 
-Complete recipient records can be assembled on `main` from validated role, name, and address diagnostics. Same-run projection and production publication remain incomplete.
+The public fixture now produces one readable email containing sender, To/Cc recipients, subject, Date, Message-ID, plain text, and recovered HTML. The generated EML is deterministic CRLF output and contains no raw RTF MIME part.
 
 ## In progress
 
-- Draft PR #430 projects complete recipient records from the same validated rows and heap in one invocation. It is not part of the merged baseline until its exact head passes CI and merges.
+- Broader fixture coverage and attachment extraction remain evidence-blocked until an approved PST containing at least one real attachment or additional message layout is available.
 
 ## Known limitations
 
 - PSTD is not yet a generally compatible PST converter or PST-to-EML tool.
-- Public-fixture attachment output remains zero.
-- Recipient complete-record publication is not yet wired through the production fixture run.
+- The approved public fixture contains zero attachment candidates, so attachment filename, MIME type, payload, and embedded-message extraction are not yet validated end to end.
 - ANSI, uncommon, corrupt, embedded-message, and broad MAPI-layout coverage remain incomplete.
+- Non-ASCII RFC 2047 header encoding remains incomplete.
 - Downstream Snowflake, UI, search, semantic search, graph, and LLM/RAG work remains parked.
 
 ## Removed or superseded
 
 - The earlier assumption that completing M1-M25 made the extraction engine release-complete.
 - The PQ-cycle roadmap as the default operating model after the validated parser foundation reached PQ74.
-- Stale documentation that described M1-M3 scaffolds or PQ37/PQ57 as the current repository state.
+- Stale documentation that described recipient complete-record publication or first readable EML assembly as unfinished.
+- Raw `text/rtf` as the preferred rich EML alternative for the current HTML-derived fixture body.

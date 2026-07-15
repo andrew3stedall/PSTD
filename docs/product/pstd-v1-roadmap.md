@@ -55,7 +55,7 @@ This line is in blue color
 
 ### Multipart readable EML
 
-Complete. The public fixture emits one 1,175-byte `multipart/alternative` EML containing ordered `text/plain` and `text/rtf` parts while preserving sender, recipients, subject, Date, and Message-ID.
+Complete. The public fixture emitted one 1,175-byte `multipart/alternative` EML containing ordered `text/plain` and `text/rtf` parts while preserving sender, recipients, subject, Date, and Message-ID.
 
 ### Readable HTML body
 
@@ -63,30 +63,23 @@ Complete. The validated 320-byte `\fromhtml1` RTF produces one 95-byte standalon
 
 The milestone preserved one message, two body payload records, four recipients, zero attachments, one 1,175-byte EML, and one 320-byte standalone RTF while increasing combined observable EML, RTF, and HTML output from 1,495 to 1,590 bytes.
 
-## Current milestone
+### Plain-text and HTML EML alternatives
 
-### Emit plain-text and HTML EML alternatives
+Complete. The public fixture now emits one deterministic 956-byte `multipart/alternative` EML with ordered `text/plain` and `text/html` parts. It preserves the validated sender, To, Cc, Subject, Date, and Message-ID values, includes the known plain body and recovered bold/blue HTML markup, and contains no `text/rtf`, raw `\rtf`, or `\htmltag` content.
 
-Replace the EML's `text/rtf` alternative with the newly validated `text/html` representation while retaining the existing `text/plain` part.
+The exact fixture result preserves one message, two body payload records, four structured recipients, zero attachments, one 320-byte standalone RTF, and one 95-byte standalone HTML file. Combined observable EML, RTF, and HTML bytes changed from 1,590 to 1,371 because the compact HTML alternative replaced the larger raw RTF MIME representation.
 
-Acceptance boundary:
+## Current decision point
 
-- reuse the validated HTML recovery path rather than reinterpreting RTF independently;
-- emit one deterministic `multipart/alternative` EML with ordered `text/plain` and `text/html` parts;
-- preserve sender, To, Cc, Subject, Date, and Message-ID;
-- preserve the known plain-text body and recovered bold and blue-text HTML markup;
-- emit no raw RTF controls in the EML body;
-- fail closed when HTML recovery is unavailable, malformed, or unsafe;
-- record the exact EML byte count;
-- pass focused regression tests and all exact-head fixture workflows.
+The approved public fixture contains zero attachment candidates. Attachment filename, MIME type, payload, and embedded-message work cannot produce observable evidence against this PST and should not be extended through helper-only milestones.
 
-Attachment work remains deferred because the current public fixture contains zero attachment candidates. Adding attachment abstractions against it would not produce observable attachment data.
+The next coherent extraction milestone should begin only when one of these evidence sources is available:
 
-## Following decision point
+1. an approved PST fixture containing at least one real attachment;
+2. an approved additional PST containing more than one real message or a different PST/MAPI layout;
+3. a verified missing message field from the existing fixture that is not already recoverable from the current structured output.
 
-After HTML-backed EML assembly, obtain or add an approved fixture containing at least one real attachment before extending attachment extraction. Do not create attachment-only infrastructure without observable fixture evidence.
-
-These are evidence-led candidates, not a fixed queue.
+When an attachment-bearing fixture is available, prefer the smallest complete vertical slice that emits one validated filename, size, MIME type, or payload and carries it into the EML. Fail closed when table attribution or payload resolution is ambiguous.
 
 ## Completion definition for reliable extraction
 
