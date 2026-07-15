@@ -57,28 +57,34 @@ This line is in blue color
 
 Complete. The public fixture emits one 1,175-byte `multipart/alternative` EML containing ordered `text/plain` and `text/rtf` parts while preserving sender, recipients, subject, Date, and Message-ID.
 
+### Readable HTML body
+
+Complete. The validated 320-byte `\fromhtml1` RTF produces one 95-byte standalone HTML document for message `msg_ad9f58792ae34dfc` containing bold and blue-text markup with no raw RTF control data.
+
+The milestone preserved one message, two body payload records, four recipients, zero attachments, one 1,175-byte EML, and one 320-byte standalone RTF while increasing combined observable EML, RTF, and HTML output from 1,495 to 1,590 bytes.
+
 ## Current milestone
 
-### Recover readable HTML body
+### Emit plain-text and HTML EML alternatives
 
-The validated RTF declares `\fromhtml1` and carries real HTML tags in `\htmltag` destinations. Recover this as a standalone observable HTML representation without reinterpreting PST bytes or duplicating compressed-RTF decoding.
+Replace the EML's `text/rtf` alternative with the newly validated `text/html` representation while retaining the existing `text/plain` part.
 
 Acceptance boundary:
 
-- run the existing `pstd-rtf` decoder against the public fixture;
-- recover exactly one HTML file from that validated RTF;
-- preserve the known bold and blue-text markup and visible content;
-- emit no raw RTF control words into the HTML;
-- reject non-`fromhtml1`, unbalanced, malformed, or markup-free inputs;
-- preserve one message, two body payload records, four recipients, zero attachments, one EML, and one standalone RTF;
-- record the exact HTML byte count in the workflow artifact and milestone evidence;
-- pass focused regression tests and full exact-head CI.
+- reuse the validated HTML recovery path rather than reinterpreting RTF independently;
+- emit one deterministic `multipart/alternative` EML with ordered `text/plain` and `text/html` parts;
+- preserve sender, To, Cc, Subject, Date, and Message-ID;
+- preserve the known plain-text body and recovered bold and blue-text HTML markup;
+- emit no raw RTF controls in the EML body;
+- fail closed when HTML recovery is unavailable, malformed, or unsafe;
+- record the exact EML byte count;
+- pass focused regression tests and all exact-head fixture workflows.
 
-This milestone is preferred over attachment work because the current public fixture contains zero attachment candidates. Adding attachment abstractions against it would not produce observable attachment data.
+Attachment work remains deferred because the current public fixture contains zero attachment candidates. Adding attachment abstractions against it would not produce observable attachment data.
 
 ## Following decision point
 
-After HTML recovery, integrate the validated HTML representation into the EML as the preferred rich alternative while retaining plain text. Then obtain or add an approved fixture with a real attachment before extending attachment extraction.
+After HTML-backed EML assembly, obtain or add an approved fixture containing at least one real attachment before extending attachment extraction. Do not create attachment-only infrastructure without observable fixture evidence.
 
 These are evidence-led candidates, not a fixed queue.
 
