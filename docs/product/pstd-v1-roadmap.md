@@ -1,6 +1,6 @@
 # PSTD Roadmap
 
-_Last reviewed: 15 July 2026._
+_Last reviewed: 16 July 2026._
 
 ## Objective
 
@@ -69,17 +69,45 @@ Complete. The public fixture now emits one deterministic 956-byte `multipart/alt
 
 The exact fixture result preserves one message, two body payload records, four structured recipients, zero attachments, one 320-byte standalone RTF, and one 95-byte standalone HTML file. Combined observable EML, RTF, and HTML bytes changed from 1,590 to 1,371 because the compact HTML alternative replaced the larger raw RTF MIME representation.
 
-## Current decision point
+### Upstream fixture corpus
 
-The approved public fixture contains zero attachment candidates. Attachment filename, MIME type, payload, and embedded-message work cannot produce observable evidence against this PST and should not be extended through helper-only milestones.
+Complete. Three pinned public PST fixtures now provide evidence for attachment extraction, multiple messages and folders, body-representation selection, appointments, recurrence exceptions, contacts, distribution lists, and legacy Exchange address handling. Exact provenance, sizes, SHA-256 hashes, and expected upstream evidence are documented in [Upstream PST Fixture Corpus](../operations/upstream-pst-fixture-corpus.md).
 
-The next coherent extraction milestone should begin only when one of these evidence sources is available:
+## Current milestone
 
-1. an approved PST fixture containing at least one real attachment;
-2. an approved additional PST containing more than one real message or a different PST/MAPI layout;
-3. a verified missing message field from the existing fixture that is not already recoverable from the current structured output.
+### Extract the first real attachment field
 
-When an attachment-bearing fixture is available, prefer the smallest complete vertical slice that emits one validated filename, size, MIME type, or payload and carries it into the EML. Fail closed when table attribution or payload resolution is ambiguous.
+Use `tests/fixtures/upstream/tika-testPST.pst`, which contains a documented nested `attachment.docx`, multiple messages, multiple folders, Unicode metadata, and a legacy Exchange recipient address.
+
+The smallest acceptable vertical result is one attachment property tied unambiguously to its owning message. Prefer this order:
+
+1. validated attachment filename;
+2. validated attachment size;
+3. attachment method or MIME type;
+4. exact attachment payload bytes;
+5. structured attachment output;
+6. deterministic `multipart/mixed` EML assembly.
+
+Acceptance boundary:
+
+- reuse the existing validated NDB, subnode, Heap-on-Node, BTH, Property Context, and Table Context components;
+- identify the attachment table and owner message without heuristics;
+- fail closed if row attribution, subnode resolution, or property type is ambiguous;
+- retain the original small fixture as a regression gate;
+- add a fixture-specific test or workflow that names `tika-testPST.pst` explicitly;
+- report before-versus-after message, body, recipient, attachment, EML, and byte counts;
+- do not add attachment abstractions unless they expose a real value from this fixture in the same milestone.
+
+## Following fixture sequence
+
+After the first attachment field and payload are validated:
+
+1. complete attachment-to-EML assembly on `tika-testPST.pst`;
+2. validate multiple messages, folders, Unicode names, and legacy Exchange address preservation on the same fixture;
+3. validate body-form selection with `tika-various-body-types.pst`;
+4. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
+5. validate contacts and distribution-list entries without forcing them through the normal email path;
+6. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
 
 ## Completion definition for reliable extraction
 
