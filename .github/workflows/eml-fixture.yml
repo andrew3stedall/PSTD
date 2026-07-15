@@ -38,7 +38,10 @@ jobs:
           find "$eml_dir" -type f -name '*.eml' -print | sort > "$evidence_dir/eml-files.txt"
           test "$(wc -l < "$evidence_dir/eml-files.txt")" -eq 1
           eml_file=$(head -n 1 "$evidence_dir/eml-files.txt")
-          stat -c '%s' "$eml_file" > "$evidence_dir/eml-size-bytes.txt"
+          eml_bytes=$(stat -c '%s' "$eml_file")
+          printf '%s\n' "$eml_bytes" | tee "$evidence_dir/eml-size-bytes.txt"
+          echo "html_backed_eml_bytes=$eml_bytes"
+          test "$eml_bytes" -eq 956
           python - <<'PY'
           from email import policy
           from email.parser import BytesParser
@@ -53,17 +56,18 @@ jobs:
           if message.get_content_type() != 'multipart/alternative':
               raise SystemExit(f'unexpected root content type: {message.get_content_type()}')
           parts = list(message.iter_parts())
-          if [part.get_content_type() for part in parts] != ['text/plain', 'text/rtf']:
+          if [part.get_content_type() for part in parts] != ['text/plain', 'text/html']:
               raise SystemExit(f'unexpected alternative parts: {[part.get_content_type() for part in parts]!r}')
           plain = parts[0].get_content()
-          rich = parts[1].get_content()
+          html = parts[1].get_content()
           if 'This is an evaluation copy of Aspose.Email for Java' not in plain:
               raise SystemExit('plain-text part is missing known fixture content')
-          if not rich.startswith('{\\rtf'):
-              raise SystemExit('RTF part is not a readable RTF document')
-          for expected in ['This line is in bold.', 'This line is in blue color']:
-              if expected not in rich:
-                  raise SystemExit(f'RTF part is missing {expected!r}')
+          for expected in ['<b>This line is in bold.', '<font color=blue>This line is in blue color']:
+              if expected not in html:
+                  raise SystemExit(f'HTML part is missing {expected!r}')
+          for prohibited in ['{\\rtf', '\\htmltag']:
+              if prohibited in html:
+                  raise SystemExit(f'HTML part leaked RTF control {prohibited!r}')
           required_headers = {
               'From': 'Sender Name <from@domain.com>',
               'To': 'Recipient 1 <to1@domain.com>, Recipient 2 <to2@domain.com>',
@@ -76,7 +80,7 @@ jobs:
                   raise SystemExit(f'{name} mismatch: {message[name]!r}')
           evidence.joinpath('message.eml').write_bytes(raw)
           evidence.joinpath('plain-body.txt').write_text(plain, encoding='utf-8')
-          evidence.joinpath('rich-body.rtf').write_text(rich, encoding='utf-8')
+          evidence.joinpath('html-body.html').write_text(html, encoding='utf-8')
           PY
       - name: Upload readable EML evidence
         if: always()
