@@ -12,6 +12,15 @@ const LZFU_MAGIC: u32 = 0x7546_5a4c;
 const MELA_MAGIC: u32 = 0x414c_454d;
 const INITIAL_DICTIONARY: &[u8] = b"{\\rtf1\\ansi\\mac\\deff0\\deftab720{\\fonttbl;}{\\f0\\fnil \\froman \\fswiss \\fmodern \\fscript \\fdecor MS Sans SerifSymbolArialTimes New RomanCourier{\\colortbl\\red0\\green0\\blue0\r\n\\par \\pard\\plain\\f0\\fs20\\b\\i\\u\\tab\\tx";
 const ALTERNATIVE_BOUNDARY: &str = "pstd-alternative-7f6a8d2b";
+const SKIP_DESTINATIONS: &[&str] = &[
+    "fonttbl",
+    "colortbl",
+    "stylesheet",
+    "info",
+    "pict",
+    "object",
+    "generator",
+];
 
 fn main() {
     if let Err(error) = run() {
@@ -56,7 +65,7 @@ fn run() -> Result<(), String> {
 
     println!("eml_files_emitted={emitted}");
     if emitted == 0 {
-        return Err("no message had validated sender, recipients, subject, plain-text body, and readable RTF required for multipart EML emission".to_string());
+        return Err("no message had validated sender, recipients, subject, plain-text body, and recoverable HTML required for multipart EML emission".to_string());
     }
     Ok(())
 }
@@ -68,7 +77,7 @@ fn usage() -> String {
 #[derive(Default)]
 struct MessageBodies {
     text: Option<Vec<u8>>,
-    rtf: Option<Vec<u8>>,
+    html: Option<String>,
 }
 
 fn recipients_by_message(records: &[RecipientRecord]) -> BTreeMap<String, Vec<RecipientRecord>> {
@@ -95,13 +104,15 @@ fn bodies_by_message(payloads: &[BodyPayload]) -> BTreeMap<String, MessageBodies
             "text" if !payload.bytes.is_empty() && entry.text.is_none() => {
                 entry.text = Some(payload.bytes.clone());
             }
-            "rtf" if entry.rtf.is_none() => {
-                entry.rtf = validated_rtf(&payload.bytes);
+            "rtf" if entry.html.is_none() => {
+                entry.html = validated_rtf(&payload.bytes)
+                    .and_then(|rtf| String::from_utf8(rtf).ok())
+                    .and_then(|rtf| recover_html(&rtf));
             }
             _ => {}
         }
     }
-    bodies.retain(|_, body| body.text.is_some() && body.rtf.is_some());
+    bodies.retain(|_, body| body.text.is_some() && body.html.is_some());
     bodies
 }
 
@@ -125,8 +136,8 @@ fn build_eml(
     }
 
     let text = std::str::from_utf8(bodies.text.as_deref()?).ok()?;
-    let rtf = std::str::from_utf8(bodies.rtf.as_deref()?).ok()?;
-    if text.contains(ALTERNATIVE_BOUNDARY) || rtf.contains(ALTERNATIVE_BOUNDARY) {
+    let html = bodies.html.as_deref()?;
+    if text.contains(ALTERNATIVE_BOUNDARY) || html.contains(ALTERNATIVE_BOUNDARY) {
         return None;
     }
 
@@ -157,7 +168,7 @@ fn build_eml(
     );
     eml.push_str("\r\n");
     push_part(&mut eml, "text/plain; charset=utf-8", &normalize_crlf(text));
-    push_part(&mut eml, "text/rtf; charset=utf-8", &normalize_crlf(rtf));
+    push_part(&mut eml, "text/html; charset=utf-8", &normalize_crlf(html));
     eml.push_str("--");
     eml.push_str(ALTERNATIVE_BOUNDARY);
     eml.push_str("--\r\n");
@@ -174,6 +185,163 @@ fn push_part(output: &mut String, content_type: &str, body: &str) {
     output.push_str(body);
     if !output.ends_with("\r\n") {
         output.push_str("\r\n");
+    }
+}
+
+#[derive(Clone, Copy)]
+struct HtmlState {
+    skip: bool,
+    htmltag: bool,
+    ignorable: bool,
+}
+
+fn recover_html(rtf: &str) -> Option<String> {
+    if !rtf.starts_with("{\\rtf") || !rtf.contains("\\fromhtml1") {
+        return None;
+    }
+    let bytes = rtf.as_bytes();
+    let mut output = String::new();
+    let mut stack = vec![HtmlState {
+        skip: false,
+        htmltag: false,
+        ignorable: false,
+    }];
+    let mut index = 0usize;
+    while index < bytes.len() {
+        match bytes[index] {
+            b'{' => {
+                let mut state = *stack.last()?;
+                state.ignorable = false;
+                stack.push(state);
+                index += 1;
+            }
+            b'}' => {
+                if stack.len() == 1 {
+                    return None;
+                }
+                stack.pop();
+                index += 1;
+            }
+            b'\\' => {
+                let (word, number, next) = read_control(bytes, index)?;
+                index = next;
+                let state = stack.last_mut()?;
+                match word.as_str() {
+                    "*" => state.ignorable = true,
+                    "htmltag" => {
+                        state.htmltag = true;
+                        state.skip = false;
+                    }
+                    "htmlrtf" => state.skip = true,
+                    "par" | "line" if !state.skip => output.push('\n'),
+                    "tab" if !state.skip => output.push('\t'),
+                    "hex" if !state.skip => output.push(cp1252_char(number? as u8)?),
+                    "{" | "}" | "\\" if !state.skip => output.push_str(&word),
+                    destination if SKIP_DESTINATIONS.contains(&destination) => state.skip = true,
+                    _ if state.ignorable && !state.htmltag => state.skip = true,
+                    _ => {}
+                }
+            }
+            byte => {
+                if !stack.last()?.skip && byte != b'\r' && byte != b'\n' {
+                    output.push(byte as char);
+                }
+                index += 1;
+            }
+        }
+    }
+    if stack.len() != 1 {
+        return None;
+    }
+    let html = output.trim().to_string();
+    if html.is_empty()
+        || !html.contains('<')
+        || !html.contains('>')
+        || html.contains("{\\rtf")
+        || html.contains("\\htmltag")
+        || html.contains('\\')
+    {
+        return None;
+    }
+    Some(html)
+}
+
+fn read_control(input: &[u8], start: usize) -> Option<(String, Option<i32>, usize)> {
+    let mut index = start.checked_add(1)?;
+    let first = *input.get(index)?;
+    if matches!(first, b'{' | b'}' | b'\\') {
+        return Some(((first as char).to_string(), None, index + 1));
+    }
+    if first == b'\'' {
+        let hex = std::str::from_utf8(input.get(index + 1..index + 3)?).ok()?;
+        let value = u8::from_str_radix(hex, 16).ok()?;
+        return Some(("hex".to_string(), Some(i32::from(value)), index + 3));
+    }
+    if !first.is_ascii_alphabetic() {
+        return Some(((first as char).to_string(), None, index + 1));
+    }
+    let word_start = index;
+    while input.get(index).is_some_and(u8::is_ascii_alphabetic) {
+        index += 1;
+    }
+    let word = std::str::from_utf8(input.get(word_start..index)?).ok()?.to_string();
+    let mut sign = 1i32;
+    if input.get(index) == Some(&b'-') {
+        sign = -1;
+        index += 1;
+    }
+    let number_start = index;
+    while input.get(index).is_some_and(u8::is_ascii_digit) {
+        index += 1;
+    }
+    let number = if index > number_start {
+        Some(
+            std::str::from_utf8(input.get(number_start..index)?)
+                .ok()?
+                .parse::<i32>()
+                .ok()?
+                * sign,
+        )
+    } else {
+        None
+    };
+    if input.get(index) == Some(&b' ') {
+        index += 1;
+    }
+    Some((word, number, index))
+}
+
+fn cp1252_char(value: u8) -> Option<char> {
+    match value {
+        0x00..=0x7f | 0xa0..=0xff => char::from_u32(u32::from(value)),
+        0x80 => Some('€'),
+        0x82 => Some('‚'),
+        0x83 => Some('ƒ'),
+        0x84 => Some('„'),
+        0x85 => Some('…'),
+        0x86 => Some('†'),
+        0x87 => Some('‡'),
+        0x88 => Some('ˆ'),
+        0x89 => Some('‰'),
+        0x8a => Some('Š'),
+        0x8b => Some('‹'),
+        0x8c => Some('Œ'),
+        0x8e => Some('Ž'),
+        0x91 => Some('‘'),
+        0x92 => Some('’'),
+        0x93 => Some('“'),
+        0x94 => Some('”'),
+        0x95 => Some('•'),
+        0x96 => Some('–'),
+        0x97 => Some('—'),
+        0x98 => Some('˜'),
+        0x99 => Some('™'),
+        0x9a => Some('š'),
+        0x9b => Some('›'),
+        0x9c => Some('œ'),
+        0x9e => Some('ž'),
+        0x9f => Some('Ÿ'),
+        _ => None,
     }
 }
 
@@ -422,10 +590,10 @@ mod tests {
     }
 
     #[test]
-    fn emits_multipart_plain_and_rtf_message() {
+    fn emits_multipart_plain_and_html_message() {
         let bodies = MessageBodies {
             text: Some(b"Hello\nworld".to_vec()),
-            rtf: Some(b"{\\rtf1\\ansi Rich body}".to_vec()),
+            html: Some("<b>Rich body</b>".to_string()),
         };
         let eml = build_eml(
             &message(),
@@ -438,17 +606,36 @@ mod tests {
             "Content-Type: multipart/alternative; boundary=\"pstd-alternative-7f6a8d2b\"\r\n"
         ));
         assert!(eml.contains("Content-Type: text/plain; charset=utf-8\r\n"));
-        assert!(eml.contains("Content-Type: text/rtf; charset=utf-8\r\n"));
+        assert!(eml.contains("Content-Type: text/html; charset=utf-8\r\n"));
+        assert!(!eml.contains("Content-Type: text/rtf"));
         assert!(eml.contains("Hello\r\nworld"));
-        assert!(eml.contains("{\\rtf1\\ansi Rich body}"));
+        assert!(eml.contains("<b>Rich body</b>"));
         assert!(eml.ends_with("--pstd-alternative-7f6a8d2b--\r\n"));
     }
 
     #[test]
-    fn groups_only_messages_with_both_valid_body_representations() {
+    fn recovers_html_from_validated_fromhtml_rtf() {
+        let rtf = "{\\rtf1\\ansi\\fromhtml1{\\*\\htmltag <b>}Bold{\\*\\htmltag </b>}}";
+        assert_eq!(recover_html(rtf).as_deref(), Some("<b>Bold</b>"));
+    }
+
+    #[test]
+    fn rejects_non_html_and_malformed_rtf() {
+        assert!(recover_html("{\\rtf1 plain}").is_none());
+        assert!(recover_html("{\\rtf1\\fromhtml1{\\*\\htmltag <b>}Bold").is_none());
+        assert!(recover_html("{\\rtf1\\fromhtml1 no markup}").is_none());
+    }
+
+    #[test]
+    fn groups_only_messages_with_plain_and_recoverable_html() {
         let payloads = vec![
             body_payload("message", "text", b"plain".to_vec(), None),
-            body_payload("message", "rtf", b"{\\rtf1 rich}".to_vec(), None),
+            body_payload(
+                "message",
+                "rtf",
+                b"{\\rtf1\\fromhtml1{\\*\\htmltag <b>}rich{\\*\\htmltag </b>}}".to_vec(),
+                None,
+            ),
             body_payload("other", "text", b"plain".to_vec(), None),
         ];
         let grouped = bodies_by_message(&payloads);
@@ -457,16 +644,16 @@ mod tests {
     }
 
     #[test]
-    fn fails_closed_for_missing_or_invalid_rtf_and_boundary_collision() {
+    fn fails_closed_for_missing_html_and_boundary_collision() {
         let recipients = vec![recipient(0, "to")];
         let missing = MessageBodies {
             text: Some(b"plain".to_vec()),
-            rtf: None,
+            html: None,
         };
         assert!(build_eml(&message(), &recipients, &missing).is_none());
         let collision = MessageBodies {
             text: Some(ALTERNATIVE_BOUNDARY.as_bytes().to_vec()),
-            rtf: Some(b"{\\rtf1 rich}".to_vec()),
+            html: Some("<b>rich</b>".to_string()),
         };
         assert!(build_eml(&message(), &recipients, &collision).is_none());
     }
