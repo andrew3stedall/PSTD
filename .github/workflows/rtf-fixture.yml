@@ -1,4 +1,4 @@
-name: Readable RTF fixture
+name: Readable RTF and HTML fixture
 
 on:
   pull_request:
@@ -16,6 +16,7 @@ jobs:
       - run: cargo test --all
       - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
       - run: cargo fmt --check
+      - run: python -m pytest tests/test_rtf_fromhtml_to_html.py
       - name: Find public PST fixture
         id: fixture
         shell: bash
@@ -26,7 +27,7 @@ jobs:
             echo "No public PST fixture found" >&2
             exit 1
           fi
-      - name: Decode readable RTF
+      - name: Decode readable RTF and recover HTML
         shell: bash
         run: |
           set -euo pipefail
@@ -39,6 +40,8 @@ jobs:
           test "$(wc -l < "$evidence_dir/rtf-files.txt")" -eq 1
           rtf_file=$(head -n 1 "$evidence_dir/rtf-files.txt")
           stat -c '%s' "$rtf_file" > "$evidence_dir/rtf-size-bytes.txt"
+          python scripts/rtf_fromhtml_to_html.py "$rtf_file" "$evidence_dir/message.html" | tee "$evidence_dir/html-summary.txt"
+          stat -c '%s' "$evidence_dir/message.html" > "$evidence_dir/html-size-bytes.txt"
           python - <<'PY'
           from pathlib import Path
 
@@ -48,21 +51,24 @@ jobs:
           if not raw.startswith(b'{\\rtf'):
               raise SystemExit('decoded payload is not an RTF document')
           text = raw.decode('latin-1')
-          required = (
-              'This line is in bold.',
-              'This line is in blue color',
-              '\\fromhtml1',
-          )
-          missing = [value for value in required if value not in text]
+          required_rtf = ('This line is in bold.', 'This line is in blue color', '\\fromhtml1')
+          missing = [value for value in required_rtf if value not in text]
           if missing:
               raise SystemExit(f'decoded RTF is missing fixture rich-text evidence: {missing}')
+          html = evidence.joinpath('message.html').read_text(encoding='utf-8')
+          required_html = ('<b>', 'This line is in bold.', '<font color=blue>', 'This line is in blue color')
+          missing = [value for value in required_html if value not in html]
+          if missing:
+              raise SystemExit(f'recovered HTML is missing fixture evidence: {missing}')
+          if '\\rtf' in html or '\\htmltag' in html:
+              raise SystemExit('RTF control data leaked into recovered HTML')
           evidence.joinpath('message.rtf').write_bytes(raw)
           evidence.joinpath('rtf-prefix.txt').write_text(text[:512], encoding='utf-8')
           PY
-      - name: Upload readable RTF evidence
+      - name: Upload readable RTF and HTML evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: public-pst-readable-rtf
+          name: public-pst-readable-rtf-html
           path: /tmp/pstd-public-pst-rtf
           if-no-files-found: error
