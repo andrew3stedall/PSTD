@@ -62,38 +62,42 @@ Complete. The original public fixture now emits one deterministic 956-byte `mult
 
 ### Upstream fixture corpus
 
-Complete. Three pinned public PST fixtures now provide evidence for attachment extraction, multiple messages and folders, body-representation selection, appointments, recurrence exceptions, contacts, distribution lists, and legacy Exchange address handling. Exact provenance, sizes, SHA-256 hashes, and expected upstream evidence are documented in [Upstream PST Fixture Corpus](../operations/upstream-pst-fixture-corpus.md).
+Complete. Three pinned public PST fixtures provide evidence for attachment extraction, multiple messages and folders, body-representation selection, appointments, recurrence exceptions, contacts, distribution lists, and legacy Exchange address handling. Exact provenance and expected evidence are documented in [Upstream PST Fixture Corpus](../operations/upstream-pst-fixture-corpus.md).
 
 ### First real attachment filename
 
-Complete. `tika-testPST.pst` now emits one metadata-only attachment record for message `msg_c6163b9157944cc9`:
+Complete. `tika-testPST.pst` emits one metadata-only attachment record for `msg_c6163b9157944cc9`: `attachment.docx`, declared size 15,503 bytes, method 1. Exact evidence is recorded in [Vertical 29](../operations/vertical-29-expose-docx-attachment-filename.md).
+
+### DOCX attachment data reference
+
+Complete. The attachment's validated raw HNID `3f830000` now resolves through the message's Unicode SLBLOCK:
 
 ```text
-filename: attachment.docx
-declared size: 15,503 bytes
-method: 1 (by value)
-payload bytes: unresolved
+data NID:      0x0000833f
+resolved BID:  0x632
+payload bytes: 0
 ```
 
-The owning message now reports `has_attachments=true` and `attachment_count=1`. The fixture preserves seven messages, eight body records, zero recipients, zero attachment payload files, and zero EML files while increasing attachment records from zero to one. Exact before-versus-after evidence is recorded in [Vertical 29](../operations/vertical-29-expose-docx-attachment-filename.md).
+The mapping affects one message and one attachment record. BID `0x632` is internal and is not emitted as DOCX content. Exact evidence is recorded in [Vertical 30](../operations/vertical-30-resolve-docx-attachment-data-reference.md).
 
 ## Current milestone
 
-### Resolve the DOCX attachment payload
+### Decode and emit the DOCX attachment payload
 
-The `PidTagAttachDataBinary` value in the validated attachment Property Context is the four-byte value `3f830000`. It is an HNID/reference, not the attachment itself. The next milestone must resolve that reference through existing validated Heap-on-Node/subnode components and emit the real DOCX payload.
+BID `0x632` is an internal NDB data-tree block. The next milestone must decode its child block references and concatenate the referenced external data blocks in declared order.
 
 Acceptance boundary:
 
-- resolve the reference without scanning for ZIP signatures or guessing from nearby bytes;
-- tie the payload unambiguously to `msg_c6163b9157944cc9` and `attachment.docx`;
-- require exactly 15,503 payload bytes, matching `PidTagAttachSize`;
-- verify the DOCX ZIP signature and calculate a deterministic SHA-256 checksum;
-- update the existing attachment record from metadata-only to extracted;
+- validate the internal block type, level, entry count, and declared total size;
+- resolve every child BID through the existing BBT and payload loader;
+- concatenate child payloads in declared order;
+- require exactly 15,503 bytes, matching `PidTagAttachSize`;
+- verify that the output is a DOCX ZIP container and calculate its SHA-256 checksum;
+- update the existing attachment record from reference-resolved to extracted;
 - emit one attachment payload file at its deterministic archive path;
 - preserve seven messages, eight body records, zero recipients, and zero Tika-fixture EML files unless independently eligible;
-- report exact before-versus-after structured-output, attachment-payload, TAR, EML, and total-output byte counts;
-- keep embedded-message method `5` handling out of this by-value payload milestone.
+- report exact structured-output, attachment-payload, TAR, EML, and total-output byte counts;
+- keep embedded-message method `5` handling outside this by-value payload milestone.
 
 ## Following fixture sequence
 
