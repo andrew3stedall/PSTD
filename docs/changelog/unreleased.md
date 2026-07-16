@@ -29,7 +29,9 @@ _Last reviewed: 16 July 2026._
 - Three pinned upstream PST fixtures for attachment, multi-message, body-type, calendar, recurrence, contact, distribution-list, and Exchange-address validation.
 - Filename-bearing attachment metadata extraction from validated recursive heap Property Contexts.
 - Exact attachment data-NID to loaded data-BID resolution through validated Unicode SLBLOCK entries.
-- A permanent Tika attachment fixture workflow that asserts exact metadata, references, counts, and output bytes.
+- Bounded Unicode XBLOCK decoding with ordered external child-BID resolution, exact `lcbTotal` assembly, duplicate/internal-child rejection, and DOCX signature validation.
+- One validated 11,862-byte `attachment.docx` payload with deterministic archive path and SHA-256 `0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0`.
+- A permanent Tika attachment fixture workflow that asserts exact metadata, payload bytes, checksum, ZIP CRCs, expected DOCX text, counts, and output bytes.
 
 ## Changed
 
@@ -46,6 +48,8 @@ _Last reviewed: 16 July 2026._
 - Replaced the original fixture EML's raw `text/rtf` alternative with validated recovered `text/html` while retaining plain text and all validated headers.
 - Marked the Tika DOCX-bearing message as attachment-bearing from validated recursive Property Context evidence even though its direct message context omits `PidTagHasAttachments`.
 - Resolved the Tika attachment HNID `0x0000833f` to loaded data BID `0x632` without treating the internal block as DOCX bytes.
+- Corrected the earlier assumption that `PidTagAttachSize` had to equal the file payload: the fixture preserves 15,503 bytes as attachment metadata while the XBLOCK authoritatively emits 11,862 payload bytes.
+- Suppressed unrelated attachment-table fallback rows once the validated filename-bearing Property Context attachment path is selected.
 - Rebuilt the root README and current-state documentation so historical milestone/PQ files are no longer presented as the live roadmap.
 
 ## Current original-fixture result
@@ -77,28 +81,31 @@ Body payload files/bytes: 6/252
 Recipients: 0
 Attachment records: 1
 Attachment filename: attachment.docx
-Attachment declared size: 15503
-Attachment method: 1
+PidTagAttachSize: 15503
+Attachment payload files/bytes: 1/11862
+Attachment SHA-256: 0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0
 Attachment data NID: 0x0000833f
 Attachment data BID: 0x632
-Attachment payload files/bytes: 0/0
+XBLOCK child blocks: 2
+DOCX ZIP/CRC validation: passed
+Expected document text: present
 EML files/bytes: 0/0
-Attachment JSONL bytes: 648
-Extraction TAR bytes: 126464
-Total output bytes: 147692
+Attachment JSONL bytes: 643
+Extraction TAR bytes: 164352
+Total output bytes: 191240
 ```
 
-The attachment belongs to `msg_c6163b9157944cc9`. Its metadata comes from a validated recursive heap Property Context, and its four-byte `PidTagAttachDataBinary` value now resolves through a complete Unicode SLBLOCK to loaded internal BID `0x632`. The internal block is not reported as payload bytes.
+The attachment belongs to `msg_c6163b9157944cc9`. Its validated Property Context resolves through a Unicode SLBLOCK to the internal XBLOCK at BID `0x632`; the XBLOCK resolves two ordered external child blocks and emits one valid DOCX file.
 
 ## In progress
 
-- Decode BID `0x632` as an internal data-tree block, resolve its ordered external child blocks, and emit exactly 15,503 DOCX bytes with a verified ZIP signature and SHA-256 checksum.
+- Extract the first validated recipient row owned by the Tika attachment message, preserving raw legacy Exchange address evidence and failing closed on ambiguous SMTP resolution.
 
 ## Known limitations
 
 - PSTD is not yet a generally compatible PST converter or PST-to-EML tool.
-- Attachment data-tree decoding, payload emission, and embedded-message method `5` extraction are not yet complete.
 - Recipient extraction remains incomplete on the Tika fixture, so it currently emits no EML files.
+- Embedded-message method `5` extraction remains deferred.
 - ANSI, uncommon, corrupt, embedded-message, and broad MAPI-layout coverage remain incomplete.
 - Non-ASCII RFC 2047 header encoding remains incomplete.
 - Downstream Snowflake, UI, search, semantic search, graph, and LLM/RAG work remains parked.
@@ -110,3 +117,4 @@ The attachment belongs to `msg_c6163b9157944cc9`. Its metadata comes from a vali
 - Stale documentation that described recipient complete-record publication or first readable EML assembly as unfinished.
 - Raw `text/rtf` as the preferred rich EML alternative for the current HTML-derived fixture body.
 - The earlier evidence blocker that no approved attachment-bearing PST was available.
+- The assumption that the attachment file payload must be padded or truncated to the 15,503-byte `PidTagAttachSize` value.
