@@ -27,7 +27,16 @@ jobs:
         with:
           components: rustfmt, clippy
       - name: Apply bounded source edits
-        run: python scripts/apply_docx_payload_vertical.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -q 'attachment_payloads_from_property_context_subnodes' src/pst/attachment_property_context.rs; then
+            echo 'Source changes already applied.'
+            exit 0
+          fi
+          sed -i '244s/replace_once/replace_nth/' scripts/apply_docx_payload_vertical.py
+          sed -i '248i\    1,' scripts/apply_docx_payload_vertical.py
+          python scripts/apply_docx_payload_vertical.py
       - name: Format and verify source
         run: |
           set -euo pipefail
@@ -38,6 +47,7 @@ jobs:
       - name: Commit source changes
         run: |
           set -euo pipefail
+          git checkout -- scripts/apply_docx_payload_vertical.py
           if git diff --quiet; then
             echo 'Source changes already applied.'
             exit 0
