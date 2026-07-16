@@ -24,21 +24,44 @@ jobs:
           (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
           cargo run -- inspect --input "$fixture" --json > "$evidence/inspect.json"
           cargo run --bin pstd-property-probe -- "$fixture" 0x2000e4 > "$evidence/node-2000e4-properties.json"
-          set +e
           cargo run -- extract --input "$fixture" --output "$output" --overwrite > "$evidence/extract.stdout" 2> "$evidence/extract.stderr"
-          status=$?
-          set -e
-          printf '%s\n' "$status" > "$evidence/extract.exit-code.txt"
           find "$output" -type f -printf '%p\t%s\n' | sort > "$evidence/output-files.tsv"
           cp -r "$output" "$evidence/output"
-          tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1 || true)
-          if [[ -n "$tar_file" ]]; then
-            tar -tf "$tar_file" > "$evidence/archive-files.txt"
-            mkdir -p "$evidence/archive"
-            tar -xf "$tar_file" -C "$evidence/archive"
-            grep -Rin --binary-files=without-match -E 'attachment|docx|First email|has_attachments|attachment_count' "$evidence/archive" > "$evidence/attachment-grep.txt" || true
-          fi
-          exit 0
+          tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+          tar -tf "$tar_file" > "$evidence/archive-files.txt"
+          mkdir -p "$evidence/archive"
+          tar -xf "$tar_file" -C "$evidence/archive"
+          grep -Rin --binary-files=without-match -E 'attachment|docx|First email|has_attachments|attachment_count' "$evidence/archive" > "$evidence/attachment-grep.txt" || true
+          python - "$evidence/archive" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          archive = pathlib.Path(sys.argv[1])
+          rows = [json.loads(line) for line in (archive / 'data/attachments.jsonl').read_text().splitlines() if line]
+          matches = [row for row in rows if row.get('filename_original') == 'attachment.docx']
+          assert len(matches) == 1, (len(rows), rows)
+          row = matches[0]
+          assert row.get('declared_size_bytes') == 15503, row
+          assert row.get('attachment_method') == 1, row
+          assert row.get('extension') == 'docx', row
+          assert row.get('extraction_status') == 'attachment_metadata_extracted_payload_reference_unresolved', row
+
+          messages = [json.loads(line) for line in (archive / 'data/messages.jsonl').read_text().splitlines() if line]
+          affected = [message for message in messages if message.get('message_key') == row.get('message_key')]
+          assert len(affected) == 1, affected
+          assert affected[0].get('has_attachments') is True, affected[0]
+          assert affected[0].get('attachment_count') == 1, affected[0]
+
+          result = {
+              'attachment_rows': len(rows),
+              'matched_filename': row.get('filename_original'),
+              'declared_size_bytes': row.get('declared_size_bytes'),
+              'attachment_method': row.get('attachment_method'),
+              'affected_messages': len(affected),
+          }
+          (archive.parent / 'assertion-result.json').write_text(json.dumps(result, indent=2) + '\n')
+          PY
       - name: Upload probe evidence
         uses: actions/upload-artifact@v4
         with:
