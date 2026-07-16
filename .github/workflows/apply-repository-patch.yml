@@ -1,0 +1,155 @@
+name: Apply repository patch
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Existing target branch to update
+        required: true
+        type: string
+      patch_path:
+        description: Patch file path under changes/
+        required: true
+        type: string
+      commit_message:
+        description: Commit message for the applied change
+        required: false
+        default: Apply validated repository patch
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-repository-patch-${{ inputs.branch }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Validate inputs
+        shell: bash
+        env:
+          TARGET_BRANCH: ${{ inputs.branch }}
+          PATCH_PATH: ${{ inputs.patch_path }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$TARGET_BRANCH" =~ ^(extract|emit|fix|add)-[a-z0-9][a-z0-9._/-]*$ ]]; then
+            echo "Target branch must begin with extract-, emit-, fix-, or add-." >&2
+            exit 1
+          fi
+
+          if [[ "$TARGET_BRANCH" == "main" || "$TARGET_BRANCH" == "master" ]]; then
+            echo "Direct updates to the default branch are forbidden." >&2
+            exit 1
+          fi
+
+          if [[ ! "$PATCH_PATH" =~ ^changes/[A-Za-z0-9._/-]+\.patch$ ]] || [[ "$PATCH_PATH" == *".."* ]]; then
+            echo "Patch path must be a .patch file below changes/ and must not contain '..'." >&2
+            exit 1
+          fi
+
+      - name: Check out target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Validate patch file
+        shell: bash
+        env:
+          PATCH_PATH: ${{ inputs.patch_path }}
+        run: |
+          set -euo pipefail
+
+          test -f "$PATCH_PATH"
+          test -s "$PATCH_PATH"
+
+          patch_bytes=$(wc -c < "$PATCH_PATH")
+          if (( patch_bytes > 250000 )); then
+            echo "Patch exceeds the 250,000-byte safety limit." >&2
+            exit 1
+          fi
+
+          git apply --check "$PATCH_PATH"
+
+          if git apply --summary "$PATCH_PATH" | grep -Eq '(^|[[:space:]])\.github/workflows/'; then
+            echo "Patches may not modify GitHub Actions workflows." >&2
+            exit 1
+          fi
+
+      - name: Apply patch
+        shell: bash
+        env:
+          PATCH_PATH: ${{ inputs.patch_path }}
+        run: |
+          set -euo pipefail
+          git apply "$PATCH_PATH"
+          rm -- "$PATCH_PATH"
+
+      - name: Validate changed paths
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import subprocess
+          import sys
+
+          raw = subprocess.check_output(["git", "diff", "--name-only", "-z"])
+          paths = [p.decode("utf-8") for p in raw.split(b"\0") if p]
+
+          if not paths:
+              raise SystemExit("Patch produced no source changes.")
+
+          forbidden = [
+              path
+              for path in paths
+              if path == ".github/workflows" or path.startswith(".github/workflows/")
+          ]
+          if forbidden:
+              print("Patch modified forbidden workflow paths:", file=sys.stderr)
+              for path in forbidden:
+                  print(f"  {path}", file=sys.stderr)
+              raise SystemExit(1)
+
+          print("Validated changed paths:")
+          for path in paths:
+              print(f"  {path}")
+          PY
+
+      - name: Format Rust
+        run: cargo fmt --all -- --check
+
+      - name: Run Rust tests
+        run: cargo test --all-targets
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Check resulting diff
+        run: git diff --check
+
+      - name: Commit and push
+        shell: bash
+        env:
+          COMMIT_MESSAGE: ${{ inputs.commit_message }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes remain to commit." >&2
+            exit 1
+          fi
+
+          git commit -m "$COMMIT_MESSAGE"
+          git push origin "HEAD:${{ inputs.branch }}"
