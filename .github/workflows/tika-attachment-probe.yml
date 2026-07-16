@@ -1,0 +1,46 @@
+name: Tika attachment probe
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/tika-attachment-probe.yml'
+      - 'src/**'
+      - 'tests/fixtures/upstream/tika-testPST.pst'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run current extractor on pinned Tika PST
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/upstream/tika-testPST.pst"
+          evidence="/tmp/tika-attachment-probe"
+          output="/tmp/tika-attachment-output"
+          mkdir -p "$evidence" "$output"
+          sha256sum --check tests/fixtures/upstream/SHA256SUMS
+          cargo run -- inspect --input "$fixture" --json > "$evidence/inspect.json"
+          set +e
+          cargo run -- extract --input "$fixture" --output "$output" --overwrite > "$evidence/extract.stdout" 2> "$evidence/extract.stderr"
+          status=$?
+          set -e
+          printf '%s\n' "$status" > "$evidence/extract.exit-code.txt"
+          find "$output" -type f -printf '%p\t%s\n' | sort > "$evidence/output-files.tsv"
+          cp -r "$output" "$evidence/output"
+          tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1 || true)
+          if [[ -n "$tar_file" ]]; then
+            tar -tf "$tar_file" > "$evidence/archive-files.txt"
+            mkdir -p "$evidence/archive"
+            tar -xf "$tar_file" -C "$evidence/archive"
+            grep -Rin --binary-files=without-match -E 'attachment|docx|First email|has_attachments|attachment_count' "$evidence/archive" > "$evidence/attachment-grep.txt" || true
+          fi
+          exit 0
+      - name: Upload probe evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: tika-attachment-probe
+          path: /tmp/tika-attachment-probe
+          if-no-files-found: error
