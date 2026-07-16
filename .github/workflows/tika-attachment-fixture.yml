@@ -1,0 +1,174 @@
+name: Tika attachment fixture
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  attachment-filename:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test attachment_property_context
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Extract Tika attachment evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/upstream/tika-testPST.pst"
+          evidence="/tmp/pstd-tika-attachment"
+          output="/tmp/pstd-tika-attachment-output"
+          eml_dir="$evidence/eml"
+          mkdir -p "$evidence" "$output" "$eml_dir"
+          (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
+
+          set +e
+          cargo run -- extract --input "$fixture" --output "$output" --overwrite \
+            > "$evidence/extract.stdout" 2> "$evidence/extract.stderr"
+          extract_status=$?
+          cargo run --bin pstd-eml -- "$fixture" "$eml_dir" \
+            > "$evidence/eml.stdout" 2> "$evidence/eml.stderr"
+          eml_status=$?
+          set -e
+          printf '%s\n' "$extract_status" > "$evidence/extract-exit-code.txt"
+          printf '%s\n' "$eml_status" > "$evidence/eml-exit-code.txt"
+          if [[ "$extract_status" -ne 0 && "$extract_status" -ne 2 ]]; then
+            echo "Unexpected extraction exit code: $extract_status" >&2
+            exit 1
+          fi
+
+          tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+          mkdir -p "$evidence/archive"
+          tar -xf "$tar_file" -C "$evidence/archive"
+          cp "$output/run_summary.json" "$evidence/run_summary.json"
+          find "$output" -type f -printf '%p\t%s\n' | sort > "$evidence/output-files.tsv"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          evidence = Path('/tmp/pstd-tika-attachment')
+          archive = evidence / 'archive'
+          data = archive / 'data'
+          output = Path('/tmp/pstd-tika-attachment-output')
+
+          def records(name):
+              path = data / name
+              return [
+                  json.loads(line)
+                  for line in path.read_text(encoding='utf-8').splitlines()
+                  if line.strip()
+              ]
+
+          messages = records('messages.jsonl')
+          bodies = records('bodies.jsonl')
+          recipients = records('recipients.jsonl')
+          attachments = records('attachments.jsonl')
+          if len(messages) != 7:
+              raise SystemExit(f'unexpected message count: {len(messages)}')
+          if len(bodies) != 8:
+              raise SystemExit(f'unexpected body record count: {len(bodies)}')
+          if recipients:
+              raise SystemExit(f'unexpected recipients: {len(recipients)}')
+          if len(attachments) != 1:
+              raise SystemExit(f'unexpected attachment record count: {len(attachments)}')
+
+          attachment = attachments[0]
+          expected = {
+              'message_key': 'msg_c6163b9157944cc9',
+              'filename_original': 'attachment.docx',
+              'filename_safe': 'attachment.docx',
+              'extension': 'docx',
+              'size_bytes': 0,
+              'declared_size_bytes': 15503,
+              'size_status': 'payload_unavailable_declared_size_present',
+              'attachment_method': 1,
+              'ordinal': 0,
+              'extraction_status': 'attachment_metadata_extracted_payload_reference_unresolved',
+          }
+          for name, value in expected.items():
+              if attachment.get(name) != value:
+                  raise SystemExit(
+                      f'attachment {name} mismatch: {attachment.get(name)!r} != {value!r}'
+                  )
+
+          owner = next(
+              message for message in messages
+              if message['message_key'] == 'msg_c6163b9157944cc9'
+          )
+          if owner['has_attachments'] is not True or owner['attachment_count'] != 1:
+              raise SystemExit(f'owner attachment state mismatch: {owner!r}')
+          if owner['extraction_status'] != 'metadata_body_and_attachment_metadata':
+              raise SystemExit(f'owner extraction status mismatch: {owner["extraction_status"]!r}')
+
+          body_payloads = [path for path in (archive / 'bodies').rglob('*') if path.is_file()]
+          attachment_payloads = [
+              path for path in (archive / 'attachments').rglob('*') if path.is_file()
+          ] if (archive / 'attachments').exists() else []
+          eml_files = [path for path in (evidence / 'eml').rglob('*.eml') if path.is_file()]
+          tar_file = next((output / 'archives').glob('*.tar'))
+          metrics = {
+              'messages': len(messages),
+              'body_records': len(bodies),
+              'recipient_records': len(recipients),
+              'attachment_records': len(attachments),
+              'body_payload_files': len(body_payloads),
+              'body_payload_bytes': sum(path.stat().st_size for path in body_payloads),
+              'attachment_payload_files': len(attachment_payloads),
+              'attachment_payload_bytes': sum(path.stat().st_size for path in attachment_payloads),
+              'eml_files': len(eml_files),
+              'eml_bytes': sum(path.stat().st_size for path in eml_files),
+              'messages_jsonl_bytes': (data / 'messages.jsonl').stat().st_size,
+              'bodies_jsonl_bytes': (data / 'bodies.jsonl').stat().st_size,
+              'recipients_jsonl_bytes': (data / 'recipients.jsonl').stat().st_size,
+              'attachments_jsonl_bytes': (data / 'attachments.jsonl').stat().st_size,
+              'tar_bytes': tar_file.stat().st_size,
+              'output_total_bytes': sum(
+                  path.stat().st_size for path in output.rglob('*') if path.is_file()
+              ),
+          }
+          expected_metrics = {
+              'messages': 7,
+              'body_records': 8,
+              'recipient_records': 0,
+              'attachment_records': 1,
+              'body_payload_files': 6,
+              'body_payload_bytes': 252,
+              'attachment_payload_files': 0,
+              'attachment_payload_bytes': 0,
+              'eml_files': 0,
+              'eml_bytes': 0,
+              'messages_jsonl_bytes': 21435,
+              'bodies_jsonl_bytes': 2275,
+              'recipients_jsonl_bytes': 0,
+              'attachments_jsonl_bytes': 605,
+              'tar_bytes': 126464,
+              'output_total_bytes': 147692,
+          }
+          if metrics != expected_metrics:
+              raise SystemExit(f'fixture metrics mismatch: {metrics!r}')
+          evidence.joinpath('metrics.json').write_text(
+              json.dumps(metrics, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          evidence.joinpath('attachment.json').write_text(
+              json.dumps(attachment, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          evidence.joinpath('owner-message.json').write_text(
+              json.dumps(owner, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          PY
+      - name: Upload Tika attachment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tika-attachment-filename-evidence
+          path: /tmp/pstd-tika-attachment
+          if-no-files-found: error

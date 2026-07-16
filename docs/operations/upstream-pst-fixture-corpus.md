@@ -43,7 +43,27 @@ The known attachment path reported by Tika is:
 / First email.msg/First email.msg/attachment.docx
 ```
 
-This is the next preferred PSTD fixture because it provides a real attachment and multiple messages without being too large for normal CI use.
+### Current PSTD evidence from `testPST.pst`
+
+PSTD currently discovers seven normal message candidates and eight body records. The known DOCX-bearing outer message is:
+
+```text
+message_key: msg_c6163b9157944cc9
+message_node_id: node_2000e4
+subject: FW: First email
+```
+
+Its direct message Property Context omits `PidTagHasAttachments`, but its recursive subnodes contain a validated filename-bearing attachment Property Context with:
+
+```text
+PidTagAttachLongFilename: attachment.docx
+PidTagAttachSize:         15503
+PidTagAttachMethod:       1
+PidTagAttachmentHidden:   false
+PidTagAttachDataBinary:   3f830000
+```
+
+PSTD emits one metadata-only attachment record and marks the owning message as having one attachment. The four-byte data value remains an unresolved HNID/reference and is not treated as payload bytes. Exact before-versus-after evidence is recorded in [Vertical 29](vertical-29-expose-docx-attachment-filename.md).
 
 ### Apache Tika `testPST_variousBodyTypes.pst`
 
@@ -121,15 +141,15 @@ Never replace a fixture in place. Add a new pinned file or intentionally update 
 
 Fixture: `tika-testPST.pst`
 
-Preferred vertical milestones:
+Progress:
 
-1. discover the message that owns the documented attachment row;
-2. expose one validated attachment filename;
-3. expose attachment size and method;
-4. resolve the exact attachment payload bytes;
-5. validate the DOCX signature and checksum;
-6. emit the attachment through structured output;
-7. assemble a deterministic `multipart/mixed` EML containing the existing body alternatives and the DOCX attachment.
+1. owning message identified: complete;
+2. validated filename `attachment.docx`: complete;
+3. declared size `15,503` and method `1`: complete as metadata accompanying the filename record;
+4. exact attachment payload bytes: next;
+5. DOCX signature and checksum: pending payload resolution;
+6. structured attachment payload output: pending;
+7. deterministic `multipart/mixed` EML: pending recipient and payload completeness.
 
 Each step must report exact message, body, recipient, attachment, EML, and output-byte counts. Do not add attachment abstractions that do not expose one of these values from the fixture.
 
@@ -177,11 +197,10 @@ Use a controlled synthetic fixture after the public corpus has established legac
 
 ## CI policy
 
-The original small public fixture remains the fast required regression gate for the already validated readable-email path. The upstream corpus should be added to CI incrementally as each corresponding vertical milestone becomes deterministic.
+The original small public fixture remains the fast required regression gate for the already validated readable-email path. The upstream corpus is added to CI incrementally as each corresponding vertical milestone becomes deterministic.
 
-Do not make all three fixtures a blanket success gate before PSTD supports their object types. Instead, add narrowly scoped workflows such as:
+The permanent `Tika attachment fixture` workflow currently asserts the exact DOCX filename metadata, owning message, fixture counts, zero-payload boundary, zero-EML boundary, and structured-output byte totals. Future workflows should remain narrowly scoped:
 
-- `tika-attachment-fixture`;
 - `tika-multi-message-fixture`;
 - `tika-body-types-fixture`;
 - `java-libpst-calendar-fixture`.
@@ -199,4 +218,4 @@ Each workflow must name its exact fixture, expected values, and output counts. A
 
 ## Immediate next milestone
 
-Run PSTD against `tests/fixtures/upstream/tika-testPST.pst` and extract the first validated attachment field from the known DOCX-bearing message. The preferred first observable result is the attachment filename. If filename resolution cannot be validated, expose the smallest real attachment property—such as size, method, or count—that can be tied unambiguously to that message.
+Resolve the `PidTagAttachDataBinary` HNID/reference for `attachment.docx` and emit exactly one 15,503-byte payload tied to `msg_c6163b9157944cc9`. Validate the DOCX ZIP signature, SHA-256 checksum, deterministic archive path, structured record, and exact output-byte delta. Keep the method-`5` embedded message out of the by-value attachment milestone.

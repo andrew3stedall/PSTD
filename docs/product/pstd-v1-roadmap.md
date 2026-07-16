@@ -29,7 +29,7 @@ Complete. This lane corrected PST traversal, identified real folder/message cand
 
 ### Vertical recipient lane: roles through structured output
 
-Complete. The public fixture emits four actual `RecipientRecord` rows:
+Complete. The original public fixture emits four actual `RecipientRecord` rows:
 
 ```text
 To: Recipient 1 <to1@domain.com>
@@ -42,72 +42,70 @@ The exact run preserved one message, two body payload records, zero attachments,
 
 ### First complete readable EML and Date header
 
-Complete. The public fixture emits one deterministic CRLF `.eml` assembled from validated sender, subject, recipient, plain-text-body, and transport Date data.
+Complete. The original public fixture emits one deterministic CRLF `.eml` assembled from validated sender, subject, recipient, plain-text-body, and transport Date data.
 
 ### Readable RTF body
 
-Complete. The fixture's 336-byte `PidTagRtfCompressed` value produces one validated 320-byte standalone RTF document for message `msg_ad9f58792ae34dfc` containing:
-
-```text
-This line is in bold.
-This line is in blue color
-```
+Complete. The original fixture's 336-byte `PidTagRtfCompressed` value produces one validated 320-byte standalone RTF document for message `msg_ad9f58792ae34dfc`.
 
 ### Multipart readable EML
 
-Complete. The public fixture emitted one 1,175-byte `multipart/alternative` EML containing ordered `text/plain` and `text/rtf` parts while preserving sender, recipients, subject, Date, and Message-ID.
+Complete. The original public fixture emitted one 1,175-byte `multipart/alternative` EML containing ordered `text/plain` and `text/rtf` parts while preserving sender, recipients, subject, Date, and Message-ID.
 
 ### Readable HTML body
 
 Complete. The validated 320-byte `\fromhtml1` RTF produces one 95-byte standalone HTML document for message `msg_ad9f58792ae34dfc` containing bold and blue-text markup with no raw RTF control data.
 
-The milestone preserved one message, two body payload records, four recipients, zero attachments, one 1,175-byte EML, and one 320-byte standalone RTF while increasing combined observable EML, RTF, and HTML output from 1,495 to 1,590 bytes.
-
 ### Plain-text and HTML EML alternatives
 
-Complete. The public fixture now emits one deterministic 956-byte `multipart/alternative` EML with ordered `text/plain` and `text/html` parts. It preserves the validated sender, To, Cc, Subject, Date, and Message-ID values, includes the known plain body and recovered bold/blue HTML markup, and contains no `text/rtf`, raw `\rtf`, or `\htmltag` content.
-
-The exact fixture result preserves one message, two body payload records, four structured recipients, zero attachments, one 320-byte standalone RTF, and one 95-byte standalone HTML file. Combined observable EML, RTF, and HTML bytes changed from 1,590 to 1,371 because the compact HTML alternative replaced the larger raw RTF MIME representation.
+Complete. The original public fixture now emits one deterministic 956-byte `multipart/alternative` EML with ordered `text/plain` and `text/html` parts. It preserves the validated sender, To, Cc, Subject, Date, and Message-ID values and contains no raw RTF MIME part.
 
 ### Upstream fixture corpus
 
 Complete. Three pinned public PST fixtures now provide evidence for attachment extraction, multiple messages and folders, body-representation selection, appointments, recurrence exceptions, contacts, distribution lists, and legacy Exchange address handling. Exact provenance, sizes, SHA-256 hashes, and expected upstream evidence are documented in [Upstream PST Fixture Corpus](../operations/upstream-pst-fixture-corpus.md).
 
+### First real attachment filename
+
+Complete. `tika-testPST.pst` now emits one metadata-only attachment record for message `msg_c6163b9157944cc9`:
+
+```text
+filename: attachment.docx
+declared size: 15,503 bytes
+method: 1 (by value)
+payload bytes: unresolved
+```
+
+The owning message now reports `has_attachments=true` and `attachment_count=1`. The fixture preserves seven messages, eight body records, zero recipients, zero attachment payload files, and zero EML files while increasing attachment records from zero to one. Exact before-versus-after evidence is recorded in [Vertical 29](../operations/vertical-29-expose-docx-attachment-filename.md).
+
 ## Current milestone
 
-### Extract the first real attachment field
+### Resolve the DOCX attachment payload
 
-Use `tests/fixtures/upstream/tika-testPST.pst`, which contains a documented nested `attachment.docx`, multiple messages, multiple folders, Unicode metadata, and a legacy Exchange recipient address.
-
-The smallest acceptable vertical result is one attachment property tied unambiguously to its owning message. Prefer this order:
-
-1. validated attachment filename;
-2. validated attachment size;
-3. attachment method or MIME type;
-4. exact attachment payload bytes;
-5. structured attachment output;
-6. deterministic `multipart/mixed` EML assembly.
+The `PidTagAttachDataBinary` value in the validated attachment Property Context is the four-byte value `3f830000`. It is an HNID/reference, not the attachment itself. The next milestone must resolve that reference through existing validated Heap-on-Node/subnode components and emit the real DOCX payload.
 
 Acceptance boundary:
 
-- reuse the existing validated NDB, subnode, Heap-on-Node, BTH, Property Context, and Table Context components;
-- identify the attachment table and owner message without heuristics;
-- fail closed if row attribution, subnode resolution, or property type is ambiguous;
-- retain the original small fixture as a regression gate;
-- add a fixture-specific test or workflow that names `tika-testPST.pst` explicitly;
-- report before-versus-after message, body, recipient, attachment, EML, and byte counts;
-- do not add attachment abstractions unless they expose a real value from this fixture in the same milestone.
+- resolve the reference without scanning for ZIP signatures or guessing from nearby bytes;
+- tie the payload unambiguously to `msg_c6163b9157944cc9` and `attachment.docx`;
+- require exactly 15,503 payload bytes, matching `PidTagAttachSize`;
+- verify the DOCX ZIP signature and calculate a deterministic SHA-256 checksum;
+- update the existing attachment record from metadata-only to extracted;
+- emit one attachment payload file at its deterministic archive path;
+- preserve seven messages, eight body records, zero recipients, and zero Tika-fixture EML files unless independently eligible;
+- report exact before-versus-after structured-output, attachment-payload, TAR, EML, and total-output byte counts;
+- keep embedded-message method `5` handling out of this by-value payload milestone.
 
 ## Following fixture sequence
 
-After the first attachment field and payload are validated:
+After the DOCX payload is validated:
 
-1. complete attachment-to-EML assembly on `tika-testPST.pst`;
-2. validate multiple messages, folders, Unicode names, and legacy Exchange address preservation on the same fixture;
-3. validate body-form selection with `tika-various-body-types.pst`;
-4. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
-5. validate contacts and distribution-list entries without forcing them through the normal email path;
-6. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
+1. assemble a deterministic `multipart/mixed` EML when the Tika message has independently validated recipients and body alternatives;
+2. recover the method-`5` embedded message as a separate object and attachment path;
+3. validate multiple messages, folders, Unicode names, and legacy Exchange address preservation on `tika-testPST.pst`;
+4. validate body-form selection with `tika-various-body-types.pst`;
+5. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
+6. validate contacts and distribution-list entries without forcing them through the normal email path;
+7. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
 
 ## Completion definition for reliable extraction
 
