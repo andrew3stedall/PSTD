@@ -19,6 +19,7 @@ pub struct AttachmentPropertyContextReport {
     pub status: String,
 }
 
+/// Extracts only filename-bearing attachment metadata from validated heap Property Contexts.
 pub fn attachment_records_from_property_context_subnodes(
     message_key: &str,
     blocks: &[PayloadBlock],
