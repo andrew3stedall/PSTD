@@ -1,0 +1,44 @@
+name: Apply DOCX payload vertical
+
+on:
+  push:
+    branches: [emit-docx-attachment-payload]
+    paths:
+      - '.github/workflows/apply-docx-payload-vertical.yml'
+      - 'scripts/apply_docx_payload_vertical.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: emit-docx-attachment-payload
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Apply bounded source edits
+        run: python scripts/apply_docx_payload_vertical.py
+      - name: Format and verify source
+        run: |
+          set -euo pipefail
+          cargo fmt --all
+          cargo test data_tree
+          cargo test attachment_property_context
+          cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - name: Commit source changes
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'Source changes already applied.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/engine/metadata.rs src/pst/attachment_property_context.rs src/pst/data_tree.rs src/pst/mod.rs
+          git commit -m 'Emit validated DOCX attachment payload'
+          git push origin HEAD:emit-docx-attachment-payload
