@@ -10,8 +10,8 @@ _Last reviewed: 16 July 2026._
 |---|---|---|
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
-| Vertical extraction sequence | Complete through Vertical 31 on `main` | Four original-fixture recipients, one readable HTML EML, and one validated 11,862-byte DOCX attachment payload are emitted. |
-| Active implementation | Vertical 32 / draft PR #452 | Resolves heap-backed recipient rows and emits eight directly attributed Tika recipients while excluding the embedded-message table. |
+| Vertical extraction sequence | Complete through Vertical 32 / PR #452 | Four original-fixture recipients, one readable HTML EML, one validated 11,862-byte DOCX attachment payload, and eight directly attributed Tika recipients are emitted. |
+| Current milestone | Tika attachment EML | Validate the remaining Date/required-header evidence and assemble the first deterministic `multipart/mixed` EML. |
 | EML reconstruction | Fixture validated | The original fixture emits one deterministic 956-byte plain/HTML EML; the Tika attachment message is the next assembly boundary. |
 
 ## Intent
@@ -49,7 +49,7 @@ The Table Context path now validates four 52-byte rows. The fixture has separate
 
 On `main`, these values are published as four complete row-aligned recipient records and assembled into the original fixture's readable EML.
 
-The Tika attachment fixture on draft PR #452 emits eight additional recipients across seven messages. Six carry validated SMTP addresses. Two preserve raw/native evidence, including one full legacy Exchange distinguished name, without guessing an SMTP value. The existing `attachment.docx` payload remains byte-for-byte unchanged.
+The Tika attachment fixture on `main` emits eight additional recipients across seven messages. Six carry validated SMTP addresses. Two preserve raw/native evidence, including one full legacy Exchange distinguished name, without guessing an SMTP value. The existing `attachment.docx` payload remains byte-for-byte unchanged.
 
 ## Progress over time
 
@@ -62,7 +62,7 @@ The Tika attachment fixture on draft PR #452 emits eight additional recipients a
 | PQ58-PQ74 | Validated descriptor mapping, constructed bounded row transport, decoded supported fixed-width MAPI values, and integrated fail-closed diagnostics into production reporting. |
 | Vertical 1-28 | Progressed from recipient property classification to structured recipients, readable body forms, and one deterministic plain/HTML EML. |
 | Vertical 29-31 | Recovered `attachment.docx` metadata, its data-tree reference, and the exact validated 11,862-byte DOCX payload. |
-| Vertical 32 / draft #452 | Bridges heap-backed row matrices into production and emits eight Tika recipients with direct message ownership. |
+| Vertical 32 / #452 | Bridged heap-backed row matrices into production and emitted eight Tika recipients with direct message ownership. |
 
 Detailed point-in-time milestone and experiment records are retained under `docs/`. They are historical evidence, not the current roadmap.
 

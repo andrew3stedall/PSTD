@@ -98,7 +98,7 @@ The differing size values are preserved rather than forced to agree: the XBLOCK 
 
 ### Heap-backed Tika recipient tables
 
-Complete in draft PR #452. PSTD now resolves Table Context row matrices stored in the owning Heap-on-Node allocation, attributes only direct NID type `0x12` tables to each message, and emits eight recipients across all seven Tika messages.
+Complete in PR #452. PSTD now resolves Table Context row matrices stored in the owning Heap-on-Node allocation, attributes only direct NID type `0x12` tables to each message, and emits eight recipients across all seven Tika messages.
 
 Six rows carry authoritative SMTP values. Two rows deliberately preserve native/raw evidence: one complete legacy Exchange distinguished name and the attachment owner's `PidTagEmailAddress`, for which no authoritative SMTP projection is published. The existing DOCX payload is unchanged. Exact evidence is recorded in [Vertical 32](../operations/vertical-32-emit-tika-heap-backed-recipients.md).
 
