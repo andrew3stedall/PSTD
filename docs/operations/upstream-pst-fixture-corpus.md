@@ -63,15 +63,32 @@ PidTagAttachmentHidden:   false
 PidTagAttachDataBinary:   3f830000
 ```
 
-PSTD emits one metadata-only attachment record and marks the owning message as having one attachment. The four-byte data value is a subnode NID and now resolves through a complete Unicode SLBLOCK:
+The four-byte data value resolves through a complete Unicode SLBLOCK to the internal data-tree BID:
 
 ```text
 data NID:      0x0000833f
 resolved BID:  0x632
-payload bytes: 0
 ```
 
-BID `0x632` is an internal data-tree block and is not treated as attachment bytes. Filename evidence is recorded in [Vertical 29](vertical-29-expose-docx-attachment-filename.md); exact reference-resolution evidence is recorded in [Vertical 30](vertical-30-resolve-docx-attachment-data-reference.md).
+BID `0x632` is a Unicode XBLOCK with two ordered external child BIDs. Its `lcbTotal` is 11,862 bytes, which differs from the 15,503-byte `PidTagAttachSize` metadata value. PSTD preserves both values and emits the XBLOCK payload exactly:
+
+```text
+payload files/bytes: 1/11862
+SHA-256:             0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0
+ZIP signature:       50 4b 03 04
+DOCX CRC validation: passed
+expected text:       This is a docx attachment.
+```
+
+The payload is written to:
+
+```text
+attachments/msg_c6163b9157944cc9/att_0695091e19397627_attachment.docx
+```
+
+Filename evidence is recorded in [Vertical 29](vertical-29-expose-docx-attachment-filename.md), exact reference-resolution evidence in [Vertical 30](vertical-30-resolve-docx-attachment-data-reference.md), and payload evidence in [Vertical 31](vertical-31-emit-docx-attachment-payload.md).
+
+The immediate next use of this fixture is recipient extraction for the same message. It currently emits zero recipient records, so EML assembly remains deferred even though subject, sender, identifiers, plain text, HTML, and the DOCX attachment are available.
 
 ### Apache Tika `testPST_variousBodyTypes.pst`
 
@@ -81,7 +98,7 @@ BID `0x632` is an internal data-tree block and is not treated as attachment byte
 - Source URL: `https://github.com/apache/tika/blob/63e22d08ef249cc73a6d02da7bc199fc3623a607/tika-parsers/tika-parsers-standard/tika-parsers-standard-modules/tika-parser-microsoft-module/src/test/resources/test-documents/testPST_variousBodyTypes.pst`
 - Upstream project licence: Apache License 2.0
 
-Apache Tika's regression test expects five recursive metadata objects and uses the fixture specifically to exercise PST messages with different body forms. PSTD should use it after basic attachment extraction to validate independent plain-text, HTML, and RTF selection rather than relying only on the current HTML-derived RTF case.
+Apache Tika's regression test expects five recursive metadata objects and uses the fixture specifically to exercise PST messages with different body forms. PSTD should use it after ordinary message extraction is stable on the attachment fixture to validate independent plain-text, HTML, and RTF selection rather than relying only on the current HTML-derived RTF case.
 
 ### java-libpst `dist-list.pst`
 
