@@ -81,12 +81,14 @@ pub fn load_unicode_xblock_payload(
         ));
     }
 
-    let child_bytes = child_count
-        .checked_mul(UNICODE_BID_BYTES)
-        .ok_or_else(|| PstdError::pst_parse(Some(root.block_ref.offset.0), "XBLOCK child array overflow"))?;
+    let child_bytes = child_count.checked_mul(UNICODE_BID_BYTES).ok_or_else(|| {
+        PstdError::pst_parse(Some(root.block_ref.offset.0), "XBLOCK child array overflow")
+    })?;
     let child_end = XBLOCK_HEADER_BYTES
         .checked_add(child_bytes)
-        .ok_or_else(|| PstdError::pst_parse(Some(root.block_ref.offset.0), "XBLOCK length overflow"))?;
+        .ok_or_else(|| {
+            PstdError::pst_parse(Some(root.block_ref.offset.0), "XBLOCK length overflow")
+        })?;
     if child_end > root.bytes.len() {
         return Err(PstdError::pst_parse(
             Some(root.block_ref.offset.0),
@@ -110,7 +112,10 @@ pub fn load_unicode_xblock_payload(
         if child_bid.0 == 0 || child_bid.0 & BID_INTERNAL_MASK != 0 {
             return Err(PstdError::pst_parse(
                 Some(root.block_ref.offset.0),
-                format!("XBLOCK child {index} has invalid external BID 0x{:x}", child_bid.0),
+                format!(
+                    "XBLOCK child {index} has invalid external BID 0x{:x}",
+                    child_bid.0
+                ),
             ));
         }
         if !seen.insert(child_bid) {
@@ -121,16 +126,16 @@ pub fn load_unicode_xblock_payload(
         }
 
         let child = load_payload_block(reader, bbt, child_bid, limits)?;
-        let next_len = bytes
-            .len()
-            .checked_add(child.bytes.len())
-            .ok_or_else(|| PstdError::pst_parse(Some(child.block_ref.offset.0), "XBLOCK payload length overflow"))?;
+        let next_len = bytes.len().checked_add(child.bytes.len()).ok_or_else(|| {
+            PstdError::pst_parse(
+                Some(child.block_ref.offset.0),
+                "XBLOCK payload length overflow",
+            )
+        })?;
         if next_len as u64 > declared_total_bytes {
             return Err(PstdError::pst_parse(
                 Some(child.block_ref.offset.0),
-                format!(
-                    "XBLOCK child data exceeds declared total {declared_total_bytes} bytes"
-                ),
+                format!("XBLOCK child data exceeds declared total {declared_total_bytes} bytes"),
             ));
         }
         bytes.extend_from_slice(&child.bytes);
@@ -186,7 +191,11 @@ mod tests {
         let first = b"PK\x03\x04first";
         let second = b"second";
         let root = xblock(&[0x640, 0x644], (first.len() + second.len()) as u32);
-        let (file, bbt) = fixture(&[(0x632, root), (0x640, first.to_vec()), (0x644, second.to_vec())]);
+        let (file, bbt) = fixture(&[
+            (0x632, root),
+            (0x640, first.to_vec()),
+            (0x644, second.to_vec()),
+        ]);
         let reader = PstByteReader::open(file.path()).unwrap();
 
         let payload = load_unicode_xblock_payload(
@@ -199,7 +208,10 @@ mod tests {
         .unwrap();
 
         assert_eq!(payload.child_bids, vec![BlockId(0x640), BlockId(0x644)]);
-        assert_eq!(payload.bytes, [first.as_slice(), second.as_slice()].concat());
+        assert_eq!(
+            payload.bytes,
+            [first.as_slice(), second.as_slice()].concat()
+        );
         assert!(payload.status.contains("child_blocks=2"));
     }
 
@@ -209,24 +221,14 @@ mod tests {
         let (file, bbt) = fixture(&[(0x632, root), (0x640, b"nope".to_vec())]);
         let reader = PstByteReader::open(file.path()).unwrap();
 
-        let mismatch = load_unicode_xblock_payload(
-            &reader,
-            &bbt,
-            BlockId(0x632),
-            5,
-            ParserLimits::default(),
-        )
-        .unwrap_err();
+        let mismatch =
+            load_unicode_xblock_payload(&reader, &bbt, BlockId(0x632), 5, ParserLimits::default())
+                .unwrap_err();
         assert!(mismatch.to_string().contains("does not match expected"));
 
-        let signature = load_unicode_xblock_payload(
-            &reader,
-            &bbt,
-            BlockId(0x632),
-            4,
-            ParserLimits::default(),
-        )
-        .unwrap_err();
+        let signature =
+            load_unicode_xblock_payload(&reader, &bbt, BlockId(0x632), 4, ParserLimits::default())
+                .unwrap_err();
         assert!(signature.to_string().contains("unexpected signature"));
     }
 
@@ -237,27 +239,17 @@ mod tests {
         truncated[2..4].copy_from_slice(&2u16.to_le_bytes());
         let (file, bbt) = fixture(&[(0x632, truncated), (0x640, b"PK\x03\x04".to_vec())]);
         let reader = PstByteReader::open(file.path()).unwrap();
-        let error = load_unicode_xblock_payload(
-            &reader,
-            &bbt,
-            BlockId(0x632),
-            4,
-            ParserLimits::default(),
-        )
-        .unwrap_err();
+        let error =
+            load_unicode_xblock_payload(&reader, &bbt, BlockId(0x632), 4, ParserLimits::default())
+                .unwrap_err();
         assert!(error.to_string().contains("declares 2 child BIDs"));
 
         let root = xblock(&[0x642], 4);
         let (file, bbt) = fixture(&[(0x632, root), (0x642, b"PK\x03\x04".to_vec())]);
         let reader = PstByteReader::open(file.path()).unwrap();
-        let error = load_unicode_xblock_payload(
-            &reader,
-            &bbt,
-            BlockId(0x632),
-            4,
-            ParserLimits::default(),
-        )
-        .unwrap_err();
+        let error =
+            load_unicode_xblock_payload(&reader, &bbt, BlockId(0x632), 4, ParserLimits::default())
+                .unwrap_err();
         assert!(error.to_string().contains("invalid external BID"));
     }
 
