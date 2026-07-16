@@ -1,6 +1,6 @@
 # PSTD System Overview
 
-_Last reviewed: 14 July 2026._
+_Last reviewed: 16 July 2026._
 
 ## Purpose
 
@@ -36,7 +36,7 @@ CLI / Python wrapper
 | Property Context | Selected MAPI property lookup and decoding. | Implemented for the validated subset |
 | Table Context | TCINFO, descriptors, row-index BTH, row payload resolution, row addressing, bitmap evidence, and value projection. | Implemented through bounded fixed-width and recipient string paths |
 | Semantic extraction | Folder/message classification, bodies, recipient roles/names/addresses, threading, attachment evidence. | Partial but materially functional |
-| Reporting | Bounded diagnostics, progress artifacts, structured output records. | Implemented; some validated diagnostics are not yet wired to final records |
+| Reporting | Bounded diagnostics, progress artifacts, structured output records. | Implemented for the validated recipient, body, and attachment paths |
 
 ## Current Table Context recipient flow
 
@@ -44,8 +44,8 @@ CLI / Python wrapper
 validated TC heap
   -> TCINFO descriptors
   -> row-index BTH
-  -> subnode-backed row payload
-  -> four validated 52-byte rows
+  -> subnode-backed or heap-backed row payload
+  -> validated row widths, offsets, and bitmaps
   -> property descriptor selection
   -> fixed-width recipient role values
   -> variable-width recipient name/address HNIDs
@@ -54,7 +54,7 @@ validated TC heap
   -> row-aligned recipient record assembly
 ```
 
-On `main`, complete recipient records can retain role, display name, address, and address kind when all validated diagnostics are supplied. The production reporting path does not yet generate and publish those complete records in one public-fixture run.
+The original fixture publishes four complete recipient records from subnode-backed rows. Draft PR #452 applies the same validated pipeline to heap-backed row allocations and publishes eight directly attributed Tika recipients. Production ownership is restricted to direct recipient-table NIDs in each message root, so nested embedded-message tables are excluded.
 
 ## Extraction and output boundaries
 
@@ -119,9 +119,9 @@ The presence of a file family in the contract does not imply complete extraction
 
 - Fixture evidence is narrow and does not establish general PST compatibility.
 - ANSI PST support and uncommon layouts remain incomplete.
-- Attachment output is zero on the public fixture.
-- Complete recipient records are not yet emitted through the production run.
-- Structured output is not yet sufficient to claim lossless or RFC-complete EML reconstruction.
+- Embedded-message and uncommon attachment layouts remain incomplete.
+- The Tika DOCX-bearing message is not yet assembled into a multipart EML.
+- Structured output is not yet sufficient to claim lossless or RFC-complete EML reconstruction across arbitrary PSTs.
 
 ## Evolution path
 

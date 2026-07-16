@@ -76,9 +76,98 @@ jobs:
               raise SystemExit(f'unexpected message count: {len(messages)}')
           if len(bodies) != 8:
               raise SystemExit(f'unexpected body record count: {len(bodies)}')
-          print('observed recipients: ' + json.dumps(recipients, sort_keys=True))
-          if len(recipients) != 8:
-              raise SystemExit(f'unexpected recipients: {len(recipients)}')
+          expected_recipients = [
+              {
+                  'recipient_key': 'rcpt_379c07577f6a2435',
+                  'message_key': 'msg_2a24cb244caffb52',
+                  'recipient_type': 'to',
+                  'display_name': 'users@opennlp.apache.org',
+                  'address_type': 'SMTP',
+                  'smtp_address': 'users@opennlp.apache.org',
+                  'raw_address': 'users@opennlp.apache.org',
+                  'resolution_status': 'smtp_available',
+                  'ordinal': 0,
+              },
+              {
+                  'recipient_key': 'rcpt_0f0aa7896608e4db',
+                  'message_key': 'msg_d7325f9579306ba3',
+                  'recipient_type': 'to',
+                  'display_name': 'kottmann@gmail.com',
+                  'address_type': 'SMTP',
+                  'smtp_address': 'kottmann@gmail.com',
+                  'raw_address': 'kottmann@gmail.com',
+                  'resolution_status': 'smtp_available',
+                  'ordinal': 0,
+              },
+              {
+                  'recipient_key': 'rcpt_688870b4d701b905',
+                  'message_key': 'msg_d7325f9579306ba3',
+                  'recipient_type': 'to',
+                  'display_name': 'users@opennlp.apache.org',
+                  'address_type': 'SMTP',
+                  'smtp_address': 'users@opennlp.apache.org',
+                  'raw_address': 'users@opennlp.apache.org',
+                  'resolution_status': 'smtp_available',
+                  'ordinal': 1,
+              },
+              {
+                  'recipient_key': 'rcpt_e6506de5e0a2e4cb',
+                  'message_key': 'msg_ce73d10db9eceadb',
+                  'recipient_type': 'to',
+                  'display_name': 'users@opennlp.apache.org',
+                  'address_type': 'SMTP',
+                  'smtp_address': 'users@opennlp.apache.org',
+                  'raw_address': 'users@opennlp.apache.org',
+                  'resolution_status': 'smtp_available',
+                  'ordinal': 0,
+              },
+              {
+                  'recipient_key': 'rcpt_fafe37d564978a11',
+                  'message_key': 'msg_33144a866cb58408',
+                  'recipient_type': 'to',
+                  'display_name': 'dev@tika.apache.org',
+                  'address_type': 'SMTP',
+                  'smtp_address': 'dev@tika.apache.org',
+                  'raw_address': 'dev@tika.apache.org',
+                  'resolution_status': 'smtp_available',
+                  'ordinal': 0,
+              },
+              {
+                  'recipient_key': 'rcpt_28fe22645637e0eb',
+                  'message_key': 'msg_5e70ad45c1c42472',
+                  'recipient_type': 'to',
+                  'display_name': 'dev@tika.apache.org',
+                  'address_type': 'SMTP',
+                  'smtp_address': 'dev@tika.apache.org',
+                  'raw_address': 'dev@tika.apache.org',
+                  'resolution_status': 'smtp_available',
+                  'ordinal': 0,
+              },
+              {
+                  'recipient_key': 'rcpt_73867f2f12bdd1e2',
+                  'message_key': 'msg_4bc9d7bd77cbe661',
+                  'recipient_type': 'to',
+                  'display_name': 'Hong-Thai Nguyen',
+                  'address_type': 'native_email_address',
+                  'smtp_address': None,
+                  'raw_address': '/o=ExchangeLabs/ou=Exchange Administrative Group (FYDIBOHF23SPDLT)/cn=Recipients/cn=polyspot1.onmicrosoft.com-50609-Hong-Thai.Ng',
+                  'resolution_status': 'raw_address_preserved',
+                  'ordinal': 0,
+              },
+              {
+                  'recipient_key': 'rcpt_68933279ead844e0',
+                  'message_key': 'msg_c6163b9157944cc9',
+                  'recipient_type': 'to',
+                  'display_name': "'lfcnassif@gmail.com'",
+                  'address_type': 'native_email_address',
+                  'smtp_address': None,
+                  'raw_address': 'lfcnassif@gmail.com',
+                  'resolution_status': 'raw_address_preserved',
+                  'ordinal': 0,
+              },
+          ]
+          if recipients != expected_recipients:
+              raise SystemExit(f'unexpected recipients: {recipients!r}')
           if len(attachments) != 1:
               raise SystemExit(f'unexpected attachment record count: {len(attachments)}')
 
@@ -159,7 +248,7 @@ jobs:
           expected_metrics = {
               'messages': 7,
               'body_records': 8,
-              'recipient_records': 0,
+              'recipient_records': 8,
               'attachment_records': 1,
               'body_payload_files': 6,
               'body_payload_bytes': 252,
@@ -169,10 +258,10 @@ jobs:
               'eml_bytes': 0,
               'messages_jsonl_bytes': 21521,
               'bodies_jsonl_bytes': 2275,
-              'recipients_jsonl_bytes': 0,
+              'recipients_jsonl_bytes': 2418,
               'attachments_jsonl_bytes': 643,
-              'tar_bytes': 164352,
-              'output_total_bytes': 191240,
+              'tar_bytes': 202752,
+              'output_total_bytes': 241579,
           }
           if metrics != expected_metrics:
               raise SystemExit(f'fixture metrics mismatch: {metrics!r}')

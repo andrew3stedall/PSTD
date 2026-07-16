@@ -30,7 +30,8 @@ This documentation tree contains both current operating guidance and historical 
 | Recipient verticals | Four structured To/Cc recipient records with names and usable addresses are emitted from the original public fixture. |
 | Readable message verticals | One deterministic 956-byte EML is emitted with sender, recipients, subject, Date, Message-ID, plain text, and recovered HTML. |
 | Upstream fixture corpus | Three pinned public PSTs now cover attachments, multiple folders/messages, body forms, appointments, recurrence, contacts, distribution lists, and legacy Exchange addresses. |
-| Current milestone | Extract the first validated attachment field from the known DOCX-bearing message in `tika-testPST.pst`. |
+| Tika attachment fixture | Seven messages now emit eight directly attributed recipients, including six SMTP rows and two preserved native/raw addresses; the validated DOCX payload is unchanged. |
+| Current milestone | Assemble the first deterministic `multipart/mixed` EML for the DOCX-bearing Tika message after validating its remaining Date/header evidence. |
 
 The current roadmap and fixture-corpus guide define the active evidence-led sequence. Historical milestone and PQ documents remain useful for implementation context but do not define the next task.
 

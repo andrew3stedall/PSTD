@@ -1,6 +1,6 @@
 # Public PST Progress Log
 
-_Last reviewed: 14 July 2026._
+_Last reviewed: 16 July 2026._
 
 ## Purpose
 
@@ -41,12 +41,30 @@ After every extraction milestone:
 | 2 | Cc | Recipient 3 | `PidTagEmailAddress` | `cc1@domain.com` | native email address |
 | 3 | Cc | Recipient 4 | `PidTagEmailAddress` | `cc2@domain.com` | native email address |
 
-The merged implementation can assemble these independently validated sequences into complete row-aligned records. It does not yet publish the complete records through one production fixture execution.
+The original fixture publishes these four complete row-aligned records through the production extraction path.
+
+## Tika recipient and attachment evidence
+
+Draft PR #452 advances `tests/fixtures/upstream/tika-testPST.pst` from zero to eight recipient records across seven messages while preserving the existing DOCX result.
+
+| Evidence | Result |
+|---|---:|
+| Messages / body records | 7 / 8 |
+| Recipient records | 8 |
+| SMTP / raw-native rows | 6 / 2 |
+| Attachment records | 1 |
+| Attachment payload files / bytes | 1 / 11,862 |
+| Recipient JSONL bytes | 2,418 |
+| Extraction TAR bytes | 202,752 |
+| Total output bytes | 241,579 |
+
+The raw/native rows preserve the complete legacy Exchange distinguished name for `Hong-Thai Nguyen` and the attachment owner's validated `PidTagEmailAddress`. Neither is relabelled as SMTP without a validated `PidTagSmtpAddress` projection.
 
 ## Progress history
 
 | Date | Milestone / PR range | Change type | Result | Next measured boundary |
 |---|---|---|---|---|
+| 2026-07-16 | Vertical 32 / draft #452 | Material recipient extraction | Resolved heap-backed Table Context row matrices, attributed only direct recipient tables to each message, emitted eight records across seven Tika messages, preserved one legacy Exchange DN, and retained the exact DOCX payload. | Validate Date/required headers and assemble the first Tika `multipart/mixed` EML. |
 | 2026-07-14 | Vertical 13 / #429 | New extraction representation | Added fail-closed complete recipient records retaining role, display name, address, and authoritative address kind by row. | Project names and addresses from the same rows and heap in one invocation. |
 | 2026-07-14 | Verticals 11-12 / #427-#428 | Material recipient fidelity | Preferred `PidTagSmtpAddress`, then `PidTagEmailAddress`, over display-name fallback and classified the selected value as SMTP, native email address, or display name. The fixture produced four native email-address values. | Retain display names and addresses together rather than allowing address selection to replace names. |
 | 2026-07-14 | Verticals 9-10 / #425-#426 | Structured recipient output | Assembled four role/name records and exposed bounded publication: two To and two Cc recipients with names `Recipient 1` through `Recipient 4`. | Extract address-bearing properties and preserve row alignment. |
@@ -64,11 +82,11 @@ The merged implementation can assemble these independently validated sequences i
 
 ## Active unmerged work
 
-Draft PR #430 projects display names and preferred addresses independently from the same validated rows and heap, then assembles complete records in one invocation. It is not part of this validated baseline until its exact head passes CI and merges.
+Draft PR #452 bridges heap-backed recipient rows into the existing validated projection, filters production ownership through each message root's direct recipient-table NIDs, and locks the eight-record Tika result in a permanent fixture gate. It is not part of the merged baseline until its exact final head passes CI and merges.
 
 ## Interpretation
 
-The parser has advanced from structural discovery to real recipient values. That is material progress, but it is still not full email extraction. The public fixture emits no attachments, complete recipient records are not yet published in the production run, and broad PST compatibility remains unproven.
+The parser has advanced from structural discovery to material recipient, body, attachment, and readable-EML output on approved fixtures. This is still not broad compatibility: the Tika attachment message has no assembled EML yet, embedded messages remain deferred, and one fixture cannot establish support for uncommon or corrupt layouts.
 
 ## Completion report template
 
