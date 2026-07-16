@@ -31,16 +31,34 @@ jobs:
         with:
           components: rustfmt, clippy
       - name: Apply bounded source edits
+        id: patch
+        continue-on-error: true
         shell: bash
         run: |
-          set -euo pipefail
+          set +e
+          mkdir -p /tmp/docx-patch
+          status=0
           if ! grep -q 'attachment_payloads_from_property_context_subnodes' src/pst/attachment_property_context.rs; then
-            python scripts/fix_docx_payload_patch.py
-            python scripts/apply_docx_payload_vertical.py
+            python scripts/fix_docx_payload_patch.py >> /tmp/docx-patch/patch.log 2>&1 || status=$?
+            if [[ "$status" -eq 0 ]]; then
+              python scripts/apply_docx_payload_vertical.py >> /tmp/docx-patch/patch.log 2>&1 || status=$?
+            fi
           fi
-          if ! grep -q 'metadata_size_differs_from_xblock_total' src/pst/data_tree.rs; then
-            python scripts/refine_docx_payload_vertical_v2.py
+          if [[ "$status" -eq 0 ]] && ! grep -q 'metadata_size_differs_from_xblock_total' src/pst/data_tree.rs; then
+            python scripts/refine_docx_payload_vertical_v2.py >> /tmp/docx-patch/patch.log 2>&1 || status=$?
           fi
+          printf '%s\n' "$status" > /tmp/docx-patch/status.txt
+          cat /tmp/docx-patch/patch.log || true
+          exit "$status"
+      - name: Upload patch diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docx-patch-diagnostics
+          path: /tmp/docx-patch
+          if-no-files-found: error
+      - name: Require patch success
+        run: test "$(cat /tmp/docx-patch/status.txt)" = '0'
       - name: Format and verify source
         run: |
           set -euo pipefail
