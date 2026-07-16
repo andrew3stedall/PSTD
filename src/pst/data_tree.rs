@@ -63,14 +63,11 @@ pub fn load_unicode_xblock_payload(
             "XBLOCK contains no child BIDs",
         ));
     }
-    if declared_total_bytes != expected_size {
-        return Err(PstdError::pst_parse(
-            Some(root.block_ref.offset.0),
-            format!(
-                "XBLOCK declared total {declared_total_bytes} does not match expected attachment size {expected_size}"
-            ),
-        ));
-    }
+    let metadata_size_status = if declared_total_bytes == expected_size {
+        "metadata_size_matched"
+    } else {
+        "metadata_size_differs_from_xblock_total"
+    };
     if declared_total_bytes > limits.max_block_bytes {
         return Err(PstdError::pst_read(
             Some(root.block_ref.offset.0),
@@ -167,7 +164,7 @@ pub fn load_unicode_xblock_payload(
         declared_total_bytes,
         bytes,
         status: format!(
-            "unicode_xblock_payload_loaded; root_bid=0x{:x}; child_blocks={}; total_bytes={declared_total_bytes}; zip_signature=504b0304",
+            "unicode_xblock_payload_loaded; root_bid=0x{:x}; child_blocks={}; total_bytes={declared_total_bytes}; attachment_size_property={expected_size}; {metadata_size_status}; zip_signature=504b0304",
             root_bid.0,
             child_bids.len()
         ),
@@ -216,16 +213,22 @@ mod tests {
     }
 
     #[test]
-    fn rejects_size_mismatch_and_non_docx_payload() {
+    fn preserves_metadata_size_difference_and_rejects_non_docx_payload() {
         let root = xblock(&[0x640], 4);
-        let (file, bbt) = fixture(&[(0x632, root), (0x640, b"nope".to_vec())]);
+        let (file, bbt) = fixture(&[(0x632, root), (0x640, b"PK\x03\x04".to_vec())]);
         let reader = PstByteReader::open(file.path()).unwrap();
 
         let mismatch =
             load_unicode_xblock_payload(&reader, &bbt, BlockId(0x632), 5, ParserLimits::default())
-                .unwrap_err();
-        assert!(mismatch.to_string().contains("does not match expected"));
+                .unwrap();
+        assert_eq!(mismatch.declared_total_bytes, 4);
+        assert!(mismatch
+            .status
+            .contains("metadata_size_differs_from_xblock_total"));
 
+        let root = xblock(&[0x640], 4);
+        let (file, bbt) = fixture(&[(0x632, root), (0x640, b"nope".to_vec())]);
+        let reader = PstByteReader::open(file.path()).unwrap();
         let signature =
             load_unicode_xblock_payload(&reader, &bbt, BlockId(0x632), 4, ParserLimits::default())
                 .unwrap_err();

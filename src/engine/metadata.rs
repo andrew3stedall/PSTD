@@ -380,6 +380,11 @@ pub fn extract_metadata(
                                 &loaded_subnodes.payloads,
                             );
                             attachment_table_parse_errors += attachment_report.parse_error_count;
+                            if attachment_property_report.filename_record_count > 0
+                                && loaded_attachments.is_empty()
+                            {
+                                unavailable_attachment_records.clear();
+                            }
                             let triage_report = triage_observed_attachment_layouts(
                                 &loaded_subnodes.layout_report,
                                 &attachment_report,
