@@ -21,7 +21,7 @@ jobs:
           evidence="/tmp/tika-attachment-probe"
           output="/tmp/tika-attachment-output"
           mkdir -p "$evidence" "$output"
-          sha256sum --check tests/fixtures/upstream/SHA256SUMS
+          (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
           cargo run -- inspect --input "$fixture" --json > "$evidence/inspect.json"
           set +e
           cargo run -- extract --input "$fixture" --output "$output" --overwrite > "$evidence/extract.stdout" 2> "$evidence/extract.stderr"
