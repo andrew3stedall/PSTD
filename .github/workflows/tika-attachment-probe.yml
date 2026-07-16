@@ -23,6 +23,7 @@ jobs:
           mkdir -p "$evidence" "$output"
           (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
           cargo run -- inspect --input "$fixture" --json > "$evidence/inspect.json"
+          cargo run --bin pstd-property-probe -- "$fixture" 0x2000e4 > "$evidence/node-2000e4-properties.json"
           set +e
           cargo run -- extract --input "$fixture" --output "$output" --overwrite > "$evidence/extract.stdout" 2> "$evidence/extract.stderr"
           status=$?
