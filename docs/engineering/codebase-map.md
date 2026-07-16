@@ -1,6 +1,6 @@
 # PSTD Codebase Map
 
-_Last reviewed: 14 July 2026._
+_Last reviewed: 16 July 2026._
 
 ## Purpose
 
@@ -61,7 +61,7 @@ Map the current repository to its runtime, parser, extraction, output, test, and
 | `src/pst/tcinfo.rs` | TCINFO root and column descriptors. |
 | `src/pst/tc_bth.rs` | Table Context row-index BTH handling. |
 | `src/pst/tc_heap.rs` | Validated Table Context heap resolution. |
-| `src/pst/tc_subnode_rows.rs` | Subnode-backed row storage resolution. |
+| `src/pst/tc_subnode_rows.rs` | Shared validated row-storage resolution for subnode-backed and heap-backed matrices. |
 | `src/pst/tc_row_payload_candidates.rs` | Bounded row-payload candidate selection. |
 | `src/pst/tc_row_offsets.rs` | Absolute row offset derivation. |
 | `src/pst/tc_row_mode.rs` | Validated direct/ordinal row-address mode selection. |
@@ -84,10 +84,11 @@ Map the current repository to its runtime, parser, extraction, output, test, and
 | `src/pst/tc_recipient_identity_projection.rs` | Compose row transport, reference extraction, and string resolution. |
 | `src/pst/tc_recipient_identity_diagnostic.rs` | Bounded recipient identity diagnostics and value-kind classification. |
 | `src/pst/tc_recipient_records.rs` | Assemble row-aligned role/name records and complete role/name/address/address-kind records. |
+| `src/pst/tc_complete_recipient_projection.rs` | Project display names and preferred addresses from one validated row source and assemble complete records. |
+| `src/pst/tc_message_recipient_selection.rs` | Select exactly one directly attributed validated recipient projection per message. |
+| `src/pst/tc_message_recipient_output.rs`, `tc_message_recipients.rs` | Convert selected projections into stable structured `RecipientRecord` rows. |
 | `src/pst/tc_reporting.rs` | Production Table Context diagnostic integration. |
 | `src/pst/tc_extraction_reporting.rs`, `tc_run_reporting.rs`, `tc_probe_collection.rs` | Aggregate and publish Table Context evidence. |
-
-Draft PR #430 adds `src/pst/tc_complete_recipient_projection.rs`; it is not part of `main` until merged.
 
 ## Other extraction domains
 

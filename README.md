@@ -4,15 +4,15 @@ PSTD is a Rust-first tool for extracting email data from Microsoft Outlook PST f
 
 ## Current position
 
-_Last reviewed: 14 July 2026._
+_Last reviewed: 16 July 2026._
 
 | Area | State on `main` | Current result |
 |---|---|---|
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
-| Vertical extraction sequence | Complete through Vertical 13 / PR #429 | Four row-aligned recipient records can retain recipient role, display name, address, and authoritative address kind without partial or heuristic assembly. |
-| Active implementation | Draft PR #430, not part of `main` | Projects display names and preferred addresses from the same validated rows and heap in one invocation. Its current CI state must be checked on the PR before it is treated as merged capability. |
-| EML reconstruction | Not implemented | Canonical output remains structured TAR + JSONL. |
+| Vertical extraction sequence | Complete through Vertical 31 on `main` | Four original-fixture recipients, one readable HTML EML, and one validated 11,862-byte DOCX attachment payload are emitted. |
+| Active implementation | Vertical 32 / draft PR #452 | Resolves heap-backed recipient rows and emits eight directly attributed Tika recipients while excluding the embedded-message table. |
+| EML reconstruction | Fixture validated | The original fixture emits one deterministic 956-byte plain/HTML EML; the Tika attachment message is the next assembly boundary. |
 
 ## Intent
 
@@ -47,7 +47,9 @@ The Table Context path now validates four 52-byte rows. The fixture has separate
 - display names: `Recipient 1` through `Recipient 4`;
 - native email-address values: `to1@domain.com`, `to2@domain.com`, `cc1@domain.com`, and `cc2@domain.com`.
 
-On `main`, these values can be assembled into complete row-aligned recipient records when the validated diagnostics are supplied together. Production reporting does not yet publish the complete records from one public-fixture execution.
+On `main`, these values are published as four complete row-aligned recipient records and assembled into the original fixture's readable EML.
+
+The Tika attachment fixture on draft PR #452 emits eight additional recipients across seven messages. Six carry validated SMTP addresses. Two preserve raw/native evidence, including one full legacy Exchange distinguished name, without guessing an SMTP value. The existing `attachment.docx` payload remains byte-for-byte unchanged.
 
 ## Progress over time
 
@@ -58,7 +60,9 @@ On `main`, these values can be assembled into complete row-aligned recipient rec
 | PQ36 | Produced the first major fidelity improvement by decoding permitted blocks, rejecting false table declarations, recovering text/RTF bodies, and reducing unknown properties. |
 | PQ37-PQ57 | Resolved the real Table Context heap, row-index BTH, subnode-backed row storage, four 52-byte rows, and exact bounded bitmap masks. |
 | PQ58-PQ74 | Validated descriptor mapping, constructed bounded row transport, decoded supported fixed-width MAPI values, and integrated fail-closed diagnostics into production reporting. |
-| Vertical 1-13 | Progressed from classifying a real recipient property to extracting recipient roles, names, addresses, address kinds, and complete row-aligned recipient records. |
+| Vertical 1-28 | Progressed from recipient property classification to structured recipients, readable body forms, and one deterministic plain/HTML EML. |
+| Vertical 29-31 | Recovered `attachment.docx` metadata, its data-tree reference, and the exact validated 11,862-byte DOCX payload. |
+| Vertical 32 / draft #452 | Bridges heap-backed row matrices into production and emits eight Tika recipients with direct message ownership. |
 
 Detailed point-in-time milestone and experiment records are retained under `docs/`. They are historical evidence, not the current roadmap.
 
@@ -77,7 +81,7 @@ Implemented capabilities include bounded parsing of PST headers, BBT/NBT pages, 
 
 ## Important limitations
 
-PSTD is not yet a general-purpose or absolute-coverage PST-to-EML converter. Current evidence is fixture-limited. Attachment output remains zero on the public fixture, complete recipient records are not yet emitted through the production reporting path in one run, and uncommon/corrupt PST layouts remain incomplete. Do not infer broad compatibility from the milestone count.
+PSTD is not yet a general-purpose or absolute-coverage PST-to-EML converter. Current evidence is fixture-limited. The Tika attachment message does not yet emit a multipart EML, embedded-message method `5` remains deferred, and uncommon/corrupt PST layouts remain incomplete. Do not infer broad compatibility from the milestone count.
 
 ## Validation gate
 

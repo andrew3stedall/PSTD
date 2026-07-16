@@ -96,35 +96,35 @@ expected document text:    present
 
 The differing size values are preserved rather than forced to agree: the XBLOCK `lcbTotal` is the authoritative payload length, while `PidTagAttachSize` remains source metadata. The fixture preserves seven messages, eight body records, zero recipients, one attachment record, one 11,862-byte attachment payload, and zero EML files. Exact evidence is recorded in [Vertical 31](../operations/vertical-31-emit-docx-attachment-payload.md).
 
+### Heap-backed Tika recipient tables
+
+Complete in draft PR #452. PSTD now resolves Table Context row matrices stored in the owning Heap-on-Node allocation, attributes only direct NID type `0x12` tables to each message, and emits eight recipients across all seven Tika messages.
+
+Six rows carry authoritative SMTP values. Two rows deliberately preserve native/raw evidence: one complete legacy Exchange distinguished name and the attachment owner's `PidTagEmailAddress`, for which no authoritative SMTP projection is published. The existing DOCX payload is unchanged. Exact evidence is recorded in [Vertical 32](../operations/vertical-32-emit-tika-heap-backed-recipients.md).
+
 ## Current milestone
 
-### Extract the first recipient from the Tika attachment message
+### Assemble the first Tika attachment EML
 
-The attachment-owning message already has validated subject, sender, identifiers, plain text, HTML, and a real DOCX payload, but it emits zero recipient records and therefore remains ineligible for deterministic EML assembly.
+The attachment-owning message now has a directly attributed To recipient, validated subject, sender, identifiers, plain text, HTML, and a real DOCX payload. The next smallest complete vertical must:
 
-The next smallest complete vertical must:
-
-- identify the recipient table owned by `msg_c6163b9157944cc9` without selecting unrelated subnode tables;
-- emit at least one row-aligned `RecipientRecord` with its role, display name, address type, and raw address;
-- preserve any legacy Exchange `EX` distinguished name exactly;
-- emit an SMTP address only when uniquely supported by validated same-PST evidence;
-- fail closed on ambiguous table attribution, row addressing, or string references;
-- preserve the existing 11,862-byte DOCX payload and all original readable-email fixtures;
-- report exact message, body, recipient, attachment, EML, structured-output, TAR, and total-output counts.
-
-Do not assemble `multipart/mixed` EML until the message has independently validated recipients and required headers.
+- validate the message's remaining Date and required header evidence without borrowing values from another item;
+- assemble one deterministic `multipart/mixed` EML with the existing plain-text and HTML alternative plus `attachment.docx`;
+- preserve the attachment filename, MIME metadata, 11,862 payload bytes, and checksum exactly;
+- retain the raw recipient address classification unless authoritative SMTP evidence becomes available;
+- fail closed if any required message, recipient, body, header, or attachment component is ambiguous;
+- report exact EML, structured-output, TAR, and total-output counts.
 
 ## Following fixture sequence
 
-After recipient extraction for the Tika attachment message:
+After the first Tika attachment EML:
 
-1. complete any required Date/header evidence and assemble a deterministic `multipart/mixed` EML with plain text, HTML, and `attachment.docx`;
-2. recover the method-`5` embedded message as a separate object and attachment path;
-3. validate multiple messages, folders, Unicode names, and legacy Exchange address preservation on `tika-testPST.pst`;
-4. validate body-form selection with `tika-various-body-types.pst`;
-5. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
-6. validate contacts and distribution-list entries without forcing them through the normal email path;
-7. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
+1. recover the method-`5` embedded message as a separate object and attachment path;
+2. validate multiple messages, folders, Unicode names, and legacy Exchange address preservation on `tika-testPST.pst`;
+3. validate body-form selection with `tika-various-body-types.pst`;
+4. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
+5. validate contacts and distribution-list entries without forcing them through the normal email path;
+6. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
 
 ## Completion definition for reliable extraction
 

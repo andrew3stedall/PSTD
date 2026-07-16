@@ -6,10 +6,11 @@ use crate::pst::tc_property_classification::{
 use crate::pst::tc_recipient_identity_diagnostic::{
     build_recipient_identity_diagnostic, TcRecipientIdentityDiagnostic,
 };
-use crate::pst::tc_recipient_identity_projection::project_recipient_identity_strings;
+use crate::pst::tc_recipient_identity_projection::project_recipient_identity_strings_from_rows;
 use crate::pst::tc_recipient_records::{
     assemble_complete_recipient_records, TcCompleteRecipientRecordReport,
 };
+use crate::pst::tc_row_payload_candidates::resolve_row_payload_candidates;
 use crate::pst::tc_subnode_rows::TcSubnodeRowResolutionReport;
 use crate::pst::tcinfo::TcColumnDescriptor;
 
@@ -43,6 +44,37 @@ pub fn project_complete_recipient_records(
     fixed_data_end: usize,
     recipient_types: &TcFixedWidthDiagnostic,
 ) -> TcCompleteRecipientProjectionReport {
+    let candidates = resolve_row_payload_candidates(payloads, rows_nid);
+    let candidate_bytes = candidates
+        .payloads
+        .iter()
+        .map(|payload| payload.bytes.as_slice())
+        .collect::<Vec<_>>();
+    project_complete_recipient_records_from_rows(
+        &candidate_bytes,
+        candidates.status,
+        row_resolution,
+        columns,
+        bitmap_masks,
+        table_heap_bytes,
+        table_heap_base_offset,
+        fixed_data_end,
+        recipient_types,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn project_complete_recipient_records_from_rows(
+    candidate_bytes: &[&[u8]],
+    candidate_status: String,
+    row_resolution: &TcSubnodeRowResolutionReport,
+    columns: &[TcColumnDescriptor],
+    bitmap_masks: &[String],
+    table_heap_bytes: &[u8],
+    table_heap_base_offset: u64,
+    fixed_data_end: usize,
+    recipient_types: &TcFixedWidthDiagnostic,
+) -> TcCompleteRecipientProjectionReport {
     let display_columns = columns
         .iter()
         .filter(|column| (column.property_tag >> 16) as u16 == PID_TAG_DISPLAY_NAME)
@@ -59,26 +91,28 @@ pub fn project_complete_recipient_records(
         .cloned()
         .collect::<Vec<_>>();
 
-    let display_names = build_recipient_identity_diagnostic(project_recipient_identity_strings(
-        payloads,
-        rows_nid,
-        row_resolution,
-        &display_columns,
-        bitmap_masks,
-        table_heap_bytes,
-        table_heap_base_offset,
-        fixed_data_end,
-    ));
-    let addresses = build_recipient_identity_diagnostic(project_recipient_identity_strings(
-        payloads,
-        rows_nid,
-        row_resolution,
-        &address_columns,
-        bitmap_masks,
-        table_heap_bytes,
-        table_heap_base_offset,
-        fixed_data_end,
-    ));
+    let display_names =
+        build_recipient_identity_diagnostic(project_recipient_identity_strings_from_rows(
+            candidate_bytes,
+            candidate_status.clone(),
+            row_resolution,
+            &display_columns,
+            bitmap_masks,
+            table_heap_bytes,
+            table_heap_base_offset,
+            fixed_data_end,
+        ));
+    let addresses =
+        build_recipient_identity_diagnostic(project_recipient_identity_strings_from_rows(
+            candidate_bytes,
+            candidate_status,
+            row_resolution,
+            &address_columns,
+            bitmap_masks,
+            table_heap_bytes,
+            table_heap_base_offset,
+            fixed_data_end,
+        ));
     let complete_records =
         assemble_complete_recipient_records(recipient_types, &display_names, &addresses);
 

@@ -7,7 +7,7 @@ use crate::pst::tc_recipient_identity_string::{
     resolve_recipient_identity_heap_strings, RecipientIdentityStringEvidence,
 };
 use crate::pst::tc_row_payload_candidates::resolve_row_payload_candidates;
-use crate::pst::tc_row_transport_metadata::resolve_row_transport_metadata;
+use crate::pst::tc_row_transport_metadata::resolve_row_transport_metadata_from_rows;
 use crate::pst::tc_subnode_rows::TcSubnodeRowResolutionReport;
 use crate::pst::tcinfo::TcColumnDescriptor;
 
@@ -36,10 +36,42 @@ pub fn project_recipient_identity_strings(
     fixed_data_end: usize,
 ) -> RecipientIdentityProjectionReport {
     let candidates = resolve_row_payload_candidates(payloads, rows_nid);
-    let transport = resolve_row_transport_metadata(payloads, rows_nid, row_resolution);
+    let candidate_bytes = candidates
+        .payloads
+        .iter()
+        .map(|payload| payload.bytes.as_slice())
+        .collect::<Vec<_>>();
+    project_recipient_identity_strings_from_rows(
+        &candidate_bytes,
+        candidates.status,
+        row_resolution,
+        columns,
+        bitmap_masks,
+        table_heap_bytes,
+        table_heap_base_offset,
+        fixed_data_end,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn project_recipient_identity_strings_from_rows(
+    candidate_bytes: &[&[u8]],
+    candidate_status: String,
+    row_resolution: &TcSubnodeRowResolutionReport,
+    columns: &[TcColumnDescriptor],
+    bitmap_masks: &[String],
+    table_heap_bytes: &[u8],
+    table_heap_base_offset: u64,
+    fixed_data_end: usize,
+) -> RecipientIdentityProjectionReport {
+    let transport = resolve_row_transport_metadata_from_rows(
+        candidate_bytes,
+        candidate_status.clone(),
+        row_resolution,
+    );
 
     let unavailable = |reason: Option<String>| RecipientIdentityProjectionReport {
-        candidate_status: candidates.status.clone(),
+        candidate_status: candidate_status.clone(),
         transport_status: transport.transport_status.clone(),
         identity_status: if reason.is_some() {
             RECIPIENT_IDENTITY_FAILED.to_string()
@@ -51,7 +83,7 @@ pub fn project_recipient_identity_strings(
         failure_reason: reason,
     };
 
-    if candidates.payloads.len() != 1 {
+    if candidate_bytes.len() != 1 {
         return unavailable(None);
     }
     let Some(row_width) = transport.row_width else {
@@ -64,7 +96,7 @@ pub fn project_recipient_identity_strings(
     let references = match extract_recipient_identity_references(
         columns,
         bitmap_masks,
-        &candidates.payloads[0].bytes,
+        candidate_bytes[0],
         &transport.absolute_row_offsets,
         row_width,
         fixed_data_end,
@@ -88,7 +120,7 @@ pub fn project_recipient_identity_strings(
     };
 
     RecipientIdentityProjectionReport {
-        candidate_status: candidates.status,
+        candidate_status,
         transport_status: transport.transport_status,
         identity_status: RECIPIENT_IDENTITY_VALIDATED.to_string(),
         references: Some(references),

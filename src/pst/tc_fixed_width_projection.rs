@@ -34,7 +34,25 @@ pub fn project_fixed_width_row_evidence(
         .iter()
         .map(|payload| payload.bytes.as_slice())
         .collect::<Vec<_>>();
-    let transport = build_transport_from_row_resolution(resolution, &candidate_bytes);
+    project_fixed_width_row_evidence_from_rows(
+        &candidate_bytes,
+        candidates.status,
+        resolution,
+        columns,
+        bitmap_masks,
+        fixed_data_end,
+    )
+}
+
+pub fn project_fixed_width_row_evidence_from_rows(
+    candidate_bytes: &[&[u8]],
+    candidate_status: String,
+    resolution: &TcSubnodeRowResolutionReport,
+    columns: &[TcColumnDescriptor],
+    bitmap_masks: &[String],
+    fixed_data_end: usize,
+) -> TcFixedWidthProjectionReport {
+    let transport = build_transport_from_row_resolution(resolution, candidate_bytes);
 
     let Some(transport_evidence) = transport.evidence else {
         let evidence_status = if transport.failure_reason.is_some() {
@@ -43,7 +61,7 @@ pub fn project_fixed_width_row_evidence(
             TC_FIXED_WIDTH_EVIDENCE_UNAVAILABLE
         };
         return TcFixedWidthProjectionReport {
-            candidate_status: candidates.status,
+            candidate_status,
             transport_status: transport.status,
             evidence_status: evidence_status.to_string(),
             evidence: None,
@@ -56,7 +74,7 @@ pub fn project_fixed_width_row_evidence(
             Ok(filtered) => filtered,
             Err(reason) => {
                 return TcFixedWidthProjectionReport {
-                    candidate_status: candidates.status,
+                    candidate_status,
                     transport_status: transport.status,
                     evidence_status: TC_FIXED_WIDTH_EVIDENCE_CONSTRUCTION_FAILED.to_string(),
                     evidence: None,
@@ -74,14 +92,14 @@ pub fn project_fixed_width_row_evidence(
         fixed_data_end,
     ) {
         Ok(evidence) => TcFixedWidthProjectionReport {
-            candidate_status: candidates.status,
+            candidate_status,
             transport_status: transport.status,
             evidence_status: TC_FIXED_WIDTH_EVIDENCE_VALIDATED.to_string(),
             evidence: Some(evidence),
             failure_reason: None,
         },
         Err(reason) => TcFixedWidthProjectionReport {
-            candidate_status: candidates.status,
+            candidate_status,
             transport_status: transport.status,
             evidence_status: TC_FIXED_WIDTH_EVIDENCE_CONSTRUCTION_FAILED.to_string(),
             evidence: None,
