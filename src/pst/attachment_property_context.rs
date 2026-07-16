@@ -157,10 +157,8 @@ fn slblock_data_bid_for_nid(bytes: &[u8], target_nid: u32) -> Option<u64> {
         return None;
     }
     let declared_entry_count = u16::from_le_bytes([bytes[2], bytes[3]]) as usize;
-    let available_entry_count = bytes
-        .len()
-        .saturating_sub(UNICODE_SLBLOCK_HEADER_BYTES)
-        / UNICODE_SLENTRY_BYTES;
+    let available_entry_count =
+        bytes.len().saturating_sub(UNICODE_SLBLOCK_HEADER_BYTES) / UNICODE_SLENTRY_BYTES;
     if declared_entry_count == 0 || declared_entry_count > available_entry_count {
         return None;
     }
@@ -288,13 +286,9 @@ mod tests {
 
     #[test]
     fn exposes_validated_attachment_filename_metadata() {
-        let record = filename_attachment_record(
-            "msg_c6163b9157944cc9",
-            0,
-            &attachment_properties(),
-            &[],
-        )
-        .expect("validated filename-bearing attachment context");
+        let record =
+            filename_attachment_record("msg_c6163b9157944cc9", 0, &attachment_properties(), &[])
+                .expect("validated filename-bearing attachment context");
 
         assert_eq!(record.filename_original.as_deref(), Some("attachment.docx"));
         assert_eq!(record.filename_safe, "attachment.docx");
@@ -366,13 +360,9 @@ mod tests {
             PR_ATTACH_SIZE,
             property(PR_ATTACH_SIZE, "attachment_size", MapiValue::Integer32(1)),
         );
-        assert!(filename_attachment_record(
-            "msg",
-            0,
-            &PropertyContext { values: blank },
-            &[]
-        )
-        .is_none());
+        assert!(
+            filename_attachment_record("msg", 0, &PropertyContext { values: blank }, &[]).is_none()
+        );
 
         let mut incomplete = HashMap::new();
         incomplete.insert(
@@ -383,13 +373,10 @@ mod tests {
                 MapiValue::String("attachment.docx".to_string()),
             ),
         );
-        assert!(filename_attachment_record(
-            "msg",
-            0,
-            &PropertyContext { values: incomplete },
-            &[]
-        )
-        .is_none());
+        assert!(
+            filename_attachment_record("msg", 0, &PropertyContext { values: incomplete }, &[])
+                .is_none()
+        );
 
         let mut wrong_type = HashMap::new();
         wrong_type.insert(
@@ -416,12 +403,9 @@ mod tests {
                 MapiValue::Integer32(15_503),
             ),
         );
-        assert!(filename_attachment_record(
-            "msg",
-            0,
-            &PropertyContext { values: wrong_type },
-            &[]
-        )
-        .is_none());
+        assert!(
+            filename_attachment_record("msg", 0, &PropertyContext { values: wrong_type }, &[])
+                .is_none()
+        );
     }
 }
