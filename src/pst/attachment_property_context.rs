@@ -1,13 +1,20 @@
 use crate::output::metadata::AttachmentRecord;
-use crate::pst::attachments::unavailable_attachment_record_from_properties;
+use crate::pst::attachments::{
+    attachment_payload, unavailable_attachment_record_from_properties, AttachmentMetadata,
+    AttachmentPayload,
+};
+use crate::pst::bbt::BbtIndex;
 use crate::pst::bth::BthMap;
+use crate::pst::data_tree::load_unicode_xblock_payload;
 use crate::pst::heap::HeapOnNode;
+use crate::pst::limits::ParserLimits;
 use crate::pst::mapi::{
     MapiValue, PR_ATTACH_DATA_BIN, PR_ATTACH_FILENAME, PR_ATTACH_FILENAME_A,
     PR_ATTACH_LONG_FILENAME, PR_ATTACH_LONG_FILENAME_A, PR_ATTACH_METHOD, PR_ATTACH_SIZE,
 };
 use crate::pst::payload::PayloadBlock;
 use crate::pst::property_context::PropertyContext;
+use crate::pst::reader::PstByteReader;
 
 const HEAP_CLIENT_PROPERTY_CONTEXT: u8 = 0xbc;
 const UNICODE_SLBLOCK_TYPE: u8 = 0x02;
@@ -21,6 +28,9 @@ pub struct AttachmentPropertyContextReport {
     pub property_context_count: usize,
     pub filename_record_count: usize,
     pub rejected_context_count: usize,
+    pub payload_count: usize,
+    pub payload_bytes: u64,
+    pub payload_failure_count: usize,
     pub status: String,
 }
 
@@ -75,6 +85,131 @@ pub fn attachment_records_from_property_context_subnodes(
             property_context_count,
             filename_record_count,
             rejected_context_count,
+            payload_count: 0,
+            payload_bytes: 0,
+            payload_failure_count: 0,
+            status: status.to_string(),
+        },
+    )
+}
+
+pub fn attachment_payloads_from_property_context_subnodes(
+    message_key: &str,
+    blocks: &[PayloadBlock],
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    limits: ParserLimits,
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    AttachmentPropertyContextReport,
+) {
+    let mut payloads = Vec::new();
+    let mut records = Vec::new();
+    let mut property_context_count = 0usize;
+    let mut rejected_context_count = 0usize;
+    let mut payload_failure_count = 0usize;
+
+    for block in blocks {
+        let Ok(heap) = HeapOnNode::parse(&block.bytes, block.block_ref.offset.0) else {
+            continue;
+        };
+        if heap.header.client_signature != HEAP_CLIENT_PROPERTY_CONTEXT {
+            continue;
+        }
+        property_context_count += 1;
+
+        let Ok(bth) =
+            BthMap::parse_property_context_from_heap(&heap, &block.bytes, block.block_ref.offset.0)
+        else {
+            rejected_context_count += 1;
+            continue;
+        };
+        let Ok(report) = PropertyContext::from_bth_with_report(&bth) else {
+            rejected_context_count += 1;
+            continue;
+        };
+        let ordinal = payloads.len() + records.len();
+        let Some(mut record) =
+            filename_attachment_record(message_key, ordinal, &report.context, blocks)
+        else {
+            rejected_context_count += 1;
+            continue;
+        };
+
+        let Some((data_nid, data_bid)) = resolved_subnode_data_reference(&report.context, blocks)
+        else {
+            payload_failure_count += 1;
+            records.push(record);
+            continue;
+        };
+        let Some(expected_size) = record.declared_size_bytes else {
+            payload_failure_count += 1;
+            records.push(record);
+            continue;
+        };
+
+        match load_unicode_xblock_payload(
+            reader,
+            bbt,
+            crate::pst::primitives::BlockId(data_bid),
+            expected_size,
+            limits,
+        ) {
+            Ok(tree) => {
+                let metadata = AttachmentMetadata {
+                    filename_original: record.filename_original.clone(),
+                    content_type: record.content_type.clone(),
+                    is_inline: record.is_inline,
+                    content_id: record.content_id.clone(),
+                    attachment_method: record.attachment_method,
+                    declared_size_bytes: record.declared_size_bytes,
+                };
+                let mut payload = attachment_payload(message_key, ordinal, metadata, tree.bytes);
+                payload.record.extraction_status = format!(
+                    "attachment_payload_extracted_unicode_xblock; data_nid=0x{data_nid:08x}; data_bid=0x{data_bid:x}; child_blocks={}; zip_signature=504b0304",
+                    tree.child_bids.len()
+                );
+                payloads.push(payload);
+            }
+            Err(reason) => {
+                payload_failure_count += 1;
+                record.extraction_status = format!(
+                    "{}; data_tree_error={}",
+                    record.extraction_status,
+                    sanitized_status_reason(&reason.to_string())
+                );
+                records.push(record);
+            }
+        }
+    }
+
+    let filename_record_count = payloads.len() + records.len();
+    let payload_count = payloads.len();
+    let payload_bytes = payloads
+        .iter()
+        .map(|payload| payload.record.size_bytes)
+        .sum::<u64>();
+    let status = if payload_count > 0 && payload_failure_count == 0 {
+        "attachment_property_context_payloads_extracted"
+    } else if payload_count > 0 {
+        "attachment_property_context_payloads_partially_extracted"
+    } else if filename_record_count > 0 {
+        "attachment_property_context_payloads_unavailable"
+    } else {
+        "attachment_property_context_filename_absent"
+    };
+
+    (
+        payloads,
+        records,
+        AttachmentPropertyContextReport {
+            property_context_count,
+            filename_record_count,
+            rejected_context_count,
+            payload_count,
+            payload_bytes,
+            payload_failure_count,
             status: status.to_string(),
         },
     )
@@ -198,6 +333,20 @@ fn non_negative_integer32_property(properties: &PropertyContext, tag: u32) -> Op
         MapiValue::Integer32(value) if *value >= 0 => Some(*value),
         _ => None,
     }
+}
+
+fn sanitized_status_reason(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| match ch {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-' => ch,
+            _ => '_',
+        })
+        .collect::<String>()
+        .trim_matches('_')
+        .chars()
+        .take(120)
+        .collect()
 }
 
 #[cfg(test)]

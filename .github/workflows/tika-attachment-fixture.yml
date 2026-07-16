@@ -6,13 +6,14 @@ on:
     branches: [main]
 
 jobs:
-  attachment-filename:
+  attachment-payload:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - run: cargo test data_tree
       - run: cargo test attachment_property_context
       - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
       - run: cargo fmt --check
@@ -49,7 +50,9 @@ jobs:
           find "$output" -type f -printf '%p\t%s\n' | sort > "$evidence/output-files.tsv"
 
           python - <<'PY'
+          import hashlib
           import json
+          import zipfile
           from pathlib import Path
 
           evidence = Path('/tmp/pstd-tika-attachment')
@@ -84,12 +87,14 @@ jobs:
               'filename_original': 'attachment.docx',
               'filename_safe': 'attachment.docx',
               'extension': 'docx',
-              'size_bytes': 0,
+              'size_bytes': 11862,
               'declared_size_bytes': 15503,
-              'size_status': 'payload_unavailable_declared_size_present',
+              'size_status': 'size_mismatch',
+              'sha256': '0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0',
               'attachment_method': 1,
               'ordinal': 0,
-              'extraction_status': 'attachment_metadata_extracted_payload_subnode_reference_resolved; data_nid=0x0000833f; data_bid=0x632',
+              'archive_path': 'attachments/msg_c6163b9157944cc9/att_0695091e19397627_attachment.docx',
+              'extraction_status': 'attachment_payload_extracted_unicode_xblock; data_nid=0x0000833f; data_bid=0x632; child_blocks=2; zip_signature=504b0304',
           }
           for name, value in expected.items():
               if attachment.get(name) != value:
@@ -97,19 +102,37 @@ jobs:
                       f'attachment {name} mismatch: {attachment.get(name)!r} != {value!r}'
                   )
 
+          payload_path = archive / attachment['archive_path']
+          payload = payload_path.read_bytes()
+          if len(payload) != 11862:
+              raise SystemExit(f'unexpected attachment payload size: {len(payload)}')
+          if payload[:4] != b'PK\x03\x04':
+              raise SystemExit(f'unexpected attachment signature: {payload[:4].hex()}')
+          if hashlib.sha256(payload).hexdigest() != attachment['sha256']:
+              raise SystemExit('attachment payload checksum mismatch')
+          with zipfile.ZipFile(payload_path) as document:
+              failed_member = document.testzip()
+              if failed_member is not None:
+                  raise SystemExit(f'DOCX CRC failure: {failed_member}')
+              document_xml = document.read('word/document.xml').decode('utf-8')
+          if 'This is a docx attachment.' not in document_xml:
+              raise SystemExit('expected DOCX text is absent')
+
           owner = next(
               message for message in messages
               if message['message_key'] == 'msg_c6163b9157944cc9'
           )
           if owner['has_attachments'] is not True or owner['attachment_count'] != 1:
               raise SystemExit(f'owner attachment state mismatch: {owner!r}')
-          if owner['extraction_status'] != 'metadata_body_and_attachment_metadata':
+          if owner['extraction_status'] != 'metadata_and_payload':
               raise SystemExit(f'owner extraction status mismatch: {owner["extraction_status"]!r}')
+          if 'attachment_property_context_payloads_extracted' not in owner['attachment_status']:
+              raise SystemExit(f'owner attachment status mismatch: {owner["attachment_status"]!r}')
 
           body_payloads = [path for path in (archive / 'bodies').rglob('*') if path.is_file()]
           attachment_payloads = [
               path for path in (archive / 'attachments').rglob('*') if path.is_file()
-          ] if (archive / 'attachments').exists() else []
+          ]
           eml_files = [path for path in (evidence / 'eml').rglob('*.eml') if path.is_file()]
           tar_file = next((output / 'archives').glob('*.tar'))
           metrics = {
@@ -139,16 +162,16 @@ jobs:
               'attachment_records': 1,
               'body_payload_files': 6,
               'body_payload_bytes': 252,
-              'attachment_payload_files': 0,
-              'attachment_payload_bytes': 0,
+              'attachment_payload_files': 1,
+              'attachment_payload_bytes': 11862,
               'eml_files': 0,
               'eml_bytes': 0,
-              'messages_jsonl_bytes': 21435,
+              'messages_jsonl_bytes': 21521,
               'bodies_jsonl_bytes': 2275,
               'recipients_jsonl_bytes': 0,
-              'attachments_jsonl_bytes': 648,
-              'tar_bytes': 126464,
-              'output_total_bytes': 147692,
+              'attachments_jsonl_bytes': 643,
+              'tar_bytes': 164352,
+              'output_total_bytes': 191240,
           }
           if metrics != expected_metrics:
               raise SystemExit(f'fixture metrics mismatch: {metrics!r}')
@@ -164,11 +187,15 @@ jobs:
               json.dumps(owner, indent=2, sort_keys=True) + '\n',
               encoding='utf-8',
           )
+          evidence.joinpath('docx-sha256.txt').write_text(
+              attachment['sha256'] + '\n',
+              encoding='utf-8',
+          )
           PY
       - name: Upload Tika attachment evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: tika-attachment-filename-evidence
+          name: tika-attachment-payload-evidence
           path: /tmp/pstd-tika-attachment
           if-no-files-found: error

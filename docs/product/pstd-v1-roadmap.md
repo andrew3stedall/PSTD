@@ -66,11 +66,11 @@ Complete. Three pinned public PST fixtures provide evidence for attachment extra
 
 ### First real attachment filename
 
-Complete. `tika-testPST.pst` emits one metadata-only attachment record for `msg_c6163b9157944cc9`: `attachment.docx`, declared size 15,503 bytes, method 1. Exact evidence is recorded in [Vertical 29](../operations/vertical-29-expose-docx-attachment-filename.md).
+Complete. `tika-testPST.pst` emits one metadata-only attachment record for `msg_c6163b9157944cc9`: `attachment.docx`, `PidTagAttachSize` 15,503 bytes, method 1. Exact evidence is recorded in [Vertical 29](../operations/vertical-29-expose-docx-attachment-filename.md).
 
 ### DOCX attachment data reference
 
-Complete. The attachment's validated raw HNID `3f830000` now resolves through the message's Unicode SLBLOCK:
+Complete. The attachment's validated raw HNID `3f830000` resolves through the message's Unicode SLBLOCK:
 
 ```text
 data NID:      0x0000833f
@@ -80,30 +80,45 @@ payload bytes: 0
 
 The mapping affects one message and one attachment record. BID `0x632` is internal and is not emitted as DOCX content. Exact evidence is recorded in [Vertical 30](../operations/vertical-30-resolve-docx-attachment-data-reference.md).
 
+### DOCX attachment payload
+
+Complete. The internal Unicode XBLOCK at BID `0x632` resolves two ordered external child blocks and emits one valid DOCX payload:
+
+```text
+filename:                 attachment.docx
+XBLOCK payload bytes:     11,862
+PidTagAttachSize:          15,503
+SHA-256:                   0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0
+ZIP signature:             50 4b 03 04
+DOCX CRC validation:       passed
+expected document text:    present
+```
+
+The differing size values are preserved rather than forced to agree: the XBLOCK `lcbTotal` is the authoritative payload length, while `PidTagAttachSize` remains source metadata. The fixture preserves seven messages, eight body records, zero recipients, one attachment record, one 11,862-byte attachment payload, and zero EML files. Exact evidence is recorded in [Vertical 31](../operations/vertical-31-emit-docx-attachment-payload.md).
+
 ## Current milestone
 
-### Decode and emit the DOCX attachment payload
+### Extract the first recipient from the Tika attachment message
 
-BID `0x632` is an internal NDB data-tree block. The next milestone must decode its child block references and concatenate the referenced external data blocks in declared order.
+The attachment-owning message already has validated subject, sender, identifiers, plain text, HTML, and a real DOCX payload, but it emits zero recipient records and therefore remains ineligible for deterministic EML assembly.
 
-Acceptance boundary:
+The next smallest complete vertical must:
 
-- validate the internal block type, level, entry count, and declared total size;
-- resolve every child BID through the existing BBT and payload loader;
-- concatenate child payloads in declared order;
-- require exactly 15,503 bytes, matching `PidTagAttachSize`;
-- verify that the output is a DOCX ZIP container and calculate its SHA-256 checksum;
-- update the existing attachment record from reference-resolved to extracted;
-- emit one attachment payload file at its deterministic archive path;
-- preserve seven messages, eight body records, zero recipients, and zero Tika-fixture EML files unless independently eligible;
-- report exact structured-output, attachment-payload, TAR, EML, and total-output byte counts;
-- keep embedded-message method `5` handling outside this by-value payload milestone.
+- identify the recipient table owned by `msg_c6163b9157944cc9` without selecting unrelated subnode tables;
+- emit at least one row-aligned `RecipientRecord` with its role, display name, address type, and raw address;
+- preserve any legacy Exchange `EX` distinguished name exactly;
+- emit an SMTP address only when uniquely supported by validated same-PST evidence;
+- fail closed on ambiguous table attribution, row addressing, or string references;
+- preserve the existing 11,862-byte DOCX payload and all original readable-email fixtures;
+- report exact message, body, recipient, attachment, EML, structured-output, TAR, and total-output counts.
+
+Do not assemble `multipart/mixed` EML until the message has independently validated recipients and required headers.
 
 ## Following fixture sequence
 
-After the DOCX payload is validated:
+After recipient extraction for the Tika attachment message:
 
-1. assemble a deterministic `multipart/mixed` EML when the Tika message has independently validated recipients and body alternatives;
+1. complete any required Date/header evidence and assemble a deterministic `multipart/mixed` EML with plain text, HTML, and `attachment.docx`;
 2. recover the method-`5` embedded message as a separate object and attachment path;
 3. validate multiple messages, folders, Unicode names, and legacy Exchange address preservation on `tika-testPST.pst`;
 4. validate body-form selection with `tika-various-body-types.pst`;
