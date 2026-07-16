@@ -1,3 +1,4 @@
+use crate::pst::heap::HeapOnNode;
 use crate::pst::payload::PayloadBlock;
 use crate::pst::subnodes::SubnodeReference;
 use crate::pst::tc_complete_recipient_projection::{
@@ -12,7 +13,6 @@ use crate::pst::tc_fixed_width_projection::{
     project_fixed_width_row_evidence, project_fixed_width_row_evidence_from_rows,
     TcFixedWidthProjectionReport, TC_FIXED_WIDTH_EVIDENCE_UNAVAILABLE,
 };
-use crate::pst::heap::HeapOnNode;
 use crate::pst::tc_heap::resolve_tcinfo_from_heap;
 use crate::pst::tc_recipient_identity_diagnostic::{
     build_recipient_identity_diagnostic, unavailable_recipient_identity_diagnostic,
@@ -277,8 +277,7 @@ fn direct_recipient_table_bids(root_block_id: u64, payloads: &[PayloadBlock]) ->
             let mut bid_bytes = [0u8; 8];
             bid_bytes.copy_from_slice(&bytes[start + 8..start + 16]);
             let data_bid = u64::from_le_bytes(bid_bytes);
-            (nid & NID_TYPE_MASK == NID_TYPE_RECIPIENT_TABLE && data_bid != 0)
-                .then_some(data_bid)
+            (nid & NID_TYPE_MASK == NID_TYPE_RECIPIENT_TABLE && data_bid != 0).then_some(data_bid)
         })
         .collect()
 }
@@ -763,8 +762,7 @@ mod tests {
             bytes[start..start + allocation.len()].copy_from_slice(allocation);
         }
         let page_map = usize::from(page_map_offset);
-        bytes[page_map..page_map + 2]
-            .copy_from_slice(&(allocations.len() as u16).to_le_bytes());
+        bytes[page_map..page_map + 2].copy_from_slice(&(allocations.len() as u16).to_le_bytes());
         for (index, offset) in offsets.iter().enumerate() {
             let start = page_map + 4 + index * 2;
             bytes[start..start + 2].copy_from_slice(&offset.to_le_bytes());

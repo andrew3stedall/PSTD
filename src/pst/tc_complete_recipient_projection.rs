@@ -91,28 +91,28 @@ pub fn project_complete_recipient_records_from_rows(
         .cloned()
         .collect::<Vec<_>>();
 
-    let display_names = build_recipient_identity_diagnostic(
-        project_recipient_identity_strings_from_rows(
-        candidate_bytes,
-        candidate_status.clone(),
-        row_resolution,
+    let display_names =
+        build_recipient_identity_diagnostic(project_recipient_identity_strings_from_rows(
+            candidate_bytes,
+            candidate_status.clone(),
+            row_resolution,
         &display_columns,
         bitmap_masks,
-        table_heap_bytes,
-        table_heap_base_offset,
-        fixed_data_end,
-    ));
-    let addresses = build_recipient_identity_diagnostic(
-        project_recipient_identity_strings_from_rows(
-        candidate_bytes,
-        candidate_status,
-        row_resolution,
+            table_heap_bytes,
+            table_heap_base_offset,
+            fixed_data_end,
+        ));
+    let addresses =
+        build_recipient_identity_diagnostic(project_recipient_identity_strings_from_rows(
+            candidate_bytes,
+            candidate_status,
+            row_resolution,
         &address_columns,
         bitmap_masks,
-        table_heap_bytes,
-        table_heap_base_offset,
-        fixed_data_end,
-    ));
+            table_heap_bytes,
+            table_heap_base_offset,
+            fixed_data_end,
+        ));
     let complete_records =
         assemble_complete_recipient_records(recipient_types, &display_names, &addresses);
 
