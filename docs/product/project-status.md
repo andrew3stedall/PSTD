@@ -4,7 +4,7 @@ _Last reviewed: 16 July 2026._
 
 ## Purpose
 
-Provide the authoritative view of the merged extraction baseline, the capability under review, and the next evidence-led boundary.
+Provide the authoritative view of the merged extraction baseline and the next evidence-led boundary.
 
 ## Current implementation state
 
@@ -14,7 +14,7 @@ Provide the authoritative view of the merged extraction baseline, the capability
 | Bounded PST parser | Validated foundation through PQ74 | Header, BBT/NBT, blocks, subnodes, Heap-on-Node, BTH, Property Context, Table Context, row transport, and supported MAPI values with explicit limits. |
 | Original public fixture | Material readable-email path | One message, four structured recipients, text and recovered HTML, and one deterministic 956-byte EML. |
 | Tika DOCX attachment | Validated through Vertical 31 / PR #450 | One `attachment.docx` payload: 11,862 bytes, valid ZIP/CRC, expected document text, and preserved 15,503-byte source size metadata. |
-| Tika recipients | Under review in Vertical 32 / draft PR #452 | Eight directly attributed recipients across seven messages: six SMTP rows and two raw/native rows, including a full legacy Exchange distinguished name. |
+| Tika recipients | Validated through Vertical 32 / PR #452 | Eight directly attributed recipients across seven messages: six SMTP rows and two raw/native rows, including a full legacy Exchange distinguished name. |
 | Tika attachment EML | Not yet emitted | The attachment message now has body, recipient, and DOCX evidence; Date/required-header validation and multipart assembly remain. |
 | Embedded message | Deferred | The method-`5` embedded-message subtree is deliberately excluded from the outer message's recipient ownership and awaits a separate extraction path. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
@@ -35,11 +35,9 @@ Provide the authoritative view of the merged extraction baseline, the capability
 
 The eight rows match the validated row-index inventory: six messages have one row and one message has two. Six expose `PidTagSmtpAddress`. The other two preserve raw `PidTagEmailAddress` values without guessing SMTP: the attachment owner and a legacy Exchange distinguished-name recipient.
 
-## Active work
+## Latest completed work
 
-Draft PR #452, **Bridge heap-backed recipient table rows**, is the active implementation lane. It resolves row HNID `0x80` from the owning Table Context heap, reuses the existing bounded row and recipient projections, selects only direct root-SLBLOCK recipient-table BIDs, and prevents the attachment owner's subnode tree from being projected twice.
-
-The PR remains unmerged until the exact final head passes the full validation and fixture gates.
+PR #452, **Emit heap-backed Tika recipient rows**, resolved row HNID `0x80` from the owning Table Context heap, reused the existing bounded row and recipient projections, selected only direct root-SLBLOCK recipient-table BIDs, and prevented the attachment owner's subnode tree from being projected twice. It merged as `1ecc3e56c1d441ff95148618f08d07d7b18ab559` after all exact-head CI and fixture workflows passed.
 
 ## Next evidence-based milestone
 

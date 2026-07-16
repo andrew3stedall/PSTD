@@ -45,7 +45,7 @@ The original fixture publishes these four complete row-aligned records through t
 
 ## Tika recipient and attachment evidence
 
-Draft PR #452 advances `tests/fixtures/upstream/tika-testPST.pst` from zero to eight recipient records across seven messages while preserving the existing DOCX result.
+PR #452 advanced `tests/fixtures/upstream/tika-testPST.pst` from zero to eight recipient records across seven messages while preserving the existing DOCX result.
 
 | Evidence | Result |
 |---|---:|
@@ -64,7 +64,7 @@ The raw/native rows preserve the complete legacy Exchange distinguished name for
 
 | Date | Milestone / PR range | Change type | Result | Next measured boundary |
 |---|---|---|---|---|
-| 2026-07-16 | Vertical 32 / draft #452 | Material recipient extraction | Resolved heap-backed Table Context row matrices, attributed only direct recipient tables to each message, emitted eight records across seven Tika messages, preserved one legacy Exchange DN, and retained the exact DOCX payload. | Validate Date/required headers and assemble the first Tika `multipart/mixed` EML. |
+| 2026-07-16 | Vertical 32 / #452 | Material recipient extraction | Resolved heap-backed Table Context row matrices, attributed only direct recipient tables to each message, emitted eight records across seven Tika messages, preserved one legacy Exchange DN, and retained the exact DOCX payload. | Validate Date/required headers and assemble the first Tika `multipart/mixed` EML. |
 | 2026-07-14 | Vertical 13 / #429 | New extraction representation | Added fail-closed complete recipient records retaining role, display name, address, and authoritative address kind by row. | Project names and addresses from the same rows and heap in one invocation. |
 | 2026-07-14 | Verticals 11-12 / #427-#428 | Material recipient fidelity | Preferred `PidTagSmtpAddress`, then `PidTagEmailAddress`, over display-name fallback and classified the selected value as SMTP, native email address, or display name. The fixture produced four native email-address values. | Retain display names and addresses together rather than allowing address selection to replace names. |
 | 2026-07-14 | Verticals 9-10 / #425-#426 | Structured recipient output | Assembled four role/name records and exposed bounded publication: two To and two Cc recipients with names `Recipient 1` through `Recipient 4`. | Extract address-bearing properties and preserve row alignment. |
@@ -80,9 +80,9 @@ The raw/native rows preserve the complete legacy Exchange distinguished name for
 | 2026-07-06 to 2026-07-10 | PQ4-PQ31 | Discovery and diagnostics | Corrected folder/message classification and developed the evidence needed to identify the real property, payload, subnode, and table boundaries. | Replace plausible-looking interpretations with specification-backed paths. |
 | 2026-07-05 | PQ1-PQ3 / #197-#200 | Comparable baseline | Corrected root and B-tree traversal and established 50 BBT entries and 63 NBT entries as the stable structural baseline. | Improve folder and message fidelity. |
 
-## Active unmerged work
+## Active boundary
 
-Draft PR #452 bridges heap-backed recipient rows into the existing validated projection, filters production ownership through each message root's direct recipient-table NIDs, and locks the eight-record Tika result in a permanent fixture gate. It is not part of the merged baseline until its exact final head passes CI and merges.
+Vertical 32 is merged. The next extraction slice is the remaining Date/required-header validation and deterministic `multipart/mixed` EML assembly for the DOCX-bearing Tika message.
 
 ## Interpretation
 
