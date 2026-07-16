@@ -49,41 +49,45 @@ jobs:
           if 'attachment_records_from_property_context_subnodes' not in text:
               text = text.replace(import_old, import_new, 1)
 
-          gate_old = '''                    let mut message_subnode_probe_status = None;
-                    if !message.has_attachments {
-'''
-          gate_new = '''                    let mut message_subnode_probe_status = None;
-                    let message_property_has_attachments = message.has_attachments;
-                    if !message_property_has_attachments {
-'''
+          gate_old = (
+              '                    let mut message_subnode_probe_status = None;\n'
+              '                    if !message.has_attachments {\n'
+          )
+          gate_new = (
+              '                    let mut message_subnode_probe_status = None;\n'
+              '                    let message_property_has_attachments = message.has_attachments;\n'
+              '                    if !message_property_has_attachments {\n'
+          )
           if gate_old in text:
               text = text.replace(gate_old, gate_new, 1)
 
-          recipient_marker = '''                            if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
-                                recipients.extend(recipient_output.recipients);
-                            }
-'''
-          metadata_wiring = recipient_marker + '''                            let (
-                                mut property_context_attachments,
-                                attachment_property_report,
-                            ) = attachment_records_from_property_context_subnodes(
-                                &message.message_key,
-                                &loaded_subnodes.payloads,
-                            );
-                            if !property_context_attachments.is_empty() {
-                                message.has_attachments = true;
-                                message.attachment_count =
-                                    property_context_attachments.len() as u64;
-                                message.attachment_status = format!(
-                                    "{}; property_contexts={}; filename_records={}; rejected_contexts={}",
-                                    attachment_property_report.status,
-                                    attachment_property_report.property_context_count,
-                                    attachment_property_report.filename_record_count,
-                                    attachment_property_report.rejected_context_count,
-                                );
-                                attachments.append(&mut property_context_attachments);
-                            }
-'''
+          recipient_marker = (
+              '                            if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {\n'
+              '                                recipients.extend(recipient_output.recipients);\n'
+              '                            }\n'
+          )
+          metadata_wiring = recipient_marker + (
+              '                            let (\n'
+              '                                mut property_context_attachments,\n'
+              '                                attachment_property_report,\n'
+              '                            ) = attachment_records_from_property_context_subnodes(\n'
+              '                                &message.message_key,\n'
+              '                                &loaded_subnodes.payloads,\n'
+              '                            );\n'
+              '                            if !property_context_attachments.is_empty() {\n'
+              '                                message.has_attachments = true;\n'
+              '                                message.attachment_count =\n'
+              '                                    property_context_attachments.len() as u64;\n'
+              '                                message.attachment_status = format!(\n'
+              '                                    "{}; property_contexts={}; filename_records={}; rejected_contexts={}",\n'
+              '                                    attachment_property_report.status,\n'
+              '                                    attachment_property_report.property_context_count,\n'
+              '                                    attachment_property_report.filename_record_count,\n'
+              '                                    attachment_property_report.rejected_context_count,\n'
+              '                                );\n'
+              '                                attachments.append(&mut property_context_attachments);\n'
+              '                            }\n'
+          )
           if 'attachment_property_report' not in text:
               text = text.replace(recipient_marker, metadata_wiring, 1)
 
@@ -98,11 +102,12 @@ jobs:
               )
 
           status_old = '                    } else if let Some(status) = message_subnode_probe_status {\n'
-          status_new = '''                    } else if message.has_attachments {
-                        message.extraction_status =
-                            "metadata_body_and_attachment_metadata".to_string();
-                    } else if let Some(status) = message_subnode_probe_status {
-'''
+          status_new = (
+              '                    } else if message.has_attachments {\n'
+              '                        message.extraction_status =\n'
+              '                            "metadata_body_and_attachment_metadata".to_string();\n'
+              '                    } else if let Some(status) = message_subnode_probe_status {\n'
+          )
           if status_old in text and 'metadata_body_and_attachment_metadata' not in text:
               text = text.replace(status_old, status_new, 1)
 
