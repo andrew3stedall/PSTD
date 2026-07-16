@@ -5,12 +5,14 @@ on:
     paths:
       - '.github/workflows/apply-docx-payload-vertical.yml'
       - 'scripts/apply_docx_payload_vertical.py'
+      - 'scripts/fix_docx_payload_patch.py'
       - 'src/pst/data_tree.rs'
   push:
     branches: [emit-docx-attachment-payload]
     paths:
       - '.github/workflows/apply-docx-payload-vertical.yml'
       - 'scripts/apply_docx_payload_vertical.py'
+      - 'scripts/fix_docx_payload_patch.py'
   workflow_dispatch:
 
 permissions:
@@ -34,8 +36,7 @@ jobs:
             echo 'Source changes already applied.'
             exit 0
           fi
-          sed -i '244s/replace_once/replace_nth/' scripts/apply_docx_payload_vertical.py
-          sed -i '248i\    1,' scripts/apply_docx_payload_vertical.py
+          python scripts/fix_docx_payload_patch.py
           python scripts/apply_docx_payload_vertical.py
       - name: Format and verify source
         run: |
