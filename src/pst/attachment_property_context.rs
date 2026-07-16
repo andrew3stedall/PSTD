@@ -310,7 +310,10 @@ mod tests {
 
     #[test]
     fn resolves_attachment_data_nid_to_loaded_data_bid() {
-        let blocks = vec![payload(0x6c6, slblock(0x833f, 0x650)), payload(0x650, vec![1])];
+        let blocks = vec![
+            payload(0x6c6, slblock(0x833f, 0x650)),
+            payload(0x650, vec![1]),
+        ];
         let record = filename_attachment_record(
             "msg_c6163b9157944cc9",
             0,
@@ -327,8 +330,14 @@ mod tests {
 
     #[test]
     fn rejects_truncated_or_mismatched_slblocks() {
-        assert_eq!(slblock_data_bid_for_nid(&slblock(0x833f, 0x650), 0x833f), Some(0x650));
-        assert_eq!(slblock_data_bid_for_nid(&slblock(0x833f, 0x650), 0x835f), None);
+        assert_eq!(
+            slblock_data_bid_for_nid(&slblock(0x833f, 0x650), 0x833f),
+            Some(0x650)
+        );
+        assert_eq!(
+            slblock_data_bid_for_nid(&slblock(0x833f, 0x650), 0x835f),
+            None
+        );
         let mut truncated = slblock(0x833f, 0x650);
         truncated[2..4].copy_from_slice(&2u16.to_le_bytes());
         assert_eq!(slblock_data_bid_for_nid(&truncated, 0x833f), None);
@@ -357,7 +366,13 @@ mod tests {
             PR_ATTACH_SIZE,
             property(PR_ATTACH_SIZE, "attachment_size", MapiValue::Integer32(1)),
         );
-        assert!(filename_attachment_record("msg", 0, &PropertyContext { values: blank }, &[]).is_none());
+        assert!(filename_attachment_record(
+            "msg",
+            0,
+            &PropertyContext { values: blank },
+            &[]
+        )
+        .is_none());
 
         let mut incomplete = HashMap::new();
         incomplete.insert(
@@ -368,7 +383,13 @@ mod tests {
                 MapiValue::String("attachment.docx".to_string()),
             ),
         );
-        assert!(filename_attachment_record("msg", 0, &PropertyContext { values: incomplete }, &[]).is_none());
+        assert!(filename_attachment_record(
+            "msg",
+            0,
+            &PropertyContext { values: incomplete },
+            &[]
+        )
+        .is_none());
 
         let mut wrong_type = HashMap::new();
         wrong_type.insert(
@@ -395,6 +416,12 @@ mod tests {
                 MapiValue::Integer32(15_503),
             ),
         );
-        assert!(filename_attachment_record("msg", 0, &PropertyContext { values: wrong_type }, &[]).is_none());
+        assert!(filename_attachment_record(
+            "msg",
+            0,
+            &PropertyContext { values: wrong_type },
+            &[]
+        )
+        .is_none());
     }
 }
