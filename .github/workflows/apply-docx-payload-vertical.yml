@@ -1,6 +1,11 @@
 name: Apply DOCX payload vertical
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/apply-docx-payload-vertical.yml'
+      - 'scripts/apply_docx_payload_vertical.py'
+      - 'src/pst/data_tree.rs'
   push:
     branches: [emit-docx-attachment-payload]
     paths:
