@@ -6,6 +6,7 @@ use crate::output::metadata::{
     AttachmentRecord, BodyRecord, FolderRecord, ManifestRecord, MessageRecord,
     MessageReferenceRecord, RecipientRecord,
 };
+use crate::pst::attachment_property_context::attachment_records_from_property_context_subnodes;
 use crate::pst::attachment_table::attachment_payloads_from_subnode_blocks;
 use crate::pst::attachments::{unavailable_attachment_record, AttachmentPayload};
 use crate::pst::bbt::BbtIndex;
@@ -266,7 +267,8 @@ pub fn extract_metadata(
                     }
 
                     let mut message_subnode_probe_status = None;
-                    if !message.has_attachments {
+                    let message_property_has_attachments = message.has_attachments;
+                    if !message_property_has_attachments {
                         if let Some(reference) =
                             subnode_reference_for_entry(&subnode_report.references, entry)
                         {
@@ -283,6 +285,24 @@ pub fn extract_metadata(
                                 build_message_recipient_output(&message.message_key, &probe);
                             if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
                                 recipients.extend(recipient_output.recipients);
+                            }
+                            let (mut property_context_attachments, attachment_property_report) =
+                                attachment_records_from_property_context_subnodes(
+                                    &message.message_key,
+                                    &loaded_subnodes.payloads,
+                                );
+                            if !property_context_attachments.is_empty() {
+                                message.has_attachments = true;
+                                message.attachment_count =
+                                    property_context_attachments.len() as u64;
+                                message.attachment_status = format!(
+                                    "{}; property_contexts={}; filename_records={}; rejected_contexts={}",
+                                    attachment_property_report.status,
+                                    attachment_property_report.property_context_count,
+                                    attachment_property_report.filename_record_count,
+                                    attachment_property_report.rejected_context_count,
+                                );
+                                attachments.append(&mut property_context_attachments);
                             }
                             subnode_decoded_blocks += loaded_subnodes.report.decoded_block_count;
                             subnode_child_references +=
@@ -313,7 +333,7 @@ pub fn extract_metadata(
                         }
                     }
 
-                    if message.has_attachments {
+                    if message_property_has_attachments {
                         if let Some(reference) =
                             subnode_reference_for_entry(&subnode_report.references, entry)
                         {
@@ -418,6 +438,9 @@ pub fn extract_metadata(
                                 "attachment_subnode_reference_absent",
                             ));
                         }
+                    } else if message.has_attachments {
+                        message.extraction_status =
+                            "metadata_body_and_attachment_metadata".to_string();
                     } else if let Some(status) = message_subnode_probe_status {
                         message.attachment_status =
                             format!("attachment_payload_property_absent; {status}");

@@ -37,11 +37,9 @@ pub fn attachment_records_from_property_context_subnodes(
         }
         property_context_count += 1;
 
-        let Ok(bth) = BthMap::parse_property_context_from_heap(
-            &heap,
-            &block.bytes,
-            block.block_ref.offset.0,
-        ) else {
+        let Ok(bth) =
+            BthMap::parse_property_context_from_heap(&heap, &block.bytes, block.block_ref.offset.0)
+        else {
             rejected_context_count += 1;
             continue;
         };
@@ -49,8 +47,7 @@ pub fn attachment_records_from_property_context_subnodes(
             rejected_context_count += 1;
             continue;
         };
-        let Some(record) =
-            filename_attachment_record(message_key, records.len(), &report.context)
+        let Some(record) = filename_attachment_record(message_key, records.len(), &report.context)
         else {
             rejected_context_count += 1;
             continue;
@@ -128,9 +125,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::filename_attachment_record;
-    use crate::pst::mapi::{
-        MapiValue, PR_ATTACH_LONG_FILENAME, PR_ATTACH_METHOD, PR_ATTACH_SIZE,
-    };
+    use crate::pst::mapi::{MapiValue, PR_ATTACH_LONG_FILENAME, PR_ATTACH_METHOD, PR_ATTACH_SIZE};
     use crate::pst::property_context::{PropertyContext, PropertyValue};
 
     fn property(tag: u32, name: &str, decoded: MapiValue) -> PropertyValue {
@@ -170,12 +165,9 @@ mod tests {
                 MapiValue::Integer32(15_503),
             ),
         );
-        let record = filename_attachment_record(
-            "msg_c6163b9157944cc9",
-            0,
-            &PropertyContext { values },
-        )
-        .expect("validated filename-bearing attachment context");
+        let record =
+            filename_attachment_record("msg_c6163b9157944cc9", 0, &PropertyContext { values })
+                .expect("validated filename-bearing attachment context");
 
         assert_eq!(record.filename_original.as_deref(), Some("attachment.docx"));
         assert_eq!(record.filename_safe, "attachment.docx");
@@ -210,11 +202,7 @@ mod tests {
         );
         blank.insert(
             PR_ATTACH_SIZE,
-            property(
-                PR_ATTACH_SIZE,
-                "attachment_size",
-                MapiValue::Integer32(1),
-            ),
+            property(PR_ATTACH_SIZE, "attachment_size", MapiValue::Integer32(1)),
         );
         assert!(filename_attachment_record("msg", 0, &PropertyContext { values: blank }).is_none());
 
