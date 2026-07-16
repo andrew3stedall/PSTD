@@ -88,9 +88,8 @@ fn filename_attachment_record(
             PR_ATTACH_FILENAME_A,
         ],
     )?;
-    if properties.value(PR_ATTACH_METHOD).is_none() || properties.value(PR_ATTACH_SIZE).is_none() {
-        return None;
-    }
+    let method = positive_integer32_property(properties, PR_ATTACH_METHOD)?;
+    let declared_size = non_negative_integer32_property(properties, PR_ATTACH_SIZE)?;
 
     let mut record = unavailable_attachment_record_from_properties(
         message_key,
@@ -98,6 +97,11 @@ fn filename_attachment_record(
         properties,
         "attachment_metadata_extracted_payload_reference_unresolved",
     );
+    if record.attachment_method != Some(method)
+        || record.declared_size_bytes != Some(declared_size as u64)
+    {
+        return None;
+    }
     record.filename_original = Some(filename.clone());
     record.filename_safe = crate::pst::attachments::safe_filename(Some(&filename), ordinal);
     record.extension = crate::pst::attachments::file_extension(&record.filename_safe);
@@ -118,6 +122,20 @@ fn first_non_empty_string(properties: &PropertyContext, tags: &[u32]) -> Option<
             _ => None,
         }
     })
+}
+
+fn positive_integer32_property(properties: &PropertyContext, tag: u32) -> Option<i32> {
+    match properties.value(tag)?.decoded.as_ref()? {
+        MapiValue::Integer32(value) if *value > 0 => Some(*value),
+        _ => None,
+    }
+}
+
+fn non_negative_integer32_property(properties: &PropertyContext, tag: u32) -> Option<i32> {
+    match properties.value(tag)?.decoded.as_ref()? {
+        MapiValue::Integer32(value) if *value >= 0 => Some(*value),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -182,7 +200,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_blank_or_incomplete_attachment_contexts() {
+    fn rejects_blank_incomplete_or_wrongly_typed_attachment_contexts() {
         let mut blank = HashMap::new();
         blank.insert(
             PR_ATTACH_LONG_FILENAME,
@@ -217,6 +235,35 @@ mod tests {
         );
         assert!(
             filename_attachment_record("msg", 0, &PropertyContext { values: incomplete }).is_none()
+        );
+
+        let mut wrong_type = HashMap::new();
+        wrong_type.insert(
+            PR_ATTACH_LONG_FILENAME,
+            property(
+                PR_ATTACH_LONG_FILENAME,
+                "attachment_long_filename",
+                MapiValue::String("attachment.docx".to_string()),
+            ),
+        );
+        wrong_type.insert(
+            PR_ATTACH_METHOD,
+            property(
+                PR_ATTACH_METHOD,
+                "attachment_method",
+                MapiValue::String("1".to_string()),
+            ),
+        );
+        wrong_type.insert(
+            PR_ATTACH_SIZE,
+            property(
+                PR_ATTACH_SIZE,
+                "attachment_size",
+                MapiValue::Integer32(15_503),
+            ),
+        );
+        assert!(
+            filename_attachment_record("msg", 0, &PropertyContext { values: wrong_type }).is_none()
         );
     }
 }
