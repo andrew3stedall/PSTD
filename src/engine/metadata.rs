@@ -350,6 +350,11 @@ pub fn extract_metadata(
                             if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
                                 recipients.extend(recipient_output.recipients);
                             }
+                            let (mut property_context_attachments, attachment_property_report) =
+                                attachment_records_from_property_context_subnodes(
+                                    &message.message_key,
+                                    &loaded_subnodes.payloads,
+                                );
                             subnode_decoded_blocks += loaded_subnodes.report.decoded_block_count;
                             subnode_child_references +=
                                 loaded_subnodes.report.recursive_child_reference_count;
@@ -382,10 +387,13 @@ pub fn extract_metadata(
                                 triage_report,
                             ));
 
-                            let attachment_record_count =
-                                loaded_attachments.len() + unavailable_attachment_records.len();
+                            let attachment_record_count = loaded_attachments.len()
+                                + unavailable_attachment_records.len()
+                                + property_context_attachments.len();
 
-                            if loaded_attachments.is_empty() {
+                            if loaded_attachments.is_empty()
+                                && property_context_attachments.is_empty()
+                            {
                                 let status = format!(
                                     "{}; {}; {}; {}",
                                     loaded_subnodes.report.status,
@@ -416,12 +424,21 @@ pub fn extract_metadata(
                             } else {
                                 message.attachment_count = attachment_record_count as u64;
                                 message.attachment_status = format!(
-                                    "{}; {}; {}",
+                                    "{}; {}; {}; {}; property_contexts={}; filename_records={}; rejected_contexts={}",
                                     loaded_subnodes.report.status,
                                     attachment_report.status,
-                                    triage_status
+                                    triage_status,
+                                    attachment_property_report.status,
+                                    attachment_property_report.property_context_count,
+                                    attachment_property_report.filename_record_count,
+                                    attachment_property_report.rejected_context_count,
                                 );
-                                message.extraction_status = "metadata_and_payload".to_string();
+                                message.extraction_status = if loaded_attachments.is_empty() {
+                                    "metadata_body_and_attachment_metadata".to_string()
+                                } else {
+                                    "metadata_and_payload".to_string()
+                                };
+                                attachments.append(&mut property_context_attachments);
                                 for payload in loaded_attachments.drain(..) {
                                     attachments.push(payload.record.clone());
                                     attachment_payloads.push(payload);
