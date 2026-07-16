@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/apply-tika-attachment-filename.yml'
       - 'src/pst/attachment_property_context.rs'
+      - 'src/engine/metadata.rs'
   workflow_dispatch:
 
 permissions:
@@ -46,27 +47,22 @@ jobs:
               'attachment_records_from_property_context_subnodes;\n'
               + import_old
           )
-          if 'attachment_records_from_property_context_subnodes' not in text:
+          if 'use crate::pst::attachment_property_context::' not in text:
               text = text.replace(import_old, import_new, 1)
-
-          gate_old = (
-              '                    let mut message_subnode_probe_status = None;\n'
-              '                    if !message.has_attachments {\n'
-          )
-          gate_new = (
-              '                    let mut message_subnode_probe_status = None;\n'
-              '                    let message_property_has_attachments = message.has_attachments;\n'
-              '                    if !message_property_has_attachments {\n'
-          )
-          if gate_old in text:
-              text = text.replace(gate_old, gate_new, 1)
 
           recipient_marker = (
               '                            if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {\n'
               '                                recipients.extend(recipient_output.recipients);\n'
               '                            }\n'
           )
-          metadata_wiring = recipient_marker + (
+          occurrences = [
+              index for index in range(len(text))
+              if text.startswith(recipient_marker, index)
+          ]
+          if len(occurrences) < 2:
+              raise SystemExit('active attachment recipient marker not found')
+          insertion_at = occurrences[1] + len(recipient_marker)
+          wiring = (
               '                            let (\n'
               '                                mut property_context_attachments,\n'
               '                                attachment_property_report,\n'
@@ -74,42 +70,65 @@ jobs:
               '                                &message.message_key,\n'
               '                                &loaded_subnodes.payloads,\n'
               '                            );\n'
-              '                            if !property_context_attachments.is_empty() {\n'
-              '                                message.has_attachments = true;\n'
-              '                                message.attachment_count =\n'
-              '                                    property_context_attachments.len() as u64;\n'
+          )
+          if 'let (\n                                mut property_context_attachments' not in text:
+              text = text[:insertion_at] + wiring + text[insertion_at:]
+
+          old_count = (
+              '                            let attachment_record_count =\n'
+              '                                loaded_attachments.len() + unavailable_attachment_records.len();\n'
+          )
+          new_count = (
+              '                            let attachment_record_count = loaded_attachments.len()\n'
+              '                                + unavailable_attachment_records.len()\n'
+              '                                + property_context_attachments.len();\n'
+          )
+          text = text.replace(old_count, new_count, 1)
+
+          text = text.replace(
+              '                            if loaded_attachments.is_empty() {\n',
+              '                            if loaded_attachments.is_empty()\n'
+              '                                && property_context_attachments.is_empty()\n'
+              '                            {\n',
+              1,
+          )
+
+          old_else_status = (
               '                                message.attachment_status = format!(\n'
-              '                                    "{}; property_contexts={}; filename_records={}; rejected_contexts={}",\n'
+              '                                    "{}; {}; {}",\n'
+              '                                    loaded_subnodes.report.status,\n'
+              '                                    attachment_report.status,\n'
+              '                                    triage_status\n'
+              '                                );\n'
+          )
+          new_else_status = (
+              '                                message.attachment_status = format!(\n'
+              '                                    "{}; {}; {}; {}; property_contexts={}; filename_records={}; rejected_contexts={}",\n'
+              '                                    loaded_subnodes.report.status,\n'
+              '                                    attachment_report.status,\n'
+              '                                    triage_status,\n'
               '                                    attachment_property_report.status,\n'
               '                                    attachment_property_report.property_context_count,\n'
               '                                    attachment_property_report.filename_record_count,\n'
               '                                    attachment_property_report.rejected_context_count,\n'
               '                                );\n'
+          )
+          text = text.replace(old_else_status, new_else_status, 1)
+
+          drain_marker = (
+              '                                message.extraction_status = "metadata_and_payload".to_string();\n'
+              '                                for payload in loaded_attachments.drain(..) {\n'
+          )
+          drain_replacement = (
+              '                                message.extraction_status = if loaded_attachments.is_empty() {\n'
+              '                                    "metadata_body_and_attachment_metadata".to_string()\n'
+              '                                } else {\n'
+              '                                    "metadata_and_payload".to_string()\n'
+              '                                };\n'
               '                                attachments.append(&mut property_context_attachments);\n'
-              '                            }\n'
+              '                                for payload in loaded_attachments.drain(..) {\n'
           )
-          if 'attachment_property_report' not in text:
-              text = text.replace(recipient_marker, metadata_wiring, 1)
-
-          second_gate = '                    if message.has_attachments {\n'
-          start = text.index('                    let message_property_has_attachments')
-          position = text.find(second_gate, start)
-          if position != -1:
-              text = (
-                  text[:position]
-                  + '                    if message_property_has_attachments {\n'
-                  + text[position + len(second_gate):]
-              )
-
-          status_old = '                    } else if let Some(status) = message_subnode_probe_status {\n'
-          status_new = (
-              '                    } else if message.has_attachments {\n'
-              '                        message.extraction_status =\n'
-              '                            "metadata_body_and_attachment_metadata".to_string();\n'
-              '                    } else if let Some(status) = message_subnode_probe_status {\n'
-          )
-          if status_old in text and 'metadata_body_and_attachment_metadata' not in text:
-              text = text.replace(status_old, status_new, 1)
+          text = text.replace(drain_marker, drain_replacement, 1)
 
           path.write_text(text, encoding='utf-8')
           PY
