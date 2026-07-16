@@ -1,10 +1,12 @@
 name: Apply Tika attachment filename implementation
 
 on:
-  pull_request:
+  push:
+    branches: [expose-docx-attachment-filename]
     paths:
       - '.github/workflows/apply-tika-attachment-filename.yml'
       - 'src/pst/attachment_property_context.rs'
+  workflow_dispatch:
 
 permissions:
   contents: write
