@@ -1,0 +1,123 @@
+name: Apply Tika attachment filename implementation
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/apply-tika-attachment-filename.yml'
+      - 'src/pst/attachment_property_context.rs'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: expose-docx-attachment-filename
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Wire validated attachment metadata into extraction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          mod_path = Path('src/pst/mod.rs')
+          mod_text = mod_path.read_text(encoding='utf-8')
+          if 'pub mod attachment_property_context;' not in mod_text:
+              mod_text = mod_text.replace(
+                  'pub mod attachment_table;\n',
+                  'pub mod attachment_property_context;\npub mod attachment_table;\n',
+                  1,
+              )
+              mod_path.write_text(mod_text, encoding='utf-8')
+
+          path = Path('src/engine/metadata.rs')
+          text = path.read_text(encoding='utf-8')
+          import_old = 'use crate::pst::attachment_table::attachment_payloads_from_subnode_blocks;\n'
+          import_new = (
+              'use crate::pst::attachment_property_context::'
+              'attachment_records_from_property_context_subnodes;\n'
+              + import_old
+          )
+          if 'attachment_records_from_property_context_subnodes' not in text:
+              text = text.replace(import_old, import_new, 1)
+
+          gate_old = '''                    let mut message_subnode_probe_status = None;
+                    if !message.has_attachments {
+'''
+          gate_new = '''                    let mut message_subnode_probe_status = None;
+                    let message_property_has_attachments = message.has_attachments;
+                    if !message_property_has_attachments {
+'''
+          if gate_old in text:
+              text = text.replace(gate_old, gate_new, 1)
+
+          recipient_marker = '''                            if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
+                                recipients.extend(recipient_output.recipients);
+                            }
+'''
+          metadata_wiring = recipient_marker + '''                            let (
+                                mut property_context_attachments,
+                                attachment_property_report,
+                            ) = attachment_records_from_property_context_subnodes(
+                                &message.message_key,
+                                &loaded_subnodes.payloads,
+                            );
+                            if !property_context_attachments.is_empty() {
+                                message.has_attachments = true;
+                                message.attachment_count =
+                                    property_context_attachments.len() as u64;
+                                message.attachment_status = format!(
+                                    "{}; property_contexts={}; filename_records={}; rejected_contexts={}",
+                                    attachment_property_report.status,
+                                    attachment_property_report.property_context_count,
+                                    attachment_property_report.filename_record_count,
+                                    attachment_property_report.rejected_context_count,
+                                );
+                                attachments.append(&mut property_context_attachments);
+                            }
+'''
+          if 'attachment_property_report' not in text:
+              text = text.replace(recipient_marker, metadata_wiring, 1)
+
+          second_gate = '                    if message.has_attachments {\n'
+          start = text.index('                    let message_property_has_attachments')
+          position = text.find(second_gate, start)
+          if position != -1:
+              text = (
+                  text[:position]
+                  + '                    if message_property_has_attachments {\n'
+                  + text[position + len(second_gate):]
+              )
+
+          status_old = '                    } else if let Some(status) = message_subnode_probe_status {\n'
+          status_new = '''                    } else if message.has_attachments {
+                        message.extraction_status =
+                            "metadata_body_and_attachment_metadata".to_string();
+                    } else if let Some(status) = message_subnode_probe_status {
+'''
+          if status_old in text and 'metadata_body_and_attachment_metadata' not in text:
+              text = text.replace(status_old, status_new, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+          cargo fmt --all
+          cargo test attachment_property_context
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'Implementation already applied.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/engine/metadata.rs src/pst/mod.rs src/pst/attachment_property_context.rs
+          git commit -m 'Expose DOCX attachment filename from property context'
+          git push origin HEAD:expose-docx-attachment-filename
