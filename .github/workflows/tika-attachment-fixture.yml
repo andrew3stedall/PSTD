@@ -76,7 +76,8 @@ jobs:
               raise SystemExit(f'unexpected message count: {len(messages)}')
           if len(bodies) != 8:
               raise SystemExit(f'unexpected body record count: {len(bodies)}')
-          if recipients:
+          print('observed recipients: ' + json.dumps(recipients, sort_keys=True))
+          if len(recipients) != 8:
               raise SystemExit(f'unexpected recipients: {len(recipients)}')
           if len(attachments) != 1:
               raise SystemExit(f'unexpected attachment record count: {len(attachments)}')
