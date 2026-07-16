@@ -6,7 +6,7 @@ on:
       - '.github/workflows/apply-docx-payload-vertical.yml'
       - 'scripts/apply_docx_payload_vertical.py'
       - 'scripts/fix_docx_payload_patch.py'
-      - 'scripts/refine_docx_payload_vertical.py'
+      - 'scripts/refine_docx_payload_vertical_v2.py'
       - 'src/pst/data_tree.rs'
   push:
     branches: [emit-docx-attachment-payload]
@@ -14,7 +14,7 @@ on:
       - '.github/workflows/apply-docx-payload-vertical.yml'
       - 'scripts/apply_docx_payload_vertical.py'
       - 'scripts/fix_docx_payload_patch.py'
-      - 'scripts/refine_docx_payload_vertical.py'
+      - 'scripts/refine_docx_payload_vertical_v2.py'
   workflow_dispatch:
 
 permissions:
@@ -39,7 +39,7 @@ jobs:
             python scripts/apply_docx_payload_vertical.py
           fi
           if ! grep -q 'metadata_size_differs_from_xblock_total' src/pst/data_tree.rs; then
-            python scripts/refine_docx_payload_vertical.py
+            python scripts/refine_docx_payload_vertical_v2.py
           fi
       - name: Format and verify source
         run: |
@@ -51,7 +51,7 @@ jobs:
       - name: Commit source changes
         run: |
           set -euo pipefail
-          git checkout -- scripts/apply_docx_payload_vertical.py scripts/refine_docx_payload_vertical.py
+          git checkout -- scripts/apply_docx_payload_vertical.py scripts/refine_docx_payload_vertical_v2.py
           if git diff --quiet; then
             echo 'Source changes already applied.'
             exit 0
