@@ -25,11 +25,19 @@ pub fn resolve_row_transport_metadata(
         .iter()
         .map(|payload| payload.bytes.as_slice())
         .collect::<Vec<_>>();
-    let transport = build_transport_from_row_resolution(resolution, &candidate_bytes);
+    resolve_row_transport_metadata_from_rows(&candidate_bytes, candidates.status, resolution)
+}
+
+pub fn resolve_row_transport_metadata_from_rows(
+    candidate_bytes: &[&[u8]],
+    candidate_status: String,
+    resolution: &TcSubnodeRowResolutionReport,
+) -> TcRowTransportMetadata {
+    let transport = build_transport_from_row_resolution(resolution, candidate_bytes);
 
     match transport.evidence {
         Some(evidence) => TcRowTransportMetadata {
-            candidate_status: candidates.status,
+            candidate_status,
             transport_status: transport.status,
             address_mode: Some(
                 match evidence.address_mode {
@@ -43,7 +51,7 @@ pub fn resolve_row_transport_metadata(
             failure_reason: None,
         },
         None => TcRowTransportMetadata {
-            candidate_status: candidates.status,
+            candidate_status,
             transport_status: transport.status,
             address_mode: None,
             row_width: None,

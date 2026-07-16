@@ -31,6 +31,11 @@ pub fn select_message_recipient_projection(
             .table_heaps
             .diagnostics
             .iter()
+            .filter(|diagnostic| {
+                probe
+                    .direct_recipient_table_bids
+                    .contains(&diagnostic.block_id)
+            })
             .filter_map(|diagnostic| diagnostic.complete_recipients.as_ref())
             .map(|projection| &projection.complete_records),
     )

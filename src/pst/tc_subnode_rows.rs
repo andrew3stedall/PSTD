@@ -48,12 +48,53 @@ pub fn resolve_subnode_row_storage(
                 .filter(move |payload| payload.block_id.0 == *bid)
         })
         .collect::<Vec<_>>();
-    let resolved_payload_count = matching_payloads.len();
-    let row_data_byte_len = if resolved_payload_count == 1 {
-        matching_payloads[0].bytes.len()
-    } else {
-        0
-    };
+    resolve_row_storage(
+        rows_nid,
+        matching_entry_count,
+        matching_payloads.len(),
+        (matching_payloads.len() == 1).then(|| matching_payloads[0].bytes.as_slice()),
+        row_references,
+        column_count,
+        bitmap_start,
+        bitmap_end,
+        "tc_subnode_rows",
+    )
+}
+
+pub fn resolve_heap_row_storage(
+    rows_hid: u32,
+    row_data: &[u8],
+    row_references: &[u32],
+    column_count: usize,
+    bitmap_start: usize,
+    bitmap_end: usize,
+) -> TcSubnodeRowResolutionReport {
+    resolve_row_storage(
+        rows_hid,
+        1,
+        1,
+        Some(row_data),
+        row_references,
+        column_count,
+        bitmap_start,
+        bitmap_end,
+        "tc_heap_rows",
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn resolve_row_storage(
+    rows_nid: u32,
+    matching_entry_count: usize,
+    resolved_payload_count: usize,
+    row_data: Option<&[u8]>,
+    row_references: &[u32],
+    column_count: usize,
+    bitmap_start: usize,
+    bitmap_end: usize,
+    status_prefix: &str,
+) -> TcSubnodeRowResolutionReport {
+    let row_data_byte_len = row_data.map_or(0, <[u8]>::len);
     let row_references_in_bounds = if resolved_payload_count == 1 {
         row_references
             .iter()
@@ -88,9 +129,9 @@ pub fn resolve_subnode_row_storage(
     };
     let fixed_width_rows = direct_fixed_width_rows || ordinal_index_rows;
     let (bitmap_set_counts, bitmap_unset_counts, bitmap_masks, bitmap_status) =
-        if resolved_payload_count == 1 {
+        if let Some(row_data) = row_data {
             analyze_bitmap_evidence(
-                &matching_payloads[0].bytes,
+                row_data,
                 row_references,
                 direct_fixed_width_rows,
                 ordinal_index_rows,
@@ -109,19 +150,19 @@ pub fn resolve_subnode_row_storage(
         };
     let bitmap_rows_analyzed = bitmap_masks.len();
     let status = match (matching_entry_count, resolved_payload_count) {
-        (0, _) => "tc_subnode_rows_nid_missing".to_string(),
-        (1, 0) => "tc_subnode_rows_payload_missing".to_string(),
+        (0, _) => format!("{status_prefix}_nid_missing"),
+        (1, 0) => format!("{status_prefix}_payload_missing"),
         (1, 1) if row_references_out_of_bounds > 0 => {
-            "tc_subnode_rows_references_out_of_bounds".to_string()
+            format!("{status_prefix}_references_out_of_bounds")
         }
         (1, 1) if direct_fixed_width_rows => {
-            format!("tc_subnode_rows_fixed_width_validated_{inferred_row_width}")
+            format!("{status_prefix}_fixed_width_validated_{inferred_row_width}")
         }
         (1, 1) if ordinal_index_rows => {
-            format!("tc_subnode_rows_ordinal_index_validated_{inferred_row_width}")
+            format!("{status_prefix}_ordinal_index_validated_{inferred_row_width}")
         }
-        (1, 1) => "tc_subnode_rows_variable_or_invalid_width".to_string(),
-        _ => "tc_subnode_rows_ambiguous".to_string(),
+        (1, 1) => format!("{status_prefix}_variable_or_invalid_width"),
+        _ => format!("{status_prefix}_ambiguous"),
     };
 
     TcSubnodeRowResolutionReport {
@@ -303,7 +344,7 @@ fn read_u64_le(bytes: &[u8], offset: usize) -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_subnode_row_storage;
+    use super::{resolve_heap_row_storage, resolve_subnode_row_storage};
     use crate::pst::payload::PayloadBlock;
     use crate::pst::primitives::{BlockId, BlockRef, ByteOffset};
 
@@ -323,6 +364,22 @@ mod tests {
         assert_eq!(report.row_spans, vec![4, 4, 4]);
         assert_eq!(report.bitmap_masks, vec!["00000000"; 3]);
         assert_eq!(report.status, "tc_subnode_rows_fixed_width_validated_4");
+    }
+
+    #[test]
+    fn resolves_heap_backed_rows_with_the_same_bounded_layout_rules() {
+        let mut row_data = vec![0; 13];
+        row_data[12] = 0b0000_0111;
+
+        let report = resolve_heap_row_storage(0x80, &row_data, &[0], 3, 12, 13);
+
+        assert_eq!(report.rows_nid, 0x80);
+        assert_eq!(report.resolved_payload_count, 1);
+        assert_eq!(report.row_data_byte_len, 13);
+        assert_eq!(report.row_references_in_bounds, 1);
+        assert_eq!(report.inferred_row_width, 13);
+        assert_eq!(report.bitmap_masks, ["111"]);
+        assert_eq!(report.status, "tc_heap_rows_fixed_width_validated_13");
     }
 
     #[test]

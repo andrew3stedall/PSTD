@@ -1,27 +1,37 @@
 use crate::pst::payload::PayloadBlock;
 use crate::pst::subnodes::SubnodeReference;
 use crate::pst::tc_complete_recipient_projection::{
-    project_complete_recipient_records, TcCompleteRecipientProjectionReport,
+    project_complete_recipient_records, project_complete_recipient_records_from_rows,
+    TcCompleteRecipientProjectionReport,
 };
 use crate::pst::tc_descriptor_evidence::{
     build_descriptor_bitmap_evidence_from_columns, format_descriptor_bitmap_evidence,
 };
 use crate::pst::tc_fixed_width_diagnostic::{build_fixed_width_diagnostic, TcFixedWidthDiagnostic};
 use crate::pst::tc_fixed_width_projection::{
-    project_fixed_width_row_evidence, TcFixedWidthProjectionReport,
-    TC_FIXED_WIDTH_EVIDENCE_UNAVAILABLE,
+    project_fixed_width_row_evidence, project_fixed_width_row_evidence_from_rows,
+    TcFixedWidthProjectionReport, TC_FIXED_WIDTH_EVIDENCE_UNAVAILABLE,
 };
+use crate::pst::heap::HeapOnNode;
 use crate::pst::tc_heap::resolve_tcinfo_from_heap;
 use crate::pst::tc_recipient_identity_diagnostic::{
     build_recipient_identity_diagnostic, unavailable_recipient_identity_diagnostic,
     TcRecipientIdentityDiagnostic,
 };
-use crate::pst::tc_recipient_identity_projection::project_recipient_identity_strings;
-use crate::pst::tc_subnode_rows::resolve_subnode_row_storage;
+use crate::pst::tc_recipient_identity_projection::{
+    project_recipient_identity_strings, project_recipient_identity_strings_from_rows,
+};
+use crate::pst::tc_subnode_rows::{resolve_heap_row_storage, resolve_subnode_row_storage};
 use crate::pst::tcinfo::TcColumnDescriptor;
 
 const HEAP_SIGNATURE: u8 = 0xec;
 const HEAP_CLIENT_TABLE_CONTEXT: u8 = 0x7c;
+const SLBLOCK_TYPE: u8 = 0x02;
+const SLBLOCK_LEAF_LEVEL: u8 = 0x00;
+const UNICODE_SLBLOCK_HEADER_BYTES: usize = 8;
+const UNICODE_SLENTRY_BYTES: usize = 24;
+const NID_TYPE_MASK: u32 = 0x1f;
+const NID_TYPE_RECIPIENT_TABLE: u32 = 0x12;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TcHeapDiagnostic {
@@ -176,6 +186,7 @@ pub struct TcSubnodeProbeReport {
     pub root_node_id: u64,
     pub root_subnode_block_id: u64,
     pub decoded_payload_count: usize,
+    pub direct_recipient_table_bids: Vec<u64>,
     pub table_heaps: TcHeapAggregateReport,
     pub status: String,
 }
@@ -183,11 +194,16 @@ pub struct TcSubnodeProbeReport {
 impl TcSubnodeProbeReport {
     pub fn progress_status(&self) -> String {
         format!(
-            "pq43_status={}; pq43_root_node_id=0x{:x}; pq43_root_subnode_bid=0x{:x}; pq43_decoded_payloads={}; {}",
+            "pq43_status={}; pq43_root_node_id=0x{:x}; pq43_root_subnode_bid=0x{:x}; pq43_decoded_payloads={}; pq43_direct_recipient_table_bids={}; {}",
             self.status,
             self.root_node_id,
             self.root_subnode_block_id,
             self.decoded_payload_count,
+            self.direct_recipient_table_bids
+                .iter()
+                .map(|bid| format!("0x{bid:x}"))
+                .collect::<Vec<_>>()
+                .join(":"),
             self.table_heaps.progress_status()
         )
     }
@@ -197,6 +213,8 @@ pub fn report_subnode_table_heaps(
     reference: &SubnodeReference,
     payloads: &[PayloadBlock],
 ) -> TcSubnodeProbeReport {
+    let direct_recipient_table_bids =
+        direct_recipient_table_bids(reference.subnode_block_id.0, payloads);
     let table_heaps = report_table_heaps(payloads);
     let status = if payloads.is_empty() {
         "pq43_subnode_payloads_empty"
@@ -214,9 +232,55 @@ pub fn report_subnode_table_heaps(
         root_node_id: reference.node_id.0,
         root_subnode_block_id: reference.subnode_block_id.0,
         decoded_payload_count: payloads.len(),
+        direct_recipient_table_bids,
         table_heaps,
         status: status.to_string(),
     }
+}
+
+fn direct_recipient_table_bids(root_block_id: u64, payloads: &[PayloadBlock]) -> Vec<u64> {
+    let Some(root) = payloads
+        .iter()
+        .find(|payload| payload.block_id.0 == root_block_id)
+    else {
+        return Vec::new();
+    };
+    let bytes = &root.bytes;
+    if bytes.len() < UNICODE_SLBLOCK_HEADER_BYTES
+        || bytes[0] != SLBLOCK_TYPE
+        || bytes[1] != SLBLOCK_LEAF_LEVEL
+        || bytes[4..8] != [0, 0, 0, 0]
+    {
+        return Vec::new();
+    }
+
+    let entry_count = u16::from_le_bytes([bytes[2], bytes[3]]) as usize;
+    let Some(required_len) = entry_count
+        .checked_mul(UNICODE_SLENTRY_BYTES)
+        .and_then(|entries| entries.checked_add(UNICODE_SLBLOCK_HEADER_BYTES))
+    else {
+        return Vec::new();
+    };
+    if required_len > bytes.len() {
+        return Vec::new();
+    }
+
+    (0..entry_count)
+        .filter_map(|index| {
+            let start = UNICODE_SLBLOCK_HEADER_BYTES + index * UNICODE_SLENTRY_BYTES;
+            let nid = u32::from_le_bytes([
+                bytes[start],
+                bytes[start + 1],
+                bytes[start + 2],
+                bytes[start + 3],
+            ]);
+            let mut bid_bytes = [0u8; 8];
+            bid_bytes.copy_from_slice(&bytes[start + 8..start + 16]);
+            let data_bid = u64::from_le_bytes(bid_bytes);
+            (nid & NID_TYPE_MASK == NID_TYPE_RECIPIENT_TABLE && data_bid != 0)
+                .then_some(data_bid)
+        })
+        .collect()
 }
 
 pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
@@ -241,17 +305,42 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                                 .collect::<Vec<_>>()
                         })
                         .unwrap_or_default();
-                    let subnode_rows = report.rows_requires_subnode_resolution.then(|| {
-                        resolve_subnode_row_storage(
+                    let heap_row_data = (!report.rows_requires_subnode_resolution)
+                        .then(|| {
+                            HeapOnNode::parse(&payload.bytes, payload.block_ref.offset.0)
+                                .ok()
+                                .and_then(|heap| {
+                                    heap.allocation_by_hid(
+                                        &payload.bytes,
+                                        report.rows_hnid,
+                                        payload.block_ref.offset.0,
+                                    )
+                                    .ok()
+                                })
+                        })
+                        .flatten();
+                    let row_resolution = if report.rows_requires_subnode_resolution {
+                        Some(resolve_subnode_row_storage(
                             payloads,
                             report.rows_hnid,
                             &row_references,
                             report.column_count,
                             report.bitmap_end.saturating_sub(report.bitmap_byte_len),
                             report.bitmap_end,
-                        )
-                    });
-                    let inferred_row_width = subnode_rows
+                        ))
+                    } else {
+                        heap_row_data.map(|row_data| {
+                            resolve_heap_row_storage(
+                                report.rows_hnid,
+                                row_data,
+                                &row_references,
+                                report.column_count,
+                                report.bitmap_end.saturating_sub(report.bitmap_byte_len),
+                                report.bitmap_end,
+                            )
+                        })
+                    };
+                    let inferred_row_width = row_resolution
                         .as_ref()
                         .map_or(0, |rows| rows.inferred_row_width);
                     let (row_layout_status, row_layout_extents_valid) = validate_row_layout_extents(
@@ -260,28 +349,80 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         report.max_column_extent,
                         report.bitmap_end,
                     );
-                    let bitmap_masks = subnode_rows
+                    let bitmap_masks = row_resolution
                         .as_ref()
                         .map_or(&[][..], |rows| rows.bitmap_masks.as_slice());
                     let (descriptor_evidence, descriptor_evidence_status) =
                         build_descriptor_evidence_status(&report.column_descriptors, bitmap_masks);
-                    let fixed_width = subnode_rows.as_ref().map_or_else(
+                    let fixed_width = row_resolution.as_ref().map_or_else(
                         unavailable_fixed_width_diagnostic,
                         |rows| {
-                            build_fixed_width_diagnostic(project_fixed_width_row_evidence(
-                                payloads,
-                                report.rows_hnid,
+                            let projection = if let Some(row_data) = heap_row_data {
+                                project_fixed_width_row_evidence_from_rows(
+                                    &[row_data],
+                                    "tc_heap_row_payload_resolved".to_string(),
+                                    rows,
+                                    &report.column_descriptors,
+                                    bitmap_masks,
+                                    report.data_region_boundaries[3] as usize,
+                                )
+                            } else {
+                                project_fixed_width_row_evidence(
+                                    payloads,
+                                    report.rows_hnid,
+                                    rows,
+                                    &report.column_descriptors,
+                                    bitmap_masks,
+                                    report.data_region_boundaries[3] as usize,
+                                )
+                            };
+                            build_fixed_width_diagnostic(projection)
+                        },
+                    );
+                    let recipient_identity = row_resolution.as_ref().map_or_else(
+                        unavailable_recipient_identity_diagnostic,
+                        |rows| {
+                            let projection = if let Some(row_data) = heap_row_data {
+                                project_recipient_identity_strings_from_rows(
+                                    &[row_data],
+                                    "tc_heap_row_payload_resolved".to_string(),
+                                    rows,
+                                    &report.column_descriptors,
+                                    bitmap_masks,
+                                    &payload.bytes,
+                                    payload.block_ref.offset.0,
+                                    report.data_region_boundaries[3] as usize,
+                                )
+                            } else {
+                                project_recipient_identity_strings(
+                                    payloads,
+                                    report.rows_hnid,
+                                    rows,
+                                    &report.column_descriptors,
+                                    bitmap_masks,
+                                    &payload.bytes,
+                                    payload.block_ref.offset.0,
+                                    report.data_region_boundaries[3] as usize,
+                                )
+                            };
+                            build_recipient_identity_diagnostic(projection)
+                        },
+                    );
+                    let complete_recipients = row_resolution.as_ref().map(|rows| {
+                        if let Some(row_data) = heap_row_data {
+                            project_complete_recipient_records_from_rows(
+                                &[row_data],
+                                "tc_heap_row_payload_resolved".to_string(),
                                 rows,
                                 &report.column_descriptors,
                                 bitmap_masks,
+                                &payload.bytes,
+                                payload.block_ref.offset.0,
                                 report.data_region_boundaries[3] as usize,
-                            ))
-                        },
-                    );
-                    let recipient_identity = subnode_rows.as_ref().map_or_else(
-                        unavailable_recipient_identity_diagnostic,
-                        |rows| {
-                            build_recipient_identity_diagnostic(project_recipient_identity_strings(
+                                &fixed_width,
+                            )
+                        } else {
+                            project_complete_recipient_records(
                                 payloads,
                                 report.rows_hnid,
                                 rows,
@@ -290,23 +431,11 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                                 &payload.bytes,
                                 payload.block_ref.offset.0,
                                 report.data_region_boundaries[3] as usize,
-                            ))
-                        },
-                    );
-                    let complete_recipients = subnode_rows.as_ref().map(|rows| {
-                        project_complete_recipient_records(
-                            payloads,
-                            report.rows_hnid,
-                            rows,
-                            &report.column_descriptors,
-                            bitmap_masks,
-                            &payload.bytes,
-                            payload.block_ref.offset.0,
-                            report.data_region_boundaries[3] as usize,
-                            &fixed_width,
-                        )
+                                &fixed_width,
+                            )
+                        }
                     });
-                    let base_status = subnode_rows
+                    let base_status = row_resolution
                         .as_ref()
                         .map_or(report.status, |rows| rows.status.clone());
                     let status = complete_recipients
@@ -319,32 +448,36 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         resolved: true,
                         column_count: report.column_count,
                         row_reference_count: report.row_reference_count,
-                        row_references_in_bounds: subnode_rows
+                        row_references_in_bounds: row_resolution
                             .as_ref()
                             .map_or(report.row_references_in_bounds, |rows| {
                                 rows.row_references_in_bounds
                             }),
-                        row_references_out_of_bounds: subnode_rows
+                        row_references_out_of_bounds: row_resolution
                             .as_ref()
                             .map_or(report.row_references_out_of_bounds, |rows| {
                                 rows.row_references_out_of_bounds
                             }),
                         rows_require_subnode_resolution: report.rows_requires_subnode_resolution,
                         rows_nid: report.rows_hnid,
-                        subnode_row_match_count: subnode_rows
-                            .as_ref()
-                            .map_or(0, |rows| rows.matching_entry_count),
-                        resolved_row_payload_count: subnode_rows
+                        subnode_row_match_count: if report.rows_requires_subnode_resolution {
+                            row_resolution
+                                .as_ref()
+                                .map_or(0, |rows| rows.matching_entry_count)
+                        } else {
+                            0
+                        },
+                        resolved_row_payload_count: row_resolution
                             .as_ref()
                             .map_or(0, |rows| rows.resolved_payload_count),
-                        row_data_byte_len: subnode_rows
+                        row_data_byte_len: row_resolution
                             .as_ref()
                             .map_or(report.row_data_byte_len, |rows| rows.row_data_byte_len),
-                        row_reference_values: subnode_rows.as_ref().map_or_else(
+                        row_reference_values: row_resolution.as_ref().map_or_else(
                             || row_references.clone(),
                             |rows| rows.row_references.clone(),
                         ),
-                        row_spans: subnode_rows
+                        row_spans: row_resolution
                             .as_ref()
                             .map_or_else(Vec::new, |rows| rows.row_spans.clone()),
                         inferred_row_width,
@@ -352,19 +485,19 @@ pub fn report_table_heaps(payloads: &[PayloadBlock]) -> TcHeapAggregateReport {
                         max_column_extent: report.max_column_extent,
                         bitmap_byte_len: report.bitmap_byte_len,
                         bitmap_end: report.bitmap_end,
-                        bitmap_rows_analyzed: subnode_rows
+                        bitmap_rows_analyzed: row_resolution
                             .as_ref()
                             .map_or(0, |rows| rows.bitmap_rows_analyzed),
-                        bitmap_set_counts: subnode_rows
+                        bitmap_set_counts: row_resolution
                             .as_ref()
                             .map_or_else(Vec::new, |rows| rows.bitmap_set_counts.clone()),
-                        bitmap_unset_counts: subnode_rows
+                        bitmap_unset_counts: row_resolution
                             .as_ref()
                             .map_or_else(Vec::new, |rows| rows.bitmap_unset_counts.clone()),
-                        bitmap_masks: subnode_rows
+                        bitmap_masks: row_resolution
                             .as_ref()
                             .map_or_else(Vec::new, |rows| rows.bitmap_masks.clone()),
-                        bitmap_status: subnode_rows.as_ref().map_or_else(
+                        bitmap_status: row_resolution.as_ref().map_or_else(
                             || "tc_row_bitmap_payload_unavailable".to_string(),
                             |rows| rows.bitmap_status.clone(),
                         ),
@@ -511,4 +644,152 @@ fn validate_row_layout_extents(
         return ("tc_row_layout_extents_out_of_bounds".to_string(), false);
     }
     ("tc_row_layout_extents_valid".to_string(), true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::report_subnode_table_heaps;
+    use crate::pst::payload::PayloadBlock;
+    use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, NodeId};
+    use crate::pst::subnodes::SubnodeReference;
+    use crate::pst::tc_message_recipient_selection::{
+        select_message_recipient_projection, MESSAGE_RECIPIENT_PROJECTION_SELECTED,
+    };
+
+    #[test]
+    fn projects_only_the_direct_heap_backed_recipient_table() {
+        let reference = SubnodeReference {
+            node_id: NodeId(0x2000e4),
+            subnode_block_id: BlockId(0x6c6),
+            status: "test".to_string(),
+        };
+        let payloads = vec![
+            payload(0x6c6, direct_recipient_slblock(0x692, 0x600)),
+            payload(0x600, heap_backed_recipient_table()),
+        ];
+
+        let probe = report_subnode_table_heaps(&reference, &payloads);
+
+        assert_eq!(probe.direct_recipient_table_bids, [0x600]);
+        let diagnostic = &probe.table_heaps.diagnostics[0];
+        assert!(!diagnostic.rows_require_subnode_resolution);
+        assert_eq!(diagnostic.rows_nid, 0x80);
+        assert_eq!(diagnostic.inferred_row_width, 13);
+        assert_eq!(diagnostic.bitmap_masks, ["111"]);
+        assert_eq!(diagnostic.fixed_width.semantic_values, ["to"]);
+
+        let selection = select_message_recipient_projection(&probe);
+        assert_eq!(selection.status, MESSAGE_RECIPIENT_PROJECTION_SELECTED);
+        let records = selection.complete_records.unwrap();
+        assert_eq!(records.records.len(), 1);
+        assert_eq!(records.records[0].display_name, "Recipient");
+        assert_eq!(records.records[0].address, "recipient@example.com");
+        assert_eq!(records.records[0].address_kind, "smtp_address");
+    }
+
+    fn direct_recipient_slblock(nid: u32, data_bid: u64) -> Vec<u8> {
+        let mut bytes = vec![0u8; 32];
+        bytes[0] = 0x02;
+        bytes[2..4].copy_from_slice(&1u16.to_le_bytes());
+        bytes[8..12].copy_from_slice(&nid.to_le_bytes());
+        bytes[16..24].copy_from_slice(&data_bid.to_le_bytes());
+        bytes
+    }
+
+    fn heap_backed_recipient_table() -> Vec<u8> {
+        let mut bth_header = vec![0xb5, 4, 4, 0];
+        bth_header.extend_from_slice(&0x60u32.to_le_bytes());
+
+        let mut tcinfo = vec![0u8; 46];
+        tcinfo[0] = 0x7c;
+        tcinfo[1] = 3;
+        for (offset, boundary) in [(2, 12u16), (4, 12), (6, 12), (8, 13)] {
+            tcinfo[offset..offset + 2].copy_from_slice(&boundary.to_le_bytes());
+        }
+        tcinfo[10..14].copy_from_slice(&0x20u32.to_le_bytes());
+        tcinfo[14..18].copy_from_slice(&0x80u32.to_le_bytes());
+        for (index, (tag, data_offset, data_size)) in [
+            (0x0c15_0003u32, 0u16, 4u8),
+            (0x3001_001fu32, 4u16, 4u8),
+            (0x39fe_001fu32, 8u16, 4u8),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let start = 22 + index * 8;
+            tcinfo[start..start + 4].copy_from_slice(&tag.to_le_bytes());
+            tcinfo[start + 4..start + 6].copy_from_slice(&data_offset.to_le_bytes());
+            tcinfo[start + 6] = data_size;
+            tcinfo[start + 7] = index as u8;
+        }
+
+        let mut row_index = Vec::new();
+        row_index.extend_from_slice(&1u32.to_le_bytes());
+        row_index.extend_from_slice(&0u32.to_le_bytes());
+
+        let mut row = vec![0u8; 13];
+        row[0..4].copy_from_slice(&1u32.to_le_bytes());
+        row[4..8].copy_from_slice(&0xa0u32.to_le_bytes());
+        row[8..12].copy_from_slice(&0xc0u32.to_le_bytes());
+        row[12] = 0b0000_0111;
+
+        let display_name = utf16("Recipient");
+        let smtp_address = utf16("recipient@example.com");
+        heap(vec![
+            bth_header,
+            tcinfo,
+            row_index,
+            row,
+            display_name,
+            smtp_address,
+        ])
+    }
+
+    fn heap(allocations: Vec<Vec<u8>>) -> Vec<u8> {
+        let mut offsets = vec![8u16];
+        for allocation in &allocations {
+            let next = usize::from(*offsets.last().unwrap()) + allocation.len();
+            offsets.push(u16::try_from(next).unwrap());
+        }
+        let page_map_offset = *offsets.last().unwrap();
+        let page_map_len = 4 + offsets.len() * 2;
+        let mut bytes = vec![0u8; usize::from(page_map_offset) + page_map_len];
+        bytes[0..2].copy_from_slice(&page_map_offset.to_le_bytes());
+        bytes[2] = 0xec;
+        bytes[3] = 0x7c;
+        bytes[4..8].copy_from_slice(&0x40u32.to_le_bytes());
+        for (index, allocation) in allocations.iter().enumerate() {
+            let start = usize::from(offsets[index]);
+            bytes[start..start + allocation.len()].copy_from_slice(allocation);
+        }
+        let page_map = usize::from(page_map_offset);
+        bytes[page_map..page_map + 2]
+            .copy_from_slice(&(allocations.len() as u16).to_le_bytes());
+        for (index, offset) in offsets.iter().enumerate() {
+            let start = page_map + 4 + index * 2;
+            bytes[start..start + 2].copy_from_slice(&offset.to_le_bytes());
+        }
+        bytes
+    }
+
+    fn utf16(value: &str) -> Vec<u8> {
+        value
+            .encode_utf16()
+            .chain(std::iter::once(0))
+            .flat_map(u16::to_le_bytes)
+            .collect()
+    }
+
+    fn payload(block_id: u64, bytes: Vec<u8>) -> PayloadBlock {
+        PayloadBlock {
+            block_id: BlockId(block_id),
+            block_ref: BlockRef {
+                block_id: BlockId(block_id),
+                offset: ByteOffset(0),
+                size: bytes.len() as u64,
+            },
+            bytes,
+            status: "test".to_string(),
+        }
+    }
 }

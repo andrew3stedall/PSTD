@@ -36,10 +36,10 @@ pub fn build_transport_from_row_resolution(
 
     let direct_fixed_width_rows = resolution
         .status
-        .starts_with("tc_subnode_rows_fixed_width_validated_");
+        .contains("_rows_fixed_width_validated_");
     let ordinal_index_rows = resolution
         .status
-        .starts_with("tc_subnode_rows_ordinal_index_validated_");
+        .contains("_rows_ordinal_index_validated_");
 
     let address_mode = match select_validated_row_address_mode(
         &resolution.row_references,

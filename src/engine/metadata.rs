@@ -270,6 +270,7 @@ pub fn extract_metadata(
                     }
 
                     let mut message_subnode_probe_status = None;
+                    let mut recipient_probe_completed = false;
                     let mut message_property_has_attachments = message.has_attachments;
                     if !message_property_has_attachments {
                         if let Some(reference) =
@@ -289,6 +290,7 @@ pub fn extract_metadata(
                             if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
                                 recipients.extend(recipient_output.recipients);
                             }
+                            recipient_probe_completed = true;
                             let (property_context_attachments, attachment_property_report) =
                                 attachment_records_from_property_context_subnodes(
                                     &message.message_key,
@@ -343,15 +345,17 @@ pub fn extract_metadata(
                             subnode_decode_attempts += 1;
                             let loaded_subnodes =
                                 load_recursive_subnode_blocks(&reader, &bbt, reference, 1, limits);
-                            let probe = record_subnode_payload_probe(
-                                &mut table_probe_collector,
-                                reference,
-                                &loaded_subnodes.payloads,
-                            );
-                            let recipient_output =
-                                build_message_recipient_output(&message.message_key, &probe);
-                            if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
-                                recipients.extend(recipient_output.recipients);
+                            if !recipient_probe_completed {
+                                let probe = record_subnode_payload_probe(
+                                    &mut table_probe_collector,
+                                    reference,
+                                    &loaded_subnodes.payloads,
+                                );
+                                let recipient_output =
+                                    build_message_recipient_output(&message.message_key, &probe);
+                                if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
+                                    recipients.extend(recipient_output.recipients);
+                                }
                             }
                             let (
                                 mut property_context_payloads,
