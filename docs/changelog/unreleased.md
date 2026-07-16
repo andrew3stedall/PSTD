@@ -28,7 +28,8 @@ _Last reviewed: 16 July 2026._
 - Deterministic 956-byte `multipart/alternative` EML output with ordered `text/plain` and `text/html` parts.
 - Three pinned upstream PST fixtures for attachment, multi-message, body-type, calendar, recurrence, contact, distribution-list, and Exchange-address validation.
 - Filename-bearing attachment metadata extraction from validated recursive heap Property Contexts.
-- A permanent Tika attachment fixture workflow that asserts exact metadata, counts, and output bytes.
+- Exact attachment data-NID to loaded data-BID resolution through validated Unicode SLBLOCK entries.
+- A permanent Tika attachment fixture workflow that asserts exact metadata, references, counts, and output bytes.
 
 ## Changed
 
@@ -44,6 +45,7 @@ _Last reviewed: 16 July 2026._
 - Preferred authoritative SMTP/native address properties over display-name fallback while retaining display names separately at the complete-record boundary.
 - Replaced the original fixture EML's raw `text/rtf` alternative with validated recovered `text/html` while retaining plain text and all validated headers.
 - Marked the Tika DOCX-bearing message as attachment-bearing from validated recursive Property Context evidence even though its direct message context omits `PidTagHasAttachments`.
+- Resolved the Tika attachment HNID `0x0000833f` to loaded data BID `0x632` without treating the internal block as DOCX bytes.
 - Rebuilt the root README and current-state documentation so historical milestone/PQ files are no longer presented as the live roadmap.
 
 ## Current original-fixture result
@@ -77,22 +79,25 @@ Attachment records: 1
 Attachment filename: attachment.docx
 Attachment declared size: 15503
 Attachment method: 1
+Attachment data NID: 0x0000833f
+Attachment data BID: 0x632
 Attachment payload files/bytes: 0/0
 EML files/bytes: 0/0
+Attachment JSONL bytes: 648
 Extraction TAR bytes: 126464
 Total output bytes: 147692
 ```
 
-The attachment belongs to `msg_c6163b9157944cc9`. Its metadata is emitted from a validated recursive heap Property Context. The four-byte `PidTagAttachDataBinary` value remains an unresolved HNID/reference and is not reported as payload bytes.
+The attachment belongs to `msg_c6163b9157944cc9`. Its metadata comes from a validated recursive heap Property Context, and its four-byte `PidTagAttachDataBinary` value now resolves through a complete Unicode SLBLOCK to loaded internal BID `0x632`. The internal block is not reported as payload bytes.
 
 ## In progress
 
-- Resolve the `attachment.docx` data reference to exactly 15,503 DOCX bytes, verify the ZIP signature and SHA-256 checksum, and update the metadata-only record to an extracted payload record.
+- Decode BID `0x632` as an internal data-tree block, resolve its ordered external child blocks, and emit exactly 15,503 DOCX bytes with a verified ZIP signature and SHA-256 checksum.
 
 ## Known limitations
 
 - PSTD is not yet a generally compatible PST converter or PST-to-EML tool.
-- Attachment payload resolution and embedded-message method `5` extraction are not yet complete.
+- Attachment data-tree decoding, payload emission, and embedded-message method `5` extraction are not yet complete.
 - Recipient extraction remains incomplete on the Tika fixture, so it currently emits no EML files.
 - ANSI, uncommon, corrupt, embedded-message, and broad MAPI-layout coverage remain incomplete.
 - Non-ASCII RFC 2047 header encoding remains incomplete.
