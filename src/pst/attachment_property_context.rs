@@ -48,17 +48,16 @@ pub fn attachment_records_from_property_context_subnodes(
             rejected_context_count += 1;
             continue;
         };
-        let Some(record) = filename_attachment_record(
-            message_key,
-            records.len(),
-            &report.context,
-        ) else {
+        let Some(record) =
+            filename_attachment_record(message_key, records.len(), &report.context)
+        else {
             rejected_context_count += 1;
             continue;
         };
         records.push(record);
     }
 
+    let filename_record_count = records.len();
     let status = if records.is_empty() {
         "attachment_property_context_filename_absent"
     } else if rejected_context_count == 0 {
@@ -70,7 +69,7 @@ pub fn attachment_records_from_property_context_subnodes(
         records,
         AttachmentPropertyContextReport {
             property_context_count,
-            filename_record_count: records.len(),
+            filename_record_count,
             rejected_context_count,
             status: status.to_string(),
         },
