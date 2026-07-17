@@ -53,6 +53,8 @@ jobs:
           import hashlib
           import json
           import zipfile
+          from email import policy
+          from email.parser import BytesParser
           from pathlib import Path
 
           evidence = Path('/tmp/pstd-tika-attachment')
@@ -224,6 +226,49 @@ jobs:
               path for path in (archive / 'attachments').rglob('*') if path.is_file()
           ]
           eml_files = [path for path in (evidence / 'eml').rglob('*.eml') if path.is_file()]
+          if eml_status != 0:
+              raise SystemExit(f'unexpected EML exit code: {eml_status}')
+          if len(eml_files) != 1:
+              raise SystemExit(f'unexpected EML file count: {len(eml_files)}')
+          eml_path = eml_files[0]
+          if eml_path.name != 'msg_c6163b9157944cc9.eml':
+              raise SystemExit(f'unexpected EML filename: {eml_path.name}')
+          eml_bytes = eml_path.read_bytes()
+          if len(eml_bytes) != 17035:
+              raise SystemExit(f'unexpected EML size: {len(eml_bytes)}')
+          if b'\n' in eml_bytes.replace(b'\r\n', b'') or b'\r' in eml_bytes.replace(b'\r\n', b''):
+              raise SystemExit('EML contains non-CRLF line endings')
+          parsed_eml = BytesParser(policy=policy.default).parsebytes(eml_bytes)
+          if parsed_eml.get_content_type() != 'multipart/mixed':
+              raise SystemExit(f'unexpected EML content type: {parsed_eml.get_content_type()}')
+          if parsed_eml['Subject'] != 'FW: First email':
+              raise SystemExit(f'unexpected EML subject: {parsed_eml["Subject"]!r}')
+          if str(parsed_eml['To']) != '"\'lfcnassif@gmail.com\'" <lfcnassif@gmail.com>':
+              raise SystemExit(f'unexpected EML recipient: {parsed_eml["To"]!r}')
+          if parsed_eml['Date'].datetime.isoformat() != '2020-11-26T22:18:00+00:00':
+              raise SystemExit(f'unexpected EML Date: {parsed_eml["Date"]!r}')
+          if b'From: Luis Filipe da Cruz Nassif </o=PF/' not in eml_bytes:
+              raise SystemExit('native Exchange sender address was not preserved')
+          if b'Content-Type: text/html' in eml_bytes:
+              raise SystemExit('unusable four-byte HTML payload must not be emitted')
+          body = parsed_eml.get_body(preferencelist=('plain',))
+          if body is None or body.get_content() != 'Forwarding mail…\r\n\r\n':
+              raise SystemExit(f'unexpected EML plain body: {body!r}')
+          eml_attachments = list(parsed_eml.iter_attachments())
+          if len(eml_attachments) != 1:
+              raise SystemExit(f'unexpected EML attachment count: {len(eml_attachments)}')
+          eml_attachment = eml_attachments[0]
+          if eml_attachment.get_filename() != 'attachment.docx':
+              raise SystemExit(f'unexpected EML attachment filename: {eml_attachment.get_filename()!r}')
+          if eml_attachment.get_content_type() != (
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          ):
+              raise SystemExit(
+                  f'unexpected EML attachment content type: {eml_attachment.get_content_type()}'
+              )
+          if eml_attachment.get_payload(decode=True) != payload:
+              raise SystemExit('EML attachment payload differs from extracted DOCX bytes')
+
           tar_file = next((output / 'archives').glob('*.tar'))
           metrics = {
               'messages': len(messages),
@@ -254,8 +299,8 @@ jobs:
               'body_payload_bytes': 252,
               'attachment_payload_files': 1,
               'attachment_payload_bytes': 11862,
-              'eml_files': 0,
-              'eml_bytes': 0,
+              'eml_files': 1,
+              'eml_bytes': 17035,
               'messages_jsonl_bytes': 21521,
               'bodies_jsonl_bytes': 2275,
               'recipients_jsonl_bytes': 2418,
