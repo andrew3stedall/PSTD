@@ -369,7 +369,7 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
     }
 }
 
-pub pub fn unicode_subnode_entries(payload: &PayloadBlock) -> Option<Vec<UnicodeSubnodeEntry>> {
+pub fn unicode_subnode_entries(payload: &PayloadBlock) -> Option<Vec<UnicodeSubnodeEntry>> {
     if !is_unicode_slblock(&payload.bytes) {
         return None;
     }
