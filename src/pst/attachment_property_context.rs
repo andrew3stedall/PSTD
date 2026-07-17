@@ -10,9 +10,8 @@ use crate::pst::data_tree::load_unicode_xblock_payload;
 use crate::pst::heap::HeapOnNode;
 use crate::pst::limits::ParserLimits;
 use crate::pst::mapi::{
-    MapiValue, PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ, PR_ATTACH_FILENAME,
-    PR_ATTACH_FILENAME_A, PR_ATTACH_LONG_FILENAME, PR_ATTACH_LONG_FILENAME_A, PR_ATTACH_METHOD,
-    PR_ATTACH_SIZE,
+    MapiValue, PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ, PR_ATTACH_FILENAME, PR_ATTACH_FILENAME_A,
+    PR_ATTACH_LONG_FILENAME, PR_ATTACH_LONG_FILENAME_A, PR_ATTACH_METHOD, PR_ATTACH_SIZE,
 };
 use crate::pst::payload::PayloadBlock;
 use crate::pst::property_context::{PropertyContext, PropertyContextParseReport};
@@ -182,13 +181,7 @@ pub fn attachment_payloads_from_property_context_subnodes(
         if positive_integer32_property(&report.context, PR_ATTACH_METHOD)
             == Some(ATTACH_METHOD_EMBEDDED_MESSAGE)
         {
-            match embedded_message_candidate(
-                message_key,
-                ordinal,
-                block,
-                &report.context,
-                blocks,
-            ) {
+            match embedded_message_candidate(message_key, ordinal, block, &report.context, blocks) {
                 Some(candidate) => {
                     records.push(candidate.attachment_record.clone());
                     embedded_messages.push(candidate);
@@ -401,14 +394,8 @@ fn embedded_object_reference(
     let data_nid = attachment_object_nid(attachment_properties)?;
     let mut owners = blocks
         .iter()
-        .filter_map(|payload| {
-            unicode_subnode_entries(payload).map(|entries| (payload, entries))
-        })
-        .flat_map(|(payload, entries)| {
-            entries
-                .into_iter()
-                .map(move |entry| (payload, entry))
-        })
+        .filter_map(|payload| unicode_subnode_entries(payload).map(|entries| (payload, entries)))
+        .flat_map(|(payload, entries)| entries.into_iter().map(move |entry| (payload, entry)))
         .filter(|(_, entry)| entry.data_block_id == attachment_block.block_id)
         .collect::<Vec<_>>();
     if owners.len() != 1 {
@@ -737,12 +724,9 @@ mod tests {
             payload(0x700, vec![3]),
         ];
 
-        let object = embedded_object_reference(
-            &attachment,
-            &embedded_attachment_properties(),
-            &blocks,
-        )
-        .expect("unambiguous embedded object");
+        let object =
+            embedded_object_reference(&attachment, &embedded_attachment_properties(), &blocks)
+                .expect("unambiguous embedded object");
 
         assert_eq!(object.data_nid, 0x684);
         assert_eq!(object.data_bid, 0x400);
