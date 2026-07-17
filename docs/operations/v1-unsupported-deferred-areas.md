@@ -1,6 +1,6 @@
 # PSTD Unsupported and Deferred Areas
 
-_Last reviewed: 14 July 2026._
+_Last reviewed: 17 July 2026._
 
 ## Purpose
 
@@ -14,14 +14,14 @@ Record current extraction limitations and intentionally deferred systems. These 
 | ANSI PST variants | Incomplete and not a supported coverage claim. |
 | Uncommon or corrupt layouts | Bounded handling and explicit failures exist, but coverage is not exhaustive. |
 | Complete message metadata | Partial. Core metadata must be evaluated field by field from fixture output. |
-| Recipient publication | Roles, names, addresses, and address kinds are validated; complete records are not yet emitted from one production fixture execution. |
+| Recipient publication | Complete row-aligned records are fixture validated for the original PST and for nine directly owned Tika rows; broad layout coverage remains incomplete. |
 | SMTP resolution | Native email-address values remain classified as native unless authoritative SMTP properties are present. No heuristic conversion is allowed. |
-| Body formats and encodings | Text and RTF evidence is recovered on the public fixture; broad HTML/RTF/encoding fidelity is not established. |
-| Attachments | Metadata/parser foundations exist, but the public fixture currently emits zero attachments. Reliable payload extraction is incomplete. |
-| Embedded-message attachments | Deep extraction is deferred until the underlying attachment and message subnode paths are validated. |
+| Body formats and encodings | Text, RTF-derived HTML, and raw HTML-property evidence are recovered on approved fixtures; broad HTML/RTF/encoding fidelity is not established. |
+| Attachments | One Tika DOCX payload is exact and fixture validated. Other methods, formats, and layouts remain incomplete. |
+| Embedded-message attachments | One method-`5` child is emitted separately and linked from its parent. Child EML payload materialisation, nested attachments, ambiguity beyond the fixture, and recursion remain deferred. |
 | Full MAPI property dump | Not implemented as a general feature. The parser supports an evidence-backed selected subset. |
 | Exact-preservation archive | Not implemented. Structured extraction is not equivalent to byte-for-byte or MIME-preserving archival. |
-| EML generation | Not implemented. It depends on reliable metadata, recipients, bodies, headers, and attachments. |
+| EML generation | Fixture-limited plain/HTML and plain/DOCX assembly is validated. Attachmentless plain-text child EML and broad RFC fidelity remain incomplete. |
 | Broad fixture corpus | Needed before release-quality compatibility claims. |
 
 ## Deferred systems
@@ -41,10 +41,10 @@ Record current extraction limitations and intentionally deferred systems. These 
 
 The current priority is conversion coverage only:
 
-1. complete same-run recipient projection and production publication;
-2. inspect the resulting public fixture artifact;
-3. select the next highest-value missing email component;
-4. expand the approved fixture corpus while preserving fail-closed behaviour.
+1. emit the recovered Tika child as a deterministic plain-text-only EML;
+2. keep its four raw HTML-property bytes out of MIME output;
+3. decide method-`5` payload materialisation only under a separate exact contract;
+4. expand the approved fixture sequence while preserving fail-closed ownership.
 
 ## Non-negotiable boundaries
 
@@ -57,4 +57,4 @@ The current priority is conversion coverage only:
 
 ## Release language
 
-PSTD may be described as a developing local/Docker PST extractor with substantial bounded parser foundations and validated extraction of selected fields. It should not be described as a complete PST converter, a reliable PST-to-EML tool, or broadly production-ready until representative corpus results support those claims.
+PSTD may be described as a developing local/Docker PST extractor with bounded parser foundations and fixture-validated message, recipient, body, DOCX, embedded-message, and EML paths. It should not be described as a complete PST converter, a generally reliable PST-to-EML tool, or broadly production-ready until representative corpus results support those claims.

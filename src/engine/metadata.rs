@@ -8,7 +8,7 @@ use crate::output::metadata::{
 };
 use crate::pst::attachment_property_context::{
     attachment_payloads_from_property_context_subnodes,
-    attachment_records_from_property_context_subnodes,
+    attachment_records_from_property_context_subnodes, EmbeddedMessageCandidate,
 };
 use crate::pst::attachment_table::attachment_payloads_from_subnode_blocks;
 use crate::pst::attachments::{unavailable_attachment_record, AttachmentPayload};
@@ -68,6 +68,14 @@ pub struct MetadataExtractionOutput {
 }
 
 #[derive(Debug, Clone)]
+struct EmbeddedMessageExtractionOutput {
+    message: MessageRecord,
+    recipients: Vec<RecipientRecord>,
+    bodies: Vec<BodyRecord>,
+    body_payloads: Vec<BodyPayload>,
+}
+
+#[derive(Debug, Clone)]
 struct FolderDiscoveryOutput {
     folders: Vec<FolderRecord>,
     inventory: Vec<FolderInventoryRecord>,
@@ -99,6 +107,7 @@ pub fn extract_metadata(
     let mut body_payloads: Vec<BodyPayload> = Vec::new();
     let mut attachments: Vec<AttachmentRecord> = Vec::new();
     let mut attachment_payloads: Vec<AttachmentPayload> = Vec::new();
+    let mut embedded_message_outputs: Vec<EmbeddedMessageExtractionOutput> = Vec::new();
     let mut compatibility_triage: Vec<CompatibilityTriageRecord> = Vec::new();
     let mut subnode_decode_attempts = 0usize;
     let mut subnode_decoded_blocks = 0usize;
@@ -301,10 +310,13 @@ pub fn extract_metadata(
                                 message.attachment_count =
                                     property_context_attachments.len() as u64;
                                 message.attachment_status = format!(
-                                    "{}; property_contexts={}; filename_records={}; rejected_contexts={}",
+                                    "{}; property_contexts={}; attachment_records={}; filename_records={}; embedded_messages={}; embedded_message_failures={}; rejected_contexts={}",
                                     attachment_property_report.status,
                                     attachment_property_report.property_context_count,
+                                    attachment_property_report.attachment_record_count,
                                     attachment_property_report.filename_record_count,
+                                    attachment_property_report.embedded_message_count,
+                                    attachment_property_report.embedded_message_failure_count,
                                     attachment_property_report.rejected_context_count,
                                 );
                                 message_property_has_attachments = true;
@@ -360,6 +372,7 @@ pub fn extract_metadata(
                             let (
                                 mut property_context_payloads,
                                 mut property_context_attachments,
+                                mut embedded_message_candidates,
                                 attachment_property_report,
                             ) = attachment_payloads_from_property_context_subnodes(
                                 &message.message_key,
@@ -368,6 +381,16 @@ pub fn extract_metadata(
                                 &bbt,
                                 limits,
                             );
+                            for candidate in embedded_message_candidates.drain(..) {
+                                embedded_message_outputs.push(recover_embedded_message(
+                                    run_id,
+                                    pst_id,
+                                    &root_folder.folder_key,
+                                    &root_folder.folder_path,
+                                    candidate,
+                                    &mut table_probe_collector,
+                                ));
+                            }
                             subnode_decoded_blocks += loaded_subnodes.report.decoded_block_count;
                             subnode_child_references +=
                                 loaded_subnodes.report.recursive_child_reference_count;
@@ -444,13 +467,16 @@ pub fn extract_metadata(
                             } else {
                                 message.attachment_count = attachment_record_count as u64;
                                 message.attachment_status = format!(
-                                    "{}; {}; {}; {}; property_contexts={}; filename_records={}; rejected_contexts={}",
+                                    "{}; {}; {}; {}; property_contexts={}; attachment_records={}; filename_records={}; embedded_messages={}; embedded_message_failures={}; rejected_contexts={}",
                                     loaded_subnodes.report.status,
                                     attachment_report.status,
                                     triage_status,
                                     attachment_property_report.status,
                                     attachment_property_report.property_context_count,
+                                    attachment_property_report.attachment_record_count,
                                     attachment_property_report.filename_record_count,
+                                    attachment_property_report.embedded_message_count,
+                                    attachment_property_report.embedded_message_failure_count,
                                     attachment_property_report.rejected_context_count,
                                 );
                                 message.extraction_status = if loaded_attachments.is_empty()
@@ -531,6 +557,14 @@ pub fn extract_metadata(
         }
     }
 
+    let embedded_message_count = embedded_message_outputs.len();
+    for mut output in embedded_message_outputs {
+        messages.push(output.message);
+        recipients.append(&mut output.recipients);
+        bodies.append(&mut output.bodies);
+        body_payloads.append(&mut output.body_payloads);
+    }
+
     let table_probe_summary = finalize_table_probe_collection(run_id, table_probe_collector);
     if let Some(issue) = table_probe_summary.issue.clone() {
         issues.push(issue);
@@ -607,7 +641,7 @@ pub fn extract_metadata(
         "message_subnode_probe; attempts={pq14_message_subnode_probe_attempts}; blocks={pq14_message_subnode_blocks}; failures={pq14_message_subnode_failures}; unsupported_layouts={pq14_message_subnode_unsupported_layouts}"
     );
     let status = format!(
-        "{}; bbt_status={}; nbt_status={}; pq4_status={}; pq4_folder_candidates={}; pq4_folder_property_loaded={}; pq4_folder_property_unavailable={}; pq5_status={}; pq5_message_candidates={}; pq5_table_candidates={}; pq5_linked_tables={}; pq5_unlinked_tables={}; pq6_status={}; pq14_status={}; pq48_table_probe_status={}; folders_discovered={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; m23_status=attachment_metadata_fidelity; body_payloads={}; attachment_payloads={}; attachment_records={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
+        "{}; bbt_status={}; nbt_status={}; pq4_status={}; pq4_folder_candidates={}; pq4_folder_property_loaded={}; pq4_folder_property_unavailable={}; pq5_status={}; pq5_message_candidates={}; pq5_table_candidates={}; pq5_linked_tables={}; pq5_unlinked_tables={}; pq6_status={}; pq14_status={}; pq48_table_probe_status={}; folders_discovered={}; m4_status=recipient_threading_available; m5_status=body_attachment_outputs_available; m10_status=payload_wiring_available; m11_status=extraction_path_integration; m12_status=attachment_subnode_integration; m14_status=recursive_subnode_layout_exploration; m15_status=compatibility_triage_available; m16_status=fixture_backed_decoder_expansion; m17_status=decoder_backlog_reporting; m18_status=decoder_backlog_review_workflow; m19_status=focused_candidate_selection; m23_status=attachment_metadata_fidelity; embedded_messages={embedded_message_count}; body_payloads={}; attachment_payloads={}; attachment_records={}; subnode_references={}; subnode_decode_plans={}; subnode_decode_attempts={}; subnode_decoded_blocks={}; subnode_child_references={}; subnode_recursive_child_decodes={}; subnode_unsupported_layouts={}; attachment_table_parse_errors={}; fixture_backed_decoder_hits={}; compatibility_triage_records={}; compatibility_follow_ups={}; decoder_backlog_items={}; decoder_issue_candidates={}; decoder_candidate_selection={}; selected_decoder_candidates={}; decoder_backlog_review_status={}",
         metadata_status,
         bbt.status,
         nbt.status,
@@ -757,6 +791,95 @@ fn discover_folder_hierarchy(
 
 fn node_identity(entry: &NbtEntry) -> String {
     format!("node_{:x}", entry.node_id.0)
+}
+
+fn recover_embedded_message(
+    run_id: &str,
+    pst_id: &str,
+    folder_key: &str,
+    folder_path: &str,
+    candidate: EmbeddedMessageCandidate,
+    table_probe_collector: &mut TcRunProbeCollector,
+) -> EmbeddedMessageExtractionOutput {
+    let mut message = message_from_properties(
+        run_id,
+        pst_id,
+        folder_key,
+        folder_path,
+        crate::pst::primitives::NodeId(candidate.data_nid as u64),
+        &candidate.property_report.context,
+    );
+    message.message_key = candidate.embedded_message_key.clone();
+    message.message_node_id = Some(format!("embedded_nid_{:08x}", candidate.data_nid));
+    message.item_type = "embedded_message_metadata".to_string();
+    message.metadata_status = format!(
+        "embedded_property_context_loaded; data_bid=0x{:x}; property_count={}; selected_properties={}; unknown_properties={}; decode_errors={}",
+        candidate.data_bid,
+        candidate.property_report.parsed_property_count,
+        candidate.property_report.selected_property_count,
+        candidate.property_report.unknown_property_count,
+        candidate.property_report.decode_error_count,
+    );
+
+    let loaded_body_payloads =
+        body_payloads_from_properties(&message.message_key, &candidate.property_report.context);
+    let body_report =
+        body_coverage_report(&candidate.property_report.context, &loaded_body_payloads);
+    let mut bodies = Vec::new();
+    let mut body_payloads = Vec::new();
+    if loaded_body_payloads.is_empty() {
+        message.body_status = body_report.status.clone();
+        bodies.push(unavailable_body_record(
+            &message.message_key,
+            "text",
+            &body_report.status,
+        ));
+    } else {
+        message.has_text_body = loaded_body_payloads
+            .iter()
+            .any(|payload| payload.record.body_type == "text");
+        message.has_html_body = loaded_body_payloads
+            .iter()
+            .any(|payload| payload.record.body_type == "html");
+        message.body_status = body_report.status;
+        message.extraction_status = "metadata_and_payload".to_string();
+        for payload in loaded_body_payloads {
+            bodies.push(payload.record.clone());
+            body_payloads.push(payload);
+        }
+    }
+
+    let mut recipients = Vec::new();
+    if let Some(subnode_bid) = candidate.subnode_bid {
+        let reference = SubnodeReference {
+            node_id: crate::pst::primitives::NodeId(candidate.data_nid as u64),
+            subnode_block_id: crate::pst::primitives::BlockId(subnode_bid),
+            status: "embedded_message_subnode_reference".to_string(),
+        };
+        let probe = record_subnode_payload_probe(
+            table_probe_collector,
+            &reference,
+            &candidate.subnode_payloads,
+        );
+        let recipient_output = build_message_recipient_output(&message.message_key, &probe);
+        if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
+            recipients = recipient_output.recipients;
+        }
+    }
+
+    if message.has_attachments {
+        message.attachment_status = "embedded_message_nested_attachments_deferred".to_string();
+    } else {
+        message.attachment_status = "attachment_payload_property_absent".to_string();
+    }
+    message.attachment_count = 0;
+
+    EmbeddedMessageExtractionOutput {
+        message,
+        recipients,
+        bodies,
+        body_payloads,
+    }
 }
 
 fn subnode_reference_for_entry<'a>(

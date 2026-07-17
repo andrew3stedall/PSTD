@@ -1,6 +1,6 @@
 # PSTD Codebase Map
 
-_Last reviewed: 16 July 2026._
+_Last reviewed: 17 July 2026._
 
 ## Purpose
 
@@ -27,7 +27,7 @@ Map the current repository to its runtime, parser, extraction, output, test, and
 |---|---|
 | `src/cli.rs` | `inspect`, `extract`, `batch`, and `version` command surface. |
 | `src/config.rs` | Runtime configuration derived from CLI arguments. |
-| `src/engine/` | Extraction orchestration and conversion of validated parser evidence into records. |
+| `src/engine/` | Extraction orchestration, including separate embedded-child message/body/recipient publication. |
 | `src/progress.rs` | Structured progress events. |
 | `src/error.rs` | Shared error and status types. |
 
@@ -45,7 +45,7 @@ Map the current repository to its runtime, parser, extraction, output, test, and
 | `src/pst/block.rs` | Bounded block loading and decoding boundaries. |
 | `src/pst/logical.rs` | Logical node access. |
 | `src/pst/node_payload.rs` | Node payload resolution. |
-| `src/pst/subnodes.rs` | Subnode traversal and guards. |
+| `src/pst/subnodes.rs` | Subnode traversal, guards, Unicode SLENTRY projection, and isolated loaded-subtree selection. |
 | `src/pst/payload.rs` | Payload decoding and structural admission. |
 | `src/pst/limits.rs` | Parser limits, depth limits, and safety bounds. |
 | `src/pst/inspect.rs` | Inspect summary and diagnostics. |
@@ -55,7 +55,7 @@ Map the current repository to its runtime, parser, extraction, output, test, and
 | Path | Responsibility |
 |---|---|
 | `src/pst/heap.rs` | Heap-on-Node allocation parsing and lookup. |
-| `src/pst/bth.rs` | Generic B-tree-on-heap parsing. |
+| `src/pst/bth.rs` | Generic B-tree-on-heap parsing with PtypObject HNID preservation before dereference. |
 | `src/pst/property_context.rs` | Property Context parsing and selected property extraction. |
 | `src/pst/table_context.rs` | General Table Context boundaries. |
 | `src/pst/tcinfo.rs` | TCINFO root and column descriptors. |
@@ -97,7 +97,8 @@ Map the current repository to its runtime, parser, extraction, output, test, and
 | `src/pst/folder_tree.rs`, `folders.rs` | Folder classification and records. |
 | `src/pst/message_table.rs`, `message_metadata.rs`, `messages.rs` | Message discovery, metadata, and records. |
 | `src/pst/mapi.rs` | Selected MAPI property registry and decoding. |
-| `src/pst/attachments.rs`, `attachment_table.rs` | Attachment metadata/table foundations and payload evidence. |
+| `src/pst/attachments.rs`, `attachment_table.rs` | Attachment metadata/table foundations and by-value payload evidence. |
+| `src/pst/attachment_property_context.rs` | Filename/by-value Property Context attachments plus strict method-`5` object-wrapper parsing, unique child-NID resolution, and link records. |
 | `src/pst/threading.rs` | Threading and reference helpers. |
 | `src/pst/compatibility_m21.rs` | Fixture-backed compatibility classification retained under the `compatibility` module. |
 
@@ -107,8 +108,8 @@ Map the current repository to its runtime, parser, extraction, output, test, and
 |---|---|
 | `src/output/tar_writer.rs` | TAR shard creation. |
 | `src/output/jsonl_writer.rs` | JSONL serialisation. |
-| `src/output/metadata.rs` | Output record types. |
-| `src/output/ids.rs` | Stable identifier generation. |
+| `src/output/metadata.rs` | Output record types, including optional attachment-to-embedded-message links. |
+| `src/output/ids.rs` | Stable identifier generation, including child keys derived from parent attachment identity and object NID. |
 | `src/output/paths.rs` | Safe deterministic archive paths. |
 | `src/output/summary.rs` | Extraction and run summaries. |
 

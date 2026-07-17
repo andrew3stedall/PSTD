@@ -138,6 +138,7 @@ fn attachment_record(
         is_inline: metadata.is_inline,
         content_id: metadata.content_id,
         attachment_method: metadata.attachment_method,
+        embedded_message_key: None,
         ordinal: ordinal as u64,
         archive_path,
         extraction_status: status.to_string(),

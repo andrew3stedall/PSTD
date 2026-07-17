@@ -20,6 +20,13 @@ const HEAP_CLIENT_TABLE_CONTEXT: u8 = 0x7c;
 const HEAP_CLIENT_BTH: u8 = 0xb5;
 const HEAP_CLIENT_PROPERTY_CONTEXT: u8 = 0xbc;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnicodeSubnodeEntry {
+    pub node_id: u32,
+    pub data_block_id: BlockId,
+    pub subnode_block_id: Option<BlockId>,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SubnodeReference {
     pub node_id: NodeId,
@@ -362,7 +369,66 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
     }
 }
 
-pub fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayout {
+pub fn unicode_subnode_entries(payload: &PayloadBlock) -> Option<Vec<UnicodeSubnodeEntry>> {
+    if !is_unicode_slblock(&payload.bytes) {
+        return None;
+    }
+    let entry_count = u16::from_le_bytes([payload.bytes[2], payload.bytes[3]]) as usize;
+    let required_len = entry_count
+        .checked_mul(UNICODE_SLENTRY_BYTES)?
+        .checked_add(UNICODE_SLBLOCK_HEADER_BYTES)?;
+    if required_len > payload.bytes.len() {
+        return None;
+    }
+
+    let mut entries = Vec::with_capacity(entry_count);
+    for index in 0..entry_count {
+        let start = UNICODE_SLBLOCK_HEADER_BYTES + index * UNICODE_SLENTRY_BYTES;
+        let node_id = u64::from_le_bytes(payload.bytes[start..start + 8].try_into().ok()?);
+        let node_id = u32::try_from(node_id).ok()?;
+        let data_block_id =
+            u64::from_le_bytes(payload.bytes[start + 8..start + 16].try_into().ok()?);
+        let subnode_block_id =
+            u64::from_le_bytes(payload.bytes[start + 16..start + 24].try_into().ok()?);
+        if data_block_id == 0 {
+            return None;
+        }
+        entries.push(UnicodeSubnodeEntry {
+            node_id,
+            data_block_id: BlockId(data_block_id),
+            subnode_block_id: (subnode_block_id != 0).then_some(BlockId(subnode_block_id)),
+        });
+    }
+    Some(entries)
+}
+
+pub fn loaded_subnode_subtree(
+    payloads: &[PayloadBlock],
+    root_block_id: BlockId,
+) -> Vec<PayloadBlock> {
+    let mut subtree = Vec::new();
+    let mut queue = VecDeque::from([root_block_id]);
+    let mut seen = HashSet::new();
+
+    while let Some(block_id) = queue.pop_front() {
+        if !seen.insert(block_id) {
+            continue;
+        }
+        let Some(payload) = payloads.iter().find(|payload| payload.block_id == block_id) else {
+            continue;
+        };
+        let layout = classify_subnode_block_layout(payload);
+        for child_block_id in layout.child_block_ids {
+            if !seen.contains(&child_block_id) {
+                queue.push_back(child_block_id);
+            }
+        }
+        subtree.push(payload.clone());
+    }
+    subtree
+}
+
+fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayout {
     if payload.bytes.len() < 8 {
         return SubnodeBlockLayout {
             block_id: payload.block_id,
@@ -654,7 +720,7 @@ mod tests {
 
     use super::{
         classify_subnode_block_layout, classify_subnode_payloads, load_recursive_subnode_blocks,
-        SubnodeReference,
+        loaded_subnode_subtree, unicode_subnode_entries, SubnodeReference,
     };
     use crate::pst::bbt::{BbtEntry, BbtIndex};
     use crate::pst::limits::ParserLimits;
@@ -733,6 +799,28 @@ mod tests {
     }
 
     #[test]
+    fn isolates_one_loaded_subnode_tree_from_siblings() {
+        let nested_root = payload(0x90, unicode_slblock(0x692, 0x92, 0));
+        let nested_data = payload(0x92, vec![1, 2, 3, 4]);
+        let sibling = payload(0xa2, vec![5, 6, 7, 8]);
+        let payloads = vec![nested_root.clone(), nested_data.clone(), sibling];
+
+        let entries = unicode_subnode_entries(&nested_root).expect("valid SLBLOCK entries");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].node_id, 0x692);
+        assert_eq!(entries[0].data_block_id, BlockId(0x92));
+
+        let subtree = loaded_subnode_subtree(&payloads, BlockId(0x90));
+        assert_eq!(
+            subtree
+                .iter()
+                .map(|payload| payload.block_id)
+                .collect::<Vec<_>>(),
+            vec![BlockId(0x90), BlockId(0x92)]
+        );
+    }
+
+    #[test]
     fn table_layout_status_captures_bounded_payload_prefix() {
         let payload = payload_block(valid_table_payload(40));
 
@@ -791,10 +879,14 @@ mod tests {
     }
 
     fn payload_block(bytes: Vec<u8>) -> PayloadBlock {
+        payload(7, bytes)
+    }
+
+    fn payload(block_id: u64, bytes: Vec<u8>) -> PayloadBlock {
         PayloadBlock {
-            block_id: BlockId(7),
+            block_id: BlockId(block_id),
             block_ref: BlockRef {
-                block_id: BlockId(7),
+                block_id: BlockId(block_id),
                 offset: ByteOffset(100),
                 size: bytes.len() as u64,
             },

@@ -16,32 +16,35 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Tika DOCX attachment | Validated through Vertical 31 / PR #450 | One `attachment.docx` payload: 11,862 bytes, valid ZIP/CRC, expected document text, and preserved 15,503-byte source size metadata. |
 | Tika recipients | Validated through Vertical 32 / PR #452 | Eight directly attributed recipients across seven messages: six SMTP rows and two raw/native rows, including a full legacy Exchange distinguished name. |
 | Tika attachment EML | Validated through Vertical 33 / PR #454 | One deterministic 17,035-byte `multipart/mixed` EML contains the 22-byte UTF-8 plain-text body and exact 11,862-byte DOCX payload. The invalid four-byte HTML value is excluded. |
-| Embedded message | Deferred | The method-`5` embedded-message subtree is deliberately excluded from the outer message's recipient ownership and awaits a separate extraction path. |
+| Embedded message | Validated through Vertical 34 / PR #455 | One method-`5` PtypObject resolves to a separate linked message with one directly owned recipient, a 23-byte text body, and four preserved raw HTML-property bytes; no child evidence is projected onto the parent. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
 
-## Tika Vertical 33 evidence
+## Tika Vertical 34 evidence
 
-| Metric | Vertical 32 baseline | PR #454 result |
+| Metric | Vertical 33 baseline | PR #455 result |
 |---|---:|---:|
-| Messages | 7 | 7 |
-| Body records | 8 | 8 |
-| Recipient records | 8 | 8 |
-| Recipient JSONL bytes | 2,418 | 2,418 |
-| Attachment records | 1 | 1 |
+| Messages | 7 | 8 |
+| Body records | 8 | 10 |
+| Body payload files / bytes | 6 / 252 | 8 / 279 |
+| Recipient records | 8 | 9 |
+| Recipient JSONL bytes | 2,418 | 2,708 |
+| Attachment records | 1 | 2 |
 | Attachment payload files / bytes | 1 / 11,862 | 1 / 11,862 |
-| EML files / bytes | 0 / 0 | 1 / 17,035 |
-| Extraction TAR bytes | 202,752 | 202,752 |
-| Total extraction-output bytes | 241,579 | 241,579 |
+| EML files / bytes | 1 / 17,035 | 1 / 17,035 |
+| Extraction TAR bytes | 202,752 | 227,840 |
+| Total extraction-output bytes | 241,579 | 272,884 |
 
-The EML Date is `Thu, 26 Nov 2020 22:18:00 +0000`, derived from the attachment owner's validated `PidTagMessageDeliveryTime` FILETIME because no transport Date or submit time is available. The native Exchange sender and raw recipient address remain preserved without SMTP invention. The EML adds no changes to structured extraction or archive bytes.
+The method-`5` Property Context now preserves its object HNID, validates the exact eight-byte PtypObject `Nid + ulSize` allocation, requires a normal-message NID, and resolves that NID exactly once within the outer message's loaded subnode scope. The linked child `msg_0ff529af59d373d5` owns its own recipient and body records. The parent keeps its original recipient, DOCX ordinal/key/path, and 17,035-byte EML.
+
+The child's four-byte `PidTagHtml` evidence is `7f 83 00 00`. It remains a raw body artefact and is not promoted to MIME HTML. The method-`5` attachment is metadata-only and links to the child with `embedded_message_key`; no empty EML payload is written at its archive path.
 
 ## Latest completed work
 
-PR #454, **Emit attachment-bearing Tika EML**, groups validated attachment payloads by message and ordinal, requires bounded Date evidence, emits a plain-text `multipart/mixed` body when HTML is unusable, and includes only non-empty by-value payloads whose length and SHA-256 match their records. The permanent fixture parses the MIME tree and verifies the decoded DOCX bytes exactly.
+PR #455, **Recover Tika embedded message as a separate object**, preserves PtypObject HNIDs before heap dereference, decodes the specification-defined object wrapper, requires one unambiguous child NID in the parent message scope, isolates the child's subnode subtree, and reuses the existing message/body/direct-recipient projections. Ambiguous, missing, malformed, wrong-type, or duplicate references remain unavailable.
 
 ## Next evidence-based milestone
 
-Recover the Tika method-`5` embedded message as a separate message object and attachment path. Preserve the outer message's direct ownership boundary and do not attribute the embedded message's recipients, body, or identifiers to its parent.
+Emit a deterministic plain-text-only EML for the recovered child. Its validated sender, recipient, subject, received-time Date evidence, Message-ID, and 23-byte UTF-8 body are available, but the current attachmentless EML path requires a validated HTML alternative. The raw four-byte HTML property must remain excluded. Materialising that child EML as the parent method-`5` attachment payload remains a later explicit boundary.
 
 ## Validation expectations
 
@@ -49,4 +52,4 @@ Every extraction PR must pass formatting, clippy with warnings denied, all Rust 
 
 ## Risk statement
 
-The new result is evidence for one approved Unicode PST, not broad PST compatibility. The sender's Exchange distinguished name is preserved but not SMTP-resolved. ANSI files, uncommon or corrupt layouts, embedded messages, contacts/distribution lists, and many MAPI property combinations remain incomplete.
+The new result is evidence for one approved Unicode PST, not broad PST compatibility. The sender's Exchange distinguished name is preserved but not SMTP-resolved. ANSI files, uncommon or corrupt layouts, nested embedded attachments, contacts/distribution lists, and many MAPI property combinations remain incomplete.

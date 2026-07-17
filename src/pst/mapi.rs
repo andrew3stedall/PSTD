@@ -69,6 +69,7 @@ pub const PR_RTF_COMPRESSED: u32 = 0x1009_0102;
 pub const PR_HTML_STRING: u32 = 0x1013_001f;
 pub const PR_HTML_STRING_A: u32 = 0x1013_001e;
 pub const PR_HTML: u32 = 0x1013_0102;
+pub const PR_ATTACH_DATA_OBJ: u32 = 0x3701_000d;
 pub const PR_ATTACH_DATA_BIN: u32 = 0x3701_0102;
 pub const PR_ATTACH_FILENAME: u32 = 0x3704_001f;
 pub const PR_ATTACH_FILENAME_A: u32 = 0x3704_001e;
@@ -87,6 +88,7 @@ const KNOWN_VALUE_TYPE_CODES: &[u16] = &[
     0x0003, // PtypInteger32
     0x0005, // PtypFloating64
     0x000b, // PtypBoolean
+    0x000d, // PtypObject
     0x0014, // PtypInteger64
     0x001e, // PtypString8
     0x001f, // PtypString
@@ -263,6 +265,11 @@ pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
         value_type: MapiValueType::Binary,
     },
     MapiPropertyDef {
+        tag: PR_ATTACH_DATA_OBJ,
+        name: "attachment_data_object",
+        value_type: MapiValueType::Unknown,
+    },
+    MapiPropertyDef {
         tag: PR_ATTACH_DATA_BIN,
         name: "attachment_data",
         value_type: MapiValueType::Binary,
@@ -432,7 +439,7 @@ pub fn value_summary(value: &MapiValue) -> String {
 mod tests {
     use super::{
         byte_swapped_tag, decode_value, has_known_value_type, property_def, MapiValue,
-        MapiValueType, PR_BODY_A, PR_SUBJECT, PR_SUBJECT_A,
+        MapiValueType, PR_ATTACH_DATA_OBJ, PR_BODY_A, PR_SUBJECT, PR_SUBJECT_A,
     };
 
     #[test]
@@ -449,6 +456,7 @@ mod tests {
     #[test]
     fn identifies_known_property_value_types() {
         assert!(has_known_value_type(PR_SUBJECT));
+        assert!(has_known_value_type(PR_ATTACH_DATA_OBJ));
         assert!(!has_known_value_type(0x001f_0037));
         assert_eq!(byte_swapped_tag(0x1f00_3700), PR_SUBJECT);
     }

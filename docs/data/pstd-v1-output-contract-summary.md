@@ -1,6 +1,6 @@
 # PSTD Structured Output Contract
 
-_Last reviewed: 14 July 2026._
+_Last reviewed: 17 July 2026._
 
 ## Purpose
 
@@ -16,13 +16,13 @@ The existence of a record type or archive path means the output layer supports t
 |---|---|---|
 | Run, progress, manifest, error, and summary records | Implemented | Operational |
 | Folder records and inventory | Implemented | Public fixture produces 11 folders |
-| Message records | Implemented | Public fixture produces one true/extracted message; metadata coverage remains incomplete |
+| Message records | Implemented | Original fixture emits one message; Tika emits seven top-level messages plus one separately linked embedded message |
 | Selected MAPI property records | Implemented | Public fixture produces 16 selected and 19 unknown properties |
-| Body records and raw body artefacts | Implemented | Public fixture recovers two body payloads; format coverage remains incomplete |
-| Recipient records | Implemented as a contract | Validated role/name/address evidence exists, but complete records are not yet published through one production fixture execution |
+| Body records and raw body artefacts | Implemented | Original fixture recovers two payloads; Tika currently emits ten records and eight payload files, including raw non-markup HTML evidence |
+| Recipient records | Implemented | Row-aligned role/name/address records are fixture validated, including direct ownership for one embedded child |
 | Message-reference records | Implemented as a contract | Coverage is not yet sufficient to claim complete threading fidelity |
-| Attachment records and raw attachment artefacts | Implemented as a contract | Public fixture currently emits zero attachments |
-| EML | Not canonical and not implemented | Deferred until extracted data is sufficiently complete |
+| Attachment records and raw attachment artefacts | Implemented | Tika emits one by-value DOCX payload plus one metadata-only method-`5` record linked to its child message |
+| EML | Non-canonical assembly output | Two fixture paths are validated: one 956-byte plain/HTML EML and one 17,035-byte plain/DOCX EML |
 
 ## Single-PST output root
 
@@ -103,7 +103,7 @@ Keys must derive from stable source identity and ordinal/node information rather
 
 ### Messages
 
-Message records should retain source identity, folder relationship, item type, subject/sender/date identifiers where validated, body and attachment indicators, threading fields, transport headers, and per-domain completeness statuses.
+Message records should retain source identity, folder relationship, item type, subject/sender/date identifiers where validated, body and attachment indicators, threading fields, transport headers, and per-domain completeness statuses. An embedded child uses its own stable `message_key`, `item_type=embedded_message_metadata`, and source NID identity; it is not folded into the parent record.
 
 ### Recipients
 
@@ -129,7 +129,7 @@ Body records should identify body type, archive path, encoding, size, hash, and 
 
 ### Attachments
 
-Attachment records should preserve known metadata even when payload bytes are unavailable, empty, unsupported, or deferred. Raw extracted bytes belong in TAR entries, not base64 JSON.
+Attachment records should preserve known metadata even when payload bytes are unavailable, empty, unsupported, or deferred. Raw extracted bytes belong in TAR entries, not base64 JSON. A method-`5` record may carry `embedded_message_key` to link a separately emitted child; that optional field does not imply that an EML payload exists at `archive_path`.
 
 ### Errors and completeness
 
@@ -177,7 +177,7 @@ recipient_status
 
 ## EML policy
 
-EML generation is a future assembly layer. It should be introduced only after the structured records reliably contain the metadata, recipients, headers, body forms, and attachment bytes required for the intended fidelity level. Exact preservation may require additional raw-property or MIME evidence beyond the current contract.
+EML generation is a non-canonical assembly layer over validated structured evidence. Current fixture gates cover one plain/HTML and one plain/DOCX message. Attachmentless plain-text-only child assembly, method-`5` payload materialisation, and exact preservation remain incomplete and require their own byte-level contracts.
 
 ## Downstream boundary
 

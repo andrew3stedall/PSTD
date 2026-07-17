@@ -28,6 +28,15 @@ pub fn message_key(pst_id: &str, message_identity: &str) -> String {
     stable_id("msg", &[pst_id, message_identity])
 }
 
+pub fn embedded_message_key(
+    parent_message_key: &str,
+    attachment_key: &str,
+    data_nid: u32,
+) -> String {
+    let data_nid = format!("{data_nid:08x}");
+    stable_id("msg", &[parent_message_key, attachment_key, &data_nid])
+}
+
 pub fn body_key(message_key: &str, body_type: &str) -> String {
     stable_id("body", &[message_key, body_type])
 }

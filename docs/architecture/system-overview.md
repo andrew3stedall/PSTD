@@ -1,6 +1,6 @@
 # PSTD System Overview
 
-_Last reviewed: 16 July 2026._
+_Last reviewed: 17 July 2026._
 
 ## Purpose
 
@@ -32,7 +32,7 @@ CLI / Python wrapper
 | Bounded I/O | Range-checked file reads and checked arithmetic. | Implemented |
 | Header/root | PST variant metadata and safe root candidate selection. | Implemented and fixture validated |
 | NDB traversal | BBT/NBT pages, block lookup, logical nodes, subnodes, trailers, and payload loading. | Implemented with guards; coverage remains layout-dependent |
-| Heap-on-Node and BTH | Heap allocation lookup and B-tree-on-heap maps. | Implemented and reused by property/table paths |
+| Heap-on-Node and BTH | Heap allocation lookup, B-tree-on-heap maps, and exact PtypObject HNID preservation. | Implemented and reused by property, table, and embedded-object paths |
 | Property Context | Selected MAPI property lookup and decoding. | Implemented for the validated subset |
 | Table Context | TCINFO, descriptors, row-index BTH, row payload resolution, row addressing, bitmap evidence, and value projection. | Implemented through bounded fixed-width and recipient string paths |
 | Semantic extraction | Folder/message classification, bodies, recipient roles/names/addresses, threading, attachment evidence. | Partial but materially functional |
@@ -54,7 +54,22 @@ validated TC heap
   -> row-aligned recipient record assembly
 ```
 
-The original fixture publishes four complete recipient records from subnode-backed rows. Draft PR #452 applies the same validated pipeline to heap-backed row allocations and publishes eight directly attributed Tika recipients. Production ownership is restricted to direct recipient-table NIDs in each message root, so nested embedded-message tables are excluded.
+The original fixture publishes four complete recipient records from subnode-backed rows. Vertical 32 applies the same validated pipeline to heap-backed row allocations and publishes eight directly attributed Tika top-level recipients. Production ownership is restricted to direct recipient-table NIDs in each message root; Vertical 34 invokes that same selection on an isolated child subtree and publishes its ninth recipient under the child key.
+
+## Embedded-message flow
+
+```text
+method-5 attachment Property Context
+  -> preserved PtypObject HID
+  -> exact 8-byte Nid + ulSize allocation
+  -> normal-message NID validation
+  -> exactly one NID match in the outer message's loaded subnode scope
+  -> child Property Context + isolated child subnode subtree
+  -> separate message/body/direct-recipient records
+  -> parent attachment embedded_message_key link
+```
+
+Zero, duplicate, malformed, wrong-type, missing-block, or invalid-heap candidates produce no child. Nested child attachments and generated EML payload materialisation remain separate boundaries.
 
 ## Extraction and output boundaries
 
@@ -119,8 +134,8 @@ The presence of a file family in the contract does not imply complete extraction
 
 - Fixture evidence is narrow and does not establish general PST compatibility.
 - ANSI PST support and uncommon layouts remain incomplete.
-- Embedded-message and uncommon attachment layouts remain incomplete.
-- The Tika DOCX-bearing message is not yet assembled into a multipart EML.
+- Only one method-`5` embedded layout is validated; nested child attachments and recursive materialisation remain incomplete.
+- The Tika child is structured but not yet emitted through the attachmentless plain-text EML path.
 - Structured output is not yet sufficient to claim lossless or RFC-complete EML reconstruction across arbitrary PSTs.
 
 ## Evolution path

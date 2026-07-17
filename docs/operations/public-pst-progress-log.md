@@ -43,28 +43,30 @@ After every extraction milestone:
 
 The original fixture publishes these four complete row-aligned records through the production extraction path.
 
-## Tika recipient and attachment evidence
+## Tika recipient, attachment, and embedded-message evidence
 
-PR #452 advanced `tests/fixtures/upstream/tika-testPST.pst` from zero to eight recipient records across seven messages while preserving the existing DOCX result.
+PR #455 advances `tests/fixtures/upstream/tika-testPST.pst` from seven top-level messages to eight structured messages by recovering the method-`5` child separately.
 
 | Evidence | Result |
 |---|---:|
-| Messages / body records | 7 / 8 |
-| Recipient records | 8 |
-| SMTP / raw-native rows | 6 / 2 |
-| Attachment records | 1 |
+| Messages / body records | 8 / 10 |
+| Body payload files / bytes | 8 / 279 |
+| Recipient records | 9 |
+| SMTP / raw-native rows | 6 / 3 |
+| Attachment records | 2 |
 | Attachment payload files / bytes | 1 / 11,862 |
 | EML files / bytes | 1 / 17,035 |
-| Recipient JSONL bytes | 2,418 |
-| Extraction TAR bytes | 202,752 |
-| Total output bytes | 241,579 |
+| Recipient JSONL bytes | 2,708 |
+| Extraction TAR bytes | 227,840 |
+| Total output bytes | 272,884 |
 
-The raw/native rows preserve the complete legacy Exchange distinguished name for `Hong-Thai Nguyen` and the attachment owner's validated `PidTagEmailAddress`. Neither is relabelled as SMTP without a validated `PidTagSmtpAddress` projection. The attachment owner's EML also preserves its raw Exchange sender DN, excludes the invalid four-byte HTML value, and carries the exact DOCX bytes as a base64 MIME part.
+The original seven messages and eight recipients remain byte-for-byte stable. The recovered child adds one raw/native recipient, a 23-byte text body, and four raw HTML-property bytes. The method-`5` parent attachment links to the child key but remains metadata-only; the existing DOCX retains ordinal `0`, key `att_0695091e19397627`, exact bytes, and MIME EML. No child value is attributed to the parent.
 
 ## Progress history
 
 | Date | Milestone / PR range | Change type | Result | Next measured boundary |
 |---|---|---|---|---|
+| 2026-07-17 | Vertical 34 / #455 | Material embedded-message extraction | Parsed the exact PtypObject wrapper, resolved one unique normal-message NID, emitted a separately keyed child with one recipient and two body records, linked it from method `5`, and preserved the parent/DOCX/EML contract. | Emit a plain-text-only child EML without promoting four invalid HTML bytes. |
 | 2026-07-17 | Vertical 33 / #454 | Material EML assembly | Emitted one deterministic 17,035-byte Tika `multipart/mixed` EML with delivery-time-derived Date, valid plain text, one raw/native recipient, and the exact 11,862-byte DOCX payload; excluded unusable HTML and embedded-message method `5`. | Recover the method-`5` embedded message as a separate object. |
 | 2026-07-16 | Vertical 32 / #452 | Material recipient extraction | Resolved heap-backed Table Context row matrices, attributed only direct recipient tables to each message, emitted eight records across seven Tika messages, preserved one legacy Exchange DN, and retained the exact DOCX payload. | Validate Date/required headers and assemble the first Tika `multipart/mixed` EML. |
 | 2026-07-14 | Vertical 13 / #429 | New extraction representation | Added fail-closed complete recipient records retaining role, display name, address, and authoritative address kind by row. | Project names and addresses from the same rows and heap in one invocation. |
@@ -84,11 +86,11 @@ The raw/native rows preserve the complete legacy Exchange distinguished name for
 
 ## Active boundary
 
-Vertical 33 completes the first Tika attachment-bearing EML. The next extraction slice is separate recovery of the method-`5` embedded message without weakening the outer message ownership boundary.
+Vertical 34 completes separate structured recovery of the Tika method-`5` child. The next slice is a deterministic plain-text-only child EML; the current attachmentless EML assembler still requires validated HTML.
 
 ## Interpretation
 
-The parser has advanced from structural discovery to material recipient, body, attachment, and readable-EML output on approved fixtures. This is still not broad compatibility: the Tika sender remains a raw native Exchange DN rather than resolved SMTP, embedded messages remain deferred, and one fixture cannot establish support for uncommon or corrupt layouts.
+The parser has advanced from structural discovery to material recipient, body, attachment, and readable-EML output on approved fixtures. This is still not broad compatibility: the Tika sender remains a raw native Exchange DN rather than resolved SMTP, nested embedded attachments and child-EML materialisation remain deferred, and one fixture cannot establish support for uncommon or corrupt layouts.
 
 ## Completion report template
 

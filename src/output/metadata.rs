@@ -83,6 +83,8 @@ pub struct AttachmentRecord {
     pub is_inline: bool,
     pub content_id: Option<String>,
     pub attachment_method: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embedded_message_key: Option<String>,
     pub ordinal: u64,
     pub archive_path: String,
     pub extraction_status: String,

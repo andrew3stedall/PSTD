@@ -108,21 +108,27 @@ Complete in PR #454. `msg_c6163b9157944cc9` now emits one deterministic 17,035-b
 
 Exact MIME validation confirms CRLF line endings, one plain-text body, one DOCX attachment, registered DOCX content type, stable filename, base64 transport, and byte-identical decoded payload. Structured extraction, TAR, and total extraction-output bytes remain unchanged.
 
+### Method-5 embedded message recovery
+
+Complete in PR #455. The method-`5` Property Context now preserves its PtypObject HNID, parses the exact eight-byte object allocation, requires a normal-message NID, and resolves that NID exactly once inside the outer message's loaded subnode scope. The child is emitted as `msg_0ff529af59d373d5` and linked from attachment ordinal `1` through `embedded_message_key`.
+
+The child owns one raw/native recipient, a 23-byte UTF-8 text body, and four raw `PidTagHtml` bytes. Its subtree is isolated before recipient projection, so none of those values enter the parent. The outer DOCX remains ordinal `0`, and its 17,035-byte EML is unchanged. Exact evidence is recorded in [Vertical 34](../operations/vertical-34-recover-tika-embedded-message.md).
+
 ## Current milestone
 
-### Recover the method-5 embedded message
+### Emit the recovered child as a plain-text EML
 
-The outer Tika message contains a method-`5` embedded-message subtree whose recipient table is already excluded from its parent. The next smallest complete vertical must:
+The recovered child already has validated sender, recipient, subject, received-time Date evidence, Message-ID, and UTF-8 plain text. Its four HTML-property bytes are not usable markup. The next smallest vertical must:
 
-- identify the direct embedded-message attachment object from validated ownership evidence;
-- recover its message properties, recipients, body, and identifiers as a separate message object;
-- preserve the relationship to the outer attachment without merging child records into the parent;
-- fail closed if the embedded message or its attachment boundary is ambiguous;
-- add exact fixture evidence for object counts, ownership, payload paths, and EML impact.
+- permit a deterministic attachmentless `text/plain` EML when all required headers and plain body validate but no HTML alternative exists;
+- emit exactly one new child EML without changing the parent's 17,035-byte multipart EML;
+- prove that `7f 83 00 00` is absent from MIME output;
+- retain the raw/native Exchange addresses without inventing SMTP;
+- keep method-`5` TAR payload materialisation separate unless the generated child EML is explicitly adopted as that payload.
 
 ## Following fixture sequence
 
-After embedded-message recovery:
+After child EML assembly:
 
 1. validate multiple messages, folders, Unicode names, and legacy Exchange address preservation on `tika-testPST.pst`;
 2. validate body-form selection with `tika-various-body-types.pst`;
