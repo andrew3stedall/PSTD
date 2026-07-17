@@ -74,6 +74,28 @@ jobs:
           bodies = records('bodies.jsonl')
           recipients = records('recipients.jsonl')
           attachments = records('attachments.jsonl')
+          print('VERTICAL34_COUNTS=' + json.dumps({
+              'messages': len(messages),
+              'bodies': len(bodies),
+              'recipients': len(recipients),
+              'attachments': len(attachments),
+          }, sort_keys=True))
+          print('VERTICAL34_EMBEDDED_MESSAGES=' + json.dumps([
+              message for message in messages
+              if message.get('item_type') == 'embedded_message_metadata'
+          ], sort_keys=True))
+          print('VERTICAL34_RECIPIENTS=' + json.dumps(recipients, sort_keys=True))
+          print('VERTICAL34_METHOD5_ATTACHMENTS=' + json.dumps([
+              attachment for attachment in attachments
+              if attachment.get('attachment_method') == 5
+          ], sort_keys=True))
+          print('VERTICAL34_EMBEDDED_BODIES=' + json.dumps([
+              body for body in bodies
+              if body.get('message_key') in {
+                  message['message_key'] for message in messages
+                  if message.get('item_type') == 'embedded_message_metadata'
+              }
+          ], sort_keys=True))
           if len(messages) != 7:
               raise SystemExit(f'unexpected message count: {len(messages)}')
           if len(bodies) != 8:
