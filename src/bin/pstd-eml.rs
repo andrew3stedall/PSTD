@@ -3,15 +3,19 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, FixedOffset, Utc};
 use pstd::engine::metadata::extract_metadata;
 use pstd::output::metadata::{MessageRecord, RecipientRecord};
+use pstd::pst::attachments::AttachmentPayload;
 use pstd::pst::messages::BodyPayload;
+use sha2::{Digest, Sha256};
 
 const LZFU_MAGIC: u32 = 0x7546_5a4c;
 const MELA_MAGIC: u32 = 0x414c_454d;
 const INITIAL_DICTIONARY: &[u8] = b"{\\rtf1\\ansi\\mac\\deff0\\deftab720{\\fonttbl;}{\\f0\\fnil \\froman \\fswiss \\fmodern \\fscript \\fdecor MS Sans SerifSymbolArialTimes New RomanCourier{\\colortbl\\red0\\green0\\blue0\r\n\\par \\pard\\plain\\f0\\fs20\\b\\i\\u\\tab\\tx";
 const ALTERNATIVE_BOUNDARY: &str = "pstd-alternative-7f6a8d2b";
+const MIXED_BOUNDARY: &str = "pstd-mixed-3e2b1a9c";
+const FILETIME_UNIX_EPOCH_TICKS: u64 = 116_444_736_000_000_000;
 const SKIP_DESTINATIONS: &[&str] = &[
     "fonttbl",
     "colortbl",
@@ -46,6 +50,7 @@ fn run() -> Result<(), String> {
 
     let recipients = recipients_by_message(&metadata.recipients);
     let bodies = bodies_by_message(&metadata.body_payloads);
+    let attachments = attachments_by_message(&metadata.attachment_payloads);
     let mut emitted = 0usize;
     for message in &metadata.messages {
         let Some(body) = bodies.get(&message.message_key) else {
@@ -55,7 +60,11 @@ fn run() -> Result<(), String> {
             .get(&message.message_key)
             .map(Vec::as_slice)
             .unwrap_or_default();
-        let Some(eml) = build_eml(message, message_recipients, body) else {
+        let message_attachments = attachments
+            .get(&message.message_key)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let Some(eml) = build_eml(message, message_recipients, body, message_attachments) else {
             continue;
         };
         let path = output.join(format!("{}.eml", safe_filename(&message.message_key)));
@@ -65,7 +74,7 @@ fn run() -> Result<(), String> {
 
     println!("eml_files_emitted={emitted}");
     if emitted == 0 {
-        return Err("no message had validated sender, recipients, subject, plain-text body, and recoverable HTML required for multipart EML emission".to_string());
+        return Err("no message had validated sender, recipients, subject, Date evidence, plain-text body, and a supported multipart body required for EML emission".to_string());
     }
     Ok(())
 }
@@ -94,6 +103,22 @@ fn recipients_by_message(records: &[RecipientRecord]) -> BTreeMap<String, Vec<Re
     grouped
 }
 
+fn attachments_by_message(
+    payloads: &[AttachmentPayload],
+) -> BTreeMap<String, Vec<AttachmentPayload>> {
+    let mut grouped: BTreeMap<String, Vec<AttachmentPayload>> = BTreeMap::new();
+    for payload in payloads {
+        grouped
+            .entry(payload.record.message_key.clone())
+            .or_default()
+            .push(payload.clone());
+    }
+    for payloads in grouped.values_mut() {
+        payloads.sort_by_key(|payload| payload.record.ordinal);
+    }
+    grouped
+}
+
 fn bodies_by_message(payloads: &[BodyPayload]) -> BTreeMap<String, MessageBodies> {
     let mut bodies: BTreeMap<String, MessageBodies> = BTreeMap::new();
     for payload in payloads {
@@ -112,7 +137,7 @@ fn bodies_by_message(payloads: &[BodyPayload]) -> BTreeMap<String, MessageBodies
             _ => {}
         }
     }
-    bodies.retain(|_, body| body.text.is_some() && body.html.is_some());
+    bodies.retain(|_, body| body.text.is_some());
     bodies
 }
 
@@ -120,6 +145,7 @@ fn build_eml(
     message: &MessageRecord,
     recipients: &[RecipientRecord],
     bodies: &MessageBodies,
+    attachments: &[AttachmentPayload],
 ) -> Option<Vec<u8>> {
     let subject = clean_header(message.subject.as_deref()?)?;
     let sender_address = message
@@ -134,10 +160,19 @@ fn build_eml(
     if to.is_none() && cc.is_none() {
         return None;
     }
+    let date = validated_message_date(message)?;
 
     let text = std::str::from_utf8(bodies.text.as_deref()?).ok()?;
-    let html = bodies.html.as_deref()?;
-    if text.contains(ALTERNATIVE_BOUNDARY) || html.contains(ALTERNATIVE_BOUNDARY) {
+    let html = bodies.html.as_deref();
+    if text.contains(ALTERNATIVE_BOUNDARY)
+        || text.contains(MIXED_BOUNDARY)
+        || html.is_some_and(|value| {
+            value.contains(ALTERNATIVE_BOUNDARY) || value.contains(MIXED_BOUNDARY)
+        })
+    {
+        return None;
+    }
+    if !attachments.is_empty() && !attachments_are_valid(attachments) {
         return None;
     }
 
@@ -150,9 +185,7 @@ fn build_eml(
         push_header(&mut eml, "Cc", &cc);
     }
     push_header(&mut eml, "Subject", &subject);
-    if let Some(date) = validated_transport_date(message) {
-        push_header(&mut eml, "Date", &date);
-    }
+    push_header(&mut eml, "Date", &date);
     if let Some(message_id) = message
         .internet_message_id
         .as_deref()
@@ -161,18 +194,158 @@ fn build_eml(
         push_header(&mut eml, "Message-ID", &message_id);
     }
     push_header(&mut eml, "MIME-Version", "1.0");
-    push_header(
-        &mut eml,
-        "Content-Type",
-        &format!("multipart/alternative; boundary=\"{ALTERNATIVE_BOUNDARY}\""),
-    );
-    eml.push_str("\r\n");
-    push_part(&mut eml, "text/plain; charset=utf-8", &normalize_crlf(text));
-    push_part(&mut eml, "text/html; charset=utf-8", &normalize_crlf(html));
-    eml.push_str("--");
-    eml.push_str(ALTERNATIVE_BOUNDARY);
-    eml.push_str("--\r\n");
+
+    if attachments.is_empty() {
+        let html = html?;
+        push_header(
+            &mut eml,
+            "Content-Type",
+            &format!("multipart/alternative; boundary=\"{ALTERNATIVE_BOUNDARY}\""),
+        );
+        eml.push_str("\r\n");
+        push_alternative_body(&mut eml, text, html);
+    } else {
+        push_header(
+            &mut eml,
+            "Content-Type",
+            &format!("multipart/mixed; boundary=\"{MIXED_BOUNDARY}\""),
+        );
+        eml.push_str("\r\n");
+        eml.push_str("--");
+        eml.push_str(MIXED_BOUNDARY);
+        eml.push_str("\r\n");
+        if let Some(html) = html {
+            push_header(
+                &mut eml,
+                "Content-Type",
+                &format!("multipart/alternative; boundary=\"{ALTERNATIVE_BOUNDARY}\""),
+            );
+            eml.push_str("\r\n");
+            push_alternative_body(&mut eml, text, html);
+        } else {
+            push_header(&mut eml, "Content-Type", "text/plain; charset=utf-8");
+            push_header(&mut eml, "Content-Transfer-Encoding", "8bit");
+            eml.push_str("\r\n");
+            eml.push_str(&normalize_crlf(text));
+            if !eml.ends_with("\r\n") {
+                eml.push_str("\r\n");
+            }
+        }
+        for attachment in attachments {
+            push_attachment_part(&mut eml, attachment)?;
+        }
+        eml.push_str("--");
+        eml.push_str(MIXED_BOUNDARY);
+        eml.push_str("--\r\n");
+    }
     Some(eml.into_bytes())
+}
+
+fn push_alternative_body(output: &mut String, text: &str, html: &str) {
+    push_part(output, "text/plain; charset=utf-8", &normalize_crlf(text));
+    push_part(output, "text/html; charset=utf-8", &normalize_crlf(html));
+    output.push_str("--");
+    output.push_str(ALTERNATIVE_BOUNDARY);
+    output.push_str("--\r\n");
+}
+
+fn attachments_are_valid(attachments: &[AttachmentPayload]) -> bool {
+    attachments.iter().all(|attachment| {
+        !attachment.bytes.is_empty()
+            && attachment.record.attachment_method == Some(1)
+            && attachment.record.size_bytes == attachment.bytes.len() as u64
+            && attachment.record.sha256 == sha256_hex(&attachment.bytes)
+    }) && attachments
+        .windows(2)
+        .all(|pair| pair[0].record.ordinal < pair[1].record.ordinal)
+}
+
+fn push_attachment_part(output: &mut String, attachment: &AttachmentPayload) -> Option<()> {
+    let filename = clean_header(&attachment.record.filename_safe)?;
+    let filename = escape_mime_parameter(&filename);
+    let content_type = attachment_content_type(attachment);
+    let disposition = if attachment.record.is_inline {
+        "inline"
+    } else {
+        "attachment"
+    };
+
+    output.push_str("--");
+    output.push_str(MIXED_BOUNDARY);
+    output.push_str("\r\n");
+    push_header(
+        output,
+        "Content-Type",
+        &format!("{content_type}; name=\"{filename}\""),
+    );
+    push_header(output, "Content-Transfer-Encoding", "base64");
+    push_header(
+        output,
+        "Content-Disposition",
+        &format!("{disposition}; filename=\"{filename}\""),
+    );
+    if let Some(content_id) = attachment.record.content_id.as_deref().and_then(clean_header) {
+        push_header(output, "Content-ID", &content_id);
+    }
+    output.push_str("\r\n");
+    output.push_str(&base64_lines(&attachment.bytes));
+    Some(())
+}
+
+fn attachment_content_type(attachment: &AttachmentPayload) -> String {
+    attachment
+        .record
+        .content_type
+        .as_deref()
+        .and_then(clean_header)
+        .or_else(|| match attachment.record.extension.as_deref() {
+            Some("docx") => Some(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    .to_string(),
+            ),
+            _ => None,
+        })
+        .unwrap_or_else(|| "application/octet-stream".to_string())
+}
+
+fn escape_mime_parameter(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+fn base64_lines(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] =
+        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut encoded = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let first = chunk[0];
+        let second = chunk.get(1).copied().unwrap_or(0);
+        let third = chunk.get(2).copied().unwrap_or(0);
+        encoded.push(ALPHABET[(first >> 2) as usize] as char);
+        encoded.push(ALPHABET[(((first & 0x03) << 4) | (second >> 4)) as usize] as char);
+        encoded.push(if chunk.len() > 1 {
+            ALPHABET[(((second & 0x0f) << 2) | (third >> 6)) as usize] as char
+        } else {
+            '='
+        });
+        encoded.push(if chunk.len() > 2 {
+            ALPHABET[(third & 0x3f) as usize] as char
+        } else {
+            '='
+        });
+    }
+
+    let mut lines = String::with_capacity(encoded.len() + encoded.len() / 76 * 2 + 2);
+    for line in encoded.as_bytes().chunks(76) {
+        lines.push_str(std::str::from_utf8(line).expect("base64 is ASCII"));
+        lines.push_str("\r\n");
+    }
+    lines
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hex::encode(hasher.finalize())
 }
 
 fn push_part(output: &mut String, content_type: &str, body: &str) {
@@ -446,6 +619,21 @@ fn crc32(bytes: &[u8]) -> u32 {
     !crc
 }
 
+fn validated_message_date(message: &MessageRecord) -> Option<String> {
+    validated_transport_date(message)
+        .or_else(|| message.sent_at.as_deref().and_then(validated_filetime_date))
+        .or_else(|| message.received_at.as_deref().and_then(validated_filetime_date))
+}
+
+fn validated_filetime_date(value: &str) -> Option<String> {
+    let ticks = value.strip_prefix("filetime:")?.parse::<u64>().ok()?;
+    let unix_ticks = ticks.checked_sub(FILETIME_UNIX_EPOCH_TICKS)?;
+    let seconds = i64::try_from(unix_ticks / 10_000_000).ok()?;
+    let nanoseconds = u32::try_from((unix_ticks % 10_000_000) * 100).ok()?;
+    let parsed = DateTime::<Utc>::from_timestamp(seconds, nanoseconds)?;
+    Some(parsed.format("%a, %d %b %Y %H:%M:%S +0000").to_string())
+}
+
 fn validated_transport_date(message: &MessageRecord) -> Option<String> {
     let headers = message.transport_message_headers.as_deref()?;
     let mut dates = headers.lines().filter_map(|line| {
@@ -539,6 +727,7 @@ fn safe_filename(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pstd::pst::attachments::{attachment_payload, AttachmentMetadata};
     use pstd::pst::messages::body_payload;
 
     fn message() -> MessageRecord {
@@ -601,6 +790,7 @@ mod tests {
             &message(),
             &[recipient(0, "to"), recipient(1, "cc")],
             &bodies,
+            &[],
         )
         .unwrap();
         let eml = String::from_utf8(eml).unwrap();
@@ -652,11 +842,97 @@ mod tests {
             text: Some(b"plain".to_vec()),
             html: None,
         };
-        assert!(build_eml(&message(), &recipients, &missing).is_none());
+        assert!(build_eml(&message(), &recipients, &missing, &[]).is_none());
         let collision = MessageBodies {
             text: Some(ALTERNATIVE_BOUNDARY.as_bytes().to_vec()),
             html: Some("<b>rich</b>".to_string()),
         };
-        assert!(build_eml(&message(), &recipients, &collision).is_none());
+        assert!(build_eml(&message(), &recipients, &collision, &[]).is_none());
     }
+
+    fn attachment(ordinal: usize, bytes: &[u8]) -> AttachmentPayload {
+        attachment_payload(
+            "message",
+            ordinal,
+            AttachmentMetadata {
+                filename_original: Some("attachment.docx".to_string()),
+                content_type: None,
+                is_inline: false,
+                content_id: None,
+                attachment_method: Some(1),
+                declared_size_bytes: Some(bytes.len() as u64),
+            },
+            bytes.to_vec(),
+        )
+    }
+
+    #[test]
+    fn emits_multipart_mixed_with_plain_body_and_attachment() {
+        let mut message = message();
+        message.transport_message_headers = None;
+        message.received_at = Some("filetime:132509026800000000".to_string());
+        let bodies = MessageBodies {
+            text: Some("Forwarding mail…\r\n\r\n".as_bytes().to_vec()),
+            html: None,
+        };
+        let attachments = vec![attachment(0, b"Hello attachment")];
+        let eml = build_eml(
+            &message,
+            &[recipient(0, "to")],
+            &bodies,
+            &attachments,
+        )
+        .unwrap();
+        let eml = String::from_utf8(eml).unwrap();
+
+        assert!(eml.contains("Date: Thu, 26 Nov 2020 22:18:00 +0000\r\n"));
+        assert!(eml.contains(
+            "Content-Type: multipart/mixed; boundary=\"pstd-mixed-3e2b1a9c\"\r\n"
+        ));
+        assert!(eml.contains("Content-Type: text/plain; charset=utf-8\r\n"));
+        assert!(eml.contains(
+            "Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document; name=\"attachment.docx\"\r\n"
+        ));
+        assert!(eml.contains(
+            "Content-Disposition: attachment; filename=\"attachment.docx\"\r\n"
+        ));
+        assert!(eml.contains("SGVsbG8gYXR0YWNobWVudA==\r\n"));
+        assert!(eml.ends_with("--pstd-mixed-3e2b1a9c--\r\n"));
+    }
+
+    #[test]
+    fn rejects_mixed_eml_without_date_or_valid_by_value_payload() {
+        let mut message = message();
+        message.transport_message_headers = None;
+        message.received_at = None;
+        let bodies = MessageBodies {
+            text: Some(b"plain".to_vec()),
+            html: None,
+        };
+        let recipient = recipient(0, "to");
+        let attachment = attachment(0, b"bytes");
+        assert!(build_eml(&message, &[recipient.clone()], &bodies, &[attachment.clone()]).is_none());
+
+        message.received_at = Some("filetime:132509026800000000".to_string());
+        let mut invalid = attachment;
+        invalid.record.attachment_method = Some(5);
+        assert!(build_eml(&message, &[recipient], &bodies, &[invalid]).is_none());
+    }
+
+    #[test]
+    fn groups_attachment_payloads_by_message_and_ordinal() {
+        let mut second_message = attachment(0, b"other");
+        second_message.record.message_key = "other".to_string();
+        let grouped = attachments_by_message(&[
+            attachment(2, b"second"),
+            second_message,
+            attachment(1, b"first"),
+        ]);
+        let message = grouped.get("message").unwrap();
+        assert_eq!(message.len(), 2);
+        assert_eq!(message[0].record.ordinal, 1);
+        assert_eq!(message[1].record.ordinal, 2);
+        assert_eq!(grouped.get("other").unwrap().len(), 1);
+    }
+
 }
