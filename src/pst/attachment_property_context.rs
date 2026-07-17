@@ -24,6 +24,7 @@ const UNICODE_SLBLOCK_LEAF_LEVEL: u8 = 0x00;
 const UNICODE_SLBLOCK_HEADER_BYTES: usize = 8;
 const UNICODE_SLENTRY_BYTES: usize = 24;
 const HNID_TYPE_MASK: u32 = 0x1f;
+const NID_TYPE_NORMAL_MESSAGE: u32 = 0x04;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttachmentPropertyContextReport {
@@ -536,14 +537,11 @@ fn attachment_object_nid(
             .try_into()
             .expect("four-byte object HNID was validated"),
     );
-    if hnid == 0 {
+    if hnid == 0 || hnid & HNID_TYPE_MASK != 0 {
         return Err(format!(
-            "stage=data_nid; reason=zero_hnid; tag=0x{:08x}",
+            "stage=data_nid; reason=object_hnid_not_heap_id; tag=0x{:08x}; hnid=0x{hnid:08x}",
             value.tag
         ));
-    }
-    if hnid & HNID_TYPE_MASK != 0 {
-        return Ok(hnid);
     }
 
     let heap = HeapOnNode::parse(&attachment_block.bytes, attachment_block.block_ref.offset.0)
@@ -565,12 +563,41 @@ fn attachment_object_nid(
                 value.tag
             )
         })?;
-    Err(format!(
-        "stage=data_nid; reason=indirect_object_unresolved; tag=0x{:08x}; hnid=0x{hnid:08x}; allocation_len={}; allocation_prefix={}",
-        value.tag,
-        allocation.len(),
-        bounded_hex_prefix(allocation)
-    ))
+    embedded_message_nid_from_object_allocation(allocation).map_err(|reason| {
+        format!(
+            "stage=data_nid; {reason}; tag=0x{:08x}; hnid=0x{hnid:08x}",
+            value.tag
+        )
+    })
+}
+
+fn embedded_message_nid_from_object_allocation(allocation: &[u8]) -> Result<u32, String> {
+    if allocation.len() != 8 {
+        return Err(format!(
+            "reason=object_allocation_size; allocation_len={}; allocation_prefix={}",
+            allocation.len(),
+            bounded_hex_prefix(allocation)
+        ));
+    }
+    let nid = u32::from_le_bytes(
+        allocation[0..4]
+            .try_into()
+            .expect("four-byte object NID slice"),
+    );
+    let object_size = u32::from_le_bytes(
+        allocation[4..8]
+            .try_into()
+            .expect("four-byte object size slice"),
+    );
+    if nid == 0 || nid & HNID_TYPE_MASK != NID_TYPE_NORMAL_MESSAGE {
+        return Err(format!(
+            "reason=object_nid_type; nid=0x{nid:08x}; object_size={object_size}"
+        ));
+    }
+    if object_size == 0 {
+        return Err(format!("reason=object_size_zero; nid=0x{nid:08x}"));
+    }
+    Ok(nid)
 }
 
 fn attachment_data_object_family_summary(properties: &PropertyContext) -> String {
@@ -750,8 +777,8 @@ mod tests {
     use std::collections::HashMap;
 
     use super::{
-        embedded_attachment_record, embedded_object_reference, filename_attachment_record,
-        slblock_data_bid_for_nid,
+        embedded_attachment_record, embedded_message_nid_from_object_allocation,
+        embedded_object_reference, filename_attachment_record, slblock_data_bid_for_nid,
     };
     use crate::pst::mapi::{
         MapiValue, PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ, PR_ATTACH_LONG_FILENAME,
@@ -814,12 +841,28 @@ mod tests {
             PropertyValue {
                 tag: PR_ATTACH_DATA_OBJ,
                 name: "attachment_data_object".to_string(),
-                raw: 0x684u32.to_le_bytes().to_vec(),
-                decoded: Some(MapiValue::Unknown(0x684u32.to_le_bytes().to_vec())),
+                raw: 0x80u32.to_le_bytes().to_vec(),
+                decoded: Some(MapiValue::Unknown(0x80u32.to_le_bytes().to_vec())),
                 status: "selected".to_string(),
             },
         );
         PropertyContext { values }
+    }
+
+    fn embedded_attachment_payload(block_id: u64, object_nid: u32) -> PayloadBlock {
+        let mut bytes = vec![0; 64];
+        bytes[0..2].copy_from_slice(&48u16.to_le_bytes());
+        bytes[2] = 0xec;
+        bytes[3] = 0xbc;
+        bytes[32..36].copy_from_slice(&object_nid.to_le_bytes());
+        bytes[36..40].copy_from_slice(&1u32.to_le_bytes());
+        bytes[48..50].copy_from_slice(&4u16.to_le_bytes());
+        bytes[52..54].copy_from_slice(&16u16.to_le_bytes());
+        bytes[54..56].copy_from_slice(&16u16.to_le_bytes());
+        bytes[56..58].copy_from_slice(&16u16.to_le_bytes());
+        bytes[58..60].copy_from_slice(&32u16.to_le_bytes());
+        bytes[60..62].copy_from_slice(&40u16.to_le_bytes());
+        payload(block_id, bytes)
     }
 
     fn attachment_properties() -> PropertyContext {
@@ -884,7 +927,7 @@ mod tests {
 
     #[test]
     fn scopes_embedded_object_reference_to_the_owning_attachment() {
-        let attachment = payload(0x200, vec![0]);
+        let attachment = embedded_attachment_payload(0x200, 0x684);
         let blocks = vec![
             payload(0x100, slblock_with_sub(0x671, 0x200, 0x300)),
             attachment.clone(),
@@ -911,6 +954,24 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![BlockId(0x500), BlockId(0x600)]
         );
+    }
+
+    #[test]
+    fn parses_only_exact_normal_message_object_allocations() {
+        let mut valid = 0x0020_0104u32.to_le_bytes().to_vec();
+        valid.extend_from_slice(&0x50fcu32.to_le_bytes());
+        assert_eq!(
+            embedded_message_nid_from_object_allocation(&valid),
+            Ok(0x0020_0104)
+        );
+
+        assert!(embedded_message_nid_from_object_allocation(&valid[..7]).is_err());
+        let mut wrong_type = 0x0020_0105u32.to_le_bytes().to_vec();
+        wrong_type.extend_from_slice(&1u32.to_le_bytes());
+        assert!(embedded_message_nid_from_object_allocation(&wrong_type).is_err());
+        let mut zero_size = 0x0020_0104u32.to_le_bytes().to_vec();
+        zero_size.extend_from_slice(&0u32.to_le_bytes());
+        assert!(embedded_message_nid_from_object_allocation(&zero_size).is_err());
     }
 
     #[test]
