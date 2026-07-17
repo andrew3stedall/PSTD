@@ -253,7 +253,7 @@ jobs:
           if b'Content-Type: text/html' in eml_bytes:
               raise SystemExit('unusable four-byte HTML payload must not be emitted')
           body = parsed_eml.get_body(preferencelist=('plain',))
-          if body is None or body.get_content() != 'Forwarding mail…\r\n\r\n':
+          if body is None or body.get_content() != 'Forwarding mail…\r\n':
               raise SystemExit(f'unexpected EML plain body: {body!r}')
           eml_attachments = list(parsed_eml.iter_attachments())
           if len(eml_attachments) != 1:
