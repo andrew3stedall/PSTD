@@ -370,14 +370,13 @@ fn embedded_message_candidate(
         ));
     }
     let property_block = property_matches[0];
-    let heap = HeapOnNode::parse(&property_block.bytes, property_block.block_ref.offset.0).map_err(
-        |_| {
+    let heap = HeapOnNode::parse(&property_block.bytes, property_block.block_ref.offset.0)
+        .map_err(|_| {
             format!(
                 "stage=property_heap; data_nid=0x{:08x}; data_bid=0x{:x}",
                 object.data_nid, object.data_bid
             )
-        },
-    )?;
+        })?;
     if heap.header.client_signature != HEAP_CLIENT_PROPERTY_CONTEXT {
         return Err(format!(
             "stage=property_heap_signature; data_nid=0x{:08x}; data_bid=0x{:x}; signature=0x{:02x}",
@@ -446,9 +445,8 @@ fn embedded_object_reference(
     attachment_properties: &PropertyContext,
     blocks: &[PayloadBlock],
 ) -> Result<EmbeddedObjectReference, String> {
-    let data_nid = attachment_object_nid(attachment_properties).ok_or_else(|| {
-        "stage=data_nid; data_nid=unavailable".to_string()
-    })?;
+    let data_nid = attachment_object_nid(attachment_properties)
+        .ok_or_else(|| "stage=data_nid; data_nid=unavailable".to_string())?;
     let mut owners = Vec::new();
     let mut normalized_owner_match_count = 0usize;
     for payload in blocks {
@@ -456,8 +454,7 @@ fn embedded_object_reference(
             continue;
         };
         for entry in entries {
-            if normalized_bid(entry.data_block_id.0)
-                == normalized_bid(attachment_block.block_id.0)
+            if normalized_bid(entry.data_block_id.0) == normalized_bid(attachment_block.block_id.0)
             {
                 normalized_owner_match_count += 1;
             }
