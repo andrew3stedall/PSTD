@@ -422,7 +422,7 @@ fn embedded_object_reference(
 
     let mut objects = scope
         .iter()
-        .filter_map(|payload| unicode_subnode_entries(payload))
+        .filter_map(unicode_subnode_entries)
         .flatten()
         .filter(|entry| entry.node_id == data_nid)
         .collect::<Vec<_>>();
