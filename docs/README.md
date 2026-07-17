@@ -1,6 +1,6 @@
 # PSTD Documentation
 
-_Last reviewed: 16 July 2026._
+_Last reviewed: 17 July 2026._
 
 This documentation tree contains both current operating guidance and historical delivery evidence. Use the current-state pages below for present capability and next work. Milestone, PQ, vertical, issue-plan, and implementation-plan files record what was known at the time they were written.
 
@@ -30,8 +30,8 @@ This documentation tree contains both current operating guidance and historical 
 | Recipient verticals | Four structured To/Cc recipient records with names and usable addresses are emitted from the original public fixture. |
 | Readable message verticals | One deterministic 956-byte EML is emitted with sender, recipients, subject, Date, Message-ID, plain text, and recovered HTML. |
 | Upstream fixture corpus | Three pinned public PSTs now cover attachments, multiple folders/messages, body forms, appointments, recurrence, contacts, distribution lists, and legacy Exchange addresses. |
-| Tika attachment fixture | Seven messages now emit eight directly attributed recipients, including six SMTP rows and two preserved native/raw addresses; the validated DOCX payload is unchanged. |
-| Current milestone | Assemble the first deterministic `multipart/mixed` EML for the DOCX-bearing Tika message after validating its remaining Date/header evidence. |
+| Tika attachment fixture | Eight messages now include one separately linked method-`5` child, nine directly owned recipients, ten body records, the unchanged DOCX payload, and the unchanged outer multipart EML. |
+| Current milestone | Emit a deterministic plain-text-only EML for the recovered child while excluding its four raw non-markup HTML bytes. |
 
 The current roadmap and fixture-corpus guide define the active evidence-led sequence. Historical milestone and PQ documents remain useful for implementation context but do not define the next task.
 
@@ -60,6 +60,7 @@ The current roadmap and fixture-corpus guide define the active evidence-led sequ
 - [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
 - [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md)
 - [Vertical 28: Plain-text and HTML EML](operations/vertical-28-emit-plain-html-eml.md)
+- [Vertical 34: Tika embedded message](operations/vertical-34-recover-tika-embedded-message.md)
 
 ### Data contract
 
