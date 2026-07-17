@@ -1,6 +1,6 @@
 # Unreleased
 
-_Last reviewed: 16 July 2026._
+_Last reviewed: 17 July 2026._
 
 ## Added
 
@@ -35,6 +35,10 @@ _Last reviewed: 16 July 2026._
 - Heap-backed Table Context row-matrix resolution through the owning Heap-on-Node allocation, reusing the existing bounded row and recipient projections.
 - Direct root-SLBLOCK recipient-table attribution that excludes nested embedded-message tables from the outer message.
 - Eight exact Tika recipient records across seven messages: six authoritative SMTP rows and two preserved raw/native rows, including a complete legacy Exchange distinguished name.
+- One deterministic 17,035-byte Tika `multipart/mixed` EML with validated Date fallback, 22-byte plain body, raw/native addresses, and the byte-identical DOCX payload.
+- Specification-aligned PtypObject handling that preserves the object HID, validates the exact eight-byte `Nid + ulSize` wrapper, and requires a normal-message NID.
+- One separately keyed method-`5` child message linked through `embedded_message_key`, with one directly owned recipient, a 23-byte text body, and four preserved raw HTML-property bytes.
+- A permanent Vertical 34 fixture contract covering exact child/parent ownership, stable attachment ordinals, record bytes, archive bytes, and unchanged outer EML.
 
 ## Changed
 
@@ -55,6 +59,9 @@ _Last reviewed: 16 July 2026._
 - Suppressed unrelated attachment-table fallback rows once the validated filename-bearing Property Context attachment path is selected.
 - Rebuilt the root README and current-state documentation so historical milestone/PQ files are no longer presented as the live roadmap.
 - Prevented the attachment owner's recursively loaded subnode tree from emitting the same recipient projection twice when attachment presence is inferred from that tree.
+- Preserved existing by-value attachment ordinals before appending method-`5` metadata, keeping the proven DOCX key and path stable.
+- Replaced the invalid attachment-leaf-BID ownership assumption with the PtypObject's authoritative child NID, admitted only when that NID resolves exactly once within the outer message scope.
+- Isolated the recovered child's loaded subnode subtree before reusing direct recipient projection, preventing child rows, bodies, and identifiers from leaking into the parent.
 
 ## Current original-fixture result
 
@@ -79,40 +86,39 @@ The original public fixture produces one readable email containing sender, To/Cc
 ## Current Tika attachment result
 
 ```text
-Messages: 7
-Body records: 8
-Body payload files/bytes: 6/252
-Recipients: 8
-SMTP/raw-native recipients: 6/2
-Attachment records: 1
-Attachment filename: attachment.docx
-PidTagAttachSize: 15503
-Attachment payload files/bytes: 1/11862
-Attachment SHA-256: 0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0
-Attachment data NID: 0x0000833f
-Attachment data BID: 0x632
-XBLOCK child blocks: 2
-DOCX ZIP/CRC validation: passed
-Expected document text: present
-EML files/bytes: 0/0
-Attachment JSONL bytes: 643
-Recipient JSONL bytes: 2418
-Extraction TAR bytes: 202752
-Total output bytes: 241579
+Messages: 8
+Body records: 10
+Body payload files/bytes: 8/279
+Recipients: 9
+SMTP/raw-native recipients: 6/3
+Attachment records: 2
+By-value attachment payload files/bytes: 1/11862
+DOCX SHA-256: 0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0
+DOCX attachment ordinal/key: 0/att_0695091e19397627
+Embedded attachment ordinal/key: 1/att_a9c94a13d70f1cb3
+Embedded message key/NID: msg_0ff529af59d373d5/0x00200104
+Embedded child text/raw-HTML bytes: 23/4
+EML files/bytes: 1/17035
+Messages JSONL bytes: 23086
+Bodies JSONL bytes: 2820
+Recipient JSONL bytes: 2708
+Attachment JSONL bytes: 1358
+Extraction TAR bytes: 227840
+Total output bytes: 272884
 ```
 
-The attachment belongs to `msg_c6163b9157944cc9`. Its validated Property Context resolves through a Unicode SLBLOCK to the internal XBLOCK at BID `0x632`; the XBLOCK resolves two ordered external child blocks and emits one valid DOCX file. The same message now emits its directly owned To recipient, while a nested method-`5` embedded-message recipient table remains excluded.
+The method-`5` attachment belongs to `msg_c6163b9157944cc9` and links to the separately emitted child. The child owns its recipient and bodies; the parent retains only its direct recipient, original bodies, DOCX, and unchanged EML. The method-`5` archive path is metadata-only and no empty payload file is written.
 
 ## In progress
 
-- Validate Date and required header evidence for the Tika attachment message and assemble its first deterministic `multipart/mixed` EML.
+- Emit a deterministic attachmentless plain-text EML for the recovered child while excluding its four non-markup HTML bytes and preserving raw/native address evidence.
 
 ## Known limitations
 
 - PSTD is not yet a generally compatible PST converter or PST-to-EML tool.
-- The Tika fixture emits recipients and a DOCX payload but still emits no EML files.
-- Embedded-message method `5` extraction remains deferred.
-- ANSI, uncommon, corrupt, embedded-message, and broad MAPI-layout coverage remain incomplete.
+- The Tika fixture has one validated outer EML; the recovered attachmentless child does not yet emit a plain-text-only EML.
+- One method-`5` child layout is validated; method-`5` payload materialisation, nested child attachments, recursion, and broad layout coverage remain deferred.
+- ANSI, uncommon, corrupt, nested embedded-message, and broad MAPI-layout coverage remain incomplete.
 - Non-ASCII RFC 2047 header encoding remains incomplete.
 - Downstream Snowflake, UI, search, semantic search, graph, and LLM/RAG work remains parked.
 
