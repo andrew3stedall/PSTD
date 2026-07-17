@@ -447,54 +447,22 @@ fn embedded_object_reference(
     blocks: &[PayloadBlock],
 ) -> Result<EmbeddedObjectReference, String> {
     let data_nid = attachment_object_nid(attachment_block, attachment_properties)?;
-    let mut owners = Vec::new();
-    let mut normalized_owner_match_count = 0usize;
-    for payload in blocks {
-        let Some(entries) = unicode_subnode_entries(payload) else {
-            continue;
-        };
-        for entry in entries {
-            if normalized_bid(entry.data_block_id.0) == normalized_bid(attachment_block.block_id.0)
-            {
-                normalized_owner_match_count += 1;
-            }
-            if entry.data_block_id == attachment_block.block_id {
-                owners.push((payload, entry));
-            }
-        }
-    }
-    if owners.len() != 1 {
-        return Err(format!(
-            "stage=owner_entry; attachment_bid=0x{:x}; data_nid=0x{data_nid:08x}; owner_matches={}; normalized_owner_matches={normalized_owner_match_count}",
-            attachment_block.block_id.0,
-            owners.len()
-        ));
-    }
-    let (owner_payload, owner_entry) = owners.pop().expect("one owner was validated");
-    let owner_subnode_bid = owner_entry.subnode_block_id.map(|bid| bid.0);
-    let scope = owner_entry
-        .subnode_block_id
-        .map(|root| loaded_subnode_subtree(blocks, root))
-        .unwrap_or_else(|| vec![owner_payload.clone()]);
-
-    let mut objects = scope
+    let mut objects = blocks
         .iter()
-        .filter_map(unicode_subnode_entries)
-        .flatten()
-        .filter(|entry| entry.node_id == data_nid)
+        .filter_map(|payload| unicode_subnode_entries(payload).map(|entries| (payload, entries)))
+        .flat_map(|(payload, entries)| entries.into_iter().map(move |entry| (payload, entry)))
+        .filter(|(_, entry)| entry.node_id == data_nid)
         .collect::<Vec<_>>();
     if objects.len() != 1 {
         return Err(format!(
-            "stage=object_entry; attachment_bid=0x{:x}; data_nid=0x{data_nid:08x}; owner_subnode_bid={}; scope_blocks={}; object_matches={}",
+            "stage=object_entry; attachment_bid=0x{:x}; data_nid=0x{data_nid:08x}; object_matches={}",
             attachment_block.block_id.0,
-            owner_subnode_bid
-                .map(|bid| format!("0x{bid:x}"))
-                .unwrap_or_else(|| "none".to_string()),
-            scope.len(),
             objects.len()
         ));
     }
-    let object = objects.pop().expect("one embedded object was validated");
+    let (_object_owner, object) = objects
+        .pop()
+        .expect("one embedded object reference was validated");
     let subnode_payloads = object
         .subnode_block_id
         .map(|root| loaded_subnode_subtree(blocks, root))
@@ -926,7 +894,7 @@ mod tests {
     }
 
     #[test]
-    fn scopes_embedded_object_reference_to_the_owning_attachment() {
+    fn resolves_unique_embedded_object_and_isolates_its_subtree() {
         let attachment = embedded_attachment_payload(0x200, 0x684);
         let blocks = vec![
             payload(0x100, slblock_with_sub(0x671, 0x200, 0x300)),
@@ -935,7 +903,7 @@ mod tests {
             payload(0x400, vec![1]),
             payload(0x500, slblock_with_sub(0x692, 0x600, 0)),
             payload(0x600, vec![2]),
-            payload(0x800, slblock_with_sub(0x684, 0x700, 0)),
+            payload(0x800, slblock_with_sub(0x6a4, 0x700, 0)),
             payload(0x700, vec![3]),
         ];
 
@@ -954,6 +922,24 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![BlockId(0x500), BlockId(0x600)]
         );
+    }
+
+    #[test]
+    fn rejects_duplicate_embedded_object_nids_in_the_message_scope() {
+        let attachment = embedded_attachment_payload(0x200, 0x684);
+        let blocks = vec![
+            payload(0x300, slblock_with_sub(0x684, 0x400, 0)),
+            payload(0x400, vec![1]),
+            payload(0x800, slblock_with_sub(0x684, 0x700, 0)),
+            payload(0x700, vec![2]),
+            attachment.clone(),
+        ];
+
+        let error =
+            embedded_object_reference(&attachment, &embedded_attachment_properties(), &blocks)
+                .expect_err("duplicate object NIDs must fail closed");
+
+        assert!(error.contains("object_matches=2"));
     }
 
     #[test]
