@@ -333,13 +333,8 @@ mod tests {
         let mut raw_value = 0x000du16.to_le_bytes().to_vec();
         raw_value.extend_from_slice(&0x684u32.to_le_bytes());
 
-        let entry = property_context_entry(
-            &heap,
-            b"aliased",
-            &0x3701u16.to_le_bytes(),
-            &raw_value,
-            0,
-        );
+        let entry =
+            property_context_entry(&heap, b"aliased", &0x3701u16.to_le_bytes(), &raw_value, 0);
 
         assert_eq!(entry.key, PR_ATTACH_DATA_OBJ.to_le_bytes());
         assert_eq!(entry.value, 0x684u32.to_le_bytes());
