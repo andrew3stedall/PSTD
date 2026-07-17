@@ -67,6 +67,7 @@ pub fn attachment_records_from_property_context_subnodes(
     let mut property_context_count = 0usize;
     let mut rejected_context_count = 0usize;
     let mut embedded_message_count = 0usize;
+    let mut embedded_contexts = Vec::new();
 
     for block in blocks {
         let Ok(heap) = HeapOnNode::parse(&block.bytes, block.block_ref.offset.0) else {
@@ -87,24 +88,35 @@ pub fn attachment_records_from_property_context_subnodes(
             rejected_context_count += 1;
             continue;
         };
-        let ordinal = records.len();
-        let record = if positive_integer32_property(&report.context, PR_ATTACH_METHOD)
+        if positive_integer32_property(&report.context, PR_ATTACH_METHOD)
             == Some(ATTACH_METHOD_EMBEDDED_MESSAGE)
         {
-            embedded_message_count += 1;
-            embedded_attachment_record(
-                message_key,
-                ordinal,
-                &report.context,
-                "embedded_message_metadata_discovered",
-            )
-        } else {
+            embedded_contexts.push(report.context);
+            continue;
+        }
+
+        let ordinal = records.len();
+        let Some(record) =
             filename_attachment_record(message_key, ordinal, &report.context, blocks)
-        };
-        let Some(record) = record else {
+        else {
             rejected_context_count += 1;
             continue;
         };
+        records.push(record);
+    }
+
+    for properties in embedded_contexts {
+        let ordinal = records.len();
+        let Some(record) = embedded_attachment_record(
+            message_key,
+            ordinal,
+            &properties,
+            "embedded_message_metadata_discovered",
+        ) else {
+            rejected_context_count += 1;
+            continue;
+        };
+        embedded_message_count += 1;
         records.push(record);
     }
 
@@ -156,6 +168,7 @@ pub fn attachment_payloads_from_property_context_subnodes(
     let mut rejected_context_count = 0usize;
     let mut payload_failure_count = 0usize;
     let mut embedded_message_failure_count = 0usize;
+    let mut embedded_contexts: Vec<(&PayloadBlock, PropertyContext)> = Vec::new();
 
     for block in blocks {
         let Ok(heap) = HeapOnNode::parse(&block.bytes, block.block_ref.offset.0) else {
@@ -176,33 +189,14 @@ pub fn attachment_payloads_from_property_context_subnodes(
             rejected_context_count += 1;
             continue;
         };
-        let ordinal = payloads.len() + records.len();
-
         if positive_integer32_property(&report.context, PR_ATTACH_METHOD)
             == Some(ATTACH_METHOD_EMBEDDED_MESSAGE)
         {
-            match embedded_message_candidate(message_key, ordinal, block, &report.context, blocks) {
-                Some(candidate) => {
-                    records.push(candidate.attachment_record.clone());
-                    embedded_messages.push(candidate);
-                }
-                None => {
-                    embedded_message_failure_count += 1;
-                    if let Some(record) = embedded_attachment_record(
-                        message_key,
-                        ordinal,
-                        &report.context,
-                        "embedded_message_reference_unavailable",
-                    ) {
-                        records.push(record);
-                    } else {
-                        rejected_context_count += 1;
-                    }
-                }
-            }
+            embedded_contexts.push((block, report.context));
             continue;
         }
 
+        let ordinal = payloads.len() + records.len();
         let Some(mut record) =
             filename_attachment_record(message_key, ordinal, &report.context, blocks)
         else {
@@ -253,6 +247,27 @@ pub fn attachment_payloads_from_property_context_subnodes(
                     sanitized_status_reason(&reason.to_string())
                 );
                 records.push(record);
+            }
+        }
+    }
+
+    for (block, properties) in embedded_contexts {
+        let ordinal = payloads.len() + records.len();
+        match embedded_message_candidate(message_key, ordinal, block, &properties, blocks) {
+            Ok(candidate) => {
+                records.push(candidate.attachment_record.clone());
+                embedded_messages.push(candidate);
+            }
+            Err(reason) => {
+                embedded_message_failure_count += 1;
+                let status = format!("embedded_message_reference_unavailable; {reason}");
+                if let Some(record) =
+                    embedded_attachment_record(message_key, ordinal, &properties, &status)
+                {
+                    records.push(record);
+                } else {
+                    rejected_context_count += 1;
+                }
             }
         }
     }
@@ -336,29 +351,69 @@ fn embedded_message_candidate(
     attachment_block: &PayloadBlock,
     attachment_properties: &PropertyContext,
     blocks: &[PayloadBlock],
-) -> Option<EmbeddedMessageCandidate> {
+) -> Result<EmbeddedMessageCandidate, String> {
     let object = embedded_object_reference(attachment_block, attachment_properties, blocks)?;
-    let property_block = blocks
+    let property_matches = blocks
         .iter()
-        .find(|block| block.block_id.0 == object.data_bid)?;
-    let heap = HeapOnNode::parse(&property_block.bytes, property_block.block_ref.offset.0).ok()?;
+        .filter(|block| block.block_id.0 == object.data_bid)
+        .collect::<Vec<_>>();
+    let normalized_property_match_count = blocks
+        .iter()
+        .filter(|block| normalized_bid(block.block_id.0) == normalized_bid(object.data_bid))
+        .count();
+    if property_matches.len() != 1 {
+        return Err(format!(
+            "stage=property_block; data_nid=0x{:08x}; data_bid=0x{:x}; property_matches={}; normalized_property_matches={normalized_property_match_count}",
+            object.data_nid,
+            object.data_bid,
+            property_matches.len()
+        ));
+    }
+    let property_block = property_matches[0];
+    let heap = HeapOnNode::parse(&property_block.bytes, property_block.block_ref.offset.0).map_err(
+        |_| {
+            format!(
+                "stage=property_heap; data_nid=0x{:08x}; data_bid=0x{:x}",
+                object.data_nid, object.data_bid
+            )
+        },
+    )?;
     if heap.header.client_signature != HEAP_CLIENT_PROPERTY_CONTEXT {
-        return None;
+        return Err(format!(
+            "stage=property_heap_signature; data_nid=0x{:08x}; data_bid=0x{:x}; signature=0x{:02x}",
+            object.data_nid, object.data_bid, heap.header.client_signature
+        ));
     }
     let bth = BthMap::parse_property_context_from_heap(
         &heap,
         &property_block.bytes,
         property_block.block_ref.offset.0,
     )
-    .ok()?;
-    let property_report = PropertyContext::from_bth_with_report(&bth).ok()?;
+    .map_err(|_| {
+        format!(
+            "stage=property_bth; data_nid=0x{:08x}; data_bid=0x{:x}",
+            object.data_nid, object.data_bid
+        )
+    })?;
+    let property_report = PropertyContext::from_bth_with_report(&bth).map_err(|_| {
+        format!(
+            "stage=property_context; data_nid=0x{:08x}; data_bid=0x{:x}",
+            object.data_nid, object.data_bid
+        )
+    })?;
 
     let mut attachment_record = embedded_attachment_record(
         message_key,
         ordinal,
         attachment_properties,
         "embedded_message_metadata_extracted",
-    )?;
+    )
+    .ok_or_else(|| {
+        format!(
+            "stage=attachment_record; data_nid=0x{:08x}; data_bid=0x{:x}",
+            object.data_nid, object.data_bid
+        )
+    })?;
     let embedded_message_key = ids::embedded_message_key(
         message_key,
         &attachment_record.attachment_key,
@@ -375,7 +430,7 @@ fn embedded_message_candidate(
             .unwrap_or_else(|| "none".to_string())
     );
 
-    Some(EmbeddedMessageCandidate {
+    Ok(EmbeddedMessageCandidate {
         attachment_record,
         embedded_message_key,
         data_nid: object.data_nid,
@@ -390,18 +445,36 @@ fn embedded_object_reference(
     attachment_block: &PayloadBlock,
     attachment_properties: &PropertyContext,
     blocks: &[PayloadBlock],
-) -> Option<EmbeddedObjectReference> {
-    let data_nid = attachment_object_nid(attachment_properties)?;
-    let mut owners = blocks
-        .iter()
-        .filter_map(|payload| unicode_subnode_entries(payload).map(|entries| (payload, entries)))
-        .flat_map(|(payload, entries)| entries.into_iter().map(move |entry| (payload, entry)))
-        .filter(|(_, entry)| entry.data_block_id == attachment_block.block_id)
-        .collect::<Vec<_>>();
-    if owners.len() != 1 {
-        return None;
+) -> Result<EmbeddedObjectReference, String> {
+    let data_nid = attachment_object_nid(attachment_properties).ok_or_else(|| {
+        "stage=data_nid; data_nid=unavailable".to_string()
+    })?;
+    let mut owners = Vec::new();
+    let mut normalized_owner_match_count = 0usize;
+    for payload in blocks {
+        let Some(entries) = unicode_subnode_entries(payload) else {
+            continue;
+        };
+        for entry in entries {
+            if normalized_bid(entry.data_block_id.0)
+                == normalized_bid(attachment_block.block_id.0)
+            {
+                normalized_owner_match_count += 1;
+            }
+            if entry.data_block_id == attachment_block.block_id {
+                owners.push((payload, entry));
+            }
+        }
     }
-    let (owner_payload, owner_entry) = owners.pop()?;
+    if owners.len() != 1 {
+        return Err(format!(
+            "stage=owner_entry; attachment_bid=0x{:x}; data_nid=0x{data_nid:08x}; owner_matches={}; normalized_owner_matches={normalized_owner_match_count}",
+            attachment_block.block_id.0,
+            owners.len()
+        ));
+    }
+    let (owner_payload, owner_entry) = owners.pop().expect("one owner was validated");
+    let owner_subnode_bid = owner_entry.subnode_block_id.map(|bid| bid.0);
     let scope = owner_entry
         .subnode_block_id
         .map(|root| loaded_subnode_subtree(blocks, root))
@@ -414,20 +487,32 @@ fn embedded_object_reference(
         .filter(|entry| entry.node_id == data_nid)
         .collect::<Vec<_>>();
     if objects.len() != 1 {
-        return None;
+        return Err(format!(
+            "stage=object_entry; attachment_bid=0x{:x}; data_nid=0x{data_nid:08x}; owner_subnode_bid={}; scope_blocks={}; object_matches={}",
+            attachment_block.block_id.0,
+            owner_subnode_bid
+                .map(|bid| format!("0x{bid:x}"))
+                .unwrap_or_else(|| "none".to_string()),
+            scope.len(),
+            objects.len()
+        ));
     }
-    let object = objects.pop()?;
+    let object = objects.pop().expect("one embedded object was validated");
     let subnode_payloads = object
         .subnode_block_id
         .map(|root| loaded_subnode_subtree(blocks, root))
         .unwrap_or_default();
 
-    Some(EmbeddedObjectReference {
+    Ok(EmbeddedObjectReference {
         data_nid,
         data_bid: object.data_block_id.0,
         subnode_bid: object.subnode_block_id.map(|bid| bid.0),
         subnode_payloads,
     })
+}
+
+fn normalized_bid(value: u64) -> u64 {
+    value & !0x03
 }
 
 fn attachment_object_nid(properties: &PropertyContext) -> Option<u32> {
