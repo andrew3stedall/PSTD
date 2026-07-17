@@ -1,6 +1,6 @@
 # Public PST Progress Log
 
-_Last reviewed: 16 July 2026._
+_Last reviewed: 17 July 2026._
 
 ## Purpose
 
@@ -54,16 +54,18 @@ PR #452 advanced `tests/fixtures/upstream/tika-testPST.pst` from zero to eight r
 | SMTP / raw-native rows | 6 / 2 |
 | Attachment records | 1 |
 | Attachment payload files / bytes | 1 / 11,862 |
+| EML files / bytes | 1 / 17,035 |
 | Recipient JSONL bytes | 2,418 |
 | Extraction TAR bytes | 202,752 |
 | Total output bytes | 241,579 |
 
-The raw/native rows preserve the complete legacy Exchange distinguished name for `Hong-Thai Nguyen` and the attachment owner's validated `PidTagEmailAddress`. Neither is relabelled as SMTP without a validated `PidTagSmtpAddress` projection.
+The raw/native rows preserve the complete legacy Exchange distinguished name for `Hong-Thai Nguyen` and the attachment owner's validated `PidTagEmailAddress`. Neither is relabelled as SMTP without a validated `PidTagSmtpAddress` projection. The attachment owner's EML also preserves its raw Exchange sender DN, excludes the invalid four-byte HTML value, and carries the exact DOCX bytes as a base64 MIME part.
 
 ## Progress history
 
 | Date | Milestone / PR range | Change type | Result | Next measured boundary |
 |---|---|---|---|---|
+| 2026-07-17 | Vertical 33 / #454 | Material EML assembly | Emitted one deterministic 17,035-byte Tika `multipart/mixed` EML with delivery-time-derived Date, valid plain text, one raw/native recipient, and the exact 11,862-byte DOCX payload; excluded unusable HTML and embedded-message method `5`. | Recover the method-`5` embedded message as a separate object. |
 | 2026-07-16 | Vertical 32 / #452 | Material recipient extraction | Resolved heap-backed Table Context row matrices, attributed only direct recipient tables to each message, emitted eight records across seven Tika messages, preserved one legacy Exchange DN, and retained the exact DOCX payload. | Validate Date/required headers and assemble the first Tika `multipart/mixed` EML. |
 | 2026-07-14 | Vertical 13 / #429 | New extraction representation | Added fail-closed complete recipient records retaining role, display name, address, and authoritative address kind by row. | Project names and addresses from the same rows and heap in one invocation. |
 | 2026-07-14 | Verticals 11-12 / #427-#428 | Material recipient fidelity | Preferred `PidTagSmtpAddress`, then `PidTagEmailAddress`, over display-name fallback and classified the selected value as SMTP, native email address, or display name. The fixture produced four native email-address values. | Retain display names and addresses together rather than allowing address selection to replace names. |
@@ -82,11 +84,11 @@ The raw/native rows preserve the complete legacy Exchange distinguished name for
 
 ## Active boundary
 
-Vertical 32 is merged. The next extraction slice is the remaining Date/required-header validation and deterministic `multipart/mixed` EML assembly for the DOCX-bearing Tika message.
+Vertical 33 completes the first Tika attachment-bearing EML. The next extraction slice is separate recovery of the method-`5` embedded message without weakening the outer message ownership boundary.
 
 ## Interpretation
 
-The parser has advanced from structural discovery to material recipient, body, attachment, and readable-EML output on approved fixtures. This is still not broad compatibility: the Tika attachment message has no assembled EML yet, embedded messages remain deferred, and one fixture cannot establish support for uncommon or corrupt layouts.
+The parser has advanced from structural discovery to material recipient, body, attachment, and readable-EML output on approved fixtures. This is still not broad compatibility: the Tika sender remains a raw native Exchange DN rather than resolved SMTP, embedded messages remain deferred, and one fixture cannot establish support for uncommon or corrupt layouts.
 
 ## Completion report template
 
