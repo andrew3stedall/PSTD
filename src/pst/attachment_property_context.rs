@@ -590,9 +590,13 @@ fn sanitized_status_reason(value: &str) -> String {
 mod tests {
     use std::collections::HashMap;
 
-    use super::{filename_attachment_record, slblock_data_bid_for_nid};
+    use super::{
+        embedded_attachment_record, embedded_object_reference, filename_attachment_record,
+        slblock_data_bid_for_nid,
+    };
     use crate::pst::mapi::{
-        MapiValue, PR_ATTACH_DATA_BIN, PR_ATTACH_LONG_FILENAME, PR_ATTACH_METHOD, PR_ATTACH_SIZE,
+        MapiValue, PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ, PR_ATTACH_LONG_FILENAME,
+        PR_ATTACH_METHOD, PR_ATTACH_SIZE,
     };
     use crate::pst::payload::PayloadBlock;
     use crate::pst::primitives::{BlockId, BlockRef, ByteOffset};
@@ -622,13 +626,41 @@ mod tests {
     }
 
     fn slblock(nid: u32, bid_data: u64) -> Vec<u8> {
+        slblock_with_sub(nid, bid_data, 0)
+    }
+
+    fn slblock_with_sub(nid: u32, bid_data: u64, bid_sub: u64) -> Vec<u8> {
         let mut bytes = vec![0; 8 + 24];
         bytes[0] = 0x02;
         bytes[1] = 0x00;
         bytes[2..4].copy_from_slice(&1u16.to_le_bytes());
         bytes[8..16].copy_from_slice(&u64::from(nid).to_le_bytes());
         bytes[16..24].copy_from_slice(&bid_data.to_le_bytes());
+        bytes[24..32].copy_from_slice(&bid_sub.to_le_bytes());
         bytes
+    }
+
+    fn embedded_attachment_properties() -> PropertyContext {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_ATTACH_METHOD,
+            property(
+                PR_ATTACH_METHOD,
+                "attachment_method",
+                MapiValue::Integer32(5),
+            ),
+        );
+        values.insert(
+            PR_ATTACH_DATA_OBJ,
+            PropertyValue {
+                tag: PR_ATTACH_DATA_OBJ,
+                name: "attachment_data_object".to_string(),
+                raw: 0x684u32.to_le_bytes().to_vec(),
+                decoded: Some(MapiValue::Unknown(0x684u32.to_le_bytes().to_vec())),
+                status: "selected".to_string(),
+            },
+        );
+        PropertyContext { values }
     }
 
     fn attachment_properties() -> PropertyContext {
@@ -668,6 +700,61 @@ mod tests {
             },
         );
         PropertyContext { values }
+    }
+
+    #[test]
+    fn exposes_method_five_attachment_without_source_filename() {
+        let record = embedded_attachment_record(
+            "msg_parent",
+            0,
+            &embedded_attachment_properties(),
+            "embedded_message_reference_unavailable",
+        )
+        .expect("method-five attachment metadata");
+
+        assert_eq!(record.attachment_method, Some(5));
+        assert_eq!(record.filename_original, None);
+        assert_eq!(record.filename_safe, "attachment_0.eml");
+        assert_eq!(record.extension.as_deref(), Some("eml"));
+        assert_eq!(record.embedded_message_key, None);
+        assert_eq!(
+            record.extraction_status,
+            "embedded_message_reference_unavailable"
+        );
+    }
+
+    #[test]
+    fn scopes_embedded_object_reference_to_the_owning_attachment() {
+        let attachment = payload(0x200, vec![0]);
+        let blocks = vec![
+            payload(0x100, slblock_with_sub(0x671, 0x200, 0x300)),
+            attachment.clone(),
+            payload(0x300, slblock_with_sub(0x684, 0x400, 0x500)),
+            payload(0x400, vec![1]),
+            payload(0x500, slblock_with_sub(0x692, 0x600, 0)),
+            payload(0x600, vec![2]),
+            payload(0x800, slblock_with_sub(0x684, 0x700, 0)),
+            payload(0x700, vec![3]),
+        ];
+
+        let object = embedded_object_reference(
+            &attachment,
+            &embedded_attachment_properties(),
+            &blocks,
+        )
+        .expect("unambiguous embedded object");
+
+        assert_eq!(object.data_nid, 0x684);
+        assert_eq!(object.data_bid, 0x400);
+        assert_eq!(object.subnode_bid, Some(0x500));
+        assert_eq!(
+            object
+                .subnode_payloads
+                .iter()
+                .map(|payload| payload.block_id)
+                .collect::<Vec<_>>(),
+            vec![BlockId(0x500), BlockId(0x600)]
+        );
     }
 
     #[test]
