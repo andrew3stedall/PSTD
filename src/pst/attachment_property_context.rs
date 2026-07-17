@@ -445,7 +445,7 @@ fn embedded_object_reference(
     attachment_properties: &PropertyContext,
     blocks: &[PayloadBlock],
 ) -> Result<EmbeddedObjectReference, String> {
-    let data_nid = attachment_object_nid(attachment_properties)?;
+    let data_nid = attachment_object_nid(attachment_block, attachment_properties)?;
     let mut owners = Vec::new();
     let mut normalized_owner_match_count = 0usize;
     for payload in blocks {
@@ -511,7 +511,10 @@ fn normalized_bid(value: u64) -> u64 {
     value & !0x03
 }
 
-fn attachment_object_nid(properties: &PropertyContext) -> Result<u32, String> {
+fn attachment_object_nid(
+    attachment_block: &PayloadBlock,
+    properties: &PropertyContext,
+) -> Result<u32, String> {
     let Some(value) = properties.value(PR_ATTACH_DATA_OBJ) else {
         return Err(format!(
             "stage=data_nid; reason=property_missing; property_family={}",
@@ -533,13 +536,44 @@ fn attachment_object_nid(properties: &PropertyContext) -> Result<u32, String> {
             .try_into()
             .expect("four-byte object HNID was validated"),
     );
-    if hnid == 0 || hnid & HNID_TYPE_MASK == 0 {
+    if hnid == 0 {
         return Err(format!(
-            "stage=data_nid; reason=not_subnode_nid; tag=0x{:08x}; hnid=0x{hnid:08x}",
+            "stage=data_nid; reason=zero_hnid; tag=0x{:08x}",
             value.tag
         ));
     }
-    Ok(hnid)
+    if hnid & HNID_TYPE_MASK != 0 {
+        return Ok(hnid);
+    }
+
+    let heap = HeapOnNode::parse(
+        &attachment_block.bytes,
+        attachment_block.block_ref.offset.0,
+    )
+    .map_err(|_| {
+        format!(
+            "stage=data_nid; reason=indirect_heap_invalid; tag=0x{:08x}; hnid=0x{hnid:08x}",
+            value.tag
+        )
+    })?;
+    let allocation = heap
+        .allocation_by_hid(
+            &attachment_block.bytes,
+            hnid,
+            attachment_block.block_ref.offset.0,
+        )
+        .map_err(|_| {
+            format!(
+                "stage=data_nid; reason=indirect_allocation_missing; tag=0x{:08x}; hnid=0x{hnid:08x}",
+                value.tag
+            )
+        })?;
+    Err(format!(
+        "stage=data_nid; reason=indirect_object_unresolved; tag=0x{:08x}; hnid=0x{hnid:08x}; allocation_len={}; allocation_prefix={}",
+        value.tag,
+        allocation.len(),
+        bounded_hex_prefix(allocation)
+    ))
 }
 
 fn attachment_data_object_family_summary(properties: &PropertyContext) -> String {
