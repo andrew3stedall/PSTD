@@ -226,6 +226,7 @@ jobs:
               path for path in (archive / 'attachments').rglob('*') if path.is_file()
           ]
           eml_files = [path for path in (evidence / 'eml').rglob('*.eml') if path.is_file()]
+          eml_status = int(evidence.joinpath('eml-exit-code.txt').read_text().strip())
           if eml_status != 0:
               raise SystemExit(f'unexpected EML exit code: {eml_status}')
           if len(eml_files) != 1:
