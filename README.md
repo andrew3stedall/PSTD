@@ -4,15 +4,15 @@ PSTD is a Rust-first tool for extracting email data from Microsoft Outlook PST f
 
 ## Current position
 
-_Last reviewed: 16 July 2026._
+_Last reviewed: 17 July 2026._
 
 | Area | State on `main` | Current result |
 |---|---|---|
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
-| Vertical extraction sequence | Complete through Vertical 32 / PR #452 | Four original-fixture recipients, one readable HTML EML, one validated 11,862-byte DOCX attachment payload, and eight directly attributed Tika recipients are emitted. |
-| Current milestone | Tika attachment EML | Validate the remaining Date/required-header evidence and assemble the first deterministic `multipart/mixed` EML. |
-| EML reconstruction | Fixture validated | The original fixture emits one deterministic 956-byte plain/HTML EML; the Tika attachment message is the next assembly boundary. |
+| Vertical extraction sequence | Complete through Vertical 33 / PR #454 | Four original-fixture recipients, one readable HTML EML, eight directly attributed Tika recipients, one validated 11,862-byte DOCX payload, and its deterministic attachment-bearing EML are emitted. |
+| Current milestone | Embedded message recovery | Recover the Tika method-`5` embedded message as a separate object without attributing it to the outer message. |
+| EML reconstruction | Two fixture paths validated | The original fixture emits one deterministic 956-byte plain/HTML EML; the Tika fixture emits one deterministic 17,035-byte plain-text/DOCX `multipart/mixed` EML. |
 
 ## Intent
 
@@ -49,7 +49,7 @@ The Table Context path now validates four 52-byte rows. The fixture has separate
 
 On `main`, these values are published as four complete row-aligned recipient records and assembled into the original fixture's readable EML.
 
-The Tika attachment fixture on `main` emits eight additional recipients across seven messages. Six carry validated SMTP addresses. Two preserve raw/native evidence, including one full legacy Exchange distinguished name, without guessing an SMTP value. The existing `attachment.docx` payload remains byte-for-byte unchanged.
+The Tika attachment fixture emits eight additional recipients across seven messages. Six carry validated SMTP addresses. Two preserve raw/native evidence, including one full legacy Exchange distinguished name, without guessing an SMTP value. The attachment owner now emits a deterministic 17,035-byte `multipart/mixed` EML whose DOCX part decodes byte-for-byte to the existing payload. Its invalid four-byte HTML value is excluded rather than treated as markup.
 
 ## Progress over time
 
@@ -63,6 +63,7 @@ The Tika attachment fixture on `main` emits eight additional recipients across s
 | Vertical 1-28 | Progressed from recipient property classification to structured recipients, readable body forms, and one deterministic plain/HTML EML. |
 | Vertical 29-31 | Recovered `attachment.docx` metadata, its data-tree reference, and the exact validated 11,862-byte DOCX payload. |
 | Vertical 32 / #452 | Bridged heap-backed row matrices into production and emitted eight Tika recipients with direct message ownership. |
+| Vertical 33 / #454 | Assembled the first deterministic Tika attachment EML from validated Date, recipient, plain-text body, and DOCX evidence. |
 
 Detailed point-in-time milestone and experiment records are retained under `docs/`. They are historical evidence, not the current roadmap.
 
@@ -81,7 +82,7 @@ Implemented capabilities include bounded parsing of PST headers, BBT/NBT pages, 
 
 ## Important limitations
 
-PSTD is not yet a general-purpose or absolute-coverage PST-to-EML converter. Current evidence is fixture-limited. The Tika attachment message does not yet emit a multipart EML, embedded-message method `5` remains deferred, and uncommon/corrupt PST layouts remain incomplete. Do not infer broad compatibility from the milestone count.
+PSTD is not yet a general-purpose or absolute-coverage PST-to-EML converter. Current evidence is fixture-limited. The Tika sender remains a raw native Exchange distinguished name rather than resolved SMTP, embedded-message method `5` remains deferred, and uncommon/corrupt PST layouts remain incomplete. Do not infer broad compatibility from the milestone count.
 
 ## Validation gate
 

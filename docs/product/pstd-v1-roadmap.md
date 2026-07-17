@@ -1,6 +1,6 @@
 # PSTD Roadmap
 
-_Last reviewed: 16 July 2026._
+_Last reviewed: 17 July 2026._
 
 ## Objective
 
@@ -102,29 +102,33 @@ Complete in PR #452. PSTD now resolves Table Context row matrices stored in the 
 
 Six rows carry authoritative SMTP values. Two rows deliberately preserve native/raw evidence: one complete legacy Exchange distinguished name and the attachment owner's `PidTagEmailAddress`, for which no authoritative SMTP projection is published. The existing DOCX payload is unchanged. Exact evidence is recorded in [Vertical 32](../operations/vertical-32-emit-tika-heap-backed-recipients.md).
 
+### First Tika attachment EML
+
+Complete in PR #454. `msg_c6163b9157944cc9` now emits one deterministic 17,035-byte `multipart/mixed` EML containing its validated 22-byte UTF-8 plain-text body and exact 11,862-byte `attachment.docx` payload. The Date is derived from the message's bounded `PidTagMessageDeliveryTime` FILETIME because neither a transport Date nor submit time is available. The four-byte `PidTagHtml` value is invalid UTF-8 and is deliberately excluded. The raw native Exchange sender and recipient evidence are preserved without inventing SMTP.
+
+Exact MIME validation confirms CRLF line endings, one plain-text body, one DOCX attachment, registered DOCX content type, stable filename, base64 transport, and byte-identical decoded payload. Structured extraction, TAR, and total extraction-output bytes remain unchanged.
+
 ## Current milestone
 
-### Assemble the first Tika attachment EML
+### Recover the method-5 embedded message
 
-The attachment-owning message now has a directly attributed To recipient, validated subject, sender, identifiers, plain text, HTML, and a real DOCX payload. The next smallest complete vertical must:
+The outer Tika message contains a method-`5` embedded-message subtree whose recipient table is already excluded from its parent. The next smallest complete vertical must:
 
-- validate the message's remaining Date and required header evidence without borrowing values from another item;
-- assemble one deterministic `multipart/mixed` EML with the existing plain-text and HTML alternative plus `attachment.docx`;
-- preserve the attachment filename, MIME metadata, 11,862 payload bytes, and checksum exactly;
-- retain the raw recipient address classification unless authoritative SMTP evidence becomes available;
-- fail closed if any required message, recipient, body, header, or attachment component is ambiguous;
-- report exact EML, structured-output, TAR, and total-output counts.
+- identify the direct embedded-message attachment object from validated ownership evidence;
+- recover its message properties, recipients, body, and identifiers as a separate message object;
+- preserve the relationship to the outer attachment without merging child records into the parent;
+- fail closed if the embedded message or its attachment boundary is ambiguous;
+- add exact fixture evidence for object counts, ownership, payload paths, and EML impact.
 
 ## Following fixture sequence
 
-After the first Tika attachment EML:
+After embedded-message recovery:
 
-1. recover the method-`5` embedded message as a separate object and attachment path;
-2. validate multiple messages, folders, Unicode names, and legacy Exchange address preservation on `tika-testPST.pst`;
-3. validate body-form selection with `tika-various-body-types.pst`;
-4. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
-5. validate contacts and distribution-list entries without forcing them through the normal email path;
-6. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
+1. validate multiple messages, folders, Unicode names, and legacy Exchange address preservation on `tika-testPST.pst`;
+2. validate body-form selection with `tika-various-body-types.pst`;
+3. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
+4. validate contacts and distribution-list entries without forcing them through the normal email path;
+5. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
 
 ## Completion definition for reliable extraction
 
