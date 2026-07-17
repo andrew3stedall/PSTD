@@ -284,7 +284,12 @@ fn push_attachment_part(output: &mut String, attachment: &AttachmentPayload) -> 
         "Content-Disposition",
         &format!("{disposition}; filename=\"{filename}\""),
     );
-    if let Some(content_id) = attachment.record.content_id.as_deref().and_then(clean_header) {
+    if let Some(content_id) = attachment
+        .record
+        .content_id
+        .as_deref()
+        .and_then(clean_header)
+    {
         push_header(output, "Content-ID", &content_id);
     }
     output.push_str("\r\n");
@@ -313,8 +318,7 @@ fn escape_mime_parameter(value: &str) -> String {
 }
 
 fn base64_lines(bytes: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut encoded = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let first = chunk[0];
@@ -622,7 +626,12 @@ fn crc32(bytes: &[u8]) -> u32 {
 fn validated_message_date(message: &MessageRecord) -> Option<String> {
     validated_transport_date(message)
         .or_else(|| message.sent_at.as_deref().and_then(validated_filetime_date))
-        .or_else(|| message.received_at.as_deref().and_then(validated_filetime_date))
+        .or_else(|| {
+            message
+                .received_at
+                .as_deref()
+                .and_then(validated_filetime_date)
+        })
 }
 
 fn validated_filetime_date(value: &str) -> Option<String> {
@@ -878,26 +887,16 @@ mod tests {
             html: None,
         };
         let attachments = vec![attachment(0, b"Hello attachment")];
-        let eml = build_eml(
-            &message,
-            &[recipient(0, "to")],
-            &bodies,
-            &attachments,
-        )
-        .unwrap();
+        let eml = build_eml(&message, &[recipient(0, "to")], &bodies, &attachments).unwrap();
         let eml = String::from_utf8(eml).unwrap();
 
         assert!(eml.contains("Date: Thu, 26 Nov 2020 22:18:00 +0000\r\n"));
-        assert!(eml.contains(
-            "Content-Type: multipart/mixed; boundary=\"pstd-mixed-3e2b1a9c\"\r\n"
-        ));
+        assert!(eml.contains("Content-Type: multipart/mixed; boundary=\"pstd-mixed-3e2b1a9c\"\r\n"));
         assert!(eml.contains("Content-Type: text/plain; charset=utf-8\r\n"));
         assert!(eml.contains(
             "Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document; name=\"attachment.docx\"\r\n"
         ));
-        assert!(eml.contains(
-            "Content-Disposition: attachment; filename=\"attachment.docx\"\r\n"
-        ));
+        assert!(eml.contains("Content-Disposition: attachment; filename=\"attachment.docx\"\r\n"));
         assert!(eml.contains("SGVsbG8gYXR0YWNobWVudA==\r\n"));
         assert!(eml.ends_with("--pstd-mixed-3e2b1a9c--\r\n"));
     }
@@ -942,5 +941,4 @@ mod tests {
         assert_eq!(message[1].record.ordinal, 2);
         assert_eq!(grouped.get("other").unwrap().len(), 1);
     }
-
 }
