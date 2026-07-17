@@ -5,6 +5,7 @@ use crate::pst::heap::HeapOnNode;
 const BTH_HEADER_TYPE: u8 = 0xb5;
 const MAX_BTH_ENTRIES: usize = 4096;
 const MAX_BTH_INDEX_LEVELS: u8 = 8;
+const PTYP_OBJECT: u16 = 0x000d;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BthHeader {
@@ -247,10 +248,13 @@ fn property_context_entry(
         let value_hnid =
             u32::from_le_bytes([raw_value[2], raw_value[3], raw_value[4], raw_value[5]]);
         let tag = ((prop_id as u32) << 16) | prop_type as u32;
-        let value = heap
-            .try_allocation_by_hnid(buf, value_hnid, base_offset)
-            .map(|bytes| bytes.to_vec())
-            .unwrap_or_else(|| value_hnid.to_le_bytes().to_vec());
+        let value = if prop_type == PTYP_OBJECT {
+            value_hnid.to_le_bytes().to_vec()
+        } else {
+            heap.try_allocation_by_hnid(buf, value_hnid, base_offset)
+                .map(|bytes| bytes.to_vec())
+                .unwrap_or_else(|| value_hnid.to_le_bytes().to_vec())
+        };
         return BthEntry {
             key: tag.to_le_bytes().to_vec(),
             value,
@@ -265,9 +269,9 @@ fn property_context_entry(
 
 #[cfg(test)]
 mod tests {
-    use super::BthMap;
-    use crate::pst::heap::HeapOnNode;
-    use crate::pst::mapi::PR_SUBJECT;
+    use super::{property_context_entry, BthMap};
+    use crate::pst::heap::{HeapAllocation, HeapHeader, HeapOnNode};
+    use crate::pst::mapi::{PR_ATTACH_DATA_OBJ, PR_SUBJECT};
 
     #[test]
     fn parses_legacy_flat_bth_entries() {
@@ -307,6 +311,38 @@ mod tests {
         assert_eq!(bth.entries.len(), 1);
         assert_eq!(bth.entries[0].key, PR_SUBJECT.to_le_bytes());
         assert_eq!(bth.entries[0].value, utf16le("Indexed heap subject"));
+    }
+
+    #[test]
+    fn preserves_object_nid_even_when_it_aliases_a_heap_allocation() {
+        let heap = HeapOnNode {
+            header: HeapHeader {
+                page_map_offset: 0,
+                signature: 0xec,
+                client_signature: 0xbc,
+                user_root: 0,
+                allocation_count: 52,
+                free_allocation_count: 0,
+            },
+            allocations: vec![HeapAllocation {
+                id: 52,
+                offset: 0,
+                size: 7,
+            }],
+        };
+        let mut raw_value = 0x000du16.to_le_bytes().to_vec();
+        raw_value.extend_from_slice(&0x684u32.to_le_bytes());
+
+        let entry = property_context_entry(
+            &heap,
+            b"aliased",
+            &0x3701u16.to_le_bytes(),
+            &raw_value,
+            0,
+        );
+
+        assert_eq!(entry.key, PR_ATTACH_DATA_OBJ.to_le_bytes());
+        assert_eq!(entry.value, 0x684u32.to_le_bytes());
     }
 
     fn property_context_heap() -> Vec<u8> {
