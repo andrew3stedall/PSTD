@@ -819,7 +819,7 @@ mod tests {
     }
 
     #[test]
-    fn groups_only_messages_with_plain_and_recoverable_html() {
+    fn groups_messages_with_plain_text_and_optional_recoverable_html() {
         let payloads = vec![
             body_payload("message", "text", b"plain".to_vec(), None),
             body_payload(
@@ -832,7 +832,9 @@ mod tests {
         ];
         let grouped = bodies_by_message(&payloads);
         assert!(grouped.contains_key("message"));
-        assert!(!grouped.contains_key("other"));
+        assert!(grouped.get("message").unwrap().html.is_some());
+        assert!(grouped.contains_key("other"));
+        assert!(grouped.get("other").unwrap().html.is_none());
     }
 
     #[test]
@@ -911,7 +913,13 @@ mod tests {
         };
         let recipient = recipient(0, "to");
         let attachment = attachment(0, b"bytes");
-        assert!(build_eml(&message, &[recipient.clone()], &bodies, &[attachment.clone()]).is_none());
+        assert!(build_eml(
+            &message,
+            std::slice::from_ref(&recipient),
+            &bodies,
+            std::slice::from_ref(&attachment),
+        )
+        .is_none());
 
         message.received_at = Some("filetime:132509026800000000".to_string());
         let mut invalid = attachment;
