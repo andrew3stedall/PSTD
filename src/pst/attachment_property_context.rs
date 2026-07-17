@@ -445,8 +445,7 @@ fn embedded_object_reference(
     attachment_properties: &PropertyContext,
     blocks: &[PayloadBlock],
 ) -> Result<EmbeddedObjectReference, String> {
-    let data_nid = attachment_object_nid(attachment_properties)
-        .ok_or_else(|| "stage=data_nid; data_nid=unavailable".to_string())?;
+    let data_nid = attachment_object_nid(attachment_properties)?;
     let mut owners = Vec::new();
     let mut normalized_owner_match_count = 0usize;
     for payload in blocks {
@@ -512,13 +511,73 @@ fn normalized_bid(value: u64) -> u64 {
     value & !0x03
 }
 
-fn attachment_object_nid(properties: &PropertyContext) -> Option<u32> {
-    let value = properties.value(PR_ATTACH_DATA_OBJ)?;
+fn attachment_object_nid(properties: &PropertyContext) -> Result<u32, String> {
+    let Some(value) = properties.value(PR_ATTACH_DATA_OBJ) else {
+        return Err(format!(
+            "stage=data_nid; reason=property_missing; property_family={}",
+            attachment_data_object_family_summary(properties)
+        ));
+    };
     if value.raw.len() != 4 {
-        return None;
+        return Err(format!(
+            "stage=data_nid; reason=invalid_length; tag=0x{:08x}; raw_len={}; raw_prefix={}",
+            value.tag,
+            value.raw.len(),
+            bounded_hex_prefix(&value.raw)
+        ));
     }
-    let hnid = u32::from_le_bytes(value.raw.as_slice().try_into().ok()?);
-    (hnid != 0 && hnid & HNID_TYPE_MASK != 0).then_some(hnid)
+    let hnid = u32::from_le_bytes(
+        value
+            .raw
+            .as_slice()
+            .try_into()
+            .expect("four-byte object HNID was validated"),
+    );
+    if hnid == 0 || hnid & HNID_TYPE_MASK == 0 {
+        return Err(format!(
+            "stage=data_nid; reason=not_subnode_nid; tag=0x{:08x}; hnid=0x{hnid:08x}",
+            value.tag
+        ));
+    }
+    Ok(hnid)
+}
+
+fn attachment_data_object_family_summary(properties: &PropertyContext) -> String {
+    let mut entries = properties
+        .values
+        .values()
+        .filter(|value| value.tag >> 16 == PR_ATTACH_DATA_OBJ >> 16)
+        .map(|value| {
+            format!(
+                "0x{:08x}:len{}:{}",
+                value.tag,
+                value.raw.len(),
+                bounded_hex_prefix(&value.raw)
+            )
+        })
+        .collect::<Vec<_>>();
+    entries.sort();
+    if entries.is_empty() {
+        "none".to_string()
+    } else {
+        entries.join(",")
+    }
+}
+
+fn bounded_hex_prefix(value: &[u8]) -> String {
+    let prefix = value
+        .iter()
+        .take(8)
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<Vec<_>>()
+        .join("");
+    if value.len() > 8 {
+        format!("{prefix}+{}bytes", value.len() - 8)
+    } else if prefix.is_empty() {
+        "empty".to_string()
+    } else {
+        prefix
+    }
 }
 
 fn filename_attachment_record(
