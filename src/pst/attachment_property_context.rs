@@ -546,16 +546,13 @@ fn attachment_object_nid(
         return Ok(hnid);
     }
 
-    let heap = HeapOnNode::parse(
-        &attachment_block.bytes,
-        attachment_block.block_ref.offset.0,
-    )
-    .map_err(|_| {
-        format!(
-            "stage=data_nid; reason=indirect_heap_invalid; tag=0x{:08x}; hnid=0x{hnid:08x}",
-            value.tag
-        )
-    })?;
+    let heap = HeapOnNode::parse(&attachment_block.bytes, attachment_block.block_ref.offset.0)
+        .map_err(|_| {
+            format!(
+                "stage=data_nid; reason=indirect_heap_invalid; tag=0x{:08x}; hnid=0x{hnid:08x}",
+                value.tag
+            )
+        })?;
     let allocation = heap
         .allocation_by_hid(
             &attachment_block.bytes,
