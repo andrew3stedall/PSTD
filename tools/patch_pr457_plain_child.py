@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Touching this file intentionally triggers the branch-only patch workflow.
 path = Path("src/bin/pstd-eml.rs")
 text = path.read_text()
 
