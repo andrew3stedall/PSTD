@@ -25,12 +25,12 @@ jobs:
         run: |
           cargo fmt --check
           cargo test --bin pstd-eml
-      - name: Commit tested implementation
+      - name: Commit tested Rust implementation
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/bin/pstd-eml.rs .github/workflows/tika-attachment-fixture.yml
+          git add src/bin/pstd-eml.rs
           git commit -m 'Emit attachmentless plain-text EML'
           git push origin HEAD:${{ github.head_ref }}
