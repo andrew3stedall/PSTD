@@ -49,6 +49,10 @@ jobs:
                   "fn duplicate_values<'a>(values: impl Iterator<Item = &'a str>) -> BTreeSet<&'a str>",
                   "fn duplicate_values(values: impl Iterator<Item = String>) -> BTreeSet<String>",
               ),
+              (
+                  "if !seen.insert(value) {",
+                  "if !seen.insert(value.clone()) {",
+              ),
           ]
           for old, new in replacements:
               count = text.count(old)
