@@ -17,6 +17,7 @@ pub mod limits;
 pub mod logical;
 pub mod mapi;
 pub mod message_metadata;
+pub mod message_ownership;
 pub mod message_table;
 pub mod messages;
 pub mod nbt;
