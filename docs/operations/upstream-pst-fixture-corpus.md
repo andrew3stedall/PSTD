@@ -1,6 +1,6 @@
 # Upstream PST fixture corpus
 
-_Last reviewed: 16 July 2026._
+_Last reviewed: 18 July 2026._
 
 ## Purpose
 
@@ -45,7 +45,7 @@ The known attachment path reported by Tika is:
 
 ### Current PSTD evidence from `testPST.pst`
 
-PSTD currently discovers seven normal message candidates and eight body records. The known DOCX-bearing outer message is:
+PSTD currently emits seven top-level messages plus one separately linked method-`5` child, ten body records, nine directly owned recipient records, and two attachment records. The known DOCX-bearing outer message is:
 
 ```text
 message_key: msg_c6163b9157944cc9
@@ -86,9 +86,9 @@ The payload is written to:
 attachments/msg_c6163b9157944cc9/att_0695091e19397627_attachment.docx
 ```
 
-Filename evidence is recorded in [Vertical 29](vertical-29-expose-docx-attachment-filename.md), exact reference-resolution evidence in [Vertical 30](vertical-30-resolve-docx-attachment-data-reference.md), and payload evidence in [Vertical 31](vertical-31-emit-docx-attachment-payload.md).
+Filename evidence is recorded in [Vertical 29](vertical-29-expose-docx-attachment-filename.md), exact reference-resolution evidence in [Vertical 30](vertical-30-resolve-docx-attachment-data-reference.md), and payload evidence in [Vertical 31](vertical-31-emit-docx-attachment-payload.md). Recipient and outer-EML evidence is recorded in Verticals 32-33, embedded-message recovery in [Vertical 34](vertical-34-recover-tika-embedded-message.md), and exact child EML evidence in [Vertical 35](vertical-35-emit-tika-child-eml.md).
 
-The immediate next use of this fixture is recipient extraction for the same message. It currently emits zero recipient records, so EML assembly remains deferred even though subject, sender, identifiers, plain text, HTML, and the DOCX attachment are available.
+The fixture now produces two deterministic EML files: the unchanged 17,035-byte parent with the exact DOCX and a 453-byte single-part plain-text child. The child EML is authorised through the method-`5` attachment metadata link and excludes its four raw non-markup HTML bytes. The next use of this fixture is to materialise those exact child bytes as the `message/rfc822` attachment payload, followed by complete folder/message coverage validation.
 
 ### Apache Tika `testPST_variousBodyTypes.pst`
 

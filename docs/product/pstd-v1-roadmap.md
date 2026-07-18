@@ -1,6 +1,6 @@
 # PSTD Roadmap
 
-_Last reviewed: 17 July 2026._
+_Last reviewed: 18 July 2026._
 
 ## Objective
 
@@ -114,21 +114,26 @@ Complete in PR #455. The method-`5` Property Context now preserves its PtypObjec
 
 The child owns one raw/native recipient, a 23-byte UTF-8 text body, and four raw `PidTagHtml` bytes. Its subtree is isolated before recipient projection, so none of those values enter the parent. The outer DOCX remains ordinal `0`, and its 17,035-byte EML is unchanged. Exact evidence is recorded in [Vertical 34](../operations/vertical-34-recover-tika-embedded-message.md).
 
+### Recovered child plain-text EML
+
+Complete in PR #457. The linked child now emits one deterministic 453-byte attachmentless `text/plain` EML. Admission is restricted to message keys referenced by authoritative attachment metadata, so unrelated top-level plain-only records remain fail-closed. The child preserves native Exchange addresses, validated headers, exact CRLF body assembly, and SHA-256 `86ffe5567da7aa505b8be16400889170ca583fd247cc0758f00a43c2a8a99420`; its raw `7f 83 00 00` HTML evidence is excluded. Exact evidence is recorded in [Vertical 35](../operations/vertical-35-emit-tika-child-eml.md).
+
 ## Current milestone
 
-### Emit the recovered child as a plain-text EML
+### Materialise the method-5 child attachment payload
 
-The recovered child already has validated sender, recipient, subject, received-time Date evidence, Message-ID, and UTF-8 plain text. Its four HTML-property bytes are not usable markup. The next smallest vertical must:
+The exact 453-byte child EML is now available. The next smallest vertical must:
 
-- permit a deterministic attachmentless `text/plain` EML when all required headers and plain body validate but no HTML alternative exists;
-- emit exactly one new child EML without changing the parent's 17,035-byte multipart EML;
-- prove that `7f 83 00 00` is absent from MIME output;
-- retain the raw/native Exchange addresses without inventing SMTP;
-- keep method-`5` TAR payload materialisation separate unless the generated child EML is explicitly adopted as that payload.
+- adopt those exact bytes as the method-`5` attachment payload rather than writing an empty placeholder;
+- publish content type `message/rfc822`, deterministic archive path, byte length, and SHA-256;
+- preserve the existing attachment key, ordinal, parent message key, and `embedded_message_key` relationship;
+- reject missing, duplicate, mismatched, or non-message child links;
+- keep nested recursion and broader method-`5` layouts out of scope;
+- include the new payload in the outer parent EML only if that MIME change is separately asserted and proven without changing the DOCX bytes.
 
 ## Following fixture sequence
 
-After child EML assembly:
+After method-`5` child payload materialisation:
 
 1. validate multiple messages, folders, Unicode names, and legacy Exchange address preservation on `tika-testPST.pst`;
 2. validate body-form selection with `tika-various-body-types.pst`;

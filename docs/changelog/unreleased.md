@@ -1,6 +1,6 @@
 # Unreleased
 
-_Last reviewed: 17 July 2026._
+_Last reviewed: 18 July 2026._
 
 ## Added
 
@@ -39,6 +39,8 @@ _Last reviewed: 17 July 2026._
 - Specification-aligned PtypObject handling that preserves the object HID, validates the exact eight-byte `Nid + ulSize` wrapper, and requires a normal-message NID.
 - One separately keyed method-`5` child message linked through `embedded_message_key`, with one directly owned recipient, a 23-byte text body, and four preserved raw HTML-property bytes.
 - A permanent Vertical 34 fixture contract covering exact child/parent ownership, stable attachment ordinals, record bytes, archive bytes, and unchanged outer EML.
+- One deterministic 453-byte attachmentless `text/plain` EML for the linked method-`5` child, with exact SHA-256, headers, CRLF body, and exclusion of raw HTML bytes.
+- Policy-gated plain-text-only EML admission from authoritative attachment metadata, retaining fail-closed behaviour for unrelated unvalidated plain-only messages.
 
 ## Changed
 
@@ -98,7 +100,7 @@ DOCX attachment ordinal/key: 0/att_0695091e19397627
 Embedded attachment ordinal/key: 1/att_a9c94a13d70f1cb3
 Embedded message key/NID: msg_0ff529af59d373d5/0x00200104
 Embedded child text/raw-HTML bytes: 23/4
-EML files/bytes: 1/17035
+EML files/bytes: 2/17488
 Messages JSONL bytes: 23086
 Bodies JSONL bytes: 2820
 Recipient JSONL bytes: 2708
@@ -111,12 +113,12 @@ The method-`5` attachment belongs to `msg_c6163b9157944cc9` and links to the sep
 
 ## In progress
 
-- Emit a deterministic attachmentless plain-text EML for the recovered child while excluding its four non-markup HTML bytes and preserving raw/native address evidence.
+- Materialise the exact 453-byte child EML as the method-`5` `message/rfc822` attachment payload with deterministic path, hash, and ownership.
 
 ## Known limitations
 
 - PSTD is not yet a generally compatible PST converter or PST-to-EML tool.
-- The Tika fixture has one validated outer EML; the recovered attachmentless child does not yet emit a plain-text-only EML.
+- The Tika fixture has exact parent and child EMLs, but the child bytes are not yet published as the method-`5` attachment payload.
 - One method-`5` child layout is validated; method-`5` payload materialisation, nested child attachments, recursion, and broad layout coverage remain deferred.
 - ANSI, uncommon, corrupt, nested embedded-message, and broad MAPI-layout coverage remain incomplete.
 - Non-ASCII RFC 2047 header encoding remains incomplete.
