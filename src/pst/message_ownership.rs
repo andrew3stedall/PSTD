@@ -30,8 +30,7 @@ pub fn resolve_message_ownership(
     message_candidates: &[(NodeId, MessageNodeType)],
     evidence: &[MessageMembershipEvidence],
 ) -> HashMap<NodeId, MessageOwnershipResolution> {
-    let candidates: HashMap<NodeId, MessageNodeType> =
-        message_candidates.iter().copied().collect();
+    let candidates: HashMap<NodeId, MessageNodeType> = message_candidates.iter().copied().collect();
     let mut grouped: HashMap<NodeId, Vec<&MessageMembershipEvidence>> = HashMap::new();
 
     for item in evidence {
@@ -50,7 +49,10 @@ pub fn resolve_message_ownership(
             continue;
         };
 
-        if items.iter().any(|item| !candidates.contains_key(&item.message_node_id)) {
+        if items
+            .iter()
+            .any(|item| !candidates.contains_key(&item.message_node_id))
+        {
             output.insert(
                 *node_id,
                 MessageOwnershipResolution::Unresolved {
@@ -82,15 +84,19 @@ pub fn resolve_message_ownership(
             continue;
         }
 
-        if physical.iter().any(|item| item.message_node_type != *node_type)
+        if physical
+            .iter()
+            .any(|item| item.message_node_type != *node_type)
             || physical.iter().any(|item| {
                 !matches!(
                     (item.message_node_type, item.table_node_type),
-                    (MessageNodeType::NormalMessage, MessageTableNodeType::ContentsTable)
-                        | (
-                            MessageNodeType::AssociatedMessage,
-                            MessageTableNodeType::AssociatedContentsTable
-                        )
+                    (
+                        MessageNodeType::NormalMessage,
+                        MessageTableNodeType::ContentsTable
+                    ) | (
+                        MessageNodeType::AssociatedMessage,
+                        MessageTableNodeType::AssociatedContentsTable
+                    )
                 )
             })
         {
@@ -140,9 +146,7 @@ pub fn resolve_message_ownership(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        resolve_message_ownership, MessageMembershipEvidence, MessageOwnershipResolution,
-    };
+    use super::{resolve_message_ownership, MessageMembershipEvidence, MessageOwnershipResolution};
     use crate::pst::message_table::{MessageNodeType, MessageTableNodeType};
     use crate::pst::primitives::NodeId;
 
@@ -256,10 +260,7 @@ mod tests {
 
     #[test]
     fn missing_membership_is_explicitly_unresolved() {
-        let result = resolve_message_ownership(
-            &[(NodeId(0x24), MessageNodeType::NormalMessage)],
-            &[],
-        );
+        let result = resolve_message_ownership(&[(NodeId(0x24), MessageNodeType::NormalMessage)], &[]);
 
         assert!(matches!(
             &result[&NodeId(0x24)],
