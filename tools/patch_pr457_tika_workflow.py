@@ -26,7 +26,7 @@ new_selection = """          if len(eml_files) != 2:
 outer_anchor = """          if eml_attachment.get_payload(decode=True) != payload:
               raise SystemExit('EML attachment payload differs from extracted DOCX bytes')
 """
-child_checks = outer_anchor + """
+child_checks = outer_anchor + r"""
 
           child_eml_path = eml_by_name['msg_0ff529af59d373d5.eml']
           child_eml_bytes = child_eml_path.read_bytes()
