@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::eml::materialize_embedded_message_payloads;
 use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::ids;
 use crate::output::metadata::{
@@ -563,6 +564,20 @@ pub fn extract_metadata(
         recipients.append(&mut output.recipients);
         bodies.append(&mut output.bodies);
         body_payloads.append(&mut output.body_payloads);
+    }
+    let embedded_message_payload_count = materialize_embedded_message_payloads(
+        &mut attachments,
+        &mut attachment_payloads,
+        &messages,
+        &recipients,
+        &body_payloads,
+    );
+    if embedded_message_payload_count > 0 {
+        issues.push(StatusRecord::info(
+            run_id,
+            "vertical36_embedded_message_payloads",
+            format!("Materialised {embedded_message_payload_count} method-5 child EML payload(s)."),
+        ));
     }
 
     let table_probe_summary = finalize_table_probe_collection(run_id, table_probe_collector);

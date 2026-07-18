@@ -4,6 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use chrono::{DateTime, FixedOffset, Utc};
+use pstd::eml::build_plain_text_eml;
 use pstd::engine::metadata::extract_metadata;
 use pstd::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
 use pstd::pst::attachments::AttachmentPayload;
@@ -199,6 +200,9 @@ fn build_eml_with_plain_text_policy(
     }
     if !attachments.is_empty() && !attachments_are_valid(attachments) {
         return None;
+    }
+    if attachments.is_empty() && html.is_none() && allow_plain_text_only {
+        return build_plain_text_eml(message, recipients, text.as_bytes());
     }
 
     let mut eml = String::new();
