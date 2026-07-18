@@ -30,8 +30,8 @@ This documentation tree contains both current operating guidance and historical 
 | Recipient verticals | Four structured To/Cc recipient records with names and usable addresses are emitted from the original public fixture. |
 | Readable message verticals | One deterministic 956-byte EML is emitted with sender, recipients, subject, Date, Message-ID, plain text, and recovered HTML. |
 | Upstream fixture corpus | Three pinned public PSTs now cover attachments, multiple folders/messages, body forms, appointments, recurrence, contacts, distribution lists, and legacy Exchange addresses. |
-| Tika attachment fixture | Eight messages include one linked method-`5` child, nine directly owned recipients, ten body records, the unchanged DOCX payload, the unchanged 17,035-byte parent EML, and one exact 453-byte child EML. |
-| Current milestone | Materialise the exact child EML as the method-`5` `message/rfc822` attachment payload. |
+| Tika attachment fixture | Eight messages include one linked method-`5` child, nine directly owned recipients, ten body records, two exact attachment payloads, the unchanged 17,035-byte parent EML, and one exact 453-byte child EML. |
+| Current milestone | Lock complete Tika folder paths, message ownership, Unicode names, and legacy Exchange evidence. |
 
 The current roadmap and fixture-corpus guide define the active evidence-led sequence. Historical milestone and PQ documents remain useful for implementation context but do not define the next task.
 
@@ -62,6 +62,7 @@ The current roadmap and fixture-corpus guide define the active evidence-led sequ
 - [Vertical 28: Plain-text and HTML EML](operations/vertical-28-emit-plain-html-eml.md)
 - [Vertical 34: Tika embedded message](operations/vertical-34-recover-tika-embedded-message.md)
 - [Vertical 35: Tika child plain-text EML](operations/vertical-35-emit-tika-child-eml.md)
+- [Vertical 36: Method-5 child EML payload](operations/vertical-36-materialise-method5-eml-payload.md)
 
 ### Data contract
 

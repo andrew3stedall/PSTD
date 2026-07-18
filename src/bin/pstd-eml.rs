@@ -4,6 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use chrono::{DateTime, FixedOffset, Utc};
+use pstd::eml::build_plain_text_eml;
 use pstd::engine::metadata::extract_metadata;
 use pstd::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
 use pstd::pst::attachments::AttachmentPayload;
@@ -114,7 +115,10 @@ fn attachments_by_message(
     payloads: &[AttachmentPayload],
 ) -> BTreeMap<String, Vec<AttachmentPayload>> {
     let mut grouped: BTreeMap<String, Vec<AttachmentPayload>> = BTreeMap::new();
-    for payload in payloads {
+    for payload in payloads
+        .iter()
+        .filter(|payload| payload.record.attachment_method == Some(1))
+    {
         grouped
             .entry(payload.record.message_key.clone())
             .or_default()
@@ -199,6 +203,9 @@ fn build_eml_with_plain_text_policy(
     }
     if !attachments.is_empty() && !attachments_are_valid(attachments) {
         return None;
+    }
+    if attachments.is_empty() && html.is_none() && allow_plain_text_only {
+        return build_plain_text_eml(message, recipients, text.as_bytes());
     }
 
     let mut eml = String::new();
@@ -911,6 +918,19 @@ mod tests {
             html: Some("<b>rich</b>".to_string()),
         };
         assert!(build_eml(&message(), &recipients, &collision, &[]).is_none());
+    }
+
+    #[test]
+    fn excludes_embedded_message_payloads_from_parent_mime_assembly() {
+        let by_value = attachment(0, b"docx");
+        let mut embedded = attachment(1, b"child eml");
+        embedded.record.attachment_method = Some(5);
+        embedded.record.content_type = Some("message/rfc822".to_string());
+
+        let grouped = attachments_by_message(&[by_value, embedded]);
+        let payloads = grouped.get("message").unwrap();
+        assert_eq!(payloads.len(), 1);
+        assert_eq!(payloads[0].record.attachment_method, Some(1));
     }
 
     fn attachment(ordinal: usize, bytes: &[u8]) -> AttachmentPayload {

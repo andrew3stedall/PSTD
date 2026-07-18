@@ -73,7 +73,7 @@ resolved BID:  0x632
 BID `0x632` is a Unicode XBLOCK with two ordered external child BIDs. Its `lcbTotal` is 11,862 bytes, which differs from the 15,503-byte `PidTagAttachSize` metadata value. PSTD preserves both values and emits the XBLOCK payload exactly:
 
 ```text
-payload files/bytes: 1/11862
+payload files/bytes: 2/12315
 SHA-256:             0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0
 ZIP signature:       50 4b 03 04
 DOCX CRC validation: passed
@@ -86,9 +86,9 @@ The payload is written to:
 attachments/msg_c6163b9157944cc9/att_0695091e19397627_attachment.docx
 ```
 
-Filename evidence is recorded in [Vertical 29](vertical-29-expose-docx-attachment-filename.md), exact reference-resolution evidence in [Vertical 30](vertical-30-resolve-docx-attachment-data-reference.md), and payload evidence in [Vertical 31](vertical-31-emit-docx-attachment-payload.md). Recipient and outer-EML evidence is recorded in Verticals 32-33, embedded-message recovery in [Vertical 34](vertical-34-recover-tika-embedded-message.md), and exact child EML evidence in [Vertical 35](vertical-35-emit-tika-child-eml.md).
+Filename evidence is recorded in [Vertical 29](vertical-29-expose-docx-attachment-filename.md), exact reference-resolution evidence in [Vertical 30](vertical-30-resolve-docx-attachment-data-reference.md), and DOCX payload evidence in [Vertical 31](vertical-31-emit-docx-attachment-payload.md). Recipient and outer-EML evidence is recorded in Verticals 32-33, embedded-message recovery in [Vertical 34](vertical-34-recover-tika-embedded-message.md), exact child EML evidence in [Vertical 35](vertical-35-emit-tika-child-eml.md), and method-`5` payload evidence in [Vertical 36](vertical-36-materialise-method5-eml-payload.md).
 
-The fixture now produces two deterministic EML files: the unchanged 17,035-byte parent with the exact DOCX and a 453-byte single-part plain-text child. The child EML is authorised through the method-`5` attachment metadata link and excludes its four raw non-markup HTML bytes. The next use of this fixture is to materialise those exact child bytes as the `message/rfc822` attachment payload, followed by complete folder/message coverage validation.
+The fixture now produces two deterministic EML files: the unchanged 17,035-byte parent with the exact DOCX and a 453-byte single-part plain-text child. The child EML is also published byte-for-byte as the method-`5` `message/rfc822` attachment payload at the stable attachment path. Attachment payload output is 2 files / 12,315 bytes. The next use of this fixture is complete folder/message coverage validation.
 
 ### Apache Tika `testPST_variousBodyTypes.pst`
 
