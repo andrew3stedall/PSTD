@@ -1,0 +1,29 @@
+name: Render PR457 Tika workflow
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    if: >-
+      github.repository == 'andrew3stedall/PSTD' &&
+      github.head_ref == 'agent/emit-child-plain-text-eml' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - name: Apply exact workflow patch
+        run: python tools/patch_pr457_tika_workflow.py
+      - name: Upload patched workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr457-patched-tika-workflow
+          path: .github/workflows/tika-attachment-fixture.yml
+          if-no-files-found: error
