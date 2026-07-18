@@ -1,0 +1,43 @@
+name: Patch PR457 plain child
+
+on:
+  push:
+    branches:
+      - agent/emit-child-plain-text-eml
+    paths:
+      - tools/patch_pr457_plain_child.py
+      - .github/workflows/patch-pr457-plain-child.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.repository == 'andrew3stedall/PSTD' && github.ref == 'refs/heads/agent/emit-child-plain-text-eml'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/emit-child-plain-text-eml
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Apply exact patch
+        run: python tools/patch_pr457_plain_child.py
+      - name: Format
+        run: cargo fmt --check
+      - name: Focused EML tests
+        run: cargo test --bin pstd-eml
+      - name: Full Rust validation
+        run: |
+          cargo test --all-targets
+          cargo clippy --all-targets --all-features -- -D warnings
+      - name: Commit intended production change
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/bin/pstd-eml.rs
+          git diff --cached --check
+          git commit -m "Gate plain-text EML emission to embedded messages"
+          git push origin HEAD:agent/emit-child-plain-text-eml
