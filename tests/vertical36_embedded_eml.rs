@@ -87,13 +87,7 @@ fn materialize(
     bodies: &[BodyPayload],
 ) -> Vec<AttachmentPayload> {
     let mut payloads = Vec::new();
-    materialize_embedded_message_payloads(
-        attachments,
-        &mut payloads,
-        messages,
-        recipients,
-        bodies,
-    );
+    materialize_embedded_message_payloads(attachments, &mut payloads, messages, recipients, bodies);
     payloads
 }
 
@@ -117,8 +111,14 @@ fn materializes_exact_shared_eml_bytes_and_updates_record() {
     assert_eq!(payloads[0].bytes, expected);
     assert_eq!(payloads[0].record.attachment_key, "att-1");
     assert_eq!(payloads[0].record.message_key, "parent");
-    assert_eq!(payloads[0].record.embedded_message_key.as_deref(), Some(child_key));
-    assert_eq!(payloads[0].record.content_type.as_deref(), Some("message/rfc822"));
+    assert_eq!(
+        payloads[0].record.embedded_message_key.as_deref(),
+        Some(child_key)
+    );
+    assert_eq!(
+        payloads[0].record.content_type.as_deref(),
+        Some("message/rfc822")
+    );
     assert_eq!(payloads[0].record.size_bytes, expected.len() as u64);
     assert_eq!(payloads[0].record.archive_path, attachments[0].archive_path);
     assert_eq!(
@@ -205,11 +205,5 @@ fn rejects_ambiguous_body_and_header_injection() {
     let mut unsafe_message = message(child_key);
     unsafe_message.subject = Some("unsafe\r\nBcc: injected@example.com".to_string());
     let bodies = vec![text_body_payload(child_key, "plain")];
-    assert!(materialize(
-        &mut attachments,
-        &[unsafe_message],
-        &recipients,
-        &bodies,
-    )
-    .is_empty());
+    assert!(materialize(&mut attachments, &[unsafe_message], &recipients, &bodies,).is_empty());
 }
