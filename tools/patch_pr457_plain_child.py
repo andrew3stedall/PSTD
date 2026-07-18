@@ -23,7 +23,7 @@ replacements = [
     ),
     (
         "fn build_eml(\n    message: &MessageRecord,\n    recipients: &[RecipientRecord],\n    bodies: &MessageBodies,\n    attachments: &[AttachmentPayload],\n) -> Option<Vec<u8>> {",
-        "fn build_eml(\n    message: &MessageRecord,\n    recipients: &[RecipientRecord],\n    bodies: &MessageBodies,\n    attachments: &[AttachmentPayload],\n) -> Option<Vec<u8>> {\n    build_eml_with_plain_text_policy(message, recipients, bodies, attachments, false)\n}\n\nfn build_eml_with_plain_text_policy(\n    message: &MessageRecord,\n    recipients: &[RecipientRecord],\n    bodies: &MessageBodies,\n    attachments: &[AttachmentPayload],\n    allow_plain_text_only: bool,\n) -> Option<Vec<u8>> {",
+        "#[cfg(test)]\nfn build_eml(\n    message: &MessageRecord,\n    recipients: &[RecipientRecord],\n    bodies: &MessageBodies,\n    attachments: &[AttachmentPayload],\n) -> Option<Vec<u8>> {\n    build_eml_with_plain_text_policy(message, recipients, bodies, attachments, false)\n}\n\nfn build_eml_with_plain_text_policy(\n    message: &MessageRecord,\n    recipients: &[RecipientRecord],\n    bodies: &MessageBodies,\n    attachments: &[AttachmentPayload],\n    allow_plain_text_only: bool,\n) -> Option<Vec<u8>> {",
     ),
     (
         "    if attachments.is_empty() {\n        if let Some(html) = html {\n            push_header(\n                &mut eml,\n                \"Content-Type\",\n                &format!(\"multipart/alternative; boundary=\\\"{ALTERNATIVE_BOUNDARY}\\\"\"),\n            );\n            eml.push_str(\"\\r\\n\");\n            push_alternative_body(&mut eml, text, html);\n        } else {\n            push_header(&mut eml, \"Content-Type\", \"text/plain; charset=utf-8\");",
