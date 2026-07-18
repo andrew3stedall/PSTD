@@ -4,16 +4,16 @@ on:
   push:
     branches:
       - agent/vertical-36-method5-eml-payload
-    paths:
-      - tools/temp_vertical36_patch.py
-      - .github/workflows/temp-vertical36-patch.yml
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   patch:
-    if: github.repository == 'andrew3stedall/PSTD'
+    if: github.repository == 'andrew3stedall/PSTD' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
