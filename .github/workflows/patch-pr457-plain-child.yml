@@ -26,8 +26,10 @@ jobs:
           components: rustfmt, clippy
       - name: Apply exact patch
         run: python tools/patch_pr457_plain_child.py
-      - name: Format
-        run: cargo fmt --check
+      - name: Format and verify
+        run: |
+          cargo fmt --all
+          cargo fmt --check
       - name: Focused EML tests
         run: cargo test --bin pstd-eml
       - name: Full Rust validation
