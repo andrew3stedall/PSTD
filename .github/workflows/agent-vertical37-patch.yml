@@ -1,0 +1,296 @@
+name: Agent Vertical 37 Patch
+
+on:
+  push:
+    branches:
+      - 'agent/vertical-37-membership-transport'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Apply bounded membership transport
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('src/pst/message_table.rs')
+          s = p.read_text()
+          s = s.replace('pub struct MessageTableCandidate {\n    pub node_identity: String,', 'pub struct MessageTableCandidate {\n    pub node_id: NodeId,\n    pub node_identity: String,')
+          s = s.replace('table_candidates.push(MessageTableCandidate {\n                node_identity,', 'table_candidates.push(MessageTableCandidate {\n                node_id: entry.node_id,\n                node_identity,')
+          p.write_text(s)
+
+          mod = Path('src/pst/mod.rs')
+          s = mod.read_text()
+          marker = 'pub mod message_ownership;\n'
+          if 'pub mod message_membership;' not in s:
+              s = s.replace(marker, 'pub mod message_membership;\n' + marker)
+          mod.write_text(s)
+
+          membership = r'''use std::collections::{HashMap, HashSet};
+
+use crate::pst::bbt::BbtIndex;
+use crate::pst::limits::ParserLimits;
+use crate::pst::message_ownership::MessageMembershipEvidence;
+use crate::pst::message_table::{message_node_type, MessageTableCandidate, MessageTableNodeType};
+use crate::pst::nbt::NbtIndex;
+use crate::pst::payload::load_payload_block;
+use crate::pst::reader::PstByteReader;
+use crate::pst::tc_heap::resolve_tcinfo_from_heap;
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct MessageMembershipCollection {
+    pub evidence: Vec<MessageMembershipEvidence>,
+    pub statuses: Vec<String>,
+}
+
+pub fn collect_message_membership_evidence(
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    nbt: &NbtIndex,
+    tables: &[MessageTableCandidate],
+    folder_path_by_key: &HashMap<String, String>,
+    limits: ParserLimits,
+) -> MessageMembershipCollection {
+    let mut output = MessageMembershipCollection::default();
+
+    for table in tables {
+        let Some(folder_key) = table.linked_folder_key.as_ref() else {
+            output.statuses.push(format!(
+                "message_table_membership_unavailable; table={}; reason=owner_folder_unlinked",
+                table.node_identity
+            ));
+            continue;
+        };
+        let Some(folder_path) = folder_path_by_key.get(folder_key) else {
+            output.statuses.push(format!(
+                "message_table_membership_unavailable; table={}; reason=folder_path_missing",
+                table.node_identity
+            ));
+            continue;
+        };
+        if !table.table_type.describes_message_membership() {
+            continue;
+        }
+
+        let matches: Vec<_> = nbt
+            .entries
+            .iter()
+            .filter(|entry| entry.node_id == table.node_id)
+            .collect();
+        if matches.len() != 1 {
+            output.statuses.push(format!(
+                "message_table_membership_ambiguous; table={}; nbt_matches={}",
+                table.node_identity,
+                matches.len()
+            ));
+            continue;
+        }
+
+        let payload = match load_payload_block(reader, bbt, matches[0].data_block_id, limits) {
+            Ok(payload) => payload,
+            Err(reason) => {
+                output.statuses.push(format!(
+                    "message_table_membership_unavailable; table={}; reason=payload_load_failed:{}",
+                    table.node_identity, reason
+                ));
+                continue;
+            }
+        };
+        let report = match resolve_tcinfo_from_heap(&payload.bytes, payload.block_ref.offset.0) {
+            Ok(report) => report,
+            Err(reason) => {
+                output.statuses.push(format!(
+                    "message_table_membership_unavailable; table={}; reason=tc_decode_failed:{}",
+                    table.node_identity, reason
+                ));
+                continue;
+            }
+        };
+        let Some(row_index) = report.row_index_report else {
+            output.statuses.push(format!(
+                "message_table_membership_unavailable; table={}; reason=row_index_absent",
+                table.node_identity
+            ));
+            continue;
+        };
+        if row_index.truncated {
+            output.statuses.push(format!(
+                "message_table_membership_unavailable; table={}; reason=row_index_truncated",
+                table.node_identity
+            ));
+            continue;
+        }
+
+        let mut seen = HashSet::new();
+        let mut table_evidence = Vec::new();
+        let mut rejected = None;
+        for row in row_index.entries {
+            if row.row_key == 0 || !seen.insert(row.row_key) {
+                rejected = Some("zero_or_duplicate_row_key");
+                break;
+            }
+            let matching_messages: Vec<_> = nbt
+                .entries
+                .iter()
+                .filter(|entry| entry.node_id.0 == u64::from(row.row_key))
+                .filter_map(|entry| message_node_type(entry.node_id).map(|kind| (entry, kind)))
+                .collect();
+            if matching_messages.len() != 1 {
+                rejected = Some("row_key_not_unique_message_nbt_entry");
+                break;
+            }
+            let (entry, message_type) = matching_messages[0];
+            let type_valid = matches!(
+                (message_type, table.table_type),
+                (
+                    crate::pst::message_table::MessageNodeType::NormalMessage,
+                    MessageTableNodeType::ContentsTable | MessageTableNodeType::SearchContentsTable
+                ) | (
+                    crate::pst::message_table::MessageNodeType::AssociatedMessage,
+                    MessageTableNodeType::AssociatedContentsTable
+                )
+            );
+            if !type_valid {
+                rejected = Some("message_and_table_type_mismatch");
+                break;
+            }
+            table_evidence.push(MessageMembershipEvidence {
+                message_node_id: entry.node_id,
+                message_node_type: message_type,
+                table_node_type: table.table_type,
+                folder_key: folder_key.clone(),
+                folder_path: folder_path.clone(),
+            });
+        }
+
+        if let Some(reason) = rejected {
+            output.statuses.push(format!(
+                "message_table_membership_unavailable; table={}; reason={reason}",
+                table.node_identity
+            ));
+        } else {
+            output.statuses.push(format!(
+                "message_table_membership_decoded; table={}; rows={}",
+                table.node_identity,
+                table_evidence.len()
+            ));
+            output.evidence.extend(table_evidence);
+        }
+    }
+
+    output
+}
+'''
+          Path('src/pst/message_membership.rs').write_text(membership)
+
+          p = Path('src/engine/metadata.rs')
+          s = p.read_text()
+          s = s.replace('use crate::pst::message_metadata::{message_from_properties, status_row};\n', 'use crate::pst::message_membership::collect_message_membership_evidence;\nuse crate::pst::message_metadata::{message_from_properties, status_row};\nuse crate::pst::message_ownership::{resolve_message_ownership, MessageOwnershipResolution};\n')
+          old = '''    let message_table_discovery =
+        discover_message_tables(&nbt, &folder_discovery.folder_key_by_node_identity);
+    let message_membership_status = message_table_discovery.message_membership_status();
+'''
+          new = '''    let message_table_discovery =
+        discover_message_tables(&nbt, &folder_discovery.folder_key_by_node_identity);
+    let message_membership_status = message_table_discovery.message_membership_status();
+    let folder_path_by_key: HashMap<String, String> = folders
+        .iter()
+        .map(|folder| (folder.folder_key.clone(), folder.folder_path.clone()))
+        .collect();
+    let membership_collection = collect_message_membership_evidence(
+        &reader,
+        &bbt,
+        &nbt,
+        &message_table_discovery.table_candidates,
+        &folder_path_by_key,
+        limits,
+    );
+    let ownership_candidates: Vec<_> = message_table_discovery
+        .message_candidates
+        .iter()
+        .filter_map(|entry| classify_message_candidate(entry).map(|candidate| (entry.node_id, candidate.node_type)))
+        .collect();
+    let message_ownership =
+        resolve_message_ownership(&ownership_candidates, &membership_collection.evidence);
+'''
+          if old not in s:
+              raise SystemExit('metadata discovery anchor missing')
+          s = s.replace(old, new)
+          old = '''            let candidate_status = classify_message_candidate(entry)
+                .map(|candidate| {
+                    format!(
+                        "{}; {}",
+                        candidate.membership_status, message_membership_status
+                    )
+                })
+                .unwrap_or_else(|| message_membership_status.clone());
+            match load_node_property_context(&reader, &bbt, entry, limits) {
+'''
+          new = '''            let ownership = message_ownership.get(&entry.node_id);
+            let (owner_folder_key, owner_folder_path, ownership_status) = match ownership {
+                Some(MessageOwnershipResolution::Resolved(owner)) => (
+                    owner.folder_key.as_str(),
+                    owner.folder_path.as_str(),
+                    owner.status.as_str(),
+                ),
+                Some(MessageOwnershipResolution::Unresolved { status })
+                | Some(MessageOwnershipResolution::Ambiguous { status }) => {
+                    ("folder_unassigned", "/__unassigned__", status.as_str())
+                }
+                None => (
+                    "folder_unassigned",
+                    "/__unassigned__",
+                    "message_table_membership_resolution_missing",
+                ),
+            };
+            let candidate_status = classify_message_candidate(entry)
+                .map(|candidate| {
+                    format!(
+                        "{}; {}; {}",
+                        candidate.membership_status, message_membership_status, ownership_status
+                    )
+                })
+                .unwrap_or_else(|| format!("{}; {}", message_membership_status, ownership_status));
+            match load_node_property_context(&reader, &bbt, entry, limits) {
+'''
+          if old not in s:
+              raise SystemExit('metadata candidate anchor missing')
+          s = s.replace(old, new)
+          s = s.replace('''                        &root_folder.folder_key,
+                        &root_folder.folder_path,
+                        entry.node_id,
+''', '''                        owner_folder_key,
+                        owner_folder_path,
+                        entry.node_id,
+''', 1)
+          s = s.replace('''                        &root_folder.folder_key,
+                        &root_folder.folder_path,
+                        entry,
+                        &candidate_status,
+''', '''                        owner_folder_key,
+                        owner_folder_path,
+                        entry,
+                        &candidate_status,
+''', 1)
+          p.write_text(s)
+      - name: Format
+        run: cargo fmt --all
+      - name: Commit patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/pst/message_table.rs src/pst/message_membership.rs src/pst/mod.rs src/engine/metadata.rs
+          git commit -m "Transport contents-table membership into message ownership"
+          git push
