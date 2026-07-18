@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -51,6 +51,7 @@ fn run() -> Result<(), String> {
     let recipients = recipients_by_message(&metadata.recipients);
     let bodies = bodies_by_message(&metadata.body_payloads);
     let attachments = attachments_by_message(&metadata.attachment_payloads);
+    let embedded_messages = embedded_message_keys(&metadata.attachment_payloads);
     let mut emitted = 0usize;
     for message in &metadata.messages {
         let Some(body) = bodies.get(&message.message_key) else {
@@ -64,7 +65,13 @@ fn run() -> Result<(), String> {
             .get(&message.message_key)
             .map(Vec::as_slice)
             .unwrap_or_default();
-        let Some(eml) = build_eml(message, message_recipients, body, message_attachments) else {
+        let Some(eml) = build_eml_with_plain_text_policy(
+            message,
+            message_recipients,
+            body,
+            message_attachments,
+            embedded_messages.contains(&message.message_key),
+        ) else {
             continue;
         };
         let path = output.join(format!("{}.eml", safe_filename(&message.message_key)));
@@ -119,6 +126,13 @@ fn attachments_by_message(
     grouped
 }
 
+fn embedded_message_keys(payloads: &[AttachmentPayload]) -> BTreeSet<String> {
+    payloads
+        .iter()
+        .filter_map(|payload| payload.record.embedded_message_key.clone())
+        .collect()
+}
+
 fn bodies_by_message(payloads: &[BodyPayload]) -> BTreeMap<String, MessageBodies> {
     let mut bodies: BTreeMap<String, MessageBodies> = BTreeMap::new();
     for payload in payloads {
@@ -141,11 +155,22 @@ fn bodies_by_message(payloads: &[BodyPayload]) -> BTreeMap<String, MessageBodies
     bodies
 }
 
+#[cfg(test)]
 fn build_eml(
     message: &MessageRecord,
     recipients: &[RecipientRecord],
     bodies: &MessageBodies,
     attachments: &[AttachmentPayload],
+) -> Option<Vec<u8>> {
+    build_eml_with_plain_text_policy(message, recipients, bodies, attachments, false)
+}
+
+fn build_eml_with_plain_text_policy(
+    message: &MessageRecord,
+    recipients: &[RecipientRecord],
+    bodies: &MessageBodies,
+    attachments: &[AttachmentPayload],
+    allow_plain_text_only: bool,
 ) -> Option<Vec<u8>> {
     let subject = clean_header(message.subject.as_deref()?)?;
     let sender_address = message
@@ -205,6 +230,9 @@ fn build_eml(
             eml.push_str("\r\n");
             push_alternative_body(&mut eml, text, html);
         } else {
+            if !allow_plain_text_only {
+                return None;
+            }
             push_header(&mut eml, "Content-Type", "text/plain; charset=utf-8");
             push_header(&mut eml, "Content-Transfer-Encoding", "8bit");
             eml.push_str("\r\n");
@@ -861,7 +889,10 @@ mod tests {
             text: Some(b"plain\nbody".to_vec()),
             html: None,
         };
-        let eml = build_eml(&message(), &[recipient(0, "to")], &bodies, &[]).unwrap();
+        assert!(build_eml(&message(), &[recipient(0, "to")], &bodies, &[]).is_none());
+        let eml =
+            build_eml_with_plain_text_policy(&message(), &[recipient(0, "to")], &bodies, &[], true)
+                .unwrap();
         let eml = String::from_utf8(eml).unwrap();
 
         assert!(eml.contains("Content-Type: text/plain; charset=utf-8\r\n"));
