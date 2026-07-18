@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use chrono::{DateTime, FixedOffset, Utc};
 use pstd::engine::metadata::extract_metadata;
-use pstd::output::metadata::{MessageRecord, RecipientRecord};
+use pstd::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
 use pstd::pst::attachments::AttachmentPayload;
 use pstd::pst::messages::BodyPayload;
 use sha2::{Digest, Sha256};
@@ -51,7 +51,7 @@ fn run() -> Result<(), String> {
     let recipients = recipients_by_message(&metadata.recipients);
     let bodies = bodies_by_message(&metadata.body_payloads);
     let attachments = attachments_by_message(&metadata.attachment_payloads);
-    let embedded_messages = embedded_message_keys(&metadata.attachment_payloads);
+    let embedded_messages = embedded_message_keys(&metadata.attachments);
     let mut emitted = 0usize;
     for message in &metadata.messages {
         let Some(body) = bodies.get(&message.message_key) else {
@@ -126,10 +126,10 @@ fn attachments_by_message(
     grouped
 }
 
-fn embedded_message_keys(payloads: &[AttachmentPayload]) -> BTreeSet<String> {
-    payloads
+fn embedded_message_keys(records: &[AttachmentRecord]) -> BTreeSet<String> {
+    records
         .iter()
-        .filter_map(|payload| payload.record.embedded_message_key.clone())
+        .filter_map(|record| record.embedded_message_key.clone())
         .collect()
 }
 
