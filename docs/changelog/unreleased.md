@@ -41,6 +41,8 @@ _Last reviewed: 18 July 2026._
 - A permanent Vertical 34 fixture contract covering exact child/parent ownership, stable attachment ordinals, record bytes, archive bytes, and unchanged outer EML.
 - One deterministic 453-byte attachmentless `text/plain` EML for the linked method-`5` child, with exact SHA-256, headers, CRLF body, and exclusion of raw HTML bytes.
 - Policy-gated plain-text-only EML admission from authoritative attachment metadata, retaining fail-closed behaviour for unrelated unvalidated plain-only messages.
+- One exact 453-byte method-`5` `message/rfc822` payload, byte-identical to the standalone child EML, with stable path, key, ordinal, parent ownership and SHA-256.
+- Shared plain-text EML construction plus focused rejection tests for missing, mismatched, duplicate, nested, ambiguous-body and unsafe-header cases.
 
 ## Changed
 
@@ -94,7 +96,7 @@ Body payload files/bytes: 8/279
 Recipients: 9
 SMTP/raw-native recipients: 6/3
 Attachment records: 2
-By-value attachment payload files/bytes: 1/11862
+Attachment payload files/bytes: 2/12315
 DOCX SHA-256: 0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0
 DOCX attachment ordinal/key: 0/att_0695091e19397627
 Embedded attachment ordinal/key: 1/att_a9c94a13d70f1cb3
@@ -104,22 +106,22 @@ EML files/bytes: 2/17488
 Messages JSONL bytes: 23086
 Bodies JSONL bytes: 2820
 Recipient JSONL bytes: 2708
-Attachment JSONL bytes: 1358
-Extraction TAR bytes: 227840
-Total output bytes: 272884
+Attachment JSONL bytes: 1240
+Extraction TAR bytes: 228864
+Total output bytes: 273908
 ```
 
-The method-`5` attachment belongs to `msg_c6163b9157944cc9` and links to the separately emitted child. The child owns its recipient and bodies; the parent retains only its direct recipient, original bodies, DOCX, and unchanged EML. The method-`5` archive path is metadata-only and no empty payload file is written.
+The method-`5` attachment belongs to `msg_c6163b9157944cc9`, links to the separately emitted child, and now publishes the exact child EML bytes at its existing archive path. The child owns its recipient and bodies; the parent retains only its direct recipient, original bodies, DOCX, and unchanged EML.
 
 ## In progress
 
-- Materialise the exact 453-byte child EML as the method-`5` `message/rfc822` attachment payload with deterministic path, hash, and ownership.
+- Lock complete folder and message coverage for the Tika fixture, including exact paths, ownership, Unicode names, and legacy Exchange evidence.
 
 ## Known limitations
 
 - PSTD is not yet a generally compatible PST converter or PST-to-EML tool.
-- The Tika fixture has exact parent and child EMLs, but the child bytes are not yet published as the method-`5` attachment payload.
-- One method-`5` child layout is validated; method-`5` payload materialisation, nested child attachments, recursion, and broad layout coverage remain deferred.
+- The Tika fixture has exact parent and child EMLs plus one exact method-`5` payload, but broader producer/layout coverage remains unproven.
+- One method-`5` child layout is validated; nested child attachments, recursion, and broad layout coverage remain deferred.
 - ANSI, uncommon, corrupt, nested embedded-message, and broad MAPI-layout coverage remain incomplete.
 - Non-ASCII RFC 2047 header encoding remains incomplete.
 - Downstream Snowflake, UI, search, semantic search, graph, and LLM/RAG work remains parked.

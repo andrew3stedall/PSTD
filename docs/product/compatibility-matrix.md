@@ -40,8 +40,8 @@ Track compatibility by independently testable capability and approved fixture. P
 | By-value attachment metadata | Not exercised | Exact for one DOCX | More file types and storage layouts |
 | By-value attachment payload | Not exercised | Exact: 11,862-byte DOCX with hash and ZIP/CRC evidence | Multiple attachments, large files, inline files |
 | Multipart mixed EML | Not exercised | Exact: 17,035-byte parent EML | Multiple attachments and mixed HTML body |
-| Method-5 embedded-message link | Not exercised | Exact: one separately owned child with exact standalone EML | Materialised `message/rfc822` attachment payload |
-| Embedded-message attachment payload | Not exercised | Partial: exact child EML exists; attachment payload is still metadata-only | Deterministic `message/rfc822` payload |
+| Method-5 embedded-message link | Not exercised | Exact: one separately owned child with exact standalone EML and payload | Additional producer/layout evidence |
+| Embedded-message attachment payload | Not exercised | Exact: 453-byte `message/rfc822`, byte-identical to standalone child EML | Additional layouts and bounded recursion |
 | Nested embedded messages | Not exercised | Not exercised | Controlled recursive fixture and depth limit |
 | Inline attachments and Content-ID | Not exercised | Not exercised | HTML fixture with verified CID references |
 | Contacts | Not exercised | Unknown | Typed contact fixture; never force into EML |
@@ -55,17 +55,17 @@ Track compatibility by independently testable capability and approved fixture. P
 
 ## Current release interpretation
 
-PSTD currently demonstrates a material Unicode email extraction path, including recipients, bodies, one by-value DOCX attachment, one attachment-bearing parent EML, and one separately recovered child with an exact standalone plain-text EML. This is evidence for the approved fixtures only. It is not evidence of general PST compatibility.
+PSTD currently demonstrates a material Unicode email extraction path, including recipients, bodies, one by-value DOCX attachment, one attachment-bearing parent EML, and one separately recovered child whose exact EML is also published as a method-`5` `message/rfc822` payload. This is evidence for the approved fixtures only. It is not evidence of general PST compatibility.
 
 No capability may be promoted to broadly supported solely because it passes one fixture. Promotion requires representative fixtures from more than one producer or a controlled structural corpus, exact regression evidence, and explicit malformed-input behaviour.
 
 ## Immediate sequence
 
-1. Materialise the exact child EML as the method-5 attachment payload with `message/rfc822`, exact bytes, hash, path, and parent-child ownership checks.
-2. Lock complete folder and message coverage for the Tika fixture.
-3. Add independent valid plain-text, HTML, and RTF body fixtures.
-4. Add the first pinned public ANSI PST and establish header, tree, folder, message, recipient, and body baselines before extending deeper features.
-5. Broaden attachment methods, inline/CID handling, nested messages, and authoritative Exchange-to-SMTP resolution from additional fixtures.
+1. Lock complete folder and message coverage for the Tika fixture.
+2. Add independent valid plain-text, HTML, and RTF body fixtures.
+3. Add the first pinned public ANSI PST and establish header, tree, folder, message, recipient, and body baselines before extending deeper features.
+4. Broaden attachment methods, inline/CID handling, nested messages, and authoritative Exchange-to-SMTP resolution from additional fixtures.
+5. Add deterministic corrupt and ambiguous fixture cases before production-readiness claims.
 
 ## Maintenance rule
 

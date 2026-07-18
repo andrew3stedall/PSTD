@@ -118,25 +118,29 @@ The child owns one raw/native recipient, a 23-byte UTF-8 text body, and four raw
 
 Complete in PR #457. The linked child now emits one deterministic 453-byte attachmentless `text/plain` EML. Admission is restricted to message keys referenced by authoritative attachment metadata, so unrelated top-level plain-only records remain fail-closed. The child preserves native Exchange addresses, validated headers, exact CRLF body assembly, and SHA-256 `86ffe5567da7aa505b8be16400889170ca583fd247cc0758f00a43c2a8a99420`; its raw `7f 83 00 00` HTML evidence is excluded. Exact evidence is recorded in [Vertical 35](../operations/vertical-35-emit-tika-child-eml.md).
 
+### Method-5 child attachment payload
+
+Complete in PR #461. The exact 453-byte child EML is now published as the existing method-`5` attachment's `message/rfc822` payload. It retains the parent key, attachment key, ordinal, filename, archive path and `embedded_message_key`, and is byte-identical to the standalone child EML. Missing, duplicate, mismatched, nested and unsafe candidates remain fail-closed. Exact evidence is recorded in [Vertical 36](../operations/vertical-36-materialise-method5-eml-payload.md).
+
 ## Current milestone
 
-### Materialise the method-5 child attachment payload
+### Lock complete Tika folder and message coverage
 
-The exact 453-byte child EML is now available. The next smallest vertical must:
+The next smallest vertical must:
 
-- adopt those exact bytes as the method-`5` attachment payload rather than writing an empty placeholder;
-- publish content type `message/rfc822`, deterministic archive path, byte length, and SHA-256;
-- preserve the existing attachment key, ordinal, parent message key, and `embedded_message_key` relationship;
-- reject missing, duplicate, mismatched, or non-message child links;
-- keep nested recursion and broader method-`5` layouts out of scope;
-- include the new payload in the outer parent EML only if that MIME change is separately asserted and proven without changing the DOCX bytes.
+- assert all folder paths, names, parent relationships and counts in `tika-testPST.pst`;
+- attribute all seven top-level messages and the recovered child to the correct owners without false positives;
+- lock Unicode names and subjects where present;
+- preserve all nine recipient records, including raw/native legacy Exchange evidence;
+- retain the exact DOCX, parent EML, child EML and method-`5` payload contracts;
+- classify any non-mail or unsupported object explicitly rather than forcing it into EML.
 
 ## Following fixture sequence
 
-After method-`5` child payload materialisation:
+After complete Tika folder/message validation:
 
-1. validate multiple messages, folders, Unicode names, and legacy Exchange address preservation on `tika-testPST.pst`;
-2. validate body-form selection with `tika-various-body-types.pst`;
+1. validate body-form selection with `tika-various-body-types.pst`;
+2. add the first pinned public ANSI PST baseline;
 3. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
 4. validate contacts and distribution-list entries without forcing them through the normal email path;
 5. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
