@@ -1,34 +1,39 @@
 name: Temporary Vertical 36 patch
 
 on:
-  push:
-    branches:
-      - agent/vertical-36-method5-eml-payload
   pull_request:
-    branches:
-      - main
+    branches: [main]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
 jobs:
   patch:
-    if: github.repository == 'andrew3stedall/PSTD' && github.event_name == 'push'
+    if: >-
+      github.repository == 'andrew3stedall/PSTD' &&
+      github.head_ref == 'agent/vertical-36-method5-eml-payload' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: agent/vertical-36-method5-eml-payload
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
+          components: rustfmt, clippy
       - name: Apply exact patch
         run: python tools/temp_vertical36_patch.py
-      - name: Format
-        run: cargo fmt --all
+      - name: Format and verify
+        run: |
+          cargo fmt --all
+          cargo fmt --check
       - name: Focused build and tests
         run: cargo test --all
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
       - name: Commit production changes
         run: |
           git config user.name github-actions[bot]
@@ -36,4 +41,4 @@ jobs:
           git add src/eml.rs src/lib.rs src/engine/metadata.rs src/bin/pstd-eml.rs
           git diff --cached --check
           git commit -m "Materialise method-5 child EML payload"
-          git push origin HEAD:agent/vertical-36-method5-eml-payload
+          git push origin HEAD:${{ github.head_ref }}
