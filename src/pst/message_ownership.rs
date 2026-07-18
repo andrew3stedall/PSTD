@@ -260,7 +260,8 @@ mod tests {
 
     #[test]
     fn missing_membership_is_explicitly_unresolved() {
-        let result = resolve_message_ownership(&[(NodeId(0x24), MessageNodeType::NormalMessage)], &[]);
+        let result =
+            resolve_message_ownership(&[(NodeId(0x24), MessageNodeType::NormalMessage)], &[]);
 
         assert!(matches!(
             &result[&NodeId(0x24)],
