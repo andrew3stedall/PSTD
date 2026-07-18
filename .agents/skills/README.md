@@ -1,6 +1,6 @@
 # PSTD Skills Index
 
-_Last reviewed: 14 July 2026._
+_Last reviewed: 18 July 2026._
 
 This folder contains reusable planning, implementation, review, documentation, data, and platform instructions for PSTD.
 
@@ -27,10 +27,11 @@ Before implementing:
 - identify the highest-value extraction gap from current fixture evidence;
 - complete one coherent vertical slice;
 - fail closed and reuse validated components;
+- use the root `AGENTS.md` GitHub connector implementation method when a large existing file requires an incremental edit and no usable local checkout exists;
 - rerun the full CI and public fixture workflow;
 - update current-state and point-in-time documentation.
 
-Local testing must not be claimed when it was not run. CI must pass on the exact head before merge.
+Local testing must not be claimed when it was not run. A phone or connector workflow is not automatically a testing blocker: use the temporary same-repository Actions checkout-and-patch method and exact-head CI when available. CI must pass on the exact cleaned head before merge.
 
 ## References and assets
 
@@ -43,7 +44,7 @@ Use repository references before inventing output formats, CLI behaviour, proper
 - `planning-council`: structured multi-role planning when a genuinely new product/architecture decision is required.
 - `issue-writer`: developer-ready issue bodies.
 - `docs-writer`: current-state and point-in-time documentation.
-- `github-planning-loop`: mobile/connector repository workflow.
+- `github-planning-loop`: mobile/connector repository workflow, including the preferred temporary Actions checkout-and-patch method for large files.
 
 ## Role skills
 

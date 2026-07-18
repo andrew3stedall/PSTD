@@ -25,6 +25,30 @@ The M1-M25 product-foundation lane is complete. The former PQ sequence establish
 11. Open a pull request with explicit extraction impact, validation evidence, risks, and the next measured blocker.
 12. Squash merge only after the exact head is green and review threads are resolved.
 
+## GitHub connector implementation method
+
+Large existing files are not a blocker when work is being performed through ChatGPT and the GitHub connector. Do not stop merely because the connector contents API replaces whole files or a fetched response is truncated.
+
+Use the following preference order:
+
+1. Use direct connector create, update, or delete operations for small files and changes that can be represented safely as complete file contents.
+2. Use an authenticated local checkout with `git` and `gh` when one is available.
+3. When no usable local checkout exists and a large existing file needs an incremental edit, use a temporary same-repository GitHub Actions checkout-and-patch workflow.
+
+For the temporary Actions method:
+
+1. Create a dedicated branch and draft pull request from the current `main` head.
+2. Add a narrowly scoped temporary patch script and workflow through the connector.
+3. Trigger only for the named same-repository PR branch. Never run write-capable patch automation for fork pull requests or untrusted refs.
+4. Grant only the minimum required permission, normally `contents: write`. Do not expose repository secrets.
+5. Check out the complete branch on the runner and apply exact deterministic replacements. Every replacement must assert that its expected source block occurs exactly once before modifying the file.
+6. Run formatting and the most relevant focused tests before committing. Run broader required validation after the tested implementation reaches the branch.
+7. Commit and push only the intended non-workflow production files from the runner. GitHub may reject `GITHUB_TOKEN` pushes that modify workflow files; edit workflow files separately through the connector when required.
+8. Remove the temporary patch script and workflow through the connector immediately after the tested implementation is pushed.
+9. Inspect the final PR diff and exact-head CI. The mergeable PR must contain only intended production, test, fixture, and documentation changes, with no patch scaffolding.
+
+Prefer this method over manually reconstructing or replacing a large file from truncated connector output. If the workflow cannot push, inspect the job logs, preserve the already validated patch logic, narrow the pushed paths, and retry rather than reverting to speculative full-file replacement.
+
 ## Scope rules
 
 Allowed:
