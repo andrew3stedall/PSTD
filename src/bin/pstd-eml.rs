@@ -196,14 +196,23 @@ fn build_eml(
     push_header(&mut eml, "MIME-Version", "1.0");
 
     if attachments.is_empty() {
-        let html = html?;
-        push_header(
-            &mut eml,
-            "Content-Type",
-            &format!("multipart/alternative; boundary=\"{ALTERNATIVE_BOUNDARY}\""),
-        );
-        eml.push_str("\r\n");
-        push_alternative_body(&mut eml, text, html);
+        if let Some(html) = html {
+            push_header(
+                &mut eml,
+                "Content-Type",
+                &format!("multipart/alternative; boundary=\"{ALTERNATIVE_BOUNDARY}\""),
+            );
+            eml.push_str("\r\n");
+            push_alternative_body(&mut eml, text, html);
+        } else {
+            push_header(&mut eml, "Content-Type", "text/plain; charset=utf-8");
+            push_header(&mut eml, "Content-Transfer-Encoding", "8bit");
+            eml.push_str("\r\n");
+            eml.push_str(&normalize_crlf(text));
+            if !eml.ends_with("\r\n") {
+                eml.push_str("\r\n");
+            }
+        }
     } else {
         push_header(
             &mut eml,
@@ -847,13 +856,25 @@ mod tests {
     }
 
     #[test]
-    fn fails_closed_for_missing_html_and_boundary_collision() {
-        let recipients = vec![recipient(0, "to")];
-        let missing = MessageBodies {
-            text: Some(b"plain".to_vec()),
+    fn emits_single_part_plain_text_without_html_or_attachments() {
+        let bodies = MessageBodies {
+            text: Some(b"plain\nbody".to_vec()),
             html: None,
         };
-        assert!(build_eml(&message(), &recipients, &missing, &[]).is_none());
+        let eml = build_eml(&message(), &[recipient(0, "to")], &bodies, &[]).unwrap();
+        let eml = String::from_utf8(eml).unwrap();
+
+        assert!(eml.contains("Content-Type: text/plain; charset=utf-8\r\n"));
+        assert!(eml.contains("Content-Transfer-Encoding: 8bit\r\n"));
+        assert!(eml.contains("\r\n\r\nplain\r\nbody\r\n"));
+        assert!(!eml.contains("multipart/alternative"));
+        assert!(!eml.contains(ALTERNATIVE_BOUNDARY));
+        assert!(!eml.contains("Content-Type: text/html"));
+    }
+
+    #[test]
+    fn fails_closed_for_boundary_collision() {
+        let recipients = vec![recipient(0, "to")];
         let collision = MessageBodies {
             text: Some(ALTERNATIVE_BOUNDARY.as_bytes().to_vec()),
             html: Some("<b>rich</b>".to_string()),
