@@ -23,7 +23,7 @@ Track compatibility by independently testable capability and approved fixture. P
 |---|---|---|---|
 | Unicode PST header and root discovery | Exact | Exact | Additional Unicode producers and large files |
 | ANSI PST header and root discovery | Not exercised | Not exercised | Pinned public ANSI PST fixture |
-| Folder hierarchy | Exact | Observed | Exact folder paths, counts, and message ownership on Tika |
+| Folder hierarchy | Exact | Exact: eight folder records and seven physical message owners | Additional producers, deleted-item cases, and multi-folder message corpora |
 | Message discovery | Exact: 1 message | Exact: 8 messages including one embedded child | Multi-folder and deleted/recovered-message cases |
 | Subject and sender metadata | Exact | Exact for validated messages | Broader property combinations and encodings |
 | Transport or FILETIME Date | Exact | Exact for emitted parent and child | Conflicting-Date and missing-Date fixtures |

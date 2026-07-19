@@ -1,6 +1,6 @@
 # Unreleased
 
-_Last reviewed: 18 July 2026._
+_Last reviewed: 19 July 2026._
 
 ## Added
 
@@ -43,6 +43,8 @@ _Last reviewed: 18 July 2026._
 - Policy-gated plain-text-only EML admission from authoritative attachment metadata, retaining fail-closed behaviour for unrelated unvalidated plain-only messages.
 - One exact 453-byte method-`5` `message/rfc822` payload, byte-identical to the standalone child EML, with stable path, key, ordinal, parent ownership and SHA-256.
 - Shared plain-text EML construction plus focused rejection tests for missing, mismatched, duplicate, nested, ambiguous-body and unsafe-header cases.
+- Exact physical contents-table membership decoding and fail-closed message-folder ownership reduction.
+- Permanent Tika assertions for all eight folder records, seven top-level message owners and subjects, and the separate embedded-child boundary.
 
 ## Changed
 
@@ -66,6 +68,8 @@ _Last reviewed: 18 July 2026._
 - Preserved existing by-value attachment ordinals before appending method-`5` metadata, keeping the proven DOCX key and path stable.
 - Replaced the invalid attachment-leaf-BID ownership assumption with the PtypObject's authoritative child NID, admitted only when that NID resolves exactly once within the outer message scope.
 - Isolated the recovered child's loaded subnode subtree before reusing direct recipient projection, preventing child rows, bodies, and identifiers from leaking into the parent.
+- Corrected PST table NID classification so `0x0e`/`0x0f` are physical contents tables, `0x10` is search contents, and hierarchy, attachment, and recipient tables cannot establish message ownership.
+- Replaced synthetic-root ownership for all seven top-level Tika messages with the exact `/Début du fichier de données Outlook` folder from `node_802e` row keys.
 
 ## Current original-fixture result
 
@@ -103,19 +107,19 @@ Embedded attachment ordinal/key: 1/att_a9c94a13d70f1cb3
 Embedded message key/NID: msg_0ff529af59d373d5/0x00200104
 Embedded child text/raw-HTML bytes: 23/4
 EML files/bytes: 2/17488
-Messages JSONL bytes: 23086
+Messages JSONL bytes: 23765
 Bodies JSONL bytes: 2820
 Recipient JSONL bytes: 2708
 Attachment JSONL bytes: 1240
-Extraction TAR bytes: 228864
-Total output bytes: 273908
+Extraction TAR bytes: 237056
+Total output bytes: 282103
 ```
 
-The method-`5` attachment belongs to `msg_c6163b9157944cc9`, links to the separately emitted child, and now publishes the exact child EML bytes at its existing archive path. The child owns its recipient and bodies; the parent retains only its direct recipient, original bodies, DOCX, and unchanged EML.
+All seven top-level messages belong to `/Début du fichier de données Outlook` through exact physical contents-table rows. The method-`5` attachment belongs to `msg_c6163b9157944cc9`, links to the separately emitted child, and publishes the exact child EML bytes at its existing archive path. The child owns its recipient and bodies; the parent retains only its direct recipient, original bodies, DOCX, and unchanged EML.
 
 ## In progress
 
-- Lock complete folder and message coverage for the Tika fixture, including exact paths, ownership, Unicode names, and legacy Exchange evidence.
+- Validate independent plain-text, HTML, and RTF body selection on `tika-various-body-types.pst`.
 
 ## Known limitations
 

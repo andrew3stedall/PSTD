@@ -4,14 +4,14 @@ PSTD is a Rust-first tool for extracting email data from Microsoft Outlook PST f
 
 ## Current position
 
-_Last reviewed: 18 July 2026._
+_Last reviewed: 19 July 2026._
 
 | Area | State on `main` | Current result |
 |---|---|---|
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
-| Vertical extraction sequence | Complete through Vertical 36 / PR #461 | The exact 453-byte child EML is now also the authoritative method-`5` `message/rfc822` attachment payload, with unique-link and nested-child rejection. |
-| Current milestone | Complete Tika folder/message validation | Lock exact folder paths, message ownership, Unicode names, and legacy Exchange address preservation across the full Tika fixture. |
+| Vertical extraction sequence | Complete through Vertical 37 / PR #464 | Exact physical contents-table rows now assign all seven top-level Tika messages to `/Début du fichier de données Outlook`; the separately linked method-`5` child remains isolated. |
+| Current milestone | Validate independent body forms | Lock plain-text, HTML, and RTF selection on `tika-various-body-types.pst`. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
 
 ## Intent
@@ -49,7 +49,7 @@ The Table Context path now validates four 52-byte rows. The fixture has separate
 
 On `main`, these values are published as four complete row-aligned recipient records and assembled into the original fixture's readable EML.
 
-The Tika attachment fixture now emits seven top-level messages plus one separately linked embedded child, nine directly owned recipient records, ten body records, two attachment records, two exact attachment payloads totalling 12,315 bytes, and two deterministic EML files. The method-`5` payload is byte-identical to the 453-byte standalone child EML and uses `message/rfc822`. The attachment owner retains its 17,035-byte `multipart/mixed` EML and byte-identical DOCX; method `5` is deliberately not inserted into the parent MIME tree.
+The Tika attachment fixture now emits seven top-level messages assigned by exact contents-table rows to `/Début du fichier de données Outlook`, plus one separately linked embedded child, nine directly owned recipient records, ten body records, two attachment records, two exact attachment payloads totalling 12,315 bytes, and two deterministic EML files. The method-`5` payload is byte-identical to the 453-byte standalone child EML and uses `message/rfc822`. The attachment owner retains its 17,035-byte `multipart/mixed` EML and byte-identical DOCX; method `5` is deliberately not inserted into the parent MIME tree.
 
 ## Progress over time
 
@@ -67,6 +67,7 @@ The Tika attachment fixture now emits seven top-level messages plus one separate
 | Vertical 34 / #455 | Parsed the exact PtypObject wrapper, resolved one unique normal-message NID, and emitted the linked child message, one recipient, and two raw body records without changing the outer EML. |
 | Vertical 35 / #457 | Emitted the linked child as an exact 453-byte attachmentless `text/plain` EML, authorised from attachment metadata and excluding unrelated unvalidated plain-only messages. |
 | Vertical 36 / #461 | Materialised those exact bytes as the method-`5` `message/rfc822` payload, preserved the parent EML/DOCX, and added fail-closed link and nesting tests. |
+| Vertical 37 / #464 | Corrected table NID classification, decoded seven exact physical contents-table rows, assigned every top-level Tika message to its authoritative Unicode folder, and retained explicit unassigned behavior for unsupported evidence. |
 
 Detailed point-in-time milestone and experiment records are retained under `docs/`. They are historical evidence, not the current roadmap.
 

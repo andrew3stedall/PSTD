@@ -71,11 +71,156 @@ jobs:
               ]
 
           messages = records('messages.jsonl')
+          folders = records('folders.jsonl')
           bodies = records('bodies.jsonl')
           recipients = records('recipients.jsonl')
           attachments = records('attachments.jsonl')
           if len(messages) != 8:
               raise SystemExit(f'unexpected message count: {len(messages)}')
+          folder_fields = (
+              'folder_key',
+              'parent_folder_key',
+              'folder_node_id',
+              'folder_name',
+              'folder_path',
+              'item_count_total',
+              'child_folder_count',
+          )
+          actual_folders = [
+              {name: folder.get(name) for name in folder_fields}
+              for folder in folders
+          ]
+          expected_folders = [
+              {
+                  'folder_key': 'folder_0235fadc0c8f7958',
+                  'parent_folder_key': None,
+                  'folder_node_id': None,
+                  'folder_name': 'root',
+                  'folder_path': '/',
+                  'item_count_total': None,
+                  'child_folder_count': 7,
+              },
+              {
+                  'folder_key': 'folder_65667efd8c5a5a02',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_122',
+                  'folder_name': 'node_122',
+                  'folder_path': '/node_122',
+                  'item_count_total': 0,
+                  'child_folder_count': None,
+              },
+              {
+                  'folder_key': 'folder_f65c580d3cda4ace',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_2223',
+                  'folder_name': 'SPAM Search Folder 2',
+                  'folder_path': '/SPAM Search Folder 2',
+                  'item_count_total': 0,
+                  'child_folder_count': None,
+              },
+              {
+                  'folder_key': 'folder_b6721eebbda60057',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_8022',
+                  'folder_name': 'Début du fichier de données Outlook',
+                  'folder_path': '/Début du fichier de données Outlook',
+                  'item_count_total': 7,
+                  'child_folder_count': None,
+              },
+              {
+                  'folder_key': 'folder_5769a9840120442c',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_8042',
+                  'folder_name': 'Racine (pour la recherche)',
+                  'folder_path': '/Racine (pour la recherche)',
+                  'item_count_total': 0,
+                  'child_folder_count': None,
+              },
+              {
+                  'folder_key': 'folder_e04c6c42560935fe',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_8062',
+                  'folder_name': 'Éléments supprimés',
+                  'folder_path': '/Éléments supprimés',
+                  'item_count_total': 0,
+                  'child_folder_count': None,
+              },
+              {
+                  'folder_key': 'folder_dcc9052e2b2f88d3',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_8082',
+                  'folder_name': 'IPM_COMMON_VIEWS',
+                  'folder_path': '/IPM_COMMON_VIEWS',
+                  'item_count_total': 0,
+                  'child_folder_count': None,
+              },
+              {
+                  'folder_key': 'folder_04676627187d2114',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_80023',
+                  'folder_name': 'ItemProcSearch',
+                  'folder_path': '/ItemProcSearch',
+                  'item_count_total': 0,
+                  'child_folder_count': None,
+              },
+          ]
+          if actual_folders != expected_folders:
+              raise SystemExit(f'unexpected folder hierarchy: {actual_folders!r}')
+
+          expected_top_level_subjects = {
+              'msg_2a24cb244caffb52': '\u0001\u0005Re: Feature Generators',
+              'msg_d7325f9579306ba3': None,
+              'msg_ce73d10db9eceadb': '\u0001\u0001Feature Generators',
+              'msg_33144a866cb58408': (
+                  '\u0001\u0001[jira] [Resolved] (TIKA-1249) Vcard files detection'
+              ),
+              'msg_5e70ad45c1c42472': (
+                  '\u0001\u0001[jira] [Commented] (TIKA-1250) '
+                  'Process loops infintely processing a CHM file'
+              ),
+              'msg_4bc9d7bd77cbe661': None,
+              'msg_c6163b9157944cc9': '\u0001\u0005FW: First email',
+          }
+          top_level_messages = {
+              message['message_key']: message
+              for message in messages
+              if message['item_type'] != 'embedded_message_metadata'
+          }
+          if set(top_level_messages) != set(expected_top_level_subjects):
+              raise SystemExit(
+                  f'unexpected top-level message keys: {sorted(top_level_messages)}'
+              )
+          for message_key, expected_subject in expected_top_level_subjects.items():
+              message = top_level_messages[message_key]
+              if message['subject'] != expected_subject:
+                  raise SystemExit(
+                      f'{message_key} subject mismatch: {message["subject"]!r}'
+                  )
+              if message['folder_key'] != 'folder_b6721eebbda60057':
+                  raise SystemExit(
+                      f'{message_key} owner key mismatch: {message["folder_key"]!r}'
+                  )
+              if message['folder_path'] != '/Début du fichier de données Outlook':
+                  raise SystemExit(
+                      f'{message_key} owner path mismatch: {message["folder_path"]!r}'
+                  )
+              if not message['metadata_status'].endswith(
+                  'message_table_membership_exact; table_type=contents_table'
+              ):
+                  raise SystemExit(
+                      f'{message_key} ownership status mismatch: '
+                      f'{message["metadata_status"]!r}'
+                  )
+          child = next(
+              message for message in messages
+              if message['message_key'] == 'msg_0ff529af59d373d5'
+          )
+          if (
+              child['item_type'] != 'embedded_message_metadata'
+              or child['folder_key'] != 'folder_0235fadc0c8f7958'
+              or child['folder_path'] != '/'
+          ):
+              raise SystemExit(f'embedded child ownership changed: {child!r}')
           if len(bodies) != 10:
               raise SystemExit(f'unexpected body record count: {len(bodies)}')
           expected_recipients = [
@@ -474,12 +619,12 @@ jobs:
               'attachment_payload_bytes': 12315,
               'eml_files': 2,
               'eml_bytes': 17488,
-              'messages_jsonl_bytes': 23086,
+              'messages_jsonl_bytes': 23765,
               'bodies_jsonl_bytes': 2820,
               'recipients_jsonl_bytes': 2708,
               'attachments_jsonl_bytes': 1240,
-              'tar_bytes': 228864,
-              'output_total_bytes': 273908,
+              'tar_bytes': 237056,
+              'output_total_bytes': 282103,
           }
           if metrics != expected_metrics:
               raise SystemExit(f'fixture metrics mismatch: {metrics!r}')
@@ -501,6 +646,32 @@ jobs:
           )
           evidence.joinpath('owner-message.json').write_text(
               json.dumps(owner, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          evidence.joinpath('message-ownership.json').write_text(
+              json.dumps(
+                  {
+                      'folder': expected_folders[3],
+                      'top_level_messages': [
+                          {
+                              'message_key': message['message_key'],
+                              'folder_key': message['folder_key'],
+                              'folder_path': message['folder_path'],
+                              'subject': message['subject'],
+                              'metadata_status': message['metadata_status'],
+                          }
+                          for message in top_level_messages.values()
+                      ],
+                      'embedded_child': {
+                          'message_key': child['message_key'],
+                          'folder_key': child['folder_key'],
+                          'folder_path': child['folder_path'],
+                      },
+                  },
+                  ensure_ascii=False,
+                  indent=2,
+                  sort_keys=True,
+              ) + '\n',
               encoding='utf-8',
           )
           evidence.joinpath('docx-sha256.txt').write_text(

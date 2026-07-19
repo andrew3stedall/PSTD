@@ -122,28 +122,24 @@ Complete in PR #457. The linked child now emits one deterministic 453-byte attac
 
 Complete in PR #461. The exact 453-byte child EML is now published as the existing method-`5` attachment's `message/rfc822` payload. It retains the parent key, attachment key, ordinal, filename, archive path and `embedded_message_key`, and is byte-identical to the standalone child EML. Missing, duplicate, mismatched, nested and unsafe candidates remain fail-closed. Exact evidence is recorded in [Vertical 36](../operations/vertical-36-materialise-method5-eml-payload.md).
 
+### Complete Tika folder and message coverage
+
+Complete in PR #464. The Tika contract now asserts all eight folder records, Unicode names, paths, parent relationships and counts. Exact row keys from the physical `node_802e` contents table assign all seven top-level normal messages to `/Début du fichier de données Outlook`. The recovered method-`5` child remains separately linked and is not inferred from folder counts or discovery order. All nine recipients and the exact DOCX, parent EML, child EML and method-`5` payload contracts remain unchanged. Exact evidence is recorded in [Vertical 37](../operations/vertical-37-resolve-tika-message-folder-ownership.md).
+
 ## Current milestone
 
-### Lock complete Tika folder and message coverage
+### Validate independent body-form selection
 
-The next smallest vertical must:
-
-- assert all folder paths, names, parent relationships and counts in `tika-testPST.pst`;
-- attribute all seven top-level messages and the recovered child to the correct owners without false positives;
-- lock Unicode names and subjects where present;
-- preserve all nine recipient records, including raw/native legacy Exchange evidence;
-- retain the exact DOCX, parent EML, child EML and method-`5` payload contracts;
-- classify any non-mail or unsupported object explicitly rather than forcing it into EML.
+Use `tika-various-body-types.pst` to lock plain-text, HTML and RTF selection independently without weakening the fail-closed message, attachment or ownership boundaries.
 
 ## Following fixture sequence
 
-After complete Tika folder/message validation:
+After independent body-form validation:
 
-1. validate body-form selection with `tika-various-body-types.pst`;
-2. add the first pinned public ANSI PST baseline;
-3. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
-4. validate contacts and distribution-list entries without forcing them through the normal email path;
-5. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
+1. add the first pinned public ANSI PST baseline;
+2. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
+3. validate contacts and distribution-list entries without forcing them through the normal email path;
+4. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
 
 ## Completion definition for reliable extraction
 
