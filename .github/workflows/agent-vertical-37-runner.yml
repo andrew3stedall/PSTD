@@ -23,8 +23,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sed -n '27,360p' .github/workflows/agent-vertical-37-membership-transport.yml \
-            | sed 's/^          //' > /tmp/vertical37.py
+          awk '
+            extracting && /^          PY$/ { exit }
+            extracting { sub(/^          /, ""); print }
+            /^          python3 - <<'\''PY'\''$/ { extracting = 1 }
+          ' .github/workflows/agent-vertical-37-membership-transport.yml > /tmp/vertical37.py
+          test -s /tmp/vertical37.py
           python3 /tmp/vertical37.py
           cargo fmt --all
           cargo test message_ownership --all --quiet
