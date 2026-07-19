@@ -19,6 +19,7 @@ pub mod mapi;
 pub mod message_metadata;
 pub mod message_ownership;
 pub mod message_table;
+pub mod message_table_membership;
 pub mod messages;
 pub mod nbt;
 pub mod node_payload;
