@@ -1,6 +1,6 @@
 # PSTD Compatibility Matrix
 
-_Last reviewed: 18 July 2026._
+_Last reviewed: 20 July 2026._
 
 ## Purpose
 
@@ -22,7 +22,7 @@ Track compatibility by independently testable capability and approved fixture. P
 | Capability | Original public fixture | Apache Tika `testPST.pst` | Required next evidence |
 |---|---|---|---|
 | Unicode PST header and root discovery | Exact | Exact | Additional Unicode producers and large files |
-| ANSI PST header and root discovery | Not exercised | Not exercised | Pinned public ANSI PST fixture |
+| ANSI PST header and root discovery | Not exercised | Not exercised | Pinned public ANSI PST fixture with NDB version 14 or 15 |
 | Folder hierarchy | Exact | Exact: eight folder records and seven physical message owners | Additional producers, deleted-item cases, and multi-folder message corpora |
 | Message discovery | Exact: 1 message | Exact: 8 messages including one embedded child | Multi-folder and deleted/recovered-message cases |
 | Subject and sender metadata | Exact | Exact for validated messages | Broader property combinations and encodings |
@@ -61,11 +61,13 @@ No capability may be promoted to broadly supported solely because it passes one 
 
 ## Immediate sequence
 
-1. Lock complete folder and message coverage for the Tika fixture.
-2. Add independent valid plain-text, HTML, and RTF body fixtures.
-3. Add the first pinned public ANSI PST and establish header, tree, folder, message, recipient, and body baselines before extending deeper features.
+1. Qualify and pin a genuinely ANSI public PST whose header declares NDB version 14 or 15; do not accept a fixture based on its filename, age, or ANSI string properties alone.
+2. Establish exact header, root-page, folder, message, recipient, body, and failure baselines without relaxing the proven Unicode contracts.
+3. Validate typed appointments, contacts, and distribution lists without forcing non-mail objects into EML.
 4. Broaden attachment methods, inline/CID handling, nested messages, and authoritative Exchange-to-SMTP resolution from additional fixtures.
 5. Add deterministic corrupt and ambiguous fixture cases before production-readiness claims.
+
+The libyal public `pst/outlook.pst` candidate was checked on 20 July 2026 and rejected for this milestone: bytes 10-11 declare NDB version 23, which is Unicode. It remains a potentially useful additional Unicode-producer fixture, but it cannot provide ANSI evidence.
 
 ## Maintenance rule
 
