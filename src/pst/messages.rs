@@ -8,6 +8,7 @@ use crate::pst::mapi::{
 use crate::pst::property_context::PropertyContext;
 
 const MAX_BINARY_BODY_BYTES: usize = 64 * 1024 * 1024;
+const PROPERTY_CONTEXT_HNID_BYTES: usize = 4;
 
 #[derive(Debug, Clone)]
 pub struct BodyPayload {
@@ -236,7 +237,9 @@ fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u
     let value = properties.value(tag)?;
     match value.decoded.as_ref() {
         Some(MapiValue::Binary(bytes))
-            if !bytes.is_empty() && bytes.len() <= MAX_BINARY_BODY_BYTES =>
+            if !bytes.is_empty()
+                && bytes.len() != PROPERTY_CONTEXT_HNID_BYTES
+                && bytes.len() <= MAX_BINARY_BODY_BYTES =>
         {
             Some(bytes.clone())
         }
@@ -371,7 +374,7 @@ mod tests {
                 tag: PR_HTML,
                 name: "body_html".to_string(),
                 raw: vec![0x7f, 0x80, 0x00, 0x00],
-                decoded: None,
+                decoded: Some(MapiValue::Binary(vec![0x7f, 0x80, 0x00, 0x00])),
                 status: "selected".to_string(),
             },
         );
@@ -413,7 +416,7 @@ mod tests {
                 tag: PR_HTML,
                 name: "body_html".to_string(),
                 raw: vec![0x7f, 0x80, 0x00, 0x00],
-                decoded: None,
+                decoded: Some(MapiValue::Binary(vec![0x7f, 0x80, 0x00, 0x00])),
                 status: "selected".to_string(),
             },
         );
@@ -580,7 +583,7 @@ mod tests {
                 tag: PR_BODY,
                 name: "body_text".to_string(),
                 raw: Vec::new(),
-                decoded: None,
+                decoded: Some(MapiValue::Binary(vec![0x7f, 0x80, 0x00, 0x00])),
                 status: "selected".to_string(),
             },
         );
