@@ -126,20 +126,23 @@ Complete in PR #461. The exact 453-byte child EML is now published as the existi
 
 Complete in PR #464. The Tika contract now asserts all eight folder records, Unicode names, paths, parent relationships and counts. Exact row keys from the physical `node_802e` contents table assign all seven top-level normal messages to `/Début du fichier de données Outlook`. The recovered method-`5` child remains separately linked and is not inferred from folder counts or discovery order. All nine recipients and the exact DOCX, parent EML, child EML and method-`5` payload contracts remain unchanged. Exact evidence is recorded in [Vertical 37](../operations/vertical-37-resolve-tika-message-folder-ownership.md).
 
+### Independent body-form selection
+
+Complete in Vertical 38. Binary body admission now rejects four-byte Property Context HNID cells, emits explicit unavailable forms, and preserves independently valid sibling payloads. The body-types fixture selects its 37-byte plain body while leaving HTML unresolved. The Tika parent and embedded child likewise retain exact plain bodies, attachment payloads and EML bytes while two invalid four-byte HTML files disappear. Exact evidence is recorded in [Vertical 38](../operations/vertical-38-reject-unresolved-binary-body-references.md).
+
 ## Current milestone
 
-### Validate independent body-form selection
+### First pinned public ANSI PST baseline
 
-Use `tika-various-body-types.pst` to lock plain-text, HTML and RTF selection independently without weakening the fail-closed message, attachment or ownership boundaries.
+Add one approved ANSI fixture, lock provenance and hash, then measure folder, message, body, recipient and attachment behavior without relaxing the Unicode parser contracts.
 
 ## Following fixture sequence
 
-After independent body-form validation:
+After the ANSI baseline:
 
-1. add the first pinned public ANSI PST baseline;
-2. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
-3. validate contacts and distribution-list entries without forcing them through the normal email path;
-4. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
+1. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
+2. validate contacts and distribution-list entries without forcing them through the normal email path;
+3. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
 
 ## Completion definition for reliable extraction
 
