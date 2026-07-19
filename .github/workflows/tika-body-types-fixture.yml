@@ -1,0 +1,145 @@
+name: Tika body-types fixture
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  body-form-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test --all
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Extract independent body-form evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/upstream/tika-various-body-types.pst"
+          evidence="/tmp/pstd-tika-body-types"
+          output="/tmp/pstd-tika-body-types-output"
+          mkdir -p "$evidence" "$output"
+
+          (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
+
+          set +e
+          cargo run -- extract --input "$fixture" --output "$output" --overwrite \
+            > "$evidence/extract.stdout" 2> "$evidence/extract.stderr"
+          extract_status=$?
+          set -e
+          printf '%s\n' "$extract_status" > "$evidence/extract-exit-code.txt"
+          if [[ "$extract_status" -ne 0 && "$extract_status" -ne 2 ]]; then
+            echo "Unexpected extraction exit code: $extract_status" >&2
+            exit 1
+          fi
+
+          tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+          mkdir -p "$evidence/archive"
+          tar -xf "$tar_file" -C "$evidence/archive"
+          cp "$output/run_summary.json" "$evidence/run_summary.json"
+          find "$output" -type f -printf '%p\t%s\n' | sort > "$evidence/output-files.tsv"
+
+          python - <<'PY'
+          import hashlib
+          import json
+          from collections import defaultdict
+          from pathlib import Path
+
+          evidence = Path('/tmp/pstd-tika-body-types')
+          archive = evidence / 'archive'
+          data = archive / 'data'
+
+          def records(name):
+              path = data / name
+              return [
+                  json.loads(line)
+                  for line in path.read_text(encoding='utf-8').splitlines()
+                  if line.strip()
+              ]
+
+          messages = records('messages.jsonl')
+          bodies = records('bodies.jsonl')
+          by_message = defaultdict(list)
+          for body in bodies:
+              by_message[body['message_key']].append(body)
+
+          report = {
+              'fixture': {
+                  'path': 'tests/fixtures/upstream/tika-various-body-types.pst',
+                  'size_bytes': 271360,
+                  'sha256': '24c5e6bbb8bf26a817c977283e40e7b69d2661fec0845abbe177f97efcb05fb0',
+              },
+              'message_count': len(messages),
+              'body_record_count': len(bodies),
+              'messages': [],
+          }
+
+          for message in sorted(messages, key=lambda row: row['message_key']):
+              forms = []
+              for body in sorted(by_message[message['message_key']], key=lambda row: row['body_type']):
+                  entry = {
+                      'body_key': body['body_key'],
+                      'body_type': body['body_type'],
+                      'status': body['status'],
+                      'archive_path': body['archive_path'],
+                      'encoding': body.get('encoding'),
+                      'size_bytes': body['size_bytes'],
+                      'sha256': body['sha256'],
+                      'payload_present': False,
+                  }
+                  payload = archive / body['archive_path']
+                  if payload.is_file():
+                      raw = payload.read_bytes()
+                      actual_hash = hashlib.sha256(raw).hexdigest()
+                      if len(raw) != body['size_bytes']:
+                          raise SystemExit(
+                              f"{body['body_key']} size mismatch: {len(raw)} != {body['size_bytes']}"
+                          )
+                      if actual_hash != body['sha256']:
+                          raise SystemExit(
+                              f"{body['body_key']} hash mismatch: {actual_hash} != {body['sha256']}"
+                          )
+                      entry['payload_present'] = True
+                      entry['prefix_hex'] = raw[:32].hex()
+                  elif body['status'] == 'extracted':
+                      raise SystemExit(
+                          f"{body['body_key']} is extracted but payload is absent at {body['archive_path']}"
+                      )
+                  forms.append(entry)
+
+              report['messages'].append({
+                  'message_key': message['message_key'],
+                  'message_node_id': message.get('message_node_id'),
+                  'item_type': message.get('item_type'),
+                  'subject': message.get('subject'),
+                  'folder_key': message.get('folder_key'),
+                  'folder_path': message.get('folder_path'),
+                  'metadata_status': message.get('metadata_status'),
+                  'body_forms': forms,
+              })
+
+          evidence.joinpath('body-form-report.json').write_text(
+              json.dumps(report, indent=2, ensure_ascii=False) + '\n',
+              encoding='utf-8',
+          )
+          evidence.joinpath('messages.jsonl').write_text(
+              '\n'.join(json.dumps(row, ensure_ascii=False, sort_keys=True) for row in messages) + '\n',
+              encoding='utf-8',
+          )
+          evidence.joinpath('bodies.jsonl').write_text(
+              '\n'.join(json.dumps(row, ensure_ascii=False, sort_keys=True) for row in bodies) + '\n',
+              encoding='utf-8',
+          )
+          PY
+      - name: Upload body-form evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tika-body-types-evidence
+          path: /tmp/pstd-tika-body-types
+          if-no-files-found: error
