@@ -583,7 +583,7 @@ mod tests {
                 tag: PR_BODY,
                 name: "body_text".to_string(),
                 raw: Vec::new(),
-                decoded: Some(MapiValue::Binary(vec![0x7f, 0x80, 0x00, 0x00])),
+                decoded: None,
                 status: "selected".to_string(),
             },
         );
