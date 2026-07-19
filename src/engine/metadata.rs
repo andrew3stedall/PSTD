@@ -314,11 +314,11 @@ pub fn extract_metadata(
                             .any(|payload| payload.record.body_type == "html");
                         message.body_status = body_report.status;
                         message.extraction_status = "metadata_and_payload".to_string();
-                        bodies.extend(unresolved_body_records);
                         for payload in loaded_body_payloads {
                             bodies.push(payload.record.clone());
                             body_payloads.push(payload);
                         }
+                        bodies.extend(unresolved_body_records);
                     }
 
                     let mut message_subnode_probe_status = None;
@@ -905,11 +905,11 @@ fn recover_embedded_message(
             .any(|payload| payload.record.body_type == "html");
         message.body_status = body_report.status;
         message.extraction_status = "metadata_and_payload".to_string();
-        bodies.extend(unresolved_body_records);
         for payload in loaded_body_payloads {
             bodies.push(payload.record.clone());
             body_payloads.push(payload);
         }
+        bodies.extend(unresolved_body_records);
     }
 
     let mut recipients = Vec::new();
