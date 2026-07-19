@@ -115,10 +115,7 @@ pub fn body_coverage_report(
     }
 }
 
-pub fn unresolved_body_records(
-    message_key: &str,
-    report: &BodyCoverageReport,
-) -> Vec<BodyRecord> {
+pub fn unresolved_body_records(message_key: &str, report: &BodyCoverageReport) -> Vec<BodyRecord> {
     report
         .unresolved_body_types
         .iter()
@@ -126,9 +123,7 @@ pub fn unresolved_body_records(
             unavailable_body_record(
                 message_key,
                 body_type,
-                &format!(
-                    "body_payload_property_present_but_unresolved; body_type={body_type}"
-                ),
+                &format!("body_payload_property_present_but_unresolved; body_type={body_type}"),
             )
         })
         .collect()
@@ -199,16 +194,20 @@ fn unresolved_body_types(
     rtf_property_present: bool,
     payloads: &[BodyPayload],
 ) -> Vec<String> {
-    [("text", text_property_present), ("html", html_property_present), ("rtf", rtf_property_present)]
-        .into_iter()
-        .filter(|(body_type, present)| {
-            *present
-                && !payloads
-                    .iter()
-                    .any(|payload| payload.record.body_type == *body_type)
-        })
-        .map(|(body_type, _)| body_type.to_string())
-        .collect()
+    [
+        ("text", text_property_present),
+        ("html", html_property_present),
+        ("rtf", rtf_property_present),
+    ]
+    .into_iter()
+    .filter(|(body_type, present)| {
+        *present
+            && !payloads
+                .iter()
+                .any(|payload| payload.record.body_type == *body_type)
+    })
+    .map(|(body_type, _)| body_type.to_string())
+    .collect()
 }
 
 fn preferred_body_type(payloads: &[BodyPayload]) -> Option<&'static str> {
