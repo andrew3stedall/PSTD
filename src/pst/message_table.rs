@@ -6,10 +6,10 @@ use crate::pst::primitives::NodeId;
 const NID_TYPE_MASK: u64 = 0x1f;
 const NID_TYPE_NORMAL_MESSAGE: u64 = 0x04;
 const NID_TYPE_ASSOC_MESSAGE: u64 = 0x08;
-const NID_TYPE_CONTENTS_TABLE: u64 = 0x12;
-const NID_TYPE_ASSOC_CONTENTS_TABLE: u64 = 0x13;
-const NID_TYPE_SEARCH_CONTENTS_TABLE: u64 = 0x0d;
-const NID_TYPE_HIERARCHY_TABLE: u64 = 0x11;
+const NID_TYPE_CONTENTS_TABLE: u64 = 0x0e;
+const NID_TYPE_ASSOC_CONTENTS_TABLE: u64 = 0x0f;
+const NID_TYPE_SEARCH_CONTENTS_TABLE: u64 = 0x10;
+const NID_TYPE_HIERARCHY_TABLE: u64 = 0x0d;
 const NID_TYPE_NORMAL_FOLDER: u64 = 0x02;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -252,9 +252,12 @@ mod tests {
 
     #[test]
     fn classifies_message_table_entries_and_owner_folder_identity() {
-        let contents_table = entry(0x32);
-        let assoc_contents_table = entry(0x33);
-        let hierarchy_table = entry(0x31);
+        let contents_table = entry(0x2e);
+        let assoc_contents_table = entry(0x2f);
+        let search_contents_table = entry(0x30);
+        let hierarchy_table = entry(0x2d);
+        let attachment_table = entry(0x31);
+        let recipient_table = entry(0x32);
 
         assert_eq!(
             message_table_node_type(contents_table.node_id),
@@ -265,9 +268,15 @@ mod tests {
             Some(MessageTableNodeType::AssociatedContentsTable)
         );
         assert_eq!(
+            message_table_node_type(search_contents_table.node_id),
+            Some(MessageTableNodeType::SearchContentsTable)
+        );
+        assert_eq!(
             message_table_node_type(hierarchy_table.node_id),
             Some(MessageTableNodeType::HierarchyTable)
         );
+        assert_eq!(message_table_node_type(attachment_table.node_id), None);
+        assert_eq!(message_table_node_type(recipient_table.node_id), None);
         assert_eq!(
             owner_folder_node_identity(contents_table.node_id),
             "node_22"
@@ -276,7 +285,7 @@ mod tests {
 
     #[test]
     fn discovers_message_and_table_candidates_with_folder_links() {
-        let nbt = nbt_index(vec![entry(0x22), entry(0x24), entry(0x32), entry(0x52)]);
+        let nbt = nbt_index(vec![entry(0x22), entry(0x24), entry(0x2e), entry(0x4e)]);
         let mut folder_keys = HashMap::new();
         folder_keys.insert("node_22".to_string(), "folder-key-22".to_string());
 
