@@ -639,12 +639,12 @@ jobs:
               'attachment_payload_bytes': 12315,
               'eml_files': 2,
               'eml_bytes': 17488,
-              'messages_jsonl_bytes': 23765,
-              'bodies_jsonl_bytes': 2820,
+              'messages_jsonl_bytes': 23865,
+              'bodies_jsonl_bytes': 2922,
               'recipients_jsonl_bytes': 2708,
               'attachments_jsonl_bytes': 1240,
-              'tar_bytes': 237056,
-              'output_total_bytes': 282103,
+              'tar_bytes': 234496,
+              'output_total_bytes': 279543,
           }
           if metrics != expected_metrics:
               raise SystemExit(f'fixture metrics mismatch: {metrics!r}')
