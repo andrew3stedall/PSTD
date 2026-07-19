@@ -1,6 +1,6 @@
 # Public PST Progress Log
 
-_Last reviewed: 18 July 2026._
+_Last reviewed: 19 July 2026._
 
 ## Purpose
 
@@ -45,7 +45,7 @@ The original fixture publishes these four complete row-aligned records through t
 
 ## Tika recipient, attachment, embedded-message, and child-EML evidence
 
-PR #461 retains the eight-message and two-EML baseline and publishes the exact child EML as the linked method-`5` attachment payload.
+PR #464 retains the eight-message and two-EML baseline, assigns all seven top-level messages through exact physical contents-table rows, and preserves the exact child EML as the linked method-`5` attachment payload.
 
 | Evidence | Result |
 |---|---:|
@@ -57,15 +57,18 @@ PR #461 retains the eight-message and two-EML baseline and publishes the exact c
 | Attachment payload files / bytes | 2 / 12,315 |
 | EML files / bytes | 2 / 17,488 |
 | Recipient JSONL bytes | 2,708 |
-| Extraction TAR bytes | 228,864 |
-| Total output bytes | 273,908 |
+| Top-level messages with exact physical owner | 7 |
+| Messages JSONL bytes | 23,765 |
+| Extraction TAR bytes | 237,056 |
+| Total output bytes | 282,103 |
 
-The original seven top-level messages and eight top-level recipients remain stable. The recovered child owns one raw/native recipient, a 23-byte text body, four raw HTML-property bytes, and one exact 453-byte single-part plain-text EML. The method-`5` record now publishes those exact bytes as `message/rfc822` at its stable archive path; the existing DOCX and unchanged 17,035-byte parent EML remain separate and byte-identical. No child value is attributed to the parent.
+All seven top-level messages now resolve exactly to `/Début du fichier de données Outlook` through `node_802e` contents-table row keys. The recovered child owns one raw/native recipient, a 23-byte text body, four raw HTML-property bytes, and one exact 453-byte single-part plain-text EML. The method-`5` record publishes those exact bytes as `message/rfc822` at its stable archive path; the existing DOCX and unchanged 17,035-byte parent EML remain separate and byte-identical. No child value is attributed to the parent.
 
 ## Progress history
 
 | Date | Milestone / PR range | Change type | Result | Next measured boundary |
 |---|---|---|---|---|
+| 2026-07-19 | Vertical 37 / #464 | Material folder ownership | Corrected table NID classification, decoded seven exact physical contents-table rows, locked all eight folder records and seven top-level owners, and preserved the separately linked embedded child and all payload contracts. | Validate independent body-form selection. |
 | 2026-07-18 | Vertical 36 / #461 | Material embedded-message payload | Published the exact 453-byte child EML as `message/rfc822`, locked path/hash/ownership and byte identity, rejected ambiguous and nested candidates, and preserved parent EML/DOCX bytes. | Lock complete Tika folder and message coverage. |
 | 2026-07-18 | Vertical 35 / #457 | Material child EML assembly | Emitted one exact 453-byte single-part plain-text child EML, gated admission through attachment metadata, preserved fail-closed top-level behaviour, and retained the parent/DOCX bytes. | Materialise the exact child EML as the method-`5` `message/rfc822` attachment payload. |
 | 2026-07-17 | Vertical 34 / #455 | Material embedded-message extraction | Parsed the exact PtypObject wrapper, resolved one unique normal-message NID, emitted a separately keyed child with one recipient and two body records, linked it from method `5`, and preserved the parent/DOCX/EML contract. | Emit a plain-text-only child EML without promoting four invalid HTML bytes. |
@@ -88,7 +91,7 @@ The original seven top-level messages and eight top-level recipients remain stab
 
 ## Active boundary
 
-Vertical 36 completes exact method-`5` `message/rfc822` payload materialisation. The next slice is complete Tika folder and message validation with exact paths, ownership, Unicode names and legacy Exchange evidence.
+Vertical 37 completes exact Tika folder and top-level message ownership validation. The next slice is independent plain-text, HTML and RTF body-form selection on `tika-various-body-types.pst`.
 
 ## Interpretation
 
