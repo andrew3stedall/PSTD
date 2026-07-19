@@ -68,6 +68,41 @@ jobs:
           for body in bodies:
               by_message[body['message_key']].append(body)
 
+          if len(messages) != 4:
+              raise SystemExit(f'unexpected message count: {len(messages)}')
+          if len(bodies) != 5:
+              raise SystemExit(f'unexpected body record count: {len(bodies)}')
+
+          expected_forms = {
+              'msg_41a42378327281a0': [('text', 0, 'body_payload_property_absent; supported_body_properties=0')],
+              'msg_5745cddf4a8063e4': [('text', 0, 'body_payload_property_absent; supported_body_properties=0')],
+              'msg_58f39dbbca78135b': [('html', 4, 'extracted'), ('text', 37, 'extracted')],
+              'msg_6e55e2f20573a339': [('text', 0, 'body_payload_property_absent; supported_body_properties=0')],
+          }
+          actual_forms = {
+              message_key: sorted(
+                  (body['body_type'], body['size_bytes'], body['status'])
+                  for body in message_bodies
+              )
+              for message_key, message_bodies in by_message.items()
+          }
+          for message_key in expected_forms:
+              actual_forms.setdefault(message_key, [])
+          if actual_forms != expected_forms:
+              raise SystemExit(f'unexpected independent body-form baseline: {actual_forms!r}')
+
+          known_invalid_html = next(
+              body
+              for body in bodies
+              if body['message_key'] == 'msg_58f39dbbca78135b'
+              and body['body_type'] == 'html'
+          )
+          invalid_html_bytes = (archive / known_invalid_html['archive_path']).read_bytes()
+          if invalid_html_bytes != b'\x7f\x80\x00\x00':
+              raise SystemExit(
+                  f'unexpected HTML evidence bytes: {invalid_html_bytes.hex()}'
+              )
+
           report = {
               'fixture': {
                   'path': 'tests/fixtures/upstream/tika-various-body-types.pst',
@@ -76,6 +111,14 @@ jobs:
               },
               'message_count': len(messages),
               'body_record_count': len(bodies),
+              'known_invalid_html': {
+                  'message_key': known_invalid_html['message_key'],
+                  'body_key': known_invalid_html['body_key'],
+                  'size_bytes': known_invalid_html['size_bytes'],
+                  'sha256': known_invalid_html['sha256'],
+                  'bytes_hex': invalid_html_bytes.hex(),
+                  'classification': 'undecoded_property_reference_currently_misclassified_as_extracted',
+              },
               'messages': [],
           }
 
@@ -120,6 +163,9 @@ jobs:
                   'folder_key': message.get('folder_key'),
                   'folder_path': message.get('folder_path'),
                   'metadata_status': message.get('metadata_status'),
+                  'body_status': message.get('body_status'),
+                  'has_text_body': message.get('has_text_body'),
+                  'has_html_body': message.get('has_html_body'),
                   'body_forms': forms,
               })
 
