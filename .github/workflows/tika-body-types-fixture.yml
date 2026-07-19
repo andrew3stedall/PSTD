@@ -76,7 +76,10 @@ jobs:
           expected_forms = {
               'msg_41a42378327281a0': [('text', 0, 'body_payload_property_absent; supported_body_properties=0')],
               'msg_5745cddf4a8063e4': [('text', 0, 'body_payload_property_absent; supported_body_properties=0')],
-              'msg_58f39dbbca78135b': [('html', 4, 'extracted'), ('text', 37, 'extracted')],
+              'msg_58f39dbbca78135b': [
+                  ('html', 0, 'body_payload_property_present_but_unresolved; body_type=html'),
+                  ('text', 37, 'extracted'),
+              ],
               'msg_6e55e2f20573a339': [('text', 0, 'body_payload_property_absent; supported_body_properties=0')],
           }
           actual_forms = {
@@ -91,17 +94,39 @@ jobs:
           if actual_forms != expected_forms:
               raise SystemExit(f'unexpected independent body-form baseline: {actual_forms!r}')
 
-          known_invalid_html = next(
+          unresolved_html = next(
               body
               for body in bodies
               if body['message_key'] == 'msg_58f39dbbca78135b'
               and body['body_type'] == 'html'
           )
-          invalid_html_bytes = (archive / known_invalid_html['archive_path']).read_bytes()
-          if invalid_html_bytes != b'\x7f\x80\x00\x00':
+          unresolved_html_path = archive / unresolved_html['archive_path']
+          if unresolved_html_path.exists():
               raise SystemExit(
-                  f'unexpected HTML evidence bytes: {invalid_html_bytes.hex()}'
+                  f'unresolved HTML reference was materialized: {unresolved_html_path}'
               )
+          if unresolved_html['sha256'] != hashlib.sha256(b'').hexdigest():
+              raise SystemExit(
+                  f"unexpected unresolved HTML hash: {unresolved_html['sha256']}"
+              )
+
+          selected_message = next(
+              message
+              for message in messages
+              if message['message_key'] == 'msg_58f39dbbca78135b'
+          )
+          expected_body_status = (
+              'body_payload_extracted; payloads=1; supported_body_properties=2; '
+              'body_types=text; preferred_body_type=text; unresolved_body_types=html'
+          )
+          if selected_message['body_status'] != expected_body_status:
+              raise SystemExit(
+                  f"unexpected selected body status: {selected_message['body_status']!r}"
+              )
+          if selected_message['has_text_body'] is not True:
+              raise SystemExit('selected message must retain its plain-text body')
+          if selected_message['has_html_body'] is not False:
+              raise SystemExit('unresolved HTML must not set has_html_body')
 
           report = {
               'fixture': {
@@ -111,13 +136,15 @@ jobs:
               },
               'message_count': len(messages),
               'body_record_count': len(bodies),
-              'known_invalid_html': {
-                  'message_key': known_invalid_html['message_key'],
-                  'body_key': known_invalid_html['body_key'],
-                  'size_bytes': known_invalid_html['size_bytes'],
-                  'sha256': known_invalid_html['sha256'],
-                  'bytes_hex': invalid_html_bytes.hex(),
-                  'classification': 'undecoded_property_reference_currently_misclassified_as_extracted',
+              'unresolved_html': {
+                  'message_key': unresolved_html['message_key'],
+                  'body_key': unresolved_html['body_key'],
+                  'size_bytes': unresolved_html['size_bytes'],
+                  'sha256': unresolved_html['sha256'],
+                  'source_reference_hex': '7f800000',
+                  'payload_present': False,
+                  'classification': 'property_present_reference_not_materialized',
+                  'preferred_body_type': 'text',
               },
               'messages': [],
           }

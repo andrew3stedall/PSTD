@@ -16,10 +16,11 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Tika DOCX attachment | Validated through Vertical 31 / PR #450 | One `attachment.docx` payload: 11,862 bytes, valid ZIP/CRC, expected document text, and preserved 15,503-byte source size metadata. |
 | Tika recipients | Validated through Vertical 32 / PR #452 | Eight directly attributed recipients across seven messages: six SMTP rows and two raw/native rows, including a full legacy Exchange distinguished name. |
 | Tika attachment EML | Validated through Vertical 33 / PR #454 | One deterministic 17,035-byte `multipart/mixed` EML contains the 22-byte UTF-8 plain-text body and exact 11,862-byte DOCX payload. The invalid four-byte HTML value is excluded. |
-| Embedded message | Validated through Vertical 34 / PR #455 | One method-`5` PtypObject resolves to a separate linked message with one directly owned recipient, a 23-byte text body, and four preserved raw HTML-property bytes; no child evidence is projected onto the parent. |
+| Embedded message | Validated through Vertical 34 / PR #455 | One method-`5` PtypObject resolves to a separate linked message with one directly owned recipient, a 23-byte text body, and an explicit unavailable HTML form for its four-byte property locator; no child evidence is projected onto the parent. |
 | Embedded child EML | Validated through Vertical 35 / PR #457 | The linked child emits one deterministic 453-byte single-part `text/plain` EML with exact headers, CRLF body assembly, and SHA-256; raw HTML bytes remain excluded, and unrelated plain-only messages remain unavailable. |
 | Method-5 child payload | Validated through Vertical 36 / PR #461 | The same exact 453 bytes now publish at the existing method-`5` archive path as `message/rfc822`; key, ordinal, owner and child link remain stable, with fail-closed duplicate, mismatch and nesting rejection. |
 | Tika folder/message ownership | Validated through Vertical 37 / PR #464 | All eight folder records are exact; seven top-level messages resolve once from `node_802e` row keys to `/Début du fichier de données Outlook`; the linked embedded child remains isolated. |
+| Independent body forms | Validated through Vertical 38 | Four-byte Property Context body locators remain explicit unavailable forms; the body-types fixture selects its valid 37-byte plain body, and the Tika parent/child retain plain text without materializing invalid HTML. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
 
 ## Tika Vertical 36 evidence
@@ -59,13 +60,30 @@ The shared EML builder is used by both output paths. Missing or mismatched links
 
 The permanent fixture contract now locks each folder key, node, Unicode name, path, parent, item count and child count. It also locks the seven top-level message keys and subjects, their exact folder key/path/status, and the recovered child's separate root record. No ownership is inferred from search tables, hierarchy tables, folder counts, or discovery order.
 
+## Tika Vertical 38 evidence
+
+| Metric | Vertical 37 baseline | Vertical 38 result |
+|---|---:|---:|
+| Messages | 8 | 8 |
+| Body records | 10 | 10 |
+| Valid body payload files / bytes | 8 / 279 | 6 / 271 |
+| Explicit unresolved HTML forms | 0 | 2 |
+| Attachment payload files / bytes | 2 / 12,315 | 2 / 12,315 |
+| EML files / bytes | 2 / 17,488 | 2 / 17,488 |
+| Messages JSONL bytes | 23,765 | 23,865 |
+| Bodies JSONL bytes | 2,820 | 2,922 |
+| Extraction TAR bytes | 237,056 | 234,496 |
+| Total extraction-output bytes | 282,103 | 279,543 |
+
+The removed eight bytes were two Property Context HNID cells, not HTML. Parent and embedded-child plain bodies remain exact, both HTML forms are explicit unavailable records, and the DOCX, method-`5` payload, ownership and EML contracts remain unchanged.
+
 ## Latest completed work
 
-PR #464, **Transport exact contents-table membership into message ownership**, separates row-index decoding from cross-table orchestration, corrects PST table NID classification, and applies exact physical ownership before top-level message construction. It removes the temporary self-modifying workflow and preserves all body, recipient, attachment, and EML contracts.
+Vertical 38 rejects four-byte binary body locators at the common body accessor, records unresolved forms for top-level and embedded messages, and selects valid plain-text siblings deterministically. Exact evidence is recorded in [Vertical 38](../operations/vertical-38-reject-unresolved-binary-body-references.md).
 
 ## Next evidence-based milestone
 
-Validate independent plain-text, HTML, and RTF body-form selection on `tika-various-body-types.pst`, then add the first pinned public ANSI PST baseline.
+Add and measure the first pinned public ANSI PST baseline without weakening the approved Unicode fixture contracts.
 
 ## Validation expectations
 

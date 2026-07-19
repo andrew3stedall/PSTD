@@ -37,7 +37,7 @@ _Last reviewed: 19 July 2026._
 - Eight exact Tika recipient records across seven messages: six authoritative SMTP rows and two preserved raw/native rows, including a complete legacy Exchange distinguished name.
 - One deterministic 17,035-byte Tika `multipart/mixed` EML with validated Date fallback, 22-byte plain body, raw/native addresses, and the byte-identical DOCX payload.
 - Specification-aligned PtypObject handling that preserves the object HID, validates the exact eight-byte `Nid + ulSize` wrapper, and requires a normal-message NID.
-- One separately keyed method-`5` child message linked through `embedded_message_key`, with one directly owned recipient, a 23-byte text body, and four preserved raw HTML-property bytes.
+- One separately keyed method-`5` child message linked through `embedded_message_key`, with one directly owned recipient, a 23-byte text body, and explicit unavailable HTML evidence for the unresolved four-byte property reference.
 - A permanent Vertical 34 fixture contract covering exact child/parent ownership, stable attachment ordinals, record bytes, archive bytes, and unchanged outer EML.
 - One deterministic 453-byte attachmentless `text/plain` EML for the linked method-`5` child, with exact SHA-256, headers, CRLF body, and exclusion of raw HTML bytes.
 - Policy-gated plain-text-only EML admission from authoritative attachment metadata, retaining fail-closed behaviour for unrelated unvalidated plain-only messages.
@@ -45,6 +45,8 @@ _Last reviewed: 19 July 2026._
 - Shared plain-text EML construction plus focused rejection tests for missing, mismatched, duplicate, nested, ambiguous-body and unsafe-header cases.
 - Exact physical contents-table membership decoding and fail-closed message-folder ownership reduction.
 - Permanent Tika assertions for all eight folder records, seven top-level message owners and subjects, and the separate embedded-child boundary.
+- Bounded binary-body admission that rejects four-byte Property Context HNID cells instead of materializing them as HTML or RTF payloads.
+- Explicit unavailable body-form records plus deterministic valid-sibling selection for both top-level and embedded messages.
 
 ## Changed
 
@@ -70,6 +72,7 @@ _Last reviewed: 19 July 2026._
 - Isolated the recovered child's loaded subnode subtree before reusing direct recipient projection, preventing child rows, bodies, and identifiers from leaking into the parent.
 - Corrected PST table NID classification so `0x0e`/`0x0f` are physical contents tables, `0x10` is search contents, and hierarchy, attachment, and recipient tables cannot establish message ownership.
 - Replaced synthetic-root ownership for all seven top-level Tika messages with the exact `/Début du fichier de données Outlook` folder from `node_802e` row keys.
+- Reclassified two four-byte `PidTagHtml` Property Context locators as unresolved forms, removed their eight non-HTML payload bytes, and retained both valid plain-text bodies and byte-identical EML output.
 
 ## Current original-fixture result
 
@@ -96,7 +99,7 @@ The original public fixture produces one readable email containing sender, To/Cc
 ```text
 Messages: 8
 Body records: 10
-Body payload files/bytes: 8/279
+Body payload files/bytes: 6/271
 Recipients: 9
 SMTP/raw-native recipients: 6/3
 Attachment records: 2
@@ -105,21 +108,21 @@ DOCX SHA-256: 0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0
 DOCX attachment ordinal/key: 0/att_0695091e19397627
 Embedded attachment ordinal/key: 1/att_a9c94a13d70f1cb3
 Embedded message key/NID: msg_0ff529af59d373d5/0x00200104
-Embedded child text/raw-HTML bytes: 23/4
+Embedded child text/unresolved-HTML payload bytes: 23/0
 EML files/bytes: 2/17488
-Messages JSONL bytes: 23765
-Bodies JSONL bytes: 2820
+Messages JSONL bytes: 23865
+Bodies JSONL bytes: 2922
 Recipient JSONL bytes: 2708
 Attachment JSONL bytes: 1240
-Extraction TAR bytes: 237056
-Total output bytes: 282103
+Extraction TAR bytes: 234496
+Total output bytes: 279543
 ```
 
-All seven top-level messages belong to `/Début du fichier de données Outlook` through exact physical contents-table rows. The method-`5` attachment belongs to `msg_c6163b9157944cc9`, links to the separately emitted child, and publishes the exact child EML bytes at its existing archive path. The child owns its recipient and bodies; the parent retains only its direct recipient, original bodies, DOCX, and unchanged EML.
+All seven top-level messages belong to `/Début du fichier de données Outlook` through exact physical contents-table rows. The method-`5` attachment belongs to `msg_c6163b9157944cc9`, links to the separately emitted child, and publishes the exact child EML bytes at its existing archive path. The child owns its recipient and body records; both child and parent retain their valid plain-text bodies and explicit unavailable HTML forms. The parent retains only its direct recipient, DOCX, and unchanged EML.
 
 ## In progress
 
-- Validate independent plain-text, HTML, and RTF body selection on `tika-various-body-types.pst`.
+- Establish the first pinned public ANSI PST baseline without weakening the Unicode fixture contracts.
 
 ## Known limitations
 

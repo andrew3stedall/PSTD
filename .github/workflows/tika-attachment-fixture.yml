@@ -223,6 +223,23 @@ jobs:
               raise SystemExit(f'embedded child ownership changed: {child!r}')
           if len(bodies) != 10:
               raise SystemExit(f'unexpected body record count: {len(bodies)}')
+          unresolved_html = sorted(
+              body['message_key']
+              for body in bodies
+              if body['body_type'] == 'html'
+              and body['size_bytes'] == 0
+              and body['status'] == (
+                  'body_payload_property_present_but_unresolved; body_type=html'
+              )
+              and not (archive / body['archive_path']).exists()
+          )
+          if unresolved_html != [
+              'msg_0ff529af59d373d5',
+              'msg_c6163b9157944cc9',
+          ]:
+              raise SystemExit(
+                  f'unexpected unresolved HTML body evidence: {unresolved_html!r}'
+              )
           expected_recipients = [
               {
                   'recipient_key': 'rcpt_379c07577f6a2435',
@@ -443,7 +460,7 @@ jobs:
               'conversation_topic': 'First email',
               'normalized_subject': '\u0001\u0001first email',
               'has_text_body': True,
-              'has_html_body': True,
+              'has_html_body': False,
               'has_attachments': False,
               'attachment_count': 0,
               'metadata_status': (
@@ -452,8 +469,9 @@ jobs:
                   'unknown_properties=41; decode_errors=0'
               ),
               'body_status': (
-                  'body_payload_extracted; payloads=2; '
-                  'supported_body_properties=2; body_types=html,text'
+                  'body_payload_extracted; payloads=1; '
+                  'supported_body_properties=2; body_types=text; '
+                  'preferred_body_type=text; unresolved_body_types=html'
               ),
               'attachment_status': 'attachment_payload_property_absent',
               'extraction_status': 'metadata_and_payload',
@@ -486,9 +504,11 @@ jobs:
                   'body_type': 'html',
                   'archive_path': 'bodies/msg_0ff529af59d373d5.html',
                   'encoding': None,
-                  'size_bytes': 4,
-                  'sha256': '15388341e84d59f83fd7a84932063558ad4cb4cca83256c56416a419452bb68c',
-                  'status': 'extracted',
+                  'size_bytes': 0,
+                  'sha256': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+                  'status': (
+                      'body_payload_property_present_but_unresolved; body_type=html'
+                  ),
               },
           ]
           if embedded_bodies != expected_embedded_bodies:
@@ -497,8 +517,8 @@ jobs:
               b'Docx file attached.\r\n\r\n'
           ):
               raise SystemExit('embedded plain body bytes changed')
-          if (archive / embedded_bodies[1]['archive_path']).read_bytes() != b'\x7f\x83\x00\x00':
-              raise SystemExit('embedded raw HTML evidence bytes changed')
+          if (archive / embedded_bodies[1]['archive_path']).exists():
+              raise SystemExit('embedded raw HTML reference was materialized')
 
           body_payloads = [path for path in (archive / 'bodies').rglob('*') if path.is_file()]
           attachment_payloads = [
@@ -613,18 +633,18 @@ jobs:
               'body_records': 10,
               'recipient_records': 9,
               'attachment_records': 2,
-              'body_payload_files': 8,
-              'body_payload_bytes': 279,
+              'body_payload_files': 6,
+              'body_payload_bytes': 271,
               'attachment_payload_files': 2,
               'attachment_payload_bytes': 12315,
               'eml_files': 2,
               'eml_bytes': 17488,
-              'messages_jsonl_bytes': 23765,
-              'bodies_jsonl_bytes': 2820,
+              'messages_jsonl_bytes': 23865,
+              'bodies_jsonl_bytes': 2922,
               'recipients_jsonl_bytes': 2708,
               'attachments_jsonl_bytes': 1240,
-              'tar_bytes': 237056,
-              'output_total_bytes': 282103,
+              'tar_bytes': 234496,
+              'output_total_bytes': 279543,
           }
           if metrics != expected_metrics:
               raise SystemExit(f'fixture metrics mismatch: {metrics!r}')

@@ -10,8 +10,8 @@ _Last reviewed: 19 July 2026._
 |---|---|---|
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
-| Vertical extraction sequence | Complete through Vertical 37 / PR #464 | Exact physical contents-table rows now assign all seven top-level Tika messages to `/Début du fichier de données Outlook`; the separately linked method-`5` child remains isolated. |
-| Current milestone | Validate independent body forms | Lock plain-text, HTML, and RTF selection on `tika-various-body-types.pst`. |
+| Vertical extraction sequence | Complete through Vertical 38 | Four-byte Property Context body locators now remain explicit unavailable forms; valid plain-text siblings, ownership, attachments, and EML output remain intact. |
+| Current milestone | First ANSI baseline | Pin and measure a public ANSI PST without weakening the proven Unicode fixture contracts. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
 
 ## Intent
@@ -49,7 +49,7 @@ The Table Context path now validates four 52-byte rows. The fixture has separate
 
 On `main`, these values are published as four complete row-aligned recipient records and assembled into the original fixture's readable EML.
 
-The Tika attachment fixture now emits seven top-level messages assigned by exact contents-table rows to `/Début du fichier de données Outlook`, plus one separately linked embedded child, nine directly owned recipient records, ten body records, two attachment records, two exact attachment payloads totalling 12,315 bytes, and two deterministic EML files. The method-`5` payload is byte-identical to the 453-byte standalone child EML and uses `message/rfc822`. The attachment owner retains its 17,035-byte `multipart/mixed` EML and byte-identical DOCX; method `5` is deliberately not inserted into the parent MIME tree.
+The Tika attachment fixture now emits seven top-level messages assigned by exact contents-table rows to `/Début du fichier de données Outlook`, plus one separately linked embedded child, nine directly owned recipient records, ten body records, six valid body payloads totalling 271 bytes, two explicit unresolved HTML forms, two attachment records, two exact attachment payloads totalling 12,315 bytes, and two deterministic EML files. The method-`5` payload is byte-identical to the 453-byte standalone child EML and uses `message/rfc822`. The attachment owner retains its 17,035-byte `multipart/mixed` EML and byte-identical DOCX; method `5` is deliberately not inserted into the parent MIME tree.
 
 ## Progress over time
 
@@ -68,6 +68,7 @@ The Tika attachment fixture now emits seven top-level messages assigned by exact
 | Vertical 35 / #457 | Emitted the linked child as an exact 453-byte attachmentless `text/plain` EML, authorised from attachment metadata and excluding unrelated unvalidated plain-only messages. |
 | Vertical 36 / #461 | Materialised those exact bytes as the method-`5` `message/rfc822` payload, preserved the parent EML/DOCX, and added fail-closed link and nesting tests. |
 | Vertical 37 / #464 | Corrected table NID classification, decoded seven exact physical contents-table rows, assigned every top-level Tika message to its authoritative Unicode folder, and retained explicit unassigned behavior for unsupported evidence. |
+| Vertical 38 | Rejected four-byte binary body locators, emitted explicit unavailable HTML records, retained valid plain-text siblings, and kept attachment and EML payloads byte-identical. |
 
 Detailed point-in-time milestone and experiment records are retained under `docs/`. They are historical evidence, not the current roadmap.
 

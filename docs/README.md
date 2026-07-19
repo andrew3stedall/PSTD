@@ -31,7 +31,7 @@ This documentation tree contains both current operating guidance and historical 
 | Readable message verticals | One deterministic 956-byte EML is emitted with sender, recipients, subject, Date, Message-ID, plain text, and recovered HTML. |
 | Upstream fixture corpus | Three pinned public PSTs now cover attachments, multiple folders/messages, body forms, appointments, recurrence, contacts, distribution lists, and legacy Exchange addresses. |
 | Tika attachment fixture | Eight messages include seven top-level messages assigned by exact contents-table rows, one linked method-`5` child, nine directly owned recipients, ten body records, two exact attachment payloads, the unchanged 17,035-byte parent EML, and one exact 453-byte child EML. |
-| Current milestone | Validate independent body-form selection on `tika-various-body-types.pst`. |
+| Current milestone | Reject unresolved four-byte body locators; next establish the first pinned ANSI PST baseline. |
 
 The current roadmap and fixture-corpus guide define the active evidence-led sequence. Historical milestone and PQ documents remain useful for implementation context but do not define the next task.
 
@@ -64,6 +64,7 @@ The current roadmap and fixture-corpus guide define the active evidence-led sequ
 - [Vertical 35: Tika child plain-text EML](operations/vertical-35-emit-tika-child-eml.md)
 - [Vertical 36: Method-5 child EML payload](operations/vertical-36-materialise-method5-eml-payload.md)
 - [Vertical 37: Tika message-folder ownership](operations/vertical-37-resolve-tika-message-folder-ownership.md)
+- [Vertical 38: Reject unresolved binary body references](operations/vertical-38-reject-unresolved-binary-body-references.md)
 
 ### Data contract
 

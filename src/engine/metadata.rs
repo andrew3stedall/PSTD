@@ -30,7 +30,8 @@ use crate::pst::message_metadata::{message_from_properties, status_row};
 use crate::pst::message_ownership::MessageOwnershipResolution;
 use crate::pst::message_table::{classify_message_candidate, discover_message_tables};
 use crate::pst::messages::{
-    body_coverage_report, body_payloads_from_properties, unavailable_body_record, BodyPayload,
+    body_coverage_report, body_payloads_from_properties, unavailable_body_record,
+    unresolved_body_records, BodyPayload,
 };
 use crate::pst::nbt::{NbtEntry, NbtIndex};
 use crate::pst::node_payload::load_node_property_context;
@@ -275,6 +276,8 @@ pub fn extract_metadata(
                         body_payloads_from_properties(&message.message_key, &loaded.properties);
                     let body_report =
                         body_coverage_report(&loaded.properties, &loaded_body_payloads);
+                    let unresolved_body_records =
+                        unresolved_body_records(&message.message_key, &body_report);
                     if body_report.supported_body_property_count > 0 {
                         pq6_body_supported_property_messages += 1;
                     }
@@ -292,11 +295,15 @@ pub fn extract_metadata(
 
                     if loaded_body_payloads.is_empty() {
                         message.body_status = body_report.status.clone();
-                        bodies.push(unavailable_body_record(
-                            &message.message_key,
-                            "text",
-                            &body_report.status,
-                        ));
+                        if unresolved_body_records.is_empty() {
+                            bodies.push(unavailable_body_record(
+                                &message.message_key,
+                                "text",
+                                &body_report.status,
+                            ));
+                        } else {
+                            bodies.extend(unresolved_body_records);
+                        }
                     } else {
                         pq6_body_payload_messages += 1;
                         message.has_text_body = loaded_body_payloads
@@ -311,6 +318,7 @@ pub fn extract_metadata(
                             bodies.push(payload.record.clone());
                             body_payloads.push(payload);
                         }
+                        bodies.extend(unresolved_body_records);
                     }
 
                     let mut message_subnode_probe_status = None;
@@ -874,15 +882,20 @@ fn recover_embedded_message(
         body_payloads_from_properties(&message.message_key, &candidate.property_report.context);
     let body_report =
         body_coverage_report(&candidate.property_report.context, &loaded_body_payloads);
+    let unresolved_body_records = unresolved_body_records(&message.message_key, &body_report);
     let mut bodies = Vec::new();
     let mut body_payloads = Vec::new();
     if loaded_body_payloads.is_empty() {
         message.body_status = body_report.status.clone();
-        bodies.push(unavailable_body_record(
-            &message.message_key,
-            "text",
-            &body_report.status,
-        ));
+        if unresolved_body_records.is_empty() {
+            bodies.push(unavailable_body_record(
+                &message.message_key,
+                "text",
+                &body_report.status,
+            ));
+        } else {
+            bodies.extend(unresolved_body_records);
+        }
     } else {
         message.has_text_body = loaded_body_payloads
             .iter()
@@ -896,6 +909,7 @@ fn recover_embedded_message(
             bodies.push(payload.record.clone());
             body_payloads.push(payload);
         }
+        bodies.extend(unresolved_body_records);
     }
 
     let mut recipients = Vec::new();
