@@ -1,0 +1,104 @@
+name: Refine PR 469 HNID handling
+
+on:
+  push:
+    branches:
+      - agent/vertical-38-reject-raw-html
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/vertical-38-reject-raw-html
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Classify unresolved variable-length HNIDs at decode boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          messages = Path('src/pst/messages.rs')
+          text = messages.read_text()
+          old = '''fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u8>> {
+              match properties.value(tag)?.decoded.as_ref() {
+                  Some(MapiValue::Binary(bytes)) if bytes.len() != size_of::<u32>() => Some(bytes.clone()),
+                  _ => None,
+              }
+          }
+          '''
+          new = '''fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u8>> {
+              match properties.value(tag)?.decoded.as_ref() {
+                  Some(MapiValue::Binary(bytes)) => Some(bytes.clone()),
+                  _ => None,
+              }
+          }
+          '''
+          if old not in text:
+              raise SystemExit('messages binary_property_bytes target not found')
+          text = text.replace(old, new, 1)
+          messages.write_text(text)
+
+          pc = Path('src/pst/property_context.rs')
+          text = pc.read_text()
+          old = '''            let decoded = match decode_value(def.value_type, &entry.value) {
+                  Ok(value) => Some(value),
+                  Err(_) => {
+                      decode_error_count += 1;
+                      None
+                  }
+              };
+          '''
+          new = '''            let unresolved_variable_hnid = matches!(
+                  def.value_type,
+                  crate::pst::mapi::MapiValueType::String
+                      | crate::pst::mapi::MapiValueType::String8
+                      | crate::pst::mapi::MapiValueType::Binary
+              ) && entry.value.len() == size_of::<u32>();
+              let decoded = if unresolved_variable_hnid {
+                  None
+              } else {
+                  match decode_value(def.value_type, &entry.value) {
+                      Ok(value) => Some(value),
+                      Err(_) => {
+                          decode_error_count += 1;
+                          None
+                      }
+                  }
+              };
+          '''
+          if old not in text:
+              raise SystemExit('property context decode target not found')
+          text = text.replace(old, new, 1)
+
+          old = '''                    status: selected_property_status(raw_tag, interpreted),
+          '''
+          new = '''                    status: if unresolved_variable_hnid {
+                          format!(
+                              "{}; unresolved_variable_hnid",
+                              selected_property_status(raw_tag, interpreted)
+                          )
+                      } else {
+                          selected_property_status(raw_tag, interpreted)
+                      },
+          '''
+          if old not in text:
+              raise SystemExit('property context status target not found')
+          text = text.replace(old, new, 1)
+          pc.write_text(text)
+          PY
+          cargo fmt --all
+          cargo test --all
+          cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - name: Commit refinement
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pst/messages.rs src/pst/property_context.rs
+          git commit -m "Classify unresolved variable-length HNIDs"
+          git push origin HEAD:agent/vertical-38-reject-raw-html
