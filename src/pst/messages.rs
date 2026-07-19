@@ -165,10 +165,8 @@ fn body_type_summary(payloads: &[BodyPayload]) -> String {
 }
 
 fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u8>> {
-    let value = properties.value(tag)?;
-    match value.decoded.as_ref() {
+    match properties.value(tag)?.decoded.as_ref() {
         Some(MapiValue::Binary(bytes)) => Some(bytes.clone()),
-        _ if !value.raw.is_empty() => Some(value.raw.clone()),
         _ => None,
     }
 }
@@ -252,6 +250,77 @@ mod tests {
         assert_eq!(payloads.len(), 2);
         assert_eq!(payloads[0].record.body_type, "text");
         assert_eq!(payloads[1].record.body_type, "html");
+    }
+
+    #[test]
+    fn rejects_raw_only_binary_html_property() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_HTML,
+            PropertyValue {
+                tag: PR_HTML,
+                name: "body_html".to_string(),
+                raw: vec![0x7f, 0x80, 0x00, 0x00],
+                decoded: None,
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext::from_values(values);
+
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        let report = body_coverage_report(&properties, &payloads);
+
+        assert!(payloads.is_empty());
+        assert!(report.html_property_present);
+        assert_eq!(report.supported_body_property_count, 1);
+        assert_eq!(report.extracted_payload_count, 0);
+        assert_eq!(report.fallback_record_count, 1);
+        assert_eq!(
+            report.status,
+            "body_payload_properties_present_but_unusable; supported_body_properties=1"
+        );
+    }
+
+    #[test]
+    fn preserves_plain_body_when_binary_html_is_unresolved() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_BODY,
+            PropertyValue {
+                tag: PR_BODY,
+                name: "body_text".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("Plain body remains available".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_HTML,
+            PropertyValue {
+                tag: PR_HTML,
+                name: "body_html".to_string(),
+                raw: vec![0x7f, 0x80, 0x00, 0x00],
+                decoded: None,
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext::from_values(values);
+
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        let report = body_coverage_report(&properties, &payloads);
+
+        assert_eq!(payloads.len(), 1);
+        assert_eq!(payloads[0].record.body_type, "text");
+        assert_eq!(payloads[0].bytes, b"Plain body remains available");
+        assert!(report.text_property_present);
+        assert!(report.html_property_present);
+        assert_eq!(report.supported_body_property_count, 2);
+        assert_eq!(report.extracted_payload_count, 1);
+        assert_eq!(report.fallback_record_count, 0);
+        assert_eq!(
+            report.status,
+            "body_payload_extracted; payloads=1; supported_body_properties=2; body_types=text"
+        );
     }
 
     #[test]
