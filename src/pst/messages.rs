@@ -166,7 +166,7 @@ fn body_type_summary(payloads: &[BodyPayload]) -> String {
 
 fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u8>> {
     match properties.value(tag)?.decoded.as_ref() {
-        Some(MapiValue::Binary(bytes)) => Some(bytes.clone()),
+        Some(MapiValue::Binary(bytes)) if bytes.len() != size_of::<u32>() => Some(bytes.clone()),
         _ => None,
     }
 }
@@ -250,6 +250,34 @@ mod tests {
         assert_eq!(payloads.len(), 2);
         assert_eq!(payloads[0].record.body_type, "text");
         assert_eq!(payloads[1].record.body_type, "html");
+    }
+
+    #[test]
+    fn rejects_decoded_four_byte_binary_html_reference() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_HTML,
+            PropertyValue {
+                tag: PR_HTML,
+                name: "body_html".to_string(),
+                raw: vec![0x7f, 0x80, 0x00, 0x00],
+                decoded: Some(MapiValue::Binary(vec![0x7f, 0x80, 0x00, 0x00])),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext::from_values(values);
+
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        let report = body_coverage_report(&properties, &payloads);
+
+        assert!(payloads.is_empty());
+        assert!(report.html_property_present);
+        assert_eq!(report.supported_body_property_count, 1);
+        assert_eq!(report.extracted_payload_count, 0);
+        assert_eq!(
+            report.status,
+            "body_payload_properties_present_but_unusable; supported_body_properties=1"
+        );
     }
 
     #[test]
