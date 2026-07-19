@@ -1,6 +1,6 @@
 # PSTD Roadmap
 
-_Last reviewed: 18 July 2026._
+_Last reviewed: 20 July 2026._
 
 ## Objective
 
@@ -128,21 +128,28 @@ Complete in PR #464. The Tika contract now asserts all eight folder records, Uni
 
 ### Independent body-form selection
 
-Complete in Vertical 38. Binary body admission now rejects four-byte Property Context HNID cells, emits explicit unavailable forms, and preserves independently valid sibling payloads. The body-types fixture selects its 37-byte plain body while leaving HTML unresolved. The Tika parent and embedded child likewise retain exact plain bodies, attachment payloads and EML bytes while two invalid four-byte HTML files disappear. Exact evidence is recorded in [Vertical 38](../operations/vertical-38-reject-unresolved-binary-body-references.md).
+Complete in Vertical 38 / PR #470. Binary body admission now rejects four-byte Property Context HNID cells, emits explicit unavailable forms, and preserves independently valid sibling payloads. The body-types fixture selects its 37-byte plain body while leaving HTML unresolved. The Tika parent and embedded child likewise retain exact plain bodies, attachment payloads and EML bytes while two invalid four-byte HTML files disappear. Exact evidence is recorded in [Vertical 38](../operations/vertical-38-reject-unresolved-binary-body-references.md).
+
+### ANSI header diagnostics
+
+Complete in Vertical 39 / PR #473. PSTD decodes ANSI version-14 and version-15 NBT/BBT root offsets as 32-bit values and reads the variant-specific crypt-method byte. Controlled synthetic tests lock the exact values and prove adjacent bytes cannot contaminate the fields. These values remain diagnostic-only: no ANSI root is admitted to page traversal, and no ANSI folders, messages, bodies, recipients, attachments or EML are emitted.
 
 ## Current milestone
 
-### First pinned public ANSI PST baseline
+### First approved real ANSI PST baseline
 
-Add one approved ANSI fixture, lock provenance and hash, then measure folder, message, body, recipient and attachment behavior without relaxing the Unicode parser contracts.
+Obtain or reproducibly generate one redistributable version-14 or version-15 PST. Lock immutable provenance, redistribution basis, exact byte size and SHA-256, then measure header classification and fail-closed root-page behavior without relaxing the Unicode parser contracts.
+
+ANSI traversal must remain disabled until the fixture establishes bounded, variant-correct BBT/NBT page evidence. Synthetic header tests do not qualify as extraction compatibility evidence.
 
 ## Following fixture sequence
 
-After the ANSI baseline:
+After the real ANSI baseline:
 
-1. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
-2. validate contacts and distribution-list entries without forcing them through the normal email path;
-3. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
+1. implement the smallest bounded ANSI BBT/NBT traversal slice supported by exact fixture evidence;
+2. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
+3. validate contacts and distribution-list entries without forcing them through the normal email path;
+4. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
 
 ## Completion definition for reliable extraction
 
