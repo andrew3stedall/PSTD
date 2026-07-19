@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::eml::materialize_embedded_message_payloads;
+use crate::engine::message_folder_ownership::resolve_folder_ownership;
 use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::ids;
 use crate::output::metadata::{
@@ -26,6 +27,7 @@ use crate::pst::folder_tree::{
 use crate::pst::header::PstHeader;
 use crate::pst::limits::ParserLimits;
 use crate::pst::message_metadata::{message_from_properties, status_row};
+use crate::pst::message_ownership::MessageOwnershipResolution;
 use crate::pst::message_table::{classify_message_candidate, discover_message_tables};
 use crate::pst::messages::{
     body_coverage_report, body_payloads_from_properties, unavailable_body_record, BodyPayload,
@@ -173,6 +175,25 @@ pub fn extract_metadata(
     let message_table_discovery =
         discover_message_tables(&nbt, &folder_discovery.folder_key_by_node_identity);
     let message_membership_status = message_table_discovery.message_membership_status();
+    let folder_path_by_key: HashMap<_, _> = folders
+        .iter()
+        .map(|folder| (folder.folder_key.clone(), folder.folder_path.clone()))
+        .collect();
+    let ownership_report = resolve_folder_ownership(
+        &reader,
+        &bbt,
+        &nbt,
+        &message_table_discovery,
+        &folder_path_by_key,
+        limits,
+    );
+    for diagnostic in &ownership_report.diagnostics {
+        issues.push(StatusRecord::info(
+            run_id,
+            "vertical37_message_folder_ownership",
+            diagnostic.clone(),
+        ));
+    }
 
     if !nbt.entries.is_empty() {
         let non_message_entries = nbt
@@ -214,14 +235,27 @@ pub fn extract_metadata(
     } else {
         for entry in message_table_discovery.message_candidates.iter().take(1000) {
             let message_key = ids::message_key(pst_id, &node_identity(entry));
+            let (owner_folder_key, owner_folder_path, ownership_status) =
+                match ownership_report.resolutions.get(&entry.node_id) {
+                    Some(MessageOwnershipResolution::Resolved(owner)) => (
+                        owner.folder_key.as_str(),
+                        owner.folder_path.as_str(),
+                        owner.status.clone(),
+                    ),
+                    Some(MessageOwnershipResolution::Unresolved { status })
+                    | Some(MessageOwnershipResolution::Ambiguous { status }) => {
+                        ("", "", status.clone())
+                    }
+                    None => ("", "", "message_table_membership_absent".to_string()),
+                };
             let candidate_status = classify_message_candidate(entry)
                 .map(|candidate| {
                     format!(
-                        "{}; {}",
-                        candidate.membership_status, message_membership_status
+                        "{}; {}; {}",
+                        candidate.membership_status, message_membership_status, ownership_status
                     )
                 })
-                .unwrap_or_else(|| message_membership_status.clone());
+                .unwrap_or_else(|| format!("{}; {}", message_membership_status, ownership_status));
             match load_node_property_context(&reader, &bbt, entry, limits) {
                 Ok(loaded) => {
                     pq6_property_loaded_messages += 1;
@@ -232,8 +266,8 @@ pub fn extract_metadata(
                     let mut message = message_from_properties(
                         run_id,
                         pst_id,
-                        &root_folder.folder_key,
-                        &root_folder.folder_path,
+                        owner_folder_key,
+                        owner_folder_path,
                         entry.node_id,
                         &loaded.properties,
                     );
@@ -535,8 +569,8 @@ pub fn extract_metadata(
                     messages.push(candidate_message(
                         run_id,
                         pst_id,
-                        &root_folder.folder_key,
-                        &root_folder.folder_path,
+                        owner_folder_key,
+                        owner_folder_path,
                         entry,
                         &candidate_status,
                     ));
