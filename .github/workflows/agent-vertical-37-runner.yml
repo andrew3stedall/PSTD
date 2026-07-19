@@ -23,12 +23,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          awk '
-            extracting && /^          PY$/ { exit }
-            extracting { sub(/^          /, ""); print }
-            /^          python3 - <<'\''PY'\''$/ { extracting = 1 }
-          ' .github/workflows/agent-vertical-37-membership-transport.yml > /tmp/vertical37.py
-          test -s /tmp/vertical37.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/agent-vertical-37-membership-transport.yml').read_text()
+          start_marker = "          from pathlib import Path\n"
+          end_marker = "          PY\n"
+          start = workflow.index(start_marker)
+          end = workflow.index(end_marker, start)
+          body = workflow[start:end]
+          lines = []
+          for line in body.splitlines():
+              if not line.startswith('          '):
+                  raise SystemExit(f'unexpected patch indentation: {line!r}')
+              lines.append(line[10:])
+          Path('/tmp/vertical37.py').write_text('\n'.join(lines) + '\n')
+          PY
           python3 /tmp/vertical37.py
           cargo fmt --all
           cargo test message_ownership --all --quiet
