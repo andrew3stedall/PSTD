@@ -223,6 +223,23 @@ jobs:
               raise SystemExit(f'embedded child ownership changed: {child!r}')
           if len(bodies) != 10:
               raise SystemExit(f'unexpected body record count: {len(bodies)}')
+          unresolved_html = sorted(
+              body['message_key']
+              for body in bodies
+              if body['body_type'] == 'html'
+              and body['size_bytes'] == 0
+              and body['status'] == (
+                  'body_payload_property_present_but_unresolved; body_type=html'
+              )
+              and not (archive / body['archive_path']).exists()
+          )
+          if unresolved_html != [
+              'msg_0ff529af59d373d5',
+              'msg_c6163b9157944cc9',
+          ]:
+              raise SystemExit(
+                  f'unexpected unresolved HTML body evidence: {unresolved_html!r}'
+              )
           expected_recipients = [
               {
                   'recipient_key': 'rcpt_379c07577f6a2435',
@@ -613,8 +630,8 @@ jobs:
               'body_records': 10,
               'recipient_records': 9,
               'attachment_records': 2,
-              'body_payload_files': 8,
-              'body_payload_bytes': 279,
+              'body_payload_files': 6,
+              'body_payload_bytes': 271,
               'attachment_payload_files': 2,
               'attachment_payload_bytes': 12315,
               'eml_files': 2,
