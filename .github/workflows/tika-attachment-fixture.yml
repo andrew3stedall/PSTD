@@ -460,7 +460,7 @@ jobs:
               'conversation_topic': 'First email',
               'normalized_subject': '\u0001\u0001first email',
               'has_text_body': True,
-              'has_html_body': True,
+              'has_html_body': False,
               'has_attachments': False,
               'attachment_count': 0,
               'metadata_status': (
@@ -469,8 +469,9 @@ jobs:
                   'unknown_properties=41; decode_errors=0'
               ),
               'body_status': (
-                  'body_payload_extracted; payloads=2; '
-                  'supported_body_properties=2; body_types=html,text'
+                  'body_payload_extracted; payloads=1; '
+                  'supported_body_properties=2; body_types=text; '
+                  'preferred_body_type=text; unresolved_body_types=html'
               ),
               'attachment_status': 'attachment_payload_property_absent',
               'extraction_status': 'metadata_and_payload',
@@ -503,9 +504,11 @@ jobs:
                   'body_type': 'html',
                   'archive_path': 'bodies/msg_0ff529af59d373d5.html',
                   'encoding': None,
-                  'size_bytes': 4,
-                  'sha256': '15388341e84d59f83fd7a84932063558ad4cb4cca83256c56416a419452bb68c',
-                  'status': 'extracted',
+                  'size_bytes': 0,
+                  'sha256': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+                  'status': (
+                      'body_payload_property_present_but_unresolved; body_type=html'
+                  ),
               },
           ]
           if embedded_bodies != expected_embedded_bodies:
@@ -514,8 +517,8 @@ jobs:
               b'Docx file attached.\r\n\r\n'
           ):
               raise SystemExit('embedded plain body bytes changed')
-          if (archive / embedded_bodies[1]['archive_path']).read_bytes() != b'\x7f\x83\x00\x00':
-              raise SystemExit('embedded raw HTML evidence bytes changed')
+          if (archive / embedded_bodies[1]['archive_path']).exists():
+              raise SystemExit('embedded raw HTML reference was materialized')
 
           body_payloads = [path for path in (archive / 'bodies').rglob('*') if path.is_file()]
           attachment_payloads = [
