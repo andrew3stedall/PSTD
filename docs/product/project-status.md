@@ -1,6 +1,6 @@
 # PSTD Project Status
 
-_Last reviewed: 19 July 2026._
+_Last reviewed: 20 July 2026._
 
 ## Purpose
 
@@ -20,7 +20,8 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Embedded child EML | Validated through Vertical 35 / PR #457 | The linked child emits one deterministic 453-byte single-part `text/plain` EML with exact headers, CRLF body assembly, and SHA-256; raw HTML bytes remain excluded, and unrelated plain-only messages remain unavailable. |
 | Method-5 child payload | Validated through Vertical 36 / PR #461 | The same exact 453 bytes now publish at the existing method-`5` archive path as `message/rfc822`; key, ordinal, owner and child link remain stable, with fail-closed duplicate, mismatch and nesting rejection. |
 | Tika folder/message ownership | Validated through Vertical 37 / PR #464 | All eight folder records are exact; seven top-level messages resolve once from `node_802e` row keys to `/Début du fichier de données Outlook`; the linked embedded child remains isolated. |
-| Independent body forms | Validated through Vertical 38 | Four-byte Property Context body locators remain explicit unavailable forms; the body-types fixture selects its valid 37-byte plain body, and the Tika parent/child retain plain text without materializing invalid HTML. |
+| Independent body forms | Validated through Vertical 38 / PR #470 | Four-byte Property Context body locators remain explicit unavailable forms; the body-types fixture selects its valid 37-byte plain body, and the Tika parent/child retain plain text without materializing invalid HTML. |
+| ANSI header diagnostics | Validated through Vertical 39 / PR #473 | Versions 14 and 15 use variant-correct 32-bit NBT/BBT root offsets and the ANSI crypt-method location. Values are diagnostic only; ANSI roots cannot authorize traversal or extraction. Synthetic tests prevent adjacent-byte contamination. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
 
 ## Tika Vertical 36 evidence
@@ -79,11 +80,11 @@ The removed eight bytes were two Property Context HNID cells, not HTML. Parent a
 
 ## Latest completed work
 
-Vertical 38 rejects four-byte binary body locators at the common body accessor, records unresolved forms for top-level and embedded messages, and selects valid plain-text siblings deterministically. Exact evidence is recorded in [Vertical 38](../operations/vertical-38-reject-unresolved-binary-body-references.md).
+Vertical 39 decodes ANSI version-14 and version-15 header diagnostics with ANSI-specific field widths and offsets while deliberately withholding all ANSI traversal roots. Exact behavior is protected by controlled synthetic tests, and all approved Unicode fixture contracts remain unchanged.
 
 ## Next evidence-based milestone
 
-Add and measure the first pinned public ANSI PST baseline without weakening the approved Unicode fixture contracts.
+Obtain or reproducibly generate one approved, redistributable ANSI PST fixture, lock its provenance, size and SHA-256, and establish exact fail-closed header and root-page evidence before enabling any ANSI BBT/NBT traversal.
 
 ## Validation expectations
 
@@ -91,4 +92,4 @@ Every extraction PR must pass formatting, clippy with warnings denied, all Rust 
 
 ## Risk statement
 
-The new result is evidence for one approved Unicode PST, not broad PST compatibility. The sender's Exchange distinguished name is preserved but not SMTP-resolved. ANSI files, uncommon or corrupt layouts, nested embedded attachments, contacts/distribution lists, and many MAPI property combinations remain incomplete.
+The current result is material evidence for approved Unicode fixtures plus synthetic ANSI header-layout tests, not broad PST compatibility. The sender's Exchange distinguished name is preserved but not SMTP-resolved. Real ANSI traversal, uncommon or corrupt layouts, nested embedded attachments, contacts/distribution lists, and many MAPI property combinations remain incomplete.

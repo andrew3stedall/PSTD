@@ -4,14 +4,14 @@ PSTD is a Rust-first tool for extracting email data from Microsoft Outlook PST f
 
 ## Current position
 
-_Last reviewed: 19 July 2026._
+_Last reviewed: 20 July 2026._
 
 | Area | State on `main` | Current result |
 |---|---|---|
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
-| Vertical extraction sequence | Complete through Vertical 38 | Four-byte Property Context body locators now remain explicit unavailable forms; valid plain-text siblings, ownership, attachments, and EML output remain intact. |
-| Current milestone | First ANSI baseline | Pin and measure a public ANSI PST without weakening the proven Unicode fixture contracts. |
+| Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI version-14/15 header fields are decoded with variant-correct widths but cannot authorize traversal or extraction. |
+| Current milestone | First real ANSI baseline | Obtain or reproducibly generate an approved ANSI PST, pin provenance/size/hash, and measure fail-closed root-page behavior before enabling traversal. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
 
 ## Intent
@@ -68,7 +68,8 @@ The Tika attachment fixture now emits seven top-level messages assigned by exact
 | Vertical 35 / #457 | Emitted the linked child as an exact 453-byte attachmentless `text/plain` EML, authorised from attachment metadata and excluding unrelated unvalidated plain-only messages. |
 | Vertical 36 / #461 | Materialised those exact bytes as the method-`5` `message/rfc822` payload, preserved the parent EML/DOCX, and added fail-closed link and nesting tests. |
 | Vertical 37 / #464 | Corrected table NID classification, decoded seven exact physical contents-table rows, assigned every top-level Tika message to its authoritative Unicode folder, and retained explicit unassigned behavior for unsupported evidence. |
-| Vertical 38 | Rejected four-byte binary body locators, emitted explicit unavailable HTML records, retained valid plain-text siblings, and kept attachment and EML payloads byte-identical. |
+| Vertical 38 / #470 | Rejected four-byte binary body locators, emitted explicit unavailable HTML records, retained valid plain-text siblings, and kept attachment and EML payloads byte-identical. |
+| Vertical 39 / #473 | Decoded ANSI NBT/BBT root offsets as 32-bit fields and the ANSI crypt-method byte for diagnostics only; synthetic version-14/15 tests ensure those values cannot enable traversal. |
 
 Detailed point-in-time milestone and experiment records are retained under `docs/`. They are historical evidence, not the current roadmap.
 
@@ -83,11 +84,11 @@ pstd batch --input <pst-file-or-directory> --output <output-dir>
 python -m pstd --help
 ```
 
-Implemented capabilities include bounded parsing of PST headers, BBT/NBT pages, blocks, subnodes, Heap-on-Node allocations, BTH structures, Property Contexts, Table Contexts, row storage, selected MAPI values, folder/message candidates, bodies, recipient evidence, structured outputs, batch state, and public-fixture diagnostics.
+Implemented capabilities include bounded parsing of PST headers, BBT/NBT pages, blocks, subnodes, Heap-on-Node allocations, BTH structures, Property Contexts, Table Contexts, row storage, selected MAPI values, folder/message candidates, bodies, recipient evidence, structured outputs, batch state, and public-fixture diagnostics. ANSI header values are diagnostic-only until a real approved ANSI fixture supports bounded traversal evidence.
 
 ## Important limitations
 
-PSTD is not yet a general-purpose or absolute-coverage PST-to-EML converter. Current evidence is fixture-limited. The Tika sender remains a raw native Exchange distinguished name rather than resolved SMTP; one method-`5` layout is exact, but nested child attachments, broader producers, ANSI files, and uncommon/corrupt layouts remain incomplete. Do not infer broad compatibility from the milestone count.
+PSTD is not yet a general-purpose or absolute-coverage PST-to-EML converter. Current evidence is fixture-limited. The Tika sender remains a raw native Exchange distinguished name rather than resolved SMTP; one method-`5` layout is exact, but nested child attachments, broader producers, real ANSI traversal, and uncommon/corrupt layouts remain incomplete. Do not infer broad compatibility from the milestone count.
 
 ## Validation gate
 
@@ -109,6 +110,7 @@ Approved fixtures must also pass inspect, extract, batch, and deterministic publ
 
 - [Documentation index](docs/README.md)
 - [Current project status](docs/product/project-status.md)
+- [Compatibility matrix](docs/product/compatibility-matrix.md)
 - [Public PST progress log](docs/operations/public-pst-progress-log.md)
 - [Extraction roadmap](docs/product/pstd-v1-roadmap.md)
 - [System overview](docs/architecture/system-overview.md)
