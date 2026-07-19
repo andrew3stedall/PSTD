@@ -7,6 +7,8 @@ use crate::pst::mapi::{
 };
 use crate::pst::property_context::PropertyContext;
 
+const MAX_BINARY_BODY_BYTES: usize = 64 * 1024 * 1024;
+
 #[derive(Debug, Clone)]
 pub struct BodyPayload {
     pub record: BodyRecord,
@@ -21,6 +23,8 @@ pub struct BodyCoverageReport {
     pub supported_body_property_count: usize,
     pub extracted_payload_count: usize,
     pub fallback_record_count: usize,
+    pub unresolved_body_types: Vec<String>,
+    pub preferred_body_type: Option<String>,
     pub status: String,
 }
 
@@ -66,8 +70,26 @@ pub fn body_coverage_report(
     .filter(|present| **present)
     .count();
     let extracted_payload_count = payloads.len();
-    let fallback_record_count = usize::from(extracted_payload_count == 0);
-    let status = if extracted_payload_count > 0 {
+    let unresolved_body_types = unresolved_body_types(
+        text_property_present,
+        html_property_present,
+        rtf_property_present,
+        payloads,
+    );
+    let preferred_body_type = preferred_body_type(payloads).map(ToString::to_string);
+    let fallback_record_count = if supported_body_property_count == 0 {
+        1
+    } else {
+        unresolved_body_types.len()
+    };
+    let status = if extracted_payload_count > 0 && !unresolved_body_types.is_empty() {
+        format!(
+            "body_payload_extracted; payloads={extracted_payload_count}; supported_body_properties={supported_body_property_count}; body_types={}; preferred_body_type={}; unresolved_body_types={}",
+            body_type_summary(payloads),
+            preferred_body_type.as_deref().unwrap_or("none"),
+            unresolved_body_types.join(",")
+        )
+    } else if extracted_payload_count > 0 {
         format!(
             "body_payload_extracted; payloads={extracted_payload_count}; supported_body_properties={supported_body_property_count}; body_types={}",
             body_type_summary(payloads)
@@ -87,8 +109,29 @@ pub fn body_coverage_report(
         supported_body_property_count,
         extracted_payload_count,
         fallback_record_count,
+        unresolved_body_types,
+        preferred_body_type,
         status,
     }
+}
+
+pub fn unresolved_body_records(
+    message_key: &str,
+    report: &BodyCoverageReport,
+) -> Vec<BodyRecord> {
+    report
+        .unresolved_body_types
+        .iter()
+        .map(|body_type| {
+            unavailable_body_record(
+                message_key,
+                body_type,
+                &format!(
+                    "body_payload_property_present_but_unresolved; body_type={body_type}"
+                ),
+            )
+        })
+        .collect()
 }
 
 pub fn text_body_payload(message_key: &str, text: &str) -> BodyPayload {
@@ -150,6 +193,32 @@ pub fn body_extension(body_type: &str) -> &'static str {
     }
 }
 
+fn unresolved_body_types(
+    text_property_present: bool,
+    html_property_present: bool,
+    rtf_property_present: bool,
+    payloads: &[BodyPayload],
+) -> Vec<String> {
+    [("text", text_property_present), ("html", html_property_present), ("rtf", rtf_property_present)]
+        .into_iter()
+        .filter(|(body_type, present)| {
+            *present
+                && !payloads
+                    .iter()
+                    .any(|payload| payload.record.body_type == *body_type)
+        })
+        .map(|(body_type, _)| body_type.to_string())
+        .collect()
+}
+
+fn preferred_body_type(payloads: &[BodyPayload]) -> Option<&'static str> {
+    ["html", "text", "rtf"].into_iter().find(|body_type| {
+        payloads
+            .iter()
+            .any(|payload| payload.record.body_type == *body_type)
+    })
+}
+
 fn body_type_summary(payloads: &[BodyPayload]) -> String {
     let mut body_types = payloads
         .iter()
@@ -167,8 +236,11 @@ fn body_type_summary(payloads: &[BodyPayload]) -> String {
 fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u8>> {
     let value = properties.value(tag)?;
     match value.decoded.as_ref() {
-        Some(MapiValue::Binary(bytes)) => Some(bytes.clone()),
-        _ if !value.raw.is_empty() => Some(value.raw.clone()),
+        Some(MapiValue::Binary(bytes))
+            if !bytes.is_empty() && bytes.len() <= MAX_BINARY_BODY_BYTES =>
+        {
+            Some(bytes.clone())
+        }
         _ => None,
     }
 }
@@ -186,6 +258,7 @@ mod tests {
     use super::{
         body_coverage_report, body_extension, body_payloads_from_properties, html_body_payload,
         html_string_body_payload, text_body_payload, unavailable_body_record,
+        unresolved_body_records,
     };
     use crate::pst::mapi::{
         MapiValue, PR_BODY, PR_BODY_A, PR_HTML, PR_HTML_STRING, PR_HTML_STRING_A, PR_RTF_COMPRESSED,
@@ -288,6 +361,77 @@ mod tests {
         assert!(report.text_property_present);
         assert!(report.html_property_present);
         assert_eq!(report.supported_body_property_count, 2);
+    }
+
+    #[test]
+    fn leaves_undecoded_binary_reference_unresolved() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_HTML,
+            PropertyValue {
+                tag: PR_HTML,
+                name: "body_html".to_string(),
+                raw: vec![0x7f, 0x80, 0x00, 0x00],
+                decoded: None,
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext::from_values(values);
+
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        let report = body_coverage_report(&properties, &payloads);
+        let records = unresolved_body_records("msg_123", &report);
+
+        assert!(payloads.is_empty());
+        assert_eq!(report.unresolved_body_types, vec!["html"]);
+        assert_eq!(report.preferred_body_type, None);
+        assert_eq!(report.fallback_record_count, 1);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].body_type, "html");
+        assert_eq!(records[0].size_bytes, 0);
+        assert_eq!(
+            records[0].status,
+            "body_payload_property_present_but_unresolved; body_type=html"
+        );
+    }
+
+    #[test]
+    fn selects_plain_text_when_html_is_unresolved() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_BODY,
+            PropertyValue {
+                tag: PR_BODY,
+                name: "body_text".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("Plain body".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_HTML,
+            PropertyValue {
+                tag: PR_HTML,
+                name: "body_html".to_string(),
+                raw: vec![0x7f, 0x80, 0x00, 0x00],
+                decoded: None,
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext::from_values(values);
+
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        let report = body_coverage_report(&properties, &payloads);
+
+        assert_eq!(payloads.len(), 1);
+        assert_eq!(payloads[0].record.body_type, "text");
+        assert_eq!(report.preferred_body_type.as_deref(), Some("text"));
+        assert_eq!(report.unresolved_body_types, vec!["html"]);
+        assert_eq!(report.fallback_record_count, 1);
+        assert_eq!(
+            report.status,
+            "body_payload_extracted; payloads=1; supported_body_properties=2; body_types=text; preferred_body_type=text; unresolved_body_types=html"
+        );
     }
 
     #[test]
