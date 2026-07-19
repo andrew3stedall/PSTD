@@ -90,4 +90,4 @@ The draft PR runs:
 
 ## Next boundary
 
-Resolve a body HNID only through the owning node's bounded heap/subnode context, then require fixture evidence for the resulting bytes before classifying the form as extracted. ANSI PST support remains a separate later baseline.
+Establish the first pinned public ANSI PST baseline without weakening the approved Unicode fixture contracts. External body-HNID resolution remains deferred until a fixture can prove the owning heap/subnode context and exact resulting bytes.
