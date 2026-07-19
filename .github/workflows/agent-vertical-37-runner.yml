@@ -1,0 +1,39 @@
+name: Agent Vertical 37 Runner
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.repository == 'andrew3stedall/PSTD' && github.head_ref == 'agent/vertical-37-membership-transport-v2'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/vertical-37-membership-transport-v2
+          fetch-depth: 0
+
+      - name: Extract and apply bounded patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -n '27,360p' .github/workflows/agent-vertical-37-membership-transport.yml \
+            | sed 's/^          //' > /tmp/vertical37.py
+          python3 /tmp/vertical37.py
+          cargo fmt --all
+          cargo test message_ownership --all --quiet
+          cargo test message_table --all --quiet
+          cargo test message_table_membership --all --quiet
+          git diff --check
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/pst/message_table_membership.rs src/pst/mod.rs src/pst/message_table.rs src/engine/metadata.rs
+          git commit -m 'Transport exact contents-table membership'
+          git push origin HEAD:agent/vertical-37-membership-transport-v2
