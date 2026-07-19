@@ -22,7 +22,8 @@ Track compatibility by independently testable capability and approved fixture. P
 | Capability | Original public fixture | Apache Tika `testPST.pst` | Required next evidence |
 |---|---|---|---|
 | Unicode PST header and root discovery | Exact | Exact | Additional Unicode producers and large files |
-| ANSI PST header and root discovery | Not exercised | Not exercised | Pinned public ANSI PST fixture with NDB version 14 or 15 |
+| ANSI PST header diagnostics | Not exercised | Not exercised | Synthetic version-14/15 tests are exact for field width, offsets and fail-closed traversal; a pinned real ANSI fixture is still required |
+| ANSI PST root traversal and extraction | Unsupported | Unsupported | Approved version-14 or version-15 fixture with provenance, size, SHA-256 and exact root-page evidence |
 | Folder hierarchy | Exact | Exact: eight folder records and seven physical message owners | Additional producers, deleted-item cases, and multi-folder message corpora |
 | Message discovery | Exact: 1 message | Exact: 8 messages including one embedded child | Multi-folder and deleted/recovered-message cases |
 | Subject and sender metadata | Exact | Exact for validated messages | Broader property combinations and encodings |
@@ -55,17 +56,18 @@ Track compatibility by independently testable capability and approved fixture. P
 
 ## Current release interpretation
 
-PSTD currently demonstrates a material Unicode email extraction path, including recipients, bodies, one by-value DOCX attachment, one attachment-bearing parent EML, and one separately recovered child whose exact EML is also published as a method-`5` `message/rfc822` payload. This is evidence for the approved fixtures only. It is not evidence of general PST compatibility.
+PSTD currently demonstrates a material Unicode email extraction path, including recipients, bodies, one by-value DOCX attachment, one attachment-bearing parent EML, and one separately recovered child whose exact EML is also published as a method-`5` `message/rfc822` payload. It also has exact synthetic evidence for variant-correct ANSI header diagnostics. Neither result is evidence of general PST compatibility, and the ANSI diagnostics do not authorize page traversal or extraction.
 
 No capability may be promoted to broadly supported solely because it passes one fixture. Promotion requires representative fixtures from more than one producer or a controlled structural corpus, exact regression evidence, and explicit malformed-input behaviour.
 
 ## Immediate sequence
 
-1. Qualify and pin a genuinely ANSI public PST whose header declares NDB version 14 or 15; do not accept a fixture based on its filename, age, or ANSI string properties alone.
-2. Establish exact header, root-page, folder, message, recipient, body, and failure baselines without relaxing the proven Unicode contracts.
-3. Validate typed appointments, contacts, and distribution lists without forcing non-mail objects into EML.
-4. Broaden attachment methods, inline/CID handling, nested messages, and authoritative Exchange-to-SMTP resolution from additional fixtures.
-5. Add deterministic corrupt and ambiguous fixture cases before production-readiness claims.
+1. Obtain or reproducibly generate a genuinely ANSI PST whose header declares NDB version 14 or 15, with approved redistribution terms and immutable provenance.
+2. Lock its exact byte size, SHA-256, header classification, encryption state and initial fail-closed output.
+3. Establish bounded BBT/NBT root-page evidence before exposing any ANSI folder, message, body, recipient, attachment or EML records.
+4. Validate typed appointments, contacts and distribution lists without forcing non-mail objects into EML.
+5. Broaden attachment methods, inline/CID handling, nested messages and authoritative Exchange-to-SMTP resolution from additional fixtures.
+6. Add deterministic corrupt and ambiguous fixture cases before production-readiness claims.
 
 The libyal public `pst/outlook.pst` candidate was checked on 20 July 2026 and rejected for this milestone: bytes 10-11 declare NDB version 23, which is Unicode. It remains a potentially useful additional Unicode-producer fixture, but it cannot provide ANSI evidence.
 
