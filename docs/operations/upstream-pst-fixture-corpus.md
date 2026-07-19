@@ -1,6 +1,6 @@
 # Upstream PST fixture corpus
 
-_Last reviewed: 18 July 2026._
+_Last reviewed: 20 July 2026._
 
 ## Purpose
 
@@ -86,9 +86,9 @@ The payload is written to:
 attachments/msg_c6163b9157944cc9/att_0695091e19397627_attachment.docx
 ```
 
-Filename evidence is recorded in [Vertical 29](vertical-29-expose-docx-attachment-filename.md), exact reference-resolution evidence in [Vertical 30](vertical-30-resolve-docx-attachment-data-reference.md), and DOCX payload evidence in [Vertical 31](vertical-31-emit-docx-attachment-payload.md). Recipient and outer-EML evidence is recorded in Verticals 32-33, embedded-message recovery in [Vertical 34](vertical-34-recover-tika-embedded-message.md), exact child EML evidence in [Vertical 35](vertical-35-emit-tika-child-eml.md), method-`5` payload evidence in [Vertical 36](vertical-36-materialise-method5-eml-payload.md), and complete folder/message ownership in [Vertical 37](vertical-37-resolve-tika-message-folder-ownership.md).
+Filename evidence is recorded in [Vertical 29](vertical-29-expose-docx-attachment-filename.md), exact reference-resolution evidence in [Vertical 30](vertical-30-resolve-docx-attachment-data-reference.md), and DOCX payload evidence in [Vertical 31](vertical-31-emit-docx-attachment-payload.md). Recipient and outer-EML evidence is recorded in Verticals 32-33, embedded-message recovery in [Vertical 34](vertical-34-recover-tika-embedded-message.md), exact child EML evidence in [Vertical 35](vertical-35-emit-tika-child-eml.md), method-`5` payload evidence in [Vertical 36](vertical-36-materialise-method5-eml-payload.md), complete folder/message ownership in [Vertical 37](vertical-37-resolve-tika-message-folder-ownership.md), and fail-closed independent body-form selection in [Vertical 38](vertical-38-reject-unresolved-binary-body-references.md).
 
-The fixture now produces two deterministic EML files: the unchanged 17,035-byte parent with the exact DOCX and a 453-byte single-part plain-text child. The child EML is also published byte-for-byte as the method-`5` `message/rfc822` attachment payload at the stable attachment path. Attachment payload output is 2 files / 12,315 bytes. All eight folder records and all seven top-level physical owners are exact; the next fixture boundary is independent body-form selection.
+The fixture now produces two deterministic EML files: the unchanged 17,035-byte parent with the exact DOCX and a 453-byte single-part plain-text child. The child EML is also published byte-for-byte as the method-`5` `message/rfc822` attachment payload at the stable attachment path. Attachment payload output is 2 files / 12,315 bytes. All eight folder records and all seven top-level physical owners are exact. Two four-byte Property Context HTML locators are retained as explicit unavailable forms rather than emitted as payloads.
 
 ### Apache Tika `testPST_variousBodyTypes.pst`
 
@@ -98,7 +98,7 @@ The fixture now produces two deterministic EML files: the unchanged 17,035-byte 
 - Source URL: `https://github.com/apache/tika/blob/63e22d08ef249cc73a6d02da7bc199fc3623a607/tika-parsers/tika-parsers-standard/tika-parsers-standard-modules/tika-parser-microsoft-module/src/test/resources/test-documents/testPST_variousBodyTypes.pst`
 - Upstream project licence: Apache License 2.0
 
-Apache Tika's regression test expects five recursive metadata objects and uses the fixture specifically to exercise PST messages with different body forms. PSTD should use it after ordinary message extraction is stable on the attachment fixture to validate independent plain-text, HTML, and RTF selection rather than relying only on the current HTML-derived RTF case.
+Apache Tika's regression test expects five recursive metadata objects and uses the fixture specifically to exercise PST messages with different body forms. PSTD now locks the valid 37-byte plain body while retaining the four-byte HTML locator as an explicit unavailable form.
 
 ### java-libpst `dist-list.pst`
 
@@ -118,6 +118,20 @@ java-libpst's tests document:
 - one stored contact and two one-off recipients.
 
 This fixture should be introduced only after ordinary mail-message extraction is stable across the Tika samples. Appointment and distribution-list objects must not be forced through the normal email path.
+
+## ANSI fixture qualification
+
+The first ANSI baseline must be proven from the PST header before it is approved. The accepted file must have:
+
+- `!BDN` at bytes 0-3;
+- PST client magic `SM` at bytes 8-9;
+- NDB version 14 or 15 at bytes 10-11;
+- a public, redistributable source with a pinned commit or immutable release;
+- exact size and SHA-256 recorded before parser behaviour is measured.
+
+The libyal public candidate `libyal/testdata:pst/outlook.pst` was inspected on 20 July 2026 and rejected for the ANSI milestone. Its bytes 10-11 are `17 00`, declaring NDB version 23 (Unicode). The filename, project age, and presence of ANSI string support are not evidence that a PST uses the 32-bit ANSI format. This file may later broaden Unicode producer coverage, but it must not be represented as ANSI evidence.
+
+No extraction code should be changed until a qualifying version-14 or version-15 fixture is pinned. If no redistributable file can be found, the next safe step is a controlled synthetic ANSI structure with documented generation provenance, not relabelling a Unicode sample.
 
 ## Address-type boundary
 
