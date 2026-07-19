@@ -290,7 +290,9 @@ mod tests {
                 tag: PR_BODY,
                 name: "body_text".to_string(),
                 raw: Vec::new(),
-                decoded: Some(MapiValue::String("Plain body remains available".to_string())),
+                decoded: Some(MapiValue::String(
+                    "Plain body remains available".to_string(),
+                )),
                 status: "selected".to_string(),
             },
         );
