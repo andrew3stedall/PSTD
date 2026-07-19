@@ -882,15 +882,20 @@ fn recover_embedded_message(
         body_payloads_from_properties(&message.message_key, &candidate.property_report.context);
     let body_report =
         body_coverage_report(&candidate.property_report.context, &loaded_body_payloads);
+    let unresolved_body_records = unresolved_body_records(&message.message_key, &body_report);
     let mut bodies = Vec::new();
     let mut body_payloads = Vec::new();
     if loaded_body_payloads.is_empty() {
         message.body_status = body_report.status.clone();
-        bodies.push(unavailable_body_record(
-            &message.message_key,
-            "text",
-            &body_report.status,
-        ));
+        if unresolved_body_records.is_empty() {
+            bodies.push(unavailable_body_record(
+                &message.message_key,
+                "text",
+                &body_report.status,
+            ));
+        } else {
+            bodies.extend(unresolved_body_records);
+        }
     } else {
         message.has_text_body = loaded_body_payloads
             .iter()
@@ -900,6 +905,7 @@ fn recover_embedded_message(
             .any(|payload| payload.record.body_type == "html");
         message.body_status = body_report.status;
         message.extraction_status = "metadata_and_payload".to_string();
+        bodies.extend(unresolved_body_records);
         for payload in loaded_body_payloads {
             bodies.push(payload.record.clone());
             body_payloads.push(payload);
