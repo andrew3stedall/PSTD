@@ -1,17 +1,20 @@
 use crate::error::{PstdError, PstdResult};
-use crate::pst::binary::{u16_le_at, u64_le_at};
+use crate::pst::binary::{u16_le_at, u32_le_at, u64_le_at};
 use crate::pst::primitives::{ByteOffset, PageRef, PstVariant, RootPointers};
 use crate::pst::reader::PstByteReader;
 
 pub const PST_HEADER_MIN_BYTES: usize = 64;
 pub const PST_HEADER_ROOT_CANDIDATE_BYTES: usize = 248;
 pub const PST_HEADER_CRYPT_METHOD_OFFSET: usize = 513;
+pub const PST_ANSI_HEADER_CRYPT_METHOD_OFFSET: usize = 461;
 const PST_HEADER_READ_BYTES: usize = PST_HEADER_CRYPT_METHOD_OFFSET + 1;
 pub const PST_MAGIC: [u8; 4] = [0x21, 0x42, 0x44, 0x4e];
 pub const PST_ROOT_PAGE_SIZE_BYTES: u64 = 512;
 
 const LEGACY_NBT_ROOT_OFFSET_FIELD: usize = 48;
 const LEGACY_BBT_ROOT_OFFSET_FIELD: usize = 56;
+const ANSI_NBT_ROOT_OFFSET_FIELD: usize = 188;
+const ANSI_BBT_ROOT_OFFSET_FIELD: usize = 196;
 const UNICODE_ROOT_BASE_OFFSET: usize = 180;
 const UNICODE_ROOT_NBT_BREF_OFFSET: usize = UNICODE_ROOT_BASE_OFFSET + 36;
 const UNICODE_ROOT_BBT_BREF_OFFSET: usize = UNICODE_ROOT_BASE_OFFSET + 52;
@@ -261,8 +264,16 @@ impl PstHeader {
             _ => PstVariant::Unknown,
         };
 
-        let legacy_bbt_root_offset = read_optional_offset(buf, LEGACY_BBT_ROOT_OFFSET_FIELD)?;
-        let legacy_nbt_root_offset = read_optional_offset(buf, LEGACY_NBT_ROOT_OFFSET_FIELD)?;
+        let (legacy_bbt_root_offset, legacy_nbt_root_offset) = match variant {
+            PstVariant::Ansi => (
+                read_optional_u32_offset(buf, ANSI_BBT_ROOT_OFFSET_FIELD)?,
+                read_optional_u32_offset(buf, ANSI_NBT_ROOT_OFFSET_FIELD)?,
+            ),
+            _ => (
+                read_optional_offset(buf, LEGACY_BBT_ROOT_OFFSET_FIELD)?,
+                read_optional_offset(buf, LEGACY_NBT_ROOT_OFFSET_FIELD)?,
+            ),
+        };
         let candidates = build_root_candidates(
             buf,
             file_size,
@@ -300,7 +311,11 @@ impl PstHeader {
             magic_client: Some(magic_client),
             version: Some(version),
             variant: format!("{:?}", variant).to_lowercase(),
-            crypt_method: buf.get(PST_HEADER_CRYPT_METHOD_OFFSET).copied(),
+            crypt_method: match variant {
+                PstVariant::Unicode => buf.get(PST_HEADER_CRYPT_METHOD_OFFSET).copied(),
+                PstVariant::Ansi => buf.get(PST_ANSI_HEADER_CRYPT_METHOD_OFFSET).copied(),
+                PstVariant::Unknown => None,
+            },
             bbt_root_offset: selected_bbt_root_offset,
             nbt_root_offset: selected_nbt_root_offset,
             root_diagnostics,
@@ -335,13 +350,34 @@ fn build_root_candidates(
         }
     }
 
-    candidates.push(PstRootCandidateDiagnostic::from_offsets(
-        "legacy_header_fields",
+    let mut legacy_candidate = PstRootCandidateDiagnostic::from_offsets(
+        if variant == PstVariant::Ansi {
+            "ansi_root_bref_offsets"
+        } else {
+            "legacy_header_fields"
+        },
         file_size,
         legacy_bbt_root_offset,
         legacy_nbt_root_offset,
-    ));
+    );
+    if variant == PstVariant::Ansi {
+        legacy_candidate.selectable_for_traversal = false;
+        legacy_candidate.condition = "ansi_root_pages_detected_traversal_disabled".to_string();
+    }
+    candidates.push(legacy_candidate);
     Ok(candidates)
+}
+
+fn read_optional_u32_offset(buf: &[u8], start: usize) -> PstdResult<Option<u64>> {
+    if buf.len() < start + 4 {
+        return Ok(None);
+    }
+    let value = u32_le_at(buf, start, 0)? as u64;
+    if value == 0 {
+        Ok(None)
+    } else {
+        Ok(Some(value))
+    }
 }
 
 fn read_optional_offset(buf: &[u8], start: usize) -> PstdResult<Option<u64>> {
@@ -375,5 +411,70 @@ pub fn summarize_version(version: Option<u16>) -> String {
         Some(14) | Some(15) => "ansi".to_string(),
         Some(value) => format!("unknown_version_{value}"),
         None => "unknown".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn synthetic_ansi_header(version: u16) -> Vec<u8> {
+        let mut header = vec![0u8; PST_HEADER_READ_BYTES];
+        header[0..4].copy_from_slice(&PST_MAGIC);
+        header[8..10].copy_from_slice(b"SM");
+        header[10..12].copy_from_slice(&version.to_le_bytes());
+        header[ANSI_NBT_ROOT_OFFSET_FIELD..ANSI_NBT_ROOT_OFFSET_FIELD + 4]
+            .copy_from_slice(&0x0000_0400u32.to_le_bytes());
+        header[ANSI_NBT_ROOT_OFFSET_FIELD + 4..ANSI_NBT_ROOT_OFFSET_FIELD + 8]
+            .copy_from_slice(&0xfeed_beefu32.to_le_bytes());
+        header[ANSI_BBT_ROOT_OFFSET_FIELD..ANSI_BBT_ROOT_OFFSET_FIELD + 4]
+            .copy_from_slice(&0x0000_0800u32.to_le_bytes());
+        header[ANSI_BBT_ROOT_OFFSET_FIELD + 4..ANSI_BBT_ROOT_OFFSET_FIELD + 8]
+            .copy_from_slice(&0xdead_beefu32.to_le_bytes());
+        header[PST_ANSI_HEADER_CRYPT_METHOD_OFFSET] = 1;
+        header[PST_HEADER_CRYPT_METHOD_OFFSET] = 2;
+        header
+    }
+
+    #[test]
+    fn ansi_versions_decode_32_bit_roots_but_do_not_enable_traversal() {
+        for version in [14, 15] {
+            let header = synthetic_ansi_header(version);
+            let parsed = PstHeader::parse_bytes(&header, 0x20_000).unwrap();
+
+            assert_eq!(parsed.variant, PstVariant::Ansi);
+            assert_eq!(
+                parsed.summary.parser_status,
+                "detected_ansi_header_unsupported_for_extraction"
+            );
+            assert_eq!(parsed.summary.magic_client.as_deref(), Some("SM"));
+            assert_eq!(parsed.summary.crypt_method, Some(1));
+            assert!(parsed.roots.bbt_root.is_none());
+            assert!(parsed.roots.nbt_root.is_none());
+            assert_eq!(parsed.summary.bbt_root_offset, None);
+            assert_eq!(parsed.summary.nbt_root_offset, None);
+
+            let candidate = &parsed.summary.root_diagnostics.candidates[0];
+            assert_eq!(candidate.source, "ansi_root_bref_offsets");
+            assert_eq!(candidate.nbt_root.offset, Some(0x400));
+            assert_eq!(candidate.bbt_root.offset, Some(0x800));
+            assert!(!candidate.selectable_for_traversal);
+            assert_eq!(
+                candidate.condition,
+                "ansi_root_pages_detected_traversal_disabled"
+            );
+        }
+    }
+
+    #[test]
+    fn ansi_root_offsets_ignore_adjacent_bytes() {
+        let header = synthetic_ansi_header(14);
+        let parsed = PstHeader::parse_bytes(&header, 0x20_000).unwrap();
+        let candidate = &parsed.summary.root_diagnostics.candidates[0];
+
+        assert_eq!(candidate.nbt_root.offset, Some(0x400));
+        assert_eq!(candidate.bbt_root.offset, Some(0x800));
+        assert_ne!(candidate.nbt_root.offset, Some(0xfeed_beef_0000_0400));
+        assert_ne!(candidate.bbt_root.offset, Some(0xdead_beef_0000_0800));
     }
 }
