@@ -5,9 +5,7 @@ use crate::pst::limits::ParserLimits;
 use crate::pst::message_ownership::{
     resolve_message_ownership, MessageMembershipEvidence, MessageOwnershipResolution,
 };
-use crate::pst::message_table::{
-    message_node_type, node_identity, MessageTableDiscovery,
-};
+use crate::pst::message_table::{message_node_type, node_identity, MessageTableDiscovery};
 use crate::pst::message_table_membership::load_message_table_membership;
 use crate::pst::nbt::NbtIndex;
 use crate::pst::primitives::NodeId;
@@ -127,7 +125,8 @@ mod tests {
             .iter()
             .map(|entry| (entry.node_id, MessageNodeType::NormalMessage))
             .collect();
-        let resolutions = crate::pst::message_ownership::resolve_message_ownership(&candidates, &[]);
+        let resolutions =
+            crate::pst::message_ownership::resolve_message_ownership(&candidates, &[]);
 
         assert!(matches!(
             resolutions.get(&NodeId(0x24)),
