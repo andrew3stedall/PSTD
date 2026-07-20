@@ -1,0 +1,116 @@
+name: Java-libpst typed-object baseline
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo test --all-targets --all-features
+      - name: Capture deterministic java-libpst baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/upstream/java-libpst-dist-list.pst"
+          evidence="/tmp/pstd-java-libpst-baseline"
+          mkdir -p "$evidence" "$evidence/eml-a" "$evidence/eml-b"
+          (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
+
+          for run in a b; do
+            output="$evidence/output-$run"
+            mkdir -p "$output"
+            set +e
+            cargo run -- extract --input "$fixture" --output "$output" --overwrite \
+              > "$evidence/extract-$run.stdout" 2> "$evidence/extract-$run.stderr"
+            extract_status=$?
+            cargo run --bin pstd-eml -- "$fixture" "$evidence/eml-$run" \
+              > "$evidence/eml-$run.stdout" 2> "$evidence/eml-$run.stderr"
+            eml_status=$?
+            set -e
+            printf '%s\n' "$extract_status" > "$evidence/extract-$run-exit-code.txt"
+            printf '%s\n' "$eml_status" > "$evidence/eml-$run-exit-code.txt"
+            if [[ "$extract_status" -ne 0 && "$extract_status" -ne 2 ]]; then
+              echo "Unexpected extraction exit code: $extract_status" >&2
+              exit 1
+            fi
+            if [[ "$eml_status" -ne 0 && "$eml_status" -ne 2 ]]; then
+              echo "Unexpected EML exit code: $eml_status" >&2
+              exit 1
+            fi
+            find "$output" -type f -printf '%P\t%s\n' | sort > "$evidence/output-$run-files.tsv"
+            find "$evidence/eml-$run" -type f -printf '%P\t%s\n' | sort > "$evidence/eml-$run-files.tsv"
+            find "$output" -type f -print0 | sort -z | xargs -0 sha256sum > "$evidence/output-$run-sha256.txt"
+            find "$evidence/eml-$run" -type f -print0 | sort -z | xargs -0 -r sha256sum > "$evidence/eml-$run-sha256.txt"
+          done
+
+          python - <<'PY'
+          import json
+          import tarfile
+          from collections import Counter
+          from pathlib import Path
+
+          evidence = Path('/tmp/pstd-java-libpst-baseline')
+          output = evidence / 'output-a'
+          archives = sorted((output / 'archives').glob('*.tar'))
+          if len(archives) != 1:
+              raise SystemExit(f'expected one extraction TAR, found {len(archives)}')
+          archive_dir = evidence / 'archive-a'
+          archive_dir.mkdir()
+          with tarfile.open(archives[0]) as tf:
+              tf.extractall(archive_dir)
+          data = archive_dir / 'data'
+
+          def records(name):
+              path = data / name
+              if not path.exists():
+                  return []
+              return [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
+
+          names = ('folders.jsonl', 'messages.jsonl', 'bodies.jsonl', 'recipients.jsonl', 'attachments.jsonl')
+          rows = {name: records(name) for name in names}
+          messages = rows['messages.jsonl']
+          summary = {
+              'fixture': 'java-libpst-dist-list.pst',
+              'record_counts': {name.removesuffix('.jsonl'): len(value) for name, value in rows.items()},
+              'item_types': dict(sorted(Counter(str(row.get('item_type')) for row in messages).items())),
+              'message_classes': dict(sorted(Counter(str(row.get('message_class')) for row in messages).items())),
+              'message_nodes': [
+                  {
+                      'message_key': row.get('message_key'),
+                      'source_node_id': row.get('source_node_id') or row.get('message_node_id'),
+                      'item_type': row.get('item_type'),
+                      'message_class': row.get('message_class'),
+                      'folder_key': row.get('folder_key'),
+                      'folder_path': row.get('folder_path'),
+                      'subject': row.get('subject'),
+                      'metadata_status': row.get('metadata_status'),
+                  }
+                  for row in messages
+              ],
+              'eml_files': sorted(path.name for path in (evidence / 'eml-a').glob('*.eml')),
+          }
+          (evidence / 'baseline-summary.json').write_text(
+              json.dumps(summary, indent=2, ensure_ascii=False) + '\n', encoding='utf-8'
+          )
+          print(json.dumps(summary, indent=2, ensure_ascii=False))
+          PY
+
+          tar_a=$(find "$evidence/output-a/archives" -type f -name '*.tar' | sort | head -n 1)
+          tar_b=$(find "$evidence/output-b/archives" -type f -name '*.tar' | sort | head -n 1)
+          cmp "$tar_a" "$tar_b"
+          diff -ru "$evidence/eml-a" "$evidence/eml-b"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: java-libpst-typed-object-baseline
+          path: /tmp/pstd-java-libpst-baseline
+          if-no-files-found: error
