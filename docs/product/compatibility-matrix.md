@@ -22,8 +22,8 @@ Track compatibility by independently testable capability and approved fixture. P
 | Capability | Original public fixture | Apache Tika `testPST.pst` | Required next evidence |
 |---|---|---|---|
 | Unicode PST header and root discovery | Exact | Exact | Additional Unicode producers and large files |
-| ANSI PST header diagnostics | Not exercised | Not exercised | Synthetic version-14/15 tests are exact for field width, offsets and fail-closed traversal; a pinned real ANSI fixture is still required |
-| ANSI PST root traversal and extraction | Unsupported | Unsupported | Approved version-14 or version-15 fixture with provenance, size, SHA-256 and exact root-page evidence |
+| ANSI PST header diagnostics | Not exercised | Not exercised | Deferred; synthetic version-14/15 tests remain exact for diagnostics and fail-closed traversal |
+| ANSI PST root traversal and extraction | Unsupported | Unsupported | Backlog only; no active implementation work |
 | Folder hierarchy | Exact | Exact: eight folder records and seven physical message owners | Additional producers, deleted-item cases, and multi-folder message corpora |
 | Message discovery | Exact: 1 message | Exact: 8 messages including one embedded child | Multi-folder and deleted/recovered-message cases |
 | Subject and sender metadata | Exact | Exact for validated messages | Broader property combinations and encodings |
@@ -56,20 +56,20 @@ Track compatibility by independently testable capability and approved fixture. P
 
 ## Current release interpretation
 
-PSTD currently demonstrates a material Unicode email extraction path, including recipients, bodies, one by-value DOCX attachment, one attachment-bearing parent EML, and one separately recovered child whose exact EML is also published as a method-`5` `message/rfc822` payload. It also has exact synthetic evidence for variant-correct ANSI header diagnostics. Neither result is evidence of general PST compatibility, and the ANSI diagnostics do not authorize page traversal or extraction.
+PSTD currently demonstrates a material Unicode email extraction path, including recipients, bodies, one by-value DOCX attachment, one attachment-bearing parent EML, and one separately recovered child whose exact EML is also published as a method-`5` `message/rfc822` payload. ANSI support is intentionally parked: only diagnostic header decoding exists, and no ANSI traversal or extraction is claimed.
 
 No capability may be promoted to broadly supported solely because it passes one fixture. Promotion requires representative fixtures from more than one producer or a controlled structural corpus, exact regression evidence, and explicit malformed-input behaviour.
 
 ## Immediate sequence
 
-1. Obtain or reproducibly generate a genuinely ANSI PST whose header declares NDB version 14 or 15, with approved redistribution terms and immutable provenance.
-2. Lock its exact byte size, SHA-256, header classification, encryption state and initial fail-closed output.
-3. Establish bounded BBT/NBT root-page evidence before exposing any ANSI folder, message, body, recipient, attachment or EML records.
-4. Validate typed appointments, contacts and distribution lists without forcing non-mail objects into EML.
-5. Broaden attachment methods, inline/CID handling, nested messages and authoritative Exchange-to-SMTP resolution from additional fixtures.
-6. Add deterministic corrupt and ambiguous fixture cases before production-readiness claims.
+1. Qualify the pinned libyal Unicode `pst/outlook.pst` candidate as the next independent producer fixture.
+2. Lock provenance, byte length, SHA-256, header version, encryption state, parser exit behaviour and complete object counts before changing extraction code.
+3. Add the smallest Unicode vertical exposed by that fixture, preferring new observable email, folder, recipient, body or attachment behaviour over parser abstractions.
+4. Broaden by-value attachment formats and layouts, then inline/CID handling.
+5. Add authoritative Exchange-to-SMTP resolution, bounded nested-message recursion and deterministic corrupt/ambiguous fixtures.
+6. Keep ANSI traversal in backlog until Unicode compatibility breadth and fail-closed evidence are materially stronger.
 
-The libyal public `pst/outlook.pst` candidate was checked on 20 July 2026 and rejected for this milestone: bytes 10-11 declare NDB version 23, which is Unicode. It remains a potentially useful additional Unicode-producer fixture, but it cannot provide ANSI evidence.
+The libyal public `pst/outlook.pst` candidate declares NDB version 23 and is therefore suitable for the active Unicode corpus lane. It must still pass licensing, provenance, hash and exact-output admission before being added to CI.
 
 ## Maintenance rule
 

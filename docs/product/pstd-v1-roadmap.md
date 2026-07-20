@@ -1,6 +1,6 @@
 # PSTD Roadmap
 
-_Last reviewed: 20 July 2026._
+_Last reviewed: 21 July 2026._
 
 ## Objective
 
@@ -10,12 +10,14 @@ Deliver reliable PST email extraction before investing in downstream storage or 
 
 - Prioritise end-to-end extraction capability over parser infrastructure for its own sake.
 - Implement the smallest coherent vertical slice that exposes new behaviour.
+- Prefer additional producer and layout evidence over abstractions that do not change observable extraction.
 - Reuse validated parser components and avoid duplicate interpretations of the same bytes.
-- Fail closed when bounds, row counts, property identity, types, references, or encodings do not validate.
-- Preserve existing extraction behaviour and add regression tests for every new path.
-- Re-run the public fixture after every milestone and revise the next milestone from the artifact.
+- Fail closed when bounds, row counts, property identity, types, references, encodings, ownership, or recursion do not validate.
+- Preserve existing extraction behaviour and add exact regression tests for every new path.
+- Re-run all approved fixtures after every milestone and revise the next milestone from the artifacts.
 - Keep Snowflake, UI, search, analytics, semantic search, and graph work parked.
 - Treat EML generation as an assembly layer over validated extracted data, not as a substitute for parser coverage.
+- Treat contacts, appointments, tasks, journals, and distribution lists as typed non-mail objects rather than forcing them into EML.
 
 ## Completed foundation
 
@@ -27,143 +29,99 @@ Complete. This lane delivered the Rust CLI, Python wrapper, Docker packaging, st
 
 Complete. This lane corrected PST traversal, identified real folder/message candidates, improved property and body extraction, resolved Heap-on-Node/BTH/subnode/Table Context structures, validated row addressing and transport, decoded supported fixed-width MAPI values, and integrated bounded diagnostics.
 
-### Vertical recipient lane: roles through structured output
+### Original public fixture email path
 
-Complete. The original public fixture emits four actual `RecipientRecord` rows:
+Complete for the approved fixture. It emits four exact To/Cc recipients, validated plain text and HTML recovered from RTF, and one deterministic 956-byte `multipart/alternative` EML with sender, recipients, subject, Date, and Message-ID.
 
-```text
-To: Recipient 1 <to1@domain.com>
-To: Recipient 2 <to2@domain.com>
-Cc: Recipient 3 <cc1@domain.com>
-Cc: Recipient 4 <cc2@domain.com>
-```
+### Tika attachment and embedded-message path
 
-The exact run preserved one message, two body payload records, zero attachments, and increased structured output from 39,622 to 40,722 bytes.
+Complete through Vertical 38:
 
-### First complete readable EML and Date header
-
-Complete. The original public fixture emits one deterministic CRLF `.eml` assembled from validated sender, subject, recipient, plain-text-body, and transport Date data.
-
-### Readable RTF body
-
-Complete. The original fixture's 336-byte `PidTagRtfCompressed` value produces one validated 320-byte standalone RTF document for message `msg_ad9f58792ae34dfc`.
-
-### Multipart readable EML
-
-Complete. The original public fixture emitted one 1,175-byte `multipart/alternative` EML containing ordered `text/plain` and `text/rtf` parts while preserving sender, recipients, subject, Date, and Message-ID.
-
-### Readable HTML body
-
-Complete. The validated 320-byte `\fromhtml1` RTF produces one 95-byte standalone HTML document for message `msg_ad9f58792ae34dfc` containing bold and blue-text markup with no raw RTF control data.
-
-### Plain-text and HTML EML alternatives
-
-Complete. The original public fixture now emits one deterministic 956-byte `multipart/alternative` EML with ordered `text/plain` and `text/html` parts. It preserves the validated sender, To, Cc, Subject, Date, and Message-ID values and contains no raw RTF MIME part.
-
-### Upstream fixture corpus
-
-Complete. Three pinned public PST fixtures provide evidence for attachment extraction, multiple messages and folders, body-representation selection, appointments, recurrence exceptions, contacts, distribution lists, and legacy Exchange address handling. Exact provenance and expected evidence are documented in [Upstream PST Fixture Corpus](../operations/upstream-pst-fixture-corpus.md).
-
-### First real attachment filename
-
-Complete. `tika-testPST.pst` emits one metadata-only attachment record for `msg_c6163b9157944cc9`: `attachment.docx`, `PidTagAttachSize` 15,503 bytes, method 1. Exact evidence is recorded in [Vertical 29](../operations/vertical-29-expose-docx-attachment-filename.md).
-
-### DOCX attachment data reference
-
-Complete. The attachment's validated raw HNID `3f830000` resolves through the message's Unicode SLBLOCK:
-
-```text
-data NID:      0x0000833f
-resolved BID:  0x632
-payload bytes: 0
-```
-
-The mapping affects one message and one attachment record. BID `0x632` is internal and is not emitted as DOCX content. Exact evidence is recorded in [Vertical 30](../operations/vertical-30-resolve-docx-attachment-data-reference.md).
-
-### DOCX attachment payload
-
-Complete. The internal Unicode XBLOCK at BID `0x632` resolves two ordered external child blocks and emits one valid DOCX payload:
-
-```text
-filename:                 attachment.docx
-XBLOCK payload bytes:     11,862
-PidTagAttachSize:          15,503
-SHA-256:                   0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0
-ZIP signature:             50 4b 03 04
-DOCX CRC validation:       passed
-expected document text:    present
-```
-
-The differing size values are preserved rather than forced to agree: the XBLOCK `lcbTotal` is the authoritative payload length, while `PidTagAttachSize` remains source metadata. The fixture preserves seven messages, eight body records, zero recipients, one attachment record, one 11,862-byte attachment payload, and zero EML files. Exact evidence is recorded in [Vertical 31](../operations/vertical-31-emit-docx-attachment-payload.md).
-
-### Heap-backed Tika recipient tables
-
-Complete in PR #452. PSTD now resolves Table Context row matrices stored in the owning Heap-on-Node allocation, attributes only direct NID type `0x12` tables to each message, and emits eight recipients across all seven Tika messages.
-
-Six rows carry authoritative SMTP values. Two rows deliberately preserve native/raw evidence: one complete legacy Exchange distinguished name and the attachment owner's `PidTagEmailAddress`, for which no authoritative SMTP projection is published. The existing DOCX payload is unchanged. Exact evidence is recorded in [Vertical 32](../operations/vertical-32-emit-tika-heap-backed-recipients.md).
-
-### First Tika attachment EML
-
-Complete in PR #454. `msg_c6163b9157944cc9` now emits one deterministic 17,035-byte `multipart/mixed` EML containing its validated 22-byte UTF-8 plain-text body and exact 11,862-byte `attachment.docx` payload. The Date is derived from the message's bounded `PidTagMessageDeliveryTime` FILETIME because neither a transport Date nor submit time is available. The four-byte `PidTagHtml` value is invalid UTF-8 and is deliberately excluded. The raw native Exchange sender and recipient evidence are preserved without inventing SMTP.
-
-Exact MIME validation confirms CRLF line endings, one plain-text body, one DOCX attachment, registered DOCX content type, stable filename, base64 transport, and byte-identical decoded payload. Structured extraction, TAR, and total extraction-output bytes remain unchanged.
-
-### Method-5 embedded message recovery
-
-Complete in PR #455. The method-`5` Property Context now preserves its PtypObject HNID, parses the exact eight-byte object allocation, requires a normal-message NID, and resolves that NID exactly once inside the outer message's loaded subnode scope. The child is emitted as `msg_0ff529af59d373d5` and linked from attachment ordinal `1` through `embedded_message_key`.
-
-The child owns one raw/native recipient, a 23-byte UTF-8 text body, and four raw `PidTagHtml` bytes. Its subtree is isolated before recipient projection, so none of those values enter the parent. The outer DOCX remains ordinal `0`, and its 17,035-byte EML is unchanged. Exact evidence is recorded in [Vertical 34](../operations/vertical-34-recover-tika-embedded-message.md).
-
-### Recovered child plain-text EML
-
-Complete in PR #457. The linked child now emits one deterministic 453-byte attachmentless `text/plain` EML. Admission is restricted to message keys referenced by authoritative attachment metadata, so unrelated top-level plain-only records remain fail-closed. The child preserves native Exchange addresses, validated headers, exact CRLF body assembly, and SHA-256 `86ffe5567da7aa505b8be16400889170ca583fd247cc0758f00a43c2a8a99420`; its raw `7f 83 00 00` HTML evidence is excluded. Exact evidence is recorded in [Vertical 35](../operations/vertical-35-emit-tika-child-eml.md).
-
-### Method-5 child attachment payload
-
-Complete in PR #461. The exact 453-byte child EML is now published as the existing method-`5` attachment's `message/rfc822` payload. It retains the parent key, attachment key, ordinal, filename, archive path and `embedded_message_key`, and is byte-identical to the standalone child EML. Missing, duplicate, mismatched, nested and unsafe candidates remain fail-closed. Exact evidence is recorded in [Vertical 36](../operations/vertical-36-materialise-method5-eml-payload.md).
-
-### Complete Tika folder and message coverage
-
-Complete in PR #464. The Tika contract now asserts all eight folder records, Unicode names, paths, parent relationships and counts. Exact row keys from the physical `node_802e` contents table assign all seven top-level normal messages to `/Début du fichier de données Outlook`. The recovered method-`5` child remains separately linked and is not inferred from folder counts or discovery order. All nine recipients and the exact DOCX, parent EML, child EML and method-`5` payload contracts remain unchanged. Exact evidence is recorded in [Vertical 37](../operations/vertical-37-resolve-tika-message-folder-ownership.md).
-
-### Independent body-form selection
-
-Complete in Vertical 38 / PR #470. Binary body admission now rejects four-byte Property Context HNID cells, emits explicit unavailable forms, and preserves independently valid sibling payloads. The body-types fixture selects its 37-byte plain body while leaving HTML unresolved. The Tika parent and embedded child likewise retain exact plain bodies, attachment payloads and EML bytes while two invalid four-byte HTML files disappear. Exact evidence is recorded in [Vertical 38](../operations/vertical-38-reject-unresolved-binary-body-references.md).
+- one exact 11,862-byte DOCX by-value attachment with preserved 15,503-byte source metadata;
+- eight messages including one separately linked method-`5` child;
+- nine directly owned recipient records;
+- eight exact folder records and seven exact top-level physical message owners;
+- independent body-form admission with invalid four-byte binary locators represented as unavailable;
+- one deterministic 17,035-byte parent `multipart/mixed` EML;
+- one deterministic 453-byte child `text/plain` EML;
+- one byte-identical 453-byte method-`5` `message/rfc822` payload;
+- fail-closed rejection of missing, mismatched, duplicate, nested, ambiguous, and unsafe child-EML candidates.
 
 ### ANSI header diagnostics
 
-Complete in Vertical 39 / PR #473. PSTD decodes ANSI version-14 and version-15 NBT/BBT root offsets as 32-bit values and reads the variant-specific crypt-method byte. Controlled synthetic tests lock the exact values and prove adjacent bytes cannot contaminate the fields. These values remain diagnostic-only: no ANSI root is admitted to page traversal, and no ANSI folders, messages, bodies, recipients, attachments or EML are emitted.
+Complete in Vertical 39 / PR #473. Version-14 and version-15 root offsets and crypt-method locations are decoded with ANSI-specific widths and offsets. These values are diagnostic only. ANSI roots cannot authorize page traversal or extraction.
 
 ## Current milestone
 
-### First approved real ANSI PST baseline
+### Qualify an additional Unicode producer fixture
 
-Obtain or reproducibly generate one redistributable version-14 or version-15 PST. Lock immutable provenance, redistribution basis, exact byte size and SHA-256, then measure header classification and fail-closed root-page behavior without relaxing the Unicode parser contracts.
+Qualify the public libyal version-23 `pst/outlook.pst` candidate before changing extraction code.
 
-ANSI traversal must remain disabled until the fixture establishes bounded, variant-correct BBT/NBT page evidence. Synthetic header tests do not qualify as extraction compatibility evidence.
+Admission requires:
 
-## Following fixture sequence
+- immutable upstream repository revision and exact fixture path;
+- confirmed redistribution basis;
+- exact byte length and SHA-256;
+- exact header signature, NDB version, crypt method, and classification;
+- deterministic inspect and extract exit behaviour;
+- exact counts for folders, typed objects, messages, recipients, body forms, attachments, and EML;
+- a complete list of unavailable, encrypted, ambiguous, corrupt, or unsupported records;
+- repeated-run byte identity for structured output and any generated EML;
+- no regression in existing original-fixture or Tika contracts.
 
-After the real ANSI baseline:
+After admission, implement only the smallest coherent vertical that produces new observable behaviour. Priority is:
 
-1. implement the smallest bounded ANSI BBT/NBT traversal slice supported by exact fixture evidence;
-2. validate appointments and recurrence exceptions with `java-libpst-dist-list.pst`;
-3. validate contacts and distribution-list entries without forcing them through the normal email path;
-4. create a controlled synthetic fixture for true X.400, because the public Exchange legacy DN is X.500-style/`EX`, not a true X.400 O/R address.
+1. a newly discovered or newly owned email;
+2. a new by-value attachment method, format, or storage layout;
+3. independently valid plain, HTML, or RTF body selection;
+4. additional To, Cc, or Bcc evidence;
+5. inline attachment and Content-ID evidence;
+6. typed non-mail classification.
+
+Parser rules must not be relaxed merely to make the fixture pass.
+
+## Following compatibility sequence
+
+After the additional Unicode producer baseline:
+
+1. broaden by-value attachment formats and data-tree layouts;
+2. validate inline attachments and Content-ID references against exact HTML evidence;
+3. add authoritative Exchange-to-SMTP resolution only from validated mapping evidence;
+4. implement bounded nested embedded-message recursion with explicit depth and ownership limits;
+5. add deterministic corrupt, truncated, duplicate, cross-scope, and ambiguous fixture cases;
+6. harden large-file performance and memory limits;
+7. expose a narrow stable Rust API after extraction records and diagnostics are sufficiently stable;
+8. return to ANSI traversal only when Unicode corpus breadth and fail-closed evidence are materially stronger.
+
+## Stable Rust API boundary
+
+The eventual public API should remain narrower than the internal parser modules. It should support:
+
+- opening a PST with explicit parser limits;
+- iterating typed mail and non-mail objects;
+- reading message, recipient, body, and attachment records;
+- generating deterministic EML from admitted evidence;
+- reading diagnostics and completeness statuses;
+- distinguishing unavailable, unsupported, corrupt, encrypted, and ambiguous evidence.
+
+Internal page, heap, BTH, and Table Context implementations must not become the de facto compatibility contract.
 
 ## Completion definition for reliable extraction
 
-PSTD should not be described as conversion-complete until a representative fixture corpus demonstrates, with explicit completeness statuses:
+PSTD should not be described as conversion-complete or production-ready until a representative fixture corpus demonstrates, with explicit completeness statuses:
 
+- Unicode and ANSI header classification and supported traversal boundaries;
 - folder hierarchy preservation;
-- message discovery without false positives;
+- message discovery without false positives or silent omissions;
 - subject, sender, dates, identifiers, and transport headers where present;
-- To/Cc/Bcc recipients with names and usable addresses;
+- To/Cc/Bcc recipients with names and usable addresses where authoritative;
 - plain text, HTML, and RTF handling appropriate to the source;
-- attachment metadata and bytes, including explicit handling for embedded messages;
+- by-value, embedded, inline, and nested attachment handling within explicit limits;
+- typed classification of contacts, appointments, tasks, journals, and distribution lists;
 - deterministic structured output and EML assembly;
-- corruption and unsupported-layout behaviour that fails closed rather than guessing;
-- no regressions across the approved fixture set.
+- malformed, encrypted, corrupt, unsupported, and ambiguous behaviour that fails closed;
+- no regressions across the approved fixture set;
+- documented performance and memory limits.
 
 ## Deferred roadmap
 
@@ -172,4 +130,4 @@ PSTD should not be described as conversion-complete until a representative fixtu
 3. Semantic search, embeddings, tagging, graph, and LLM/RAG workflows.
 4. Distributed orchestration beyond the current local/Docker batch model.
 
-Exact-preservation policy and large-corpus hardening remain later concerns after the readable-message path covers more body formats and attachments.
+Exact-preservation policy and large-corpus hardening remain later concerns after the readable-message path covers more producers, body forms, attachment layouts, and typed non-mail objects.

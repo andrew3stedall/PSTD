@@ -4,14 +4,14 @@ PSTD is a Rust-first tool for extracting email data from Microsoft Outlook PST f
 
 ## Current position
 
-_Last reviewed: 20 July 2026._
+_Last reviewed: 21 July 2026._
 
 | Area | State on `main` | Current result |
 |---|---|---|
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI version-14/15 header fields are decoded with variant-correct widths but cannot authorize traversal or extraction. |
-| Current milestone | First real ANSI baseline | Obtain or reproducibly generate an approved ANSI PST, pin provenance/size/hash, and measure fail-closed root-page behavior before enabling traversal. |
+| Current milestone | Additional Unicode producer qualification | Qualify the public libyal version-23 `pst/outlook.pst` candidate, lock provenance/hash/header/output evidence, then select the smallest new Unicode extraction vertical it exposes. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
 
 ## Intent
@@ -23,7 +23,7 @@ PSTD is intended to become a dependable PST-to-email extraction engine that:
 - fails closed when a PST structure is unsupported or ambiguous;
 - records explicit diagnostics instead of silently guessing;
 - produces deterministic structured output suitable for later EML generation or downstream loading;
-- validates every material parser change against synthetic tests and an approved public PST fixture.
+- validates every material parser change against synthetic tests and approved public PST fixtures.
 
 ## Validated public-fixture evidence
 
@@ -84,11 +84,11 @@ pstd batch --input <pst-file-or-directory> --output <output-dir>
 python -m pstd --help
 ```
 
-Implemented capabilities include bounded parsing of PST headers, BBT/NBT pages, blocks, subnodes, Heap-on-Node allocations, BTH structures, Property Contexts, Table Contexts, row storage, selected MAPI values, folder/message candidates, bodies, recipient evidence, structured outputs, batch state, and public-fixture diagnostics. ANSI header values are diagnostic-only until a real approved ANSI fixture supports bounded traversal evidence.
+Implemented capabilities include bounded parsing of PST headers, BBT/NBT pages, blocks, subnodes, Heap-on-Node allocations, BTH structures, Property Contexts, Table Contexts, row storage, selected MAPI values, folder/message candidates, bodies, recipient evidence, structured outputs, batch state, and public-fixture diagnostics. ANSI header values are diagnostic-only; ANSI traversal and extraction remain backlog-only.
 
 ## Important limitations
 
-PSTD is not yet a general-purpose or absolute-coverage PST-to-EML converter. Current evidence is fixture-limited. The Tika sender remains a raw native Exchange distinguished name rather than resolved SMTP; one method-`5` layout is exact, but nested child attachments, broader producers, real ANSI traversal, and uncommon/corrupt layouts remain incomplete. Do not infer broad compatibility from the milestone count.
+PSTD is not yet a general-purpose or absolute-coverage PST-to-EML converter. Current evidence is fixture-limited. The Tika sender remains a raw native Exchange distinguished name rather than resolved SMTP; one method-`5` layout is exact, but nested child attachments, broader Unicode producers, inline attachments, real ANSI traversal, and uncommon/corrupt layouts remain incomplete. Do not infer broad compatibility from the milestone count.
 
 ## Validation gate
 
