@@ -7,11 +7,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# Outlook object-model constants. The numeric values are pinned here so the
+# Outlook object-model constant. The numeric value is pinned here so the
 # script does not require the Outlook primary interop assembly.
 $olStoreANSI = 3
-$olMailItem = 0
-$olContactItem = 2
 
 function Release-ComObject {
     param([object]$Value)
@@ -64,7 +62,10 @@ try {
     $nestedFolder = $mailFolder.Folders.Add('Nested')
     $nonMailFolder = $root.Folders.Add('Typed Non-Mail')
 
-    $plain = $outlook.CreateItem($olMailItem)
+    # Create every item directly in the generated PST. Outlook.Application.CreateItem
+    # would create it in the profile's default store before a later move, which would
+    # weaken the isolation and provenance guarantees for this controlled fixture.
+    $plain = $mailFolder.Items.Add('IPM.Note')
     try {
         $plain.Subject = 'PSTD ANSI plain text baseline'
         $plain.To = 'to-one@example.test; to-two@example.test'
@@ -72,8 +73,6 @@ try {
         $plain.BCC = 'bcc-one@example.test'
         $plain.Body = "Synthetic ANSI plain-text body.`r`nLine two.`r`n"
         $plain.Save()
-        $moved = $plain.Move($mailFolder)
-        Release-ComObject $moved
     }
     finally {
         Release-ComObject $plain
@@ -85,7 +84,7 @@ try {
         "PSTD ANSI fixture attachment`r`n",
         [System.Text.Encoding]::ASCII)
 
-    $html = $outlook.CreateItem($olMailItem)
+    $html = $nestedFolder.Items.Add('IPM.Note')
     try {
         $html.Subject = 'PSTD ANSI HTML and attachment baseline'
         $html.To = 'html-recipient@example.test'
@@ -93,8 +92,6 @@ try {
         $html.HTMLBody = '<html><body><p>Synthetic <strong>ANSI HTML</strong> body.</p></body></html>'
         [void]$html.Attachments.Add($tempAttachment)
         $html.Save()
-        $moved = $html.Move($nestedFolder)
-        Release-ComObject $moved
     }
     finally {
         Release-ComObject $html
@@ -102,14 +99,12 @@ try {
 
     # Deliberately include one typed non-mail object. PSTD must classify it and
     # must never force it into EML output.
-    $contact = $outlook.CreateItem($olContactItem)
+    $contact = $nonMailFolder.Items.Add('IPM.Contact')
     try {
         $contact.FullName = 'Synthetic Contact'
         $contact.Email1Address = 'contact@example.test'
         $contact.CompanyName = 'PSTD Fixture Data'
         $contact.Save()
-        $moved = $contact.Move($nonMailFolder)
-        Release-ComObject $moved
     }
     finally {
         Release-ComObject $contact
