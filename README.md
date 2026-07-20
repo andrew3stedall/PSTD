@@ -11,7 +11,7 @@ _Last reviewed: 21 July 2026._
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI version-14/15 header fields are decoded with variant-correct widths but cannot authorize traversal or extraction. |
-| Current milestone | Additional Unicode producer qualification | Qualify the public libyal version-23 `pst/outlook.pst` candidate, lock provenance/hash/header/output evidence, then select the smallest new Unicode extraction vertical it exposes. |
+| Current milestone | Dependency-free Unicode email expansion | Select the smallest incomplete email capability supported by approved fixture evidence, beginning with broader by-value attachment methods or layouts. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
 
 ## Intent
@@ -23,7 +23,8 @@ PSTD is intended to become a dependable PST-to-email extraction engine that:
 - fails closed when a PST structure is unsupported or ambiguous;
 - records explicit diagnostics instead of silently guessing;
 - produces deterministic structured output suitable for later EML generation or downstream loading;
-- validates every material parser change against synthetic tests and approved public PST fixtures.
+- validates every material parser change against synthetic tests and approved public PST fixtures;
+- remains self-contained rather than delegating PST parsing or conversion to another implementation.
 
 ## Validated public-fixture evidence
 
@@ -85,6 +86,10 @@ python -m pstd --help
 ```
 
 Implemented capabilities include bounded parsing of PST headers, BBT/NBT pages, blocks, subnodes, Heap-on-Node allocations, BTH structures, Property Contexts, Table Contexts, row storage, selected MAPI values, folder/message candidates, bodies, recipient evidence, structured outputs, batch state, and public-fixture diagnostics. ANSI header values are diagnostic-only; ANSI traversal and extraction remain backlog-only.
+
+## Dependency boundary
+
+PSTD must not add java-libpst, libpst, libpff, Apache Tika, Outlook, or another PST parser/converter as a build, runtime, test-runtime, CI, or Docker dependency. Public upstream repositories may supply approved, redistributable, immutable fixture bytes with documented size and SHA-256. Fixture provenance does not make the originating project a dependency, and PSTD acceptance must come from its own Rust implementation and exact fixture output.
 
 ## Important limitations
 
