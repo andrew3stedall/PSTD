@@ -60,21 +60,82 @@ jobs:
           done
 
           python - <<'PY'
+          import hashlib
           import json
           import tarfile
           from collections import Counter
           from pathlib import Path
 
           evidence = Path('/tmp/pstd-java-libpst-baseline')
-          output = evidence / 'output-a'
-          archives = sorted((output / 'archives').glob('*.tar'))
-          if len(archives) != 1:
-              raise SystemExit(f'expected one extraction TAR, found {len(archives)}')
-          archive_dir = evidence / 'archive-a'
-          archive_dir.mkdir()
-          with tarfile.open(archives[0]) as tf:
-              tf.extractall(archive_dir)
-          data = archive_dir / 'data'
+          volatile_fields = {
+              'run_id',
+              'timestamp_utc',
+              'started_at',
+              'finished_at',
+              'duration_seconds',
+          }
+
+          def clean(value):
+              if isinstance(value, dict):
+                  return {
+                      key: clean(child)
+                      for key, child in value.items()
+                      if key not in volatile_fields
+                  }
+              if isinstance(value, list):
+                  return [clean(child) for child in value]
+              return value
+
+          def extract_archive(run):
+              output = evidence / f'output-{run}'
+              archives = sorted((output / 'archives').glob('*.tar'))
+              if len(archives) != 1:
+                  raise SystemExit(f'expected one extraction TAR for run {run}, found {len(archives)}')
+              archive_dir = evidence / f'archive-{run}'
+              archive_dir.mkdir()
+              with tarfile.open(archives[0]) as tf:
+                  tf.extractall(archive_dir)
+              return archive_dir
+
+          def canonical_snapshot(root):
+              snapshot = {}
+              for path in sorted(root.rglob('*')):
+                  if not path.is_file():
+                      continue
+                  relative = path.relative_to(root).as_posix()
+                  if path.suffix == '.jsonl':
+                      records = [
+                          clean(json.loads(line))
+                          for line in path.read_text(encoding='utf-8').splitlines()
+                          if line.strip()
+                      ]
+                      snapshot[relative] = records
+                  elif path.suffix == '.json':
+                      snapshot[relative] = clean(json.loads(path.read_text(encoding='utf-8')))
+                  else:
+                      snapshot[relative] = {
+                          'byte_length': path.stat().st_size,
+                          'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                      }
+              return snapshot
+
+          archive_a = extract_archive('a')
+          archive_b = extract_archive('b')
+          snapshot_a = canonical_snapshot(archive_a)
+          snapshot_b = canonical_snapshot(archive_b)
+          for run, snapshot in (('a', snapshot_a), ('b', snapshot_b)):
+              (evidence / f'canonical-{run}.json').write_text(
+                  json.dumps(snapshot, indent=2, ensure_ascii=False, sort_keys=True) + '\n',
+                  encoding='utf-8',
+              )
+          if snapshot_a != snapshot_b:
+              different = sorted(
+                  key for key in set(snapshot_a) | set(snapshot_b)
+                  if snapshot_a.get(key) != snapshot_b.get(key)
+              )
+              raise SystemExit(f'non-deterministic semantic extraction files: {different}')
+
+          data = archive_a / 'data'
 
           def records(name):
               path = data / name
@@ -111,9 +172,6 @@ jobs:
           print(json.dumps(summary, indent=2, ensure_ascii=False))
           PY
 
-          tar_a=$(find "$evidence/output-a/archives" -type f -name '*.tar' | sort | head -n 1)
-          tar_b=$(find "$evidence/output-b/archives" -type f -name '*.tar' | sort | head -n 1)
-          cmp "$tar_a" "$tar_b"
           diff -ru "$evidence/eml-a" "$evidence/eml-b"
       - uses: actions/upload-artifact@v4
         if: always()
