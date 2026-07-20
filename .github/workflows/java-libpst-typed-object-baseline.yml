@@ -42,7 +42,14 @@ jobs:
               echo "Unexpected extraction exit code: $extract_status" >&2
               exit 1
             fi
-            if [[ "$eml_status" -ne 0 && "$eml_status" -ne 2 ]]; then
+            if [[ "$eml_status" -eq 1 ]]; then
+              grep -Fxq 'eml_files_emitted=0' "$evidence/eml-$run.stdout"
+              grep -Fq 'no message had validated sender, recipients, subject, Date evidence, plain-text body, and a supported multipart body required for EML emission' "$evidence/eml-$run.stderr"
+              if find "$evidence/eml-$run" -type f -print -quit | grep -q .; then
+                echo "EML command reported no admissible message but emitted files" >&2
+                exit 1
+              fi
+            elif [[ "$eml_status" -ne 0 && "$eml_status" -ne 2 ]]; then
               echo "Unexpected EML exit code: $eml_status" >&2
               exit 1
             fi
