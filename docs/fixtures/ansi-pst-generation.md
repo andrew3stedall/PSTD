@@ -6,7 +6,17 @@ Vertical 40 requires a real Outlook 97-2002 PST before ANSI BBT/NBT traversal ca
 
 The generated file is **fixture evidence**, not proof of broad ANSI compatibility. Until its exact bytes pass a dedicated fail-closed workflow, ANSI traversal and extraction remain unsupported.
 
-## Requirements
+## Portability boundary
+
+This is an optional, one-time fixture-production procedure. It is not part of PSTD's library, CLI, build, test, CI, Docker, extraction, diagnostics, or EML runtime path.
+
+PSTD must continue to build and run entirely on Linux without Windows, Outlook, COM, PowerShell, proprietary SDKs, or manual mailbox tooling. Once admitted, the fixture is immutable test data: Linux workflows verify its hash and exercise PSTD directly against the pinned bytes.
+
+A different public or controlled source may replace this procedure when it supplies equivalent redistribution rights, provenance, version-14/15 evidence, size, and SHA-256. Building a PST writer in Rust is not required for fixture admission.
+
+## Optional generation requirements
+
+These requirements apply only to the person producing the controlled fixture bytes:
 
 - Windows with classic desktop Microsoft Outlook installed.
 - An Outlook profile that can start without interactive first-run prompts.
@@ -67,14 +77,22 @@ header:
 
 The generated fixture should be accompanied by an explicit CC0 dedication from the person running the generator. Repository code licensing alone is not sufficient evidence for generated mailbox bytes.
 
-## First fixture-level acceptance result
+## Linux admission and acceptance
 
-The first workflow must verify the pinned hash before invoking PSTD. With ANSI traversal still disabled, the exact expected result is:
+Fixture admission and all continuing validation must run on Linux. The admission workflow must:
+
+1. verify the pinned SHA-256 and exact byte length before invoking PSTD;
+2. verify `!BDN`, `SM`, NDB version 14 or 15, and the declared crypt method;
+3. run the normal Rust CLI directly against the immutable bytes;
+4. assert the exact diagnostic-only baseline;
+5. prove that no Windows-only command, dependency, runner, or SDK is required.
+
+With ANSI traversal still disabled, the exact expected result is:
 
 - ANSI header detected;
 - version-specific 32-bit NBT and BBT roots reported diagnostically;
 - extraction classified as unsupported;
-- zero folders, messages, recipients, bodies, attachments and EML emitted;
+- zero folders, messages, recipients, bodies, attachments, typed non-mail objects and EML emitted;
 - no Unicode fixture metric changes.
 
 Only after this baseline passes should a separate milestone admit one bounded ANSI root page. Do not reuse Unicode page widths, entry widths, trailer offsets or BID/IB decoding.
@@ -87,4 +105,5 @@ Reject the fixture or generation run when:
 - Outlook was connected to or populated from a private mailbox;
 - provenance, product build, byte length, hash or licence is missing;
 - the file changes after hashing;
+- Linux qualification cannot reproduce the declared header and hash evidence;
 - PSTD emits objects before ANSI traversal is explicitly implemented and reviewed.
