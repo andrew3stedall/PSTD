@@ -1,6 +1,6 @@
 # PSTD Documentation
 
-_Last reviewed: 19 July 2026._
+_Last reviewed: 20 July 2026._
 
 This documentation tree contains both current operating guidance and historical delivery evidence. Use the current-state pages below for present capability and next work. Milestone, PQ, vertical, issue-plan, and implementation-plan files record what was known at the time they were written.
 
@@ -12,6 +12,7 @@ This documentation tree contains both current operating guidance and historical 
 | Current merged capability and active blocker | [Project Status](product/project-status.md) |
 | Real-fixture evidence over time | [Public PST Progress Log](operations/public-pst-progress-log.md) |
 | Approved upstream fixtures, provenance, hashes, and development order | [Upstream PST Fixture Corpus](operations/upstream-pst-fixture-corpus.md) |
+| Controlled ANSI fixture generation and admission | [ANSI PST Fixture Generation](fixtures/ansi-pst-generation.md) |
 | Current extraction roadmap | [PSTD Roadmap](product/pstd-v1-roadmap.md) |
 | Documentation freshness and history policy | [Documentation Status](DOCUMENTATION_STATUS.md) |
 | Architecture | [System Overview](architecture/system-overview.md) |
@@ -31,7 +32,7 @@ This documentation tree contains both current operating guidance and historical 
 | Readable message verticals | One deterministic 956-byte EML is emitted with sender, recipients, subject, Date, Message-ID, plain text, and recovered HTML. |
 | Upstream fixture corpus | Three pinned public PSTs now cover attachments, multiple folders/messages, body forms, appointments, recurrence, contacts, distribution lists, and legacy Exchange addresses. |
 | Tika attachment fixture | Eight messages include seven top-level messages assigned by exact contents-table rows, one linked method-`5` child, nine directly owned recipients, ten body records, two exact attachment payloads, the unchanged 17,035-byte parent EML, and one exact 453-byte child EML. |
-| Current milestone | Reject unresolved four-byte body locators; next establish the first pinned ANSI PST baseline. |
+| Current milestone | Generate and pin the first controlled real ANSI PST baseline; traversal and extraction remain disabled until exact fixture evidence passes. |
 
 The current roadmap and fixture-corpus guide define the active evidence-led sequence. Historical milestone and PQ documents remain useful for implementation context but do not define the next task.
 
@@ -56,6 +57,7 @@ The current roadmap and fixture-corpus guide define the active evidence-led sequ
 
 - [Public PST Progress Log](operations/public-pst-progress-log.md)
 - [Upstream PST Fixture Corpus](operations/upstream-pst-fixture-corpus.md)
+- [ANSI PST Fixture Generation](fixtures/ansi-pst-generation.md)
 - [Local Validation](operations/local-validation.md)
 - [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
 - [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md)
