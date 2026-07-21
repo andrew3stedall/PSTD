@@ -1,6 +1,6 @@
 # PSTD Project Status
 
-_Last reviewed: 21 July 2026._
+_Last reviewed: 22 July 2026._
 
 ## Purpose
 
@@ -23,7 +23,7 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Independent body forms | Validated through Vertical 38 / PR #470 | Four-byte Property Context body locators remain explicit unavailable forms; the body-types fixture selects its valid 37-byte plain body, and the Tika parent/child retain plain text without materializing invalid HTML. |
 | ANSI header diagnostics | Validated through Vertical 39 / PR #473 | Versions 14 and 15 use variant-correct 32-bit NBT/BBT root offsets and the ANSI crypt-method location. Values are diagnostic only; ANSI roots cannot authorize traversal or extraction. Synthetic tests prevent adjacent-byte contamination. |
 | ANSI traversal | Backlog | No ANSI traversal or extraction is claimed. Diagnostic header support remains fail closed. |
-| External PST implementations | Prohibited dependency | PSTD must not add java-libpst, libpst, libpff, Tika, Outlook, or another PST parser/converter as a build, runtime, test-runtime, CI, or Docker dependency. |
+| External PST implementations | Comparison-only tooling | External parsers and converters may be used offline or in an explicitly isolated fixture-generation/comparison workflow to create controlled fixtures and independently measure expected counts, properties, ownership, payload bytes, and MIME structure. They must not be required by the PSTD Rust library, CLI, Python wrapper, Docker image, or normal end-user runtime. PSTD acceptance still requires exact output from its own Rust implementation. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
 
 ## Exact Tika baseline
@@ -64,11 +64,13 @@ The next implementation should select the smallest evidenced incomplete email ca
 3. authoritative Exchange-to-SMTP resolution;
 4. bounded nested embedded-message recursion.
 
-The libyal qualification lane and java-libpst typed-object lane are closed. Public upstream projects may provide properly licensed and pinned fixture bytes, but their parsers and converters are not PSTD dependencies and must not be invoked by normal CI or tests.
+External implementations may now be used to generate controlled PST fixtures and as independent comparison oracles. Any committed fixture must still have documented provenance or a reproducible generation recipe, redistribution permission, immutable bytes, byte length, SHA-256, and an exact expected contract. External tools remain outside PSTD's shipped dependency and runtime boundary.
 
 ## Validation expectations
 
 Every extraction PR must pass formatting, clippy with warnings denied, all Rust tests, CLI checks, Python wrapper checks, Docker build, approved fixture workflows, and exact artifact review. Unsupported or ambiguous candidates must remain unavailable rather than producing partial records.
+
+Comparison workflows must identify the external implementation and pinned version used, retain its raw report as evidence where licensing permits, and separately verify PSTD's own deterministic outputs. Agreement with another parser is supporting evidence, not sufficient proof when the format specification or fixture bytes contradict it.
 
 ## Risk statement
 
