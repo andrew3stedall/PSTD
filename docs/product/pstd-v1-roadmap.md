@@ -1,6 +1,6 @@
 # PSTD Roadmap
 
-_Last reviewed: 21 July 2026._
+_Last reviewed: 22 July 2026._
 
 ## Objective
 
@@ -18,7 +18,7 @@ Deliver reliable PST email extraction before investing in downstream storage or 
 - Keep Snowflake, UI, search, analytics, semantic search, and graph work parked.
 - Treat EML generation as an assembly layer over validated extracted data, not as a substitute for parser coverage.
 - Treat contacts, appointments, tasks, journals, and distribution lists as typed non-mail objects rather than forcing them into EML.
-- Keep PSTD self-contained: do not add another PST parser or converter as a build, runtime, test-runtime, CI, or Docker dependency.
+- Keep PSTD self-contained: external PST implementations may support isolated fixture generation and comparison, but must not become required library, build, runtime, normal test-runtime, CI, Docker, or end-user dependencies.
 
 ## Completed foundation
 
@@ -58,7 +58,7 @@ Complete in Vertical 39 / PR #473. Version-14 and version-15 root offsets and cr
 
 The previously proposed libyal fixture lane is closed because redistribution rights for the candidate binary were not established. The java-libpst typed-object lane is also closed because it prioritised non-mail objects and added no email-to-EML capability.
 
-The active milestone is to inspect approved immutable Unicode fixture evidence and implement the highest-ranked incomplete email behaviour without introducing an external PST implementation.
+The active milestone is to use approved immutable Unicode fixture evidence and implement the highest-ranked incomplete email behaviour without adding an external PST implementation to PSTD's shipped or normal validation dependency graph. Pinned external tools may be used in isolated fixture-generation or comparison workflows.
 
 Priority is:
 
@@ -75,11 +75,11 @@ The recovered child plain-text EML, exact method-`5` child payload, complete Tik
 
 ## Fixture and dependency boundary
 
-A fixture may originate from a public upstream repository only when its redistribution rights, immutable revision, exact path, byte length, and SHA-256 are documented. Fixture provenance does not make the originating project a dependency.
+A fixture may originate from a public upstream repository or a controlled synthetic generation workflow when its redistribution rights or generation recipe, immutable revision or pinned tool version, exact path, byte length, and SHA-256 are documented. Fixture provenance does not make the originating project a dependency.
 
-Do not add java-libpst, libpst, libpff, Apache Tika, Outlook, or another PST parser/converter as a library, build, runtime, test-runtime, CI, or Docker dependency. Do not shell out to those tools in normal validation. Optional offline comparison may inform investigation, but PSTD acceptance must be established by its own Rust implementation and exact fixture evidence.
+Do not add java-libpst, libpst, libpff, Apache Tika, Outlook, or another PST parser/converter as a required library, build, runtime, normal test-runtime, CI, Docker, or end-user dependency. Pinned external implementations may be used offline or in explicitly isolated fixture-generation and comparison workflows to create controlled PSTs and independently inventory expected counts, properties, ownership, payload bytes, hashes, and MIME structure. PSTD acceptance must be established separately by its own Rust implementation and exact fixture evidence.
 
-Parser rules must not be relaxed merely to make a fixture pass. Unsupported, encrypted, malformed, duplicate, ambiguous, out-of-range, or unowned structures remain explicit and emit no guessed EML.
+Agreement with an external implementation is supporting evidence rather than authoritative truth. Parser rules must not be relaxed merely to match another tool or make a fixture pass. Unsupported, encrypted, malformed, duplicate, ambiguous, out-of-range, or unowned structures remain explicit and emit no guessed EML.
 
 ## Stable Rust API boundary
 
