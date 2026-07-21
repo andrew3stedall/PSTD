@@ -22,7 +22,7 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Tika folder/message ownership | Validated through Vertical 37 / PR #464 | All eight folder records are exact; seven top-level messages resolve once from `node_802e` row keys to `/Début du fichier de données Outlook`; the linked embedded child remains isolated. |
 | Independent body forms | Validated through Vertical 38 / PR #470 | Four-byte Property Context body locators remain explicit unavailable forms; the body-types fixture selects its valid 37-byte plain body, and the Tika parent/child retain plain text without materializing invalid HTML. |
 | ANSI header diagnostics | Validated through Vertical 39 / PR #473 | Versions 14 and 15 use variant-correct 32-bit NBT/BBT root offsets and the ANSI crypt-method location. Values are diagnostic only; ANSI roots cannot authorize traversal or extraction. Synthetic tests prevent adjacent-byte contamination. |
-| ANSI traversal | Backlog | No ANSI traversal or extraction is claimed. Diagnostic header support remains fail closed. |
+| ANSI Stage A fixture and traversal | Active / issue #475 | Build a deterministic Linux-generated version-14 PST with valid empty NBT and BBT leaves, independently validate it, and admit only bounded root-page decoding. It must emit zero objects and zero EML and does not establish ANSI email compatibility. |
 | External PST implementations | Comparison-only tooling | External parsers and converters may be used offline or in an explicitly isolated fixture-generation/comparison workflow to create controlled fixtures and independently measure expected counts, properties, ownership, payload bytes, and MIME structure. They must not be required by the PSTD Rust library, CLI, Python wrapper, Docker image, or normal end-user runtime. PSTD acceptance still requires exact output from its own Rust implementation. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
 
@@ -51,20 +51,17 @@ The eight removed body bytes from Vertical 38 were two Property Context HNID cel
 
 ## Latest completed work
 
-Vertical 39 decodes ANSI version-14 and version-15 header diagnostics with ANSI-specific field widths and offsets while deliberately withholding all ANSI traversal roots. Exact behavior is protected by controlled synthetic tests, and all approved Unicode fixture contracts remain unchanged.
+The java-libpst comparison fixture now has a deterministic fail-closed baseline: 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised attachment payloads, 0 validated `IPM.Note*` classes, and 0 EML files. It adds corpus evidence but does not unlock an email extraction path.
 
 ## Next evidence-based milestone
 
-Expand approved Unicode email-to-EML coverage using PSTD's own Rust implementation. The recovered child plain-text EML, method-`5` child payload, complete Tika folder/message ownership, and independent body-form admission are already merged and must not be duplicated.
+Implement Stage A of issue #475: generate and validate a deterministic version-14 ANSI PST containing one empty NBT leaf and one empty BBT leaf, then admit only bounded ANSI root-page decoding.
 
-The next implementation should select the smallest evidenced incomplete email capability, preferring:
+Acceptance requires byte-identical regeneration, pinned length and SHA-256, independent byte-level validation, comparison with a pinned external reader, exact zero-object/zero-EML output, and no Unicode fixture regression. Stage A must not be described as ANSI email support.
 
-1. another by-value attachment method, format, or storage layout;
-2. inline attachment and Content-ID handling;
-3. authoritative Exchange-to-SMTP resolution;
-4. bounded nested embedded-message recursion.
+After Stage A, the next ANSI milestone is one controlled folder and one plain-text `IPM.Note` message with exact recipient, body, EML path, byte length, and SHA-256. Broader Unicode attachment layouts, inline Content-ID handling, Exchange-to-SMTP mapping, and nested embedded messages remain queued after this explicitly ordered ANSI lane.
 
-External implementations may now be used to generate controlled PST fixtures and as independent comparison oracles. Any committed fixture must still have documented provenance or a reproducible generation recipe, redistribution permission, immutable bytes, byte length, SHA-256, and an exact expected contract. External tools remain outside PSTD's shipped dependency and runtime boundary.
+External implementations may be used to generate controlled PST fixtures and as independent comparison oracles. Any committed fixture must still have documented provenance or a reproducible generation recipe, redistribution permission, immutable bytes, byte length, SHA-256, and an exact expected contract. External tools remain outside PSTD's shipped dependency and runtime boundary.
 
 ## Validation expectations
 
@@ -74,4 +71,4 @@ Comparison workflows must identify the external implementation and pinned versio
 
 ## Risk statement
 
-The current result is material evidence for two approved Unicode fixture paths plus synthetic ANSI header-layout tests, not broad PST compatibility. The sender's Exchange distinguished name is preserved but not SMTP-resolved. Additional Unicode producers, uncommon or corrupt layouts, inline attachments, nested embedded attachments, contacts/distribution lists, appointments, and many MAPI property combinations remain incomplete.
+The current result is material evidence for two approved Unicode fixture paths plus synthetic ANSI header-layout tests, not broad PST compatibility. The sender's Exchange distinguished name is preserved but not SMTP-resolved. ANSI traversal and extraction remain unsupported until Stage A is independently validated and merged. Additional Unicode producers, uncommon or corrupt layouts, inline attachments, nested embedded attachments, contacts/distribution lists, appointments, and many MAPI property combinations remain incomplete.
