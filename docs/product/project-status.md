@@ -23,6 +23,7 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Independent body forms | Validated through Vertical 38 / PR #470 | Four-byte Property Context body locators remain explicit unavailable forms; the body-types fixture selects its valid 37-byte plain body, and the Tika parent/child retain plain text without materializing invalid HTML. |
 | ANSI header diagnostics | Validated through Vertical 39 / PR #473 | Versions 14 and 15 use variant-correct 32-bit NBT/BBT root offsets and the ANSI crypt-method location. Values are diagnostic only; ANSI roots cannot authorize traversal or extraction. Synthetic tests prevent adjacent-byte contamination. |
 | ANSI traversal | Backlog | No ANSI traversal or extraction is claimed. Diagnostic header support remains fail closed. |
+| External PST implementations | Prohibited dependency | PSTD must not add java-libpst, libpst, libpff, Tika, Outlook, or another PST parser/converter as a build, runtime, test-runtime, CI, or Docker dependency. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
 
 ## Exact Tika baseline
@@ -54,9 +55,16 @@ Vertical 39 decodes ANSI version-14 and version-15 header diagnostics with ANSI-
 
 ## Next evidence-based milestone
 
-Qualify the public libyal version-23 `pst/outlook.pst` candidate as an independent Unicode producer fixture. Before parser changes, lock its immutable provenance, redistribution basis, byte size, SHA-256, header and encryption evidence, parser exit behavior, exact typed-object counts, unsupported records, and repeated-run deterministic output.
+Expand approved Unicode email-to-EML coverage using PSTD's own Rust implementation. The recovered child plain-text EML, method-`5` child payload, complete Tika folder/message ownership, and independent body-form admission are already merged and must not be duplicated.
 
-After qualification, select only the smallest coherent Unicode vertical that creates new observable email, folder, recipient, body, attachment, inline/CID, or typed non-mail behavior. ANSI traversal remains backlog-only.
+The next implementation should select the smallest evidenced incomplete email capability, preferring:
+
+1. another by-value attachment method, format, or storage layout;
+2. inline attachment and Content-ID handling;
+3. authoritative Exchange-to-SMTP resolution;
+4. bounded nested embedded-message recursion.
+
+The libyal qualification lane and java-libpst typed-object lane are closed. Public upstream projects may provide properly licensed and pinned fixture bytes, but their parsers and converters are not PSTD dependencies and must not be invoked by normal CI or tests.
 
 ## Validation expectations
 

@@ -1,6 +1,6 @@
 # PSTD Compatibility Matrix
 
-_Last reviewed: 20 July 2026._
+_Last reviewed: 21 July 2026._
 
 ## Purpose
 
@@ -62,14 +62,15 @@ No capability may be promoted to broadly supported solely because it passes one 
 
 ## Immediate sequence
 
-1. Qualify the pinned libyal Unicode `pst/outlook.pst` candidate as the next independent producer fixture.
-2. Lock provenance, byte length, SHA-256, header version, encryption state, parser exit behaviour and complete object counts before changing extraction code.
-3. Add the smallest Unicode vertical exposed by that fixture, preferring new observable email, folder, recipient, body or attachment behaviour over parser abstractions.
-4. Broaden by-value attachment formats and layouts, then inline/CID handling.
-5. Add authoritative Exchange-to-SMTP resolution, bounded nested-message recursion and deterministic corrupt/ambiguous fixtures.
-6. Keep ANSI traversal in backlog until Unicode compatibility breadth and fail-closed evidence are materially stronger.
+1. Reconcile approved fixture artifacts against the merged baseline so completed child EML, method-`5`, folder ownership, and body-form work is not duplicated.
+2. Select the smallest evidenced incomplete Unicode email capability, preferring another by-value attachment method, format, or layout.
+3. Then add inline/CID handling, authoritative Exchange-to-SMTP resolution, and bounded nested-message recursion.
+4. Add deterministic corrupt and ambiguous cases before performance hardening and public API stabilisation.
+5. Keep ANSI traversal and typed non-mail enrichment in backlog until Unicode email coverage is materially broader.
 
-The libyal public `pst/outlook.pst` candidate declares NDB version 23 and is therefore suitable for the active Unicode corpus lane. It must still pass licensing, provenance, hash and exact-output admission before being added to CI.
+## Dependency boundary
+
+PSTD must remain a self-contained Rust parser and EML generator. Do not add java-libpst, libpst, libpff, Apache Tika, Outlook, or another PST parser/converter as a build, runtime, test-runtime, CI, or Docker dependency. Public projects may supply properly licensed, immutable fixture bytes, but fixture provenance does not make the originating project a dependency. Acceptance must come from PSTD's own Rust implementation and exact fixture evidence.
 
 ## Maintenance rule
 

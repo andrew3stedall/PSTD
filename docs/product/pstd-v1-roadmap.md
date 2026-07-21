@@ -18,6 +18,7 @@ Deliver reliable PST email extraction before investing in downstream storage or 
 - Keep Snowflake, UI, search, analytics, semantic search, and graph work parked.
 - Treat EML generation as an assembly layer over validated extracted data, not as a substitute for parser coverage.
 - Treat contacts, appointments, tasks, journals, and distribution lists as typed non-mail objects rather than forcing them into EML.
+- Keep PSTD self-contained: do not add another PST parser or converter as a build, runtime, test-runtime, CI, or Docker dependency.
 
 ## Completed foundation
 
@@ -53,45 +54,32 @@ Complete in Vertical 39 / PR #473. Version-14 and version-15 root offsets and cr
 
 ## Current milestone
 
-### Qualify an additional Unicode producer fixture
+### Expand approved Unicode email-to-EML coverage
 
-Qualify the public libyal version-23 `pst/outlook.pst` candidate before changing extraction code.
+The previously proposed libyal fixture lane is closed because redistribution rights for the candidate binary were not established. The java-libpst typed-object lane is also closed because it prioritised non-mail objects and added no email-to-EML capability.
 
-Admission requires:
+The active milestone is to inspect approved immutable Unicode fixture evidence and implement the highest-ranked incomplete email behaviour without introducing an external PST implementation.
 
-- immutable upstream repository revision and exact fixture path;
-- confirmed redistribution basis;
-- exact byte length and SHA-256;
-- exact header signature, NDB version, crypt method, and classification;
-- deterministic inspect and extract exit behaviour;
-- exact counts for folders, typed objects, messages, recipients, body forms, attachments, and EML;
-- a complete list of unavailable, encrypted, ambiguous, corrupt, or unsupported records;
-- repeated-run byte identity for structured output and any generated EML;
-- no regression in existing original-fixture or Tika contracts.
+Priority is:
 
-After admission, implement only the smallest coherent vertical that produces new observable behaviour. Priority is:
-
-1. a newly discovered or newly owned email;
-2. a new by-value attachment method, format, or storage layout;
-3. independently valid plain, HTML, or RTF body selection;
-4. additional To, Cc, or Bcc evidence;
-5. inline attachment and Content-ID evidence;
-6. typed non-mail classification.
-
-Parser rules must not be relaxed merely to make the fixture pass.
-
-## Following compatibility sequence
-
-After the additional Unicode producer baseline:
-
-1. broaden by-value attachment formats and data-tree layouts;
-2. validate inline attachments and Content-ID references against exact HTML evidence;
+1. broaden by-value attachment methods, formats, or storage layouts;
+2. add inline attachment and Content-ID handling against exact HTML evidence;
 3. add authoritative Exchange-to-SMTP resolution only from validated mapping evidence;
 4. implement bounded nested embedded-message recursion with explicit depth and ownership limits;
 5. add deterministic corrupt, truncated, duplicate, cross-scope, and ambiguous fixture cases;
 6. harden large-file performance and memory limits;
 7. expose a narrow stable Rust API after extraction records and diagnostics are sufficiently stable;
 8. return to ANSI traversal only when Unicode corpus breadth and fail-closed evidence are materially stronger.
+
+The recovered child plain-text EML, exact method-`5` child payload, complete Tika folder/message ownership, and independent body-form admission are already merged and must not be reimplemented.
+
+## Fixture and dependency boundary
+
+A fixture may originate from a public upstream repository only when its redistribution rights, immutable revision, exact path, byte length, and SHA-256 are documented. Fixture provenance does not make the originating project a dependency.
+
+Do not add java-libpst, libpst, libpff, Apache Tika, Outlook, or another PST parser/converter as a library, build, runtime, test-runtime, CI, or Docker dependency. Do not shell out to those tools in normal validation. Optional offline comparison may inform investigation, but PSTD acceptance must be established by its own Rust implementation and exact fixture evidence.
+
+Parser rules must not be relaxed merely to make a fixture pass. Unsupported, encrypted, malformed, duplicate, ambiguous, out-of-range, or unowned structures remain explicit and emit no guessed EML.
 
 ## Stable Rust API boundary
 
