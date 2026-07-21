@@ -1,0 +1,222 @@
+name: Java-libpst email corpus baseline
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo test --all-targets --all-features
+      - name: Capture deterministic email-focused baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/upstream/java-libpst-dist-list.pst"
+          evidence="/tmp/pstd-java-libpst-email-baseline"
+          mkdir -p "$evidence" "$evidence/eml-a" "$evidence/eml-b"
+          (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
+
+          for run in a b; do
+            output="$evidence/output-$run"
+            mkdir -p "$output"
+            set +e
+            cargo run -- extract --input "$fixture" --output "$output" --overwrite \
+              > "$evidence/extract-$run.stdout" 2> "$evidence/extract-$run.stderr"
+            extract_status=$?
+            cargo run --bin pstd-eml -- "$fixture" "$evidence/eml-$run" \
+              > "$evidence/eml-$run.stdout" 2> "$evidence/eml-$run.stderr"
+            eml_status=$?
+            set -e
+
+            printf '%s\n' "$extract_status" > "$evidence/extract-$run-exit-code.txt"
+            printf '%s\n' "$eml_status" > "$evidence/eml-$run-exit-code.txt"
+
+            if [[ "$extract_status" -ne 0 && "$extract_status" -ne 2 ]]; then
+              echo "Unexpected extraction exit code: $extract_status" >&2
+              exit 1
+            fi
+            if [[ "$eml_status" -eq 1 ]]; then
+              grep -Fxq 'eml_files_emitted=0' "$evidence/eml-$run.stdout"
+              if find "$evidence/eml-$run" -type f -print -quit | grep -q .; then
+                echo "EML command reported no admissible message but emitted files" >&2
+                exit 1
+              fi
+            elif [[ "$eml_status" -ne 0 && "$eml_status" -ne 2 ]]; then
+              echo "Unexpected EML exit code: $eml_status" >&2
+              exit 1
+            fi
+
+            find "$output" -type f -printf '%P\t%s\n' | sort > "$evidence/output-$run-files.tsv"
+            find "$evidence/eml-$run" -type f -printf '%P\t%s\n' | sort > "$evidence/eml-$run-files.tsv"
+          done
+
+          python - <<'PY'
+          import hashlib
+          import json
+          import tarfile
+          from collections import Counter
+          from pathlib import Path
+
+          evidence = Path('/tmp/pstd-java-libpst-email-baseline')
+          volatile_fields = {
+              'run_id',
+              'timestamp_utc',
+              'started_at',
+              'finished_at',
+              'duration_seconds',
+          }
+
+          def clean(value):
+              if isinstance(value, dict):
+                  return {
+                      key: clean(child)
+                      for key, child in value.items()
+                      if key not in volatile_fields
+                  }
+              if isinstance(value, list):
+                  return [clean(child) for child in value]
+              return value
+
+          def extract_archive(run):
+              output = evidence / f'output-{run}'
+              archives = sorted((output / 'archives').glob('*.tar'))
+              if len(archives) != 1:
+                  raise SystemExit(
+                      f'expected one extraction TAR for run {run}, found {len(archives)}'
+                  )
+              archive_dir = evidence / f'archive-{run}'
+              archive_dir.mkdir()
+              with tarfile.open(archives[0]) as tf:
+                  tf.extractall(archive_dir)
+              return archive_dir
+
+          def canonical_snapshot(root):
+              snapshot = {}
+              for path in sorted(root.rglob('*')):
+                  if not path.is_file():
+                      continue
+                  relative = path.relative_to(root).as_posix()
+                  if path.suffix == '.jsonl':
+                      snapshot[relative] = [
+                          clean(json.loads(line))
+                          for line in path.read_text(encoding='utf-8').splitlines()
+                          if line.strip()
+                      ]
+                  elif path.suffix == '.json':
+                      snapshot[relative] = clean(
+                          json.loads(path.read_text(encoding='utf-8'))
+                      )
+                  else:
+                      snapshot[relative] = {
+                          'byte_length': path.stat().st_size,
+                          'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                      }
+              return snapshot
+
+          archive_a = extract_archive('a')
+          archive_b = extract_archive('b')
+          snapshot_a = canonical_snapshot(archive_a)
+          snapshot_b = canonical_snapshot(archive_b)
+          if snapshot_a != snapshot_b:
+              different = sorted(
+                  key
+                  for key in set(snapshot_a) | set(snapshot_b)
+                  if snapshot_a.get(key) != snapshot_b.get(key)
+              )
+              raise SystemExit(f'non-deterministic semantic extraction files: {different}')
+
+          data = archive_a / 'data'
+
+          def records(name):
+              path = data / name
+              if not path.exists():
+                  return []
+              return [
+                  json.loads(line)
+                  for line in path.read_text(encoding='utf-8').splitlines()
+                  if line.strip()
+              ]
+
+          names = (
+              'folders.jsonl',
+              'messages.jsonl',
+              'bodies.jsonl',
+              'recipients.jsonl',
+              'attachments.jsonl',
+          )
+          rows = {name: records(name) for name in names}
+          messages = rows['messages.jsonl']
+          mail_classes = Counter(
+              str(row.get('message_class'))
+              for row in messages
+              if str(row.get('message_class', '')).startswith('IPM.Note')
+          )
+          non_mail_classes = Counter(
+              str(row.get('message_class'))
+              for row in messages
+              if not str(row.get('message_class', '')).startswith('IPM.Note')
+          )
+          attachment_payloads = sorted(
+              path
+              for path in (archive_a / 'data').rglob('*')
+              if path.is_file() and '/attachments/' in path.as_posix()
+          )
+          eml_files = sorted((evidence / 'eml-a').glob('*.eml'))
+
+          summary = {
+              'fixture': 'java-libpst-dist-list.pst',
+              'fixture_sha256': hashlib.sha256(
+                  Path('tests/fixtures/upstream/java-libpst-dist-list.pst').read_bytes()
+              ).hexdigest(),
+              'record_counts': {
+                  name.removesuffix('.jsonl'): len(value)
+                  for name, value in rows.items()
+              },
+              'mail_message_classes': dict(sorted(mail_classes.items())),
+              'non_mail_message_classes': dict(sorted(non_mail_classes.items())),
+              'attachment_payloads': [
+                  {
+                      'path': path.relative_to(archive_a).as_posix(),
+                      'byte_length': path.stat().st_size,
+                      'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                  }
+                  for path in attachment_payloads
+              ],
+              'eml_files': [
+                  {
+                      'path': path.name,
+                      'byte_length': path.stat().st_size,
+                      'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                  }
+                  for path in eml_files
+              ],
+              'extract_exit_code': int(
+                  (evidence / 'extract-a-exit-code.txt').read_text().strip()
+              ),
+              'eml_exit_code': int(
+                  (evidence / 'eml-a-exit-code.txt').read_text().strip()
+              ),
+          }
+          (evidence / 'baseline-summary.json').write_text(
+              json.dumps(summary, indent=2, ensure_ascii=False, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          print(json.dumps(summary, indent=2, ensure_ascii=False, sort_keys=True))
+          PY
+
+          diff -ru "$evidence/eml-a" "$evidence/eml-b"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: java-libpst-email-baseline
+          path: /tmp/pstd-java-libpst-email-baseline
+          if-no-files-found: error
