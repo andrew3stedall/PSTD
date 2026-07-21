@@ -52,26 +52,37 @@ Complete through Vertical 38:
 
 Complete in Vertical 39 / PR #473. Version-14 and version-15 root offsets and crypt-method locations are decoded with ANSI-specific widths and offsets. These values are diagnostic only. ANSI roots cannot authorize page traversal or extraction.
 
+### Java-libpst comparison baseline
+
+Complete in PR #491. The pinned fixture deterministically yields 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised payloads, 0 validated `IPM.Note*` classes, and 0 EML files. This is a fail-closed corpus result, not a new email capability.
+
 ## Current milestone
 
-### Expand approved Unicode email-to-EML coverage
+### Controlled ANSI Stage A fixture and bounded root-page decoding
 
-The previously proposed libyal fixture lane is closed because redistribution rights for the candidate binary were not established. The java-libpst typed-object lane is also closed because it prioritised non-mail objects and added no email-to-EML capability.
+The recovered child plain-text EML, exact method-`5` child payload, complete Tika folder/message ownership, and independent body-form admission are already merged. The next ordered incomplete capability is ANSI coverage.
 
-The active milestone is to use approved immutable Unicode fixture evidence and implement the highest-ranked incomplete email behaviour without adding an external PST implementation to PSTD's shipped or normal validation dependency graph. Pinned external tools may be used in isolated fixture-generation or comparison workflows.
+Issue #475 is active. Stage A must produce a deterministic Linux-generated version-14 PST containing:
 
-Priority is:
+- a valid ANSI header;
+- one empty NBT leaf root page;
+- one empty BBT leaf root page;
+- valid page trailers, signatures, and CRC values;
+- no allocated message blocks and no extracted objects.
 
-1. broaden by-value attachment methods, formats, or storage layouts;
-2. add inline attachment and Content-ID handling against exact HTML evidence;
-3. add authoritative Exchange-to-SMTP resolution only from validated mapping evidence;
-4. implement bounded nested embedded-message recursion with explicit depth and ownership limits;
-5. add deterministic corrupt, truncated, duplicate, cross-scope, and ambiguous fixture cases;
-6. harden large-file performance and memory limits;
-7. expose a narrow stable Rust API after extraction records and diagnostics are sufficiently stable;
-8. return to ANSI traversal only when Unicode corpus breadth and fail-closed evidence are materially stronger.
+Acceptance requires:
 
-The recovered child plain-text EML, exact method-`5` child payload, complete Tika folder/message ownership, and independent body-form admission are already merged and must not be reimplemented.
+1. byte-identical regeneration on Linux;
+2. pinned byte length and SHA-256;
+3. independent byte-level checks that do not invoke the production parser;
+4. validation with a pinned external reader used only as a fixture oracle;
+5. PSTD classification as ANSI with bounded root-page decoding only;
+6. zero folders, messages, bodies, recipients, attachments, typed non-mail objects, and EML;
+7. no regression in any approved Unicode fixture workflow.
+
+Stage A proves only the structural traversal boundary. It must not be described as ANSI email support.
+
+After Stage A, Stage B adds one controlled folder and one plain-text `IPM.Note` message with fixed subject, sender, To recipient, timestamp, body, EML path, byte length, and SHA-256. Only after that should the roadmap resume broader attachment layouts, inline Content-ID handling, authoritative Exchange-to-SMTP resolution, and bounded nested embedded-message recursion.
 
 ## Fixture and dependency boundary
 
@@ -113,9 +124,16 @@ PSTD should not be described as conversion-complete or production-ready until a 
 
 ## Deferred roadmap
 
-1. Snowflake ingestion.
-2. Search and review web application.
-3. Semantic search, embeddings, tagging, graph, and LLM/RAG workflows.
-4. Distributed orchestration beyond the current local/Docker batch model.
+1. Broader by-value attachment methods, formats, and storage layouts.
+2. Inline attachment and Content-ID handling.
+3. Authoritative Exchange-to-SMTP resolution.
+4. Bounded nested embedded-message recursion.
+5. Corrupt, truncated, duplicate, cross-scope, and ambiguous fixture cases.
+6. Large-file performance and memory hardening.
+7. Narrow stable Rust API after extraction records and diagnostics stabilise.
+8. Snowflake ingestion.
+9. Search and review web application.
+10. Semantic search, embeddings, tagging, graph, and LLM/RAG workflows.
+11. Distributed orchestration beyond the current local/Docker batch model.
 
 Exact-preservation policy and large-corpus hardening remain later concerns after the readable-message path covers more producers, body forms, attachment layouts, and typed non-mail objects.
