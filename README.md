@@ -4,7 +4,7 @@ PSTD is a Rust-first tool for extracting email data from Microsoft Outlook PST f
 
 ## Current position
 
-_Last reviewed: 21 July 2026._
+_Last reviewed: 22 July 2026._
 
 | Area | State on `main` | Current result |
 |---|---|---|
@@ -89,7 +89,7 @@ Implemented capabilities include bounded parsing of PST headers, BBT/NBT pages, 
 
 ## Dependency boundary
 
-PSTD must not add java-libpst, libpst, libpff, Apache Tika, Outlook, or another PST parser/converter as a build, runtime, test-runtime, CI, or Docker dependency. Public upstream repositories may supply approved, redistributable, immutable fixture bytes with documented size and SHA-256. Fixture provenance does not make the originating project a dependency, and PSTD acceptance must come from its own Rust implementation and exact fixture output.
+PSTD must not add java-libpst, libpst, libpff, Apache Tika, Outlook, or another PST parser/converter as a required library, build, runtime, normal test-runtime, CI, Docker, or end-user dependency. Pinned external implementations may be used offline or in explicitly isolated fixture-generation and comparison workflows to create controlled fixtures and independently inventory counts, ownership, properties, payload bytes, hashes, and MIME structure. Any committed fixture still requires documented provenance or a reproducible generation recipe, redistribution permission, immutable bytes, byte length, and SHA-256. PSTD acceptance must come from its own Rust implementation and exact fixture output; agreement with another parser is supporting evidence, not authoritative truth.
 
 ## Important limitations
 
