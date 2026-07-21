@@ -1,6 +1,6 @@
 # PSTD Documentation
 
-_Last reviewed: 20 July 2026._
+_Last reviewed: 21 July 2026._
 
 This documentation tree contains both current operating guidance and historical delivery evidence. Use the current-state pages below for present capability and next work. Milestone, PQ, vertical, issue-plan, and implementation-plan files record what was known at the time they were written.
 
@@ -8,6 +8,7 @@ This documentation tree contains both current operating guidance and historical 
 
 | Need | Authoritative page |
 |---|---|
+| Install, inspect, extract, generate EML, and call PSTD from Python | [Quickstart](quickstart.md) |
 | Project intent, headline progress, and commands | [Root README](../README.md) |
 | Current merged capability and active blocker | [Project Status](product/project-status.md) |
 | Real-fixture evidence over time | [Public PST Progress Log](operations/public-pst-progress-log.md) |
@@ -47,6 +48,7 @@ The current roadmap and fixture-corpus guide define the active evidence-led sequ
 
 ### Engineering and architecture
 
+- [Quickstart](quickstart.md)
 - [System Overview](architecture/system-overview.md)
 - [Codebase Map](engineering/codebase-map.md)
 - [Developer Guide](engineering/developer-guide.md)
