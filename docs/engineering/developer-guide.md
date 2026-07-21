@@ -1,6 +1,6 @@
 # PSTD Developer Guide
 
-_Last reviewed: 14 July 2026._
+_Last reviewed: 21 July 2026._
 
 ## Purpose
 
@@ -12,9 +12,11 @@ Give developers and coding agents the minimum context needed to change PSTD safe
 2. [Project Status](../product/project-status.md)
 3. [Public PST Progress Log](../operations/public-pst-progress-log.md)
 4. [Roadmap](../product/pstd-v1-roadmap.md)
-5. [Codebase Map](codebase-map.md)
-6. [Local Validation](../operations/local-validation.md)
-7. `AGENTS.md`
+5. [Compatibility Matrix](../product/compatibility-matrix.md)
+6. [Approved Attachment Fixture Gap](../operations/vertical-40-approved-fixture-gap.md)
+7. [Codebase Map](codebase-map.md)
+8. [Local Validation](../operations/local-validation.md)
+9. `AGENTS.md`
 
 Before starting work, check open pull requests, active branches, recent commits, and CI. Continue an existing vertical implementation when one is already underway.
 
@@ -50,7 +52,7 @@ python -m pstd --help
 
 ## Current development model
 
-The M1-M25 milestone lane and PQ1-PQ74 parser-quality lane are complete. Active work uses vertical extraction milestones.
+The M1-M25 milestone lane and PQ1-PQ74 parser-quality lane are complete. Active work uses vertical extraction milestones and evidence-led fixture qualification.
 
 A vertical milestone must:
 
@@ -60,9 +62,11 @@ A vertical milestone must:
 - fail closed without partial evidence;
 - remain tightly scoped;
 - include focused regression tests;
-- rerun the public fixture and update current-state documentation.
+- rerun every relevant approved fixture and update current-state documentation.
 
 Do not add a new abstraction merely because a parser layer could be made more general. It must unlock a measured extraction need.
+
+The active compatibility lane is dependency-free Unicode email expansion. The next parser or MIME change requires approved immutable fixture evidence for a second by-value attachment layout, multiple exactly owned attachments, or exact inline attachment and Content-ID behaviour. ANSI traversal and typed non-mail enrichment remain backlog-only.
 
 ## Validation
 
@@ -94,10 +98,12 @@ Inspect the public-progress and milestone-specific artifacts. Record the exact e
 ## Fixture policy
 
 - Never commit private PST files.
-- Prefer synthetic byte fixtures for unit and regression tests.
-- Use only approved public or sanitised PST files for integration checks.
-- Keep CI artifacts bounded and free of full bodies or attachment bytes.
-- Treat a passing fixture as evidence for that layout, not general compatibility.
+- Prefer synthetic byte fixtures for focused unit and corruption tests.
+- Use only approved public, redistributable, immutable or controlled synthetic PST files for integration checks.
+- Record provenance, revision, path, redistribution basis, byte length, SHA-256, NDB version and crypt method before admission.
+- Keep CI artifacts bounded and free of unapproved private bodies or attachment bytes.
+- Treat a passing fixture as evidence for that exact layout, not general compatibility.
+- Do not add another PST parser or converter as a build, runtime, test-runtime, CI or Docker dependency.
 
 ## Ownership boundaries
 
@@ -132,9 +138,11 @@ Snowflake, search, UI, tagging, graph, and LLM/RAG systems consume PSTD output. 
 
 ## Current extraction baseline
 
-On `main`, the public fixture validates 50 BBT entries, 63 NBT entries, 11 folders, one extracted message, two body payloads, zero attachments, four 52-byte Table Context rows, and four complete recipient records at the assembly boundary.
+The original public fixture validates 50 BBT entries, 63 NBT entries, 11 folders, one extracted message, two body payloads, four complete recipient records and one deterministic 956-byte plain/HTML EML.
 
-The current remaining recipient boundary is same-run production projection and publication. Draft PR #430 addresses the same-run projection but is not merged capability.
+The Tika attachment fixture validates eight messages: seven top-level messages with exact folder ownership plus one linked embedded child. It emits nine directly owned recipient records, ten body records, six valid body payloads totalling 271 bytes, two explicit unresolved HTML forms, one exact 11,862-byte method-`1` DOCX payload, one exact 453-byte method-`5` `message/rfc822` payload, the unchanged 17,035-byte parent EML and a separately emitted byte-identical 453-byte child EML.
+
+Current approved fixture evidence does not demonstrate a second by-value attachment layout, multiple by-value attachments on one message, or an inline attachment with matching HTML `cid:` evidence. Do not implement those paths speculatively.
 
 ## Failure rules
 
@@ -145,7 +153,8 @@ The current remaining recipient boundary is same-run production projection and p
 - Do not treat native Exchange or `PidTagEmailAddress` values as SMTP without authoritative evidence.
 - Do not combine names and addresses from separate fixture executions.
 - Suppress partial records when evidence counts or properties disagree.
-- Preserve explicit unavailable, failed, unsupported, and partial states.
+- Preserve explicit unavailable, failed, unsupported, ambiguous and partial states.
+- Do not infer inline attachment status from filenames or MIME types, and do not synthesize Content-ID values.
 
 ## Pull request checklist
 
@@ -164,4 +173,4 @@ Every PR should include:
 
 ## Documentation rule
 
-Update current truth in the root README, project status, public progress log, roadmap, and affected technical guide. Add a point-in-time vertical record for the implementation. Historical milestone/PQ files should remain accurate records of their original decision boundary rather than being rewritten to appear current.
+Update current truth in the root README, project status, public progress log, roadmap, compatibility matrix and affected technical guide. Add a point-in-time vertical record for the implementation. Historical milestone/PQ files should remain accurate records of their original decision boundary rather than being rewritten to appear current.
