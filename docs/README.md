@@ -31,11 +31,11 @@ This documentation tree contains both current operating guidance and historical 
 | PQ1-PQ74 | Validated parser foundation through bounded traversal, Table Context row transport, and fixed-width value decoding. |
 | Recipient verticals | Four structured To/Cc recipient records with names and usable addresses are emitted from the original public fixture. |
 | Readable message verticals | One deterministic 956-byte EML is emitted with sender, recipients, subject, Date, Message-ID, plain text, and recovered HTML. |
-| Upstream fixture corpus | Three pinned public PSTs now cover attachments, multiple folders/messages, body forms, appointments, recurrence, contacts, distribution lists, and legacy Exchange addresses. |
+| Upstream fixture corpus | Three pinned public PSTs cover attachments, multiple folders/messages, body forms, appointments, recurrence, contacts, distribution lists, and legacy Exchange addresses. Non-mail objects remain outside the active email-to-EML milestone. |
 | Tika attachment fixture | Eight messages include seven top-level messages assigned by exact contents-table rows, one linked method-`5` child, nine directly owned recipients, ten body records, two exact attachment payloads, the unchanged 17,035-byte parent EML, and one exact 453-byte child EML. |
-| Current milestone | Generate and pin the first controlled real ANSI PST baseline; traversal and extraction remain disabled until exact fixture evidence passes. |
+| Current milestone | Qualify additional immutable Unicode email fixture evidence for a second by-value attachment layout, multiple attachments, or exact inline/Content-ID behaviour. ANSI traversal and typed non-mail enrichment remain backlog-only. |
 
-The current roadmap and fixture-corpus guide define the active evidence-led sequence. Historical milestone and PQ documents remain useful for implementation context but do not define the next task.
+The current roadmap, compatibility matrix, and approved-fixture gap record define the active evidence-led sequence. Historical milestone and PQ documents remain useful for implementation context but do not define the next task.
 
 ## Current guidance by audience
 
@@ -59,6 +59,7 @@ The current roadmap and fixture-corpus guide define the active evidence-led sequ
 
 - [Public PST Progress Log](operations/public-pst-progress-log.md)
 - [Upstream PST Fixture Corpus](operations/upstream-pst-fixture-corpus.md)
+- [Approved Attachment Fixture Gap](operations/vertical-40-approved-fixture-gap.md)
 - [ANSI PST Fixture Generation](fixtures/ansi-pst-generation.md)
 - [Local Validation](operations/local-validation.md)
 - [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
