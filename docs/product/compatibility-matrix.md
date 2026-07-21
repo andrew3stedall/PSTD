@@ -1,6 +1,6 @@
 # PSTD Compatibility Matrix
 
-_Last reviewed: 21 July 2026._
+_Last reviewed: 22 July 2026._
 
 ## Purpose
 
@@ -70,7 +70,7 @@ No capability may be promoted to broadly supported solely because it passes one 
 
 ## Dependency boundary
 
-PSTD must remain a self-contained Rust parser and EML generator. Do not add java-libpst, libpst, libpff, Apache Tika, Outlook, or another PST parser/converter as a build, runtime, test-runtime, CI, or Docker dependency. Public projects may supply properly licensed, immutable fixture bytes, but fixture provenance does not make the originating project a dependency. Acceptance must come from PSTD's own Rust implementation and exact fixture evidence.
+PSTD must remain a self-contained Rust parser and EML generator. Do not add java-libpst, libpst, libpff, Apache Tika, Outlook, or another PST parser/converter as a required library, build, runtime, normal test-runtime, CI, Docker, or end-user dependency. Pinned external implementations may be used offline or in explicitly isolated fixture-generation and comparison workflows, but acceptance still requires PSTD's own deterministic output against immutable fixture bytes and exact evidence. External-tool agreement is supporting evidence, not sufficient proof.
 
 ## Maintenance rule
 
