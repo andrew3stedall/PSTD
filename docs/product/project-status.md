@@ -1,6 +1,6 @@
 # PSTD Project Status
 
-_Last reviewed: 22 July 2026._
+_Last reviewed: 23 July 2026._
 
 ## Purpose
 
@@ -13,17 +13,14 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume, diagnostics, and operator guidance. |
 | Bounded PST parser | Validated foundation through PQ74 | Header, BBT/NBT, blocks, subnodes, Heap-on-Node, BTH, Property Context, Table Context, row transport, and supported MAPI values with explicit limits. |
 | Original public fixture | Material readable-email path | One message, four structured recipients, text and recovered HTML, and one deterministic 956-byte EML. |
-| Tika DOCX attachment | Validated through Vertical 31 / PR #450 | One `attachment.docx` payload: 11,862 bytes, valid ZIP/CRC, expected document text, and preserved 15,503-byte source size metadata. |
-| Tika recipients | Validated through Vertical 32 / PR #452 | Eight directly attributed recipients across seven messages: six SMTP rows and two raw/native rows, including a full legacy Exchange distinguished name. |
-| Tika attachment EML | Validated through Vertical 33 / PR #454 | One deterministic 17,035-byte `multipart/mixed` EML contains the 22-byte UTF-8 plain-text body and exact 11,862-byte DOCX payload. The invalid four-byte HTML value is excluded. |
-| Embedded message | Validated through Vertical 34 / PR #455 | One method-`5` PtypObject resolves to a separate linked message with one directly owned recipient, a 23-byte text body, and an explicit unavailable HTML form for its four-byte property locator; no child evidence is projected onto the parent. |
-| Embedded child EML | Validated through Vertical 35 / PR #457 | The linked child emits one deterministic 453-byte single-part `text/plain` EML with exact headers, CRLF body assembly, and SHA-256; raw HTML bytes remain excluded, and unrelated plain-only messages remain unavailable. |
-| Method-5 child payload | Validated through Vertical 36 / PR #461 | The same exact 453 bytes now publish at the existing method-`5` archive path as `message/rfc822`; key, ordinal, owner and child link remain stable, with fail-closed duplicate, mismatch and nesting rejection. |
-| Tika folder/message ownership | Validated through Vertical 37 / PR #464 | All eight folder records are exact; seven top-level messages resolve once from `node_802e` row keys to `/Début du fichier de données Outlook`; the linked embedded child remains isolated. |
-| Independent body forms | Validated through Vertical 38 / PR #470 | Four-byte Property Context body locators remain explicit unavailable forms; the body-types fixture selects its valid 37-byte plain body, and the Tika parent/child retain plain text without materializing invalid HTML. |
-| ANSI header diagnostics | Validated through Vertical 39 / PR #473 | Versions 14 and 15 use variant-correct 32-bit NBT/BBT root offsets and the ANSI crypt-method location. Values are diagnostic only; ANSI roots cannot authorize traversal or extraction. Synthetic tests prevent adjacent-byte contamination. |
-| ANSI Stage A fixture and traversal | Active / issue #475 | Build a deterministic Linux-generated version-14 PST with valid empty NBT and BBT leaves, independently validate it, and admit only bounded root-page decoding. It must emit zero objects and zero EML and does not establish ANSI email compatibility. |
-| External PST implementations | Comparison-only tooling | External parsers and converters may be used offline or in an explicitly isolated fixture-generation/comparison workflow to create controlled fixtures and independently measure expected counts, properties, ownership, payload bytes, and MIME structure. They must not be required by the PSTD Rust library, CLI, Python wrapper, Docker image, or normal end-user runtime. PSTD acceptance still requires exact output from its own Rust implementation. |
+| Tika DOCX attachment | Exact | One 11,862-byte DOCX payload with validated ownership, length, hash, ZIP/CRC evidence, and deterministic parent EML placement. |
+| Tika recipients | Exact or explicit native preservation | Nine directly owned recipients across the fixture, including SMTP rows and preserved legacy Exchange evidence. |
+| Embedded message | Exact for one method-5 layout | One separately linked child, exact 453-byte standalone EML, and byte-identical `message/rfc822` attachment payload. Nested recursion and additional producer layouts remain unproven. |
+| Folder/message ownership | Exact on the Tika fixture | Eight folders and seven top-level physical message owners resolved from authoritative contents-table rows; the embedded child remains isolated. |
+| Independent body forms | Exact on approved fixtures | Four-byte Property Context body locators remain explicit unavailable forms; valid plain-text siblings are retained independently. |
+| ANSI header diagnostics | Diagnostic only | Version-14/15 field offsets are decoded with variant-correct widths. ANSI traversal and email extraction remain unsupported and are not the active product priority. |
+| Microsoft Purview Unicode exports | Active corpus target | No approved Purview export fixture is yet committed. Compatibility must be established capability-by-capability on controlled synthetic Purview exports rather than inferred from the existing fixtures. |
+| External PST implementations | Comparison-only tooling | Pinned external tools may generate or independently inventory controlled fixtures, but PSTD acceptance must come from its own Rust implementation and exact deterministic output. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
 
 ## Exact Tika baseline
@@ -45,30 +42,34 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Attachments JSONL bytes | 1,240 |
 | Extraction TAR bytes | 234,496 |
 
-The method-`5` record `att_a9c94a13d70f1cb3` publishes a 453-byte `message/rfc822` payload with SHA-256 `86ffe5567da7aa505b8be16400889170ca583fd247cc0758f00a43c2a8a99420`. Those bytes are identical to standalone child `msg_0ff529af59d373d5.eml`. The parent EML remains exactly 17,035 bytes and includes only the validated method-`1` DOCX payload.
-
-The eight removed body bytes from Vertical 38 were two Property Context HNID cells, not HTML. Parent and embedded-child plain bodies remain exact, and both HTML forms are explicit unavailable records.
+The method-5 record `att_a9c94a13d70f1cb3` publishes a 453-byte `message/rfc822` payload with SHA-256 `86ffe5567da7aa505b8be16400889170ca583fd247cc0758f00a43c2a8a99420`. Those bytes are identical to standalone child `msg_0ff529af59d373d5.eml`. The parent EML remains exactly 17,035 bytes and includes only the validated method-1 DOCX payload.
 
 ## Latest completed work
 
-The java-libpst comparison fixture now has a deterministic fail-closed baseline: 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised attachment payloads, 0 validated `IPM.Note*` classes, and 0 EML files. It adds corpus evidence but does not unlock an email extraction path.
+The java-libpst comparison fixture has a deterministic fail-closed baseline: 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised attachment payloads, 0 validated `IPM.Note*` classes, and 0 EML files. It is comparison evidence, not an email capability milestone.
 
 ## Next evidence-based milestone
 
-Implement Stage A of issue #475: generate and validate a deterministic version-14 ANSI PST containing one empty NBT leaf and one empty BBT leaf, then admit only bounded ANSI root-page decoding.
+Admit the first controlled, redistributable Microsoft Purview Unicode PST export and lock its exact baseline before changing parser behaviour. The source mailbox must be synthetic and the export must have documented procedure, immutable bytes, length, SHA-256, header classification, independent inventory, repeated PSTD output, and exact completeness statuses.
 
-Acceptance requires byte-identical regeneration, pinned length and SHA-256, independent byte-level validation, comparison with a pinned external reader, exact zero-object/zero-EML output, and no Unicode fixture regression. Stage A must not be described as ANSI email support.
+The first fixture should expose the smallest capability not already proven by current fixtures, preferably:
 
-After Stage A, the next ANSI milestone is one controlled folder and one plain-text `IPM.Note` message with exact recipient, body, EML path, byte length, and SHA-256. Broader Unicode attachment layouts, inline Content-ID handling, Exchange-to-SMTP mapping, and nested embedded messages remain queued after this explicitly ordered ANSI lane.
+1. multiple by-value attachments with exact ownership;
+2. inline attachment and verified HTML `cid:` correlation;
+3. authoritative Exchange-to-SMTP mapping;
+4. another embedded-message layout or bounded recursion;
+5. broader independent HTML/RTF body evidence.
 
-External implementations may be used to generate controlled PST fixtures and as independent comparison oracles. Any committed fixture must still have documented provenance or a reproducible generation recipe, redistribution permission, immutable bytes, byte length, SHA-256, and an exact expected contract. External tools remain outside PSTD's shipped dependency and runtime boundary.
+The complete admission and fixture-family plan is in `docs/operations/purview-unicode-corpus-plan.md`.
+
+ANSI Stage A remains a valid later research lane, but an empty ANSI container would add no observable email or EML behaviour and therefore does not outrank representative Purview Unicode coverage.
 
 ## Validation expectations
 
-Every extraction PR must pass formatting, clippy with warnings denied, all Rust tests, CLI checks, Python wrapper checks, Docker build, approved fixture workflows, and exact artifact review. Unsupported or ambiguous candidates must remain unavailable rather than producing partial records.
+Every extraction PR must pass formatting, clippy with warnings denied, all Rust tests, CLI checks, Python wrapper checks, Docker build, approved fixture workflows, and exact artifact review. Unsupported or ambiguous candidates must remain unavailable rather than producing partial or guessed records.
 
-Comparison workflows must identify the external implementation and pinned version used, retain its raw report as evidence where licensing permits, and separately verify PSTD's own deterministic outputs. Agreement with another parser is supporting evidence, not sufficient proof when the format specification or fixture bytes contradict it.
+Comparison workflows must identify the external implementation and pinned version used, retain raw evidence where licensing permits, and separately verify PSTD's own deterministic output. Agreement with another parser is supporting evidence, not sufficient proof when the format specification or fixture bytes contradict it.
 
 ## Risk statement
 
-The current result is material evidence for two approved Unicode fixture paths plus synthetic ANSI header-layout tests, not broad PST compatibility. The sender's Exchange distinguished name is preserved but not SMTP-resolved. ANSI traversal and extraction remain unsupported until Stage A is independently validated and merged. Additional Unicode producers, uncommon or corrupt layouts, inline attachments, nested embedded attachments, contacts/distribution lists, appointments, and many MAPI property combinations remain incomplete.
+The current result is material evidence for two approved Unicode fixture paths, not broad Microsoft Purview or general PST compatibility. Purview exports may contain producer-specific folder layouts, associated contents, Exchange identities, attachment combinations, embedded messages, non-mail objects, and large-file characteristics not represented by the current fixtures. Capability claims must remain fixture-specific until a representative controlled Purview corpus passes without silent data loss.
