@@ -1,100 +1,105 @@
 # PSTD Roadmap
 
-_Last reviewed: 22 July 2026._
+_Last reviewed: 23 July 2026._
 
 ## Objective
 
-Deliver reliable PST email extraction before investing in downstream storage or user-interface systems. Progress is measured by new, correct, observable data extracted from approved PST fixtures while preserving bounded and fail-closed behaviour.
+Deliver reliable, evidence-backed email extraction from Microsoft Purview Unicode PST exports before investing in downstream systems or lower-value format breadth. Progress is measured by new correct observable extraction and EML behaviour on approved fixtures while preserving bounded, deterministic, fail-closed behaviour.
 
 ## Roadmap principles
 
 - Prioritise end-to-end extraction capability over parser infrastructure for its own sake.
+- Treat Microsoft Purview Unicode exports as the primary producer target.
 - Implement the smallest coherent vertical slice that exposes new behaviour.
-- Prefer additional producer and layout evidence over abstractions that do not change observable extraction.
-- Reuse validated parser components and avoid duplicate interpretations of the same bytes.
-- Fail closed when bounds, row counts, property identity, types, references, encodings, ownership, or recursion do not validate.
-- Preserve existing extraction behaviour and add exact regression tests for every new path.
-- Re-run all approved fixtures after every milestone and revise the next milestone from the artifacts.
-- Keep Snowflake, UI, search, analytics, semantic search, and graph work parked.
-- Treat EML generation as an assembly layer over validated extracted data, not as a substitute for parser coverage.
+- Prefer representative corpus breadth over abstractions that do not change observable extraction.
+- Fail closed when bounds, types, references, ownership, encodings, recursion, or completeness do not validate.
+- Preserve existing stable identifiers and deterministic fixture output unless an intentional contract change is documented.
+- Re-run every approved fixture after each milestone and revise the next milestone from measured artifacts.
 - Treat contacts, appointments, tasks, journals, and distribution lists as typed non-mail objects rather than forcing them into EML.
-- Keep PSTD self-contained: external PST implementations may support isolated fixture generation and comparison, but must not become required library, build, runtime, normal test-runtime, CI, Docker, or end-user dependencies.
+- Keep PSTD self-contained. External PST implementations may support isolated fixture generation and comparison but cannot become required shipped dependencies.
+- Keep Snowflake, UI, search, analytics, semantic search, and graph work parked.
 
 ## Completed foundation
 
-### M1-M25: product and operating foundation
+### Product and parser foundation
 
-Complete. This lane delivered the Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, stable IDs, bodies/attachment record foundations, batch/resume support, diagnostics, fixture workflows, and operator handoff.
+M1-M25 and PQ1-PQ74 are complete. The repository has a Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, stable IDs, batch/resume, diagnostics, bounded PST traversal, Heap-on-Node/BTH/Property Context/Table Context decoding, row transport, and selected MAPI values.
 
-### PQ1-PQ74: validated parser and Table Context foundation
+### Original fixture email path
 
-Complete. This lane corrected PST traversal, identified real folder/message candidates, improved property and body extraction, resolved Heap-on-Node/BTH/subnode/Table Context structures, validated row addressing and transport, decoded supported fixed-width MAPI values, and integrated bounded diagnostics.
-
-### Original public fixture email path
-
-Complete for the approved fixture. It emits four exact To/Cc recipients, validated plain text and HTML recovered from RTF, and one deterministic 956-byte `multipart/alternative` EML with sender, recipients, subject, Date, and Message-ID.
+The approved original fixture emits four exact To/Cc recipients, validated plain text and HTML recovered from RTF, and one deterministic 956-byte `multipart/alternative` EML.
 
 ### Tika attachment and embedded-message path
 
 Complete through Vertical 38:
 
-- one exact 11,862-byte DOCX by-value attachment with preserved 15,503-byte source metadata;
-- eight messages including one separately linked method-`5` child;
+- eight messages including one separately linked method-5 child;
 - nine directly owned recipient records;
-- eight exact folder records and seven exact top-level physical message owners;
-- independent body-form admission with invalid four-byte binary locators represented as unavailable;
+- eight exact folders and seven exact top-level physical message owners;
+- six valid body payloads totalling 271 bytes and two explicit unavailable HTML forms;
+- one exact 11,862-byte DOCX by-value attachment;
 - one deterministic 17,035-byte parent `multipart/mixed` EML;
 - one deterministic 453-byte child `text/plain` EML;
-- one byte-identical 453-byte method-`5` `message/rfc822` payload;
-- fail-closed rejection of missing, mismatched, duplicate, nested, ambiguous, and unsafe child-EML candidates.
+- one byte-identical 453-byte method-5 `message/rfc822` payload;
+- fail-closed rejection of missing, mismatched, duplicate, nested, ambiguous, and unsafe child candidates.
 
-### ANSI header diagnostics
+### ANSI diagnostics
 
-Complete in Vertical 39 / PR #473. Version-14 and version-15 root offsets and crypt-method locations are decoded with ANSI-specific widths and offsets. These values are diagnostic only. ANSI roots cannot authorize page traversal or extraction.
+Vertical 39 decodes version-14/15 header roots and crypt-method fields for diagnostics only. ANSI page traversal and email extraction remain unsupported. This diagnostic lane does not establish user-visible email compatibility.
 
-### Java-libpst comparison baseline
+### Comparison corpus baseline
 
-Complete in PR #491. The pinned fixture deterministically yields 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised payloads, 0 validated `IPM.Note*` classes, and 0 EML files. This is a fail-closed corpus result, not a new email capability.
+PR #491 records the java-libpst fixture's deterministic fail-closed result: 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised payloads, 0 validated `IPM.Note*` classes, and 0 EML files.
 
 ## Current milestone
 
-### Controlled ANSI Stage A fixture and bounded root-page decoding
+### First controlled Microsoft Purview Unicode export
 
-The recovered child plain-text EML, exact method-`5` child payload, complete Tika folder/message ownership, and independent body-form admission are already merged. The next ordered incomplete capability is ANSI coverage.
+Admit the smallest redistributable synthetic Purview export that exposes a capability not already proven by current fixtures. The first preference is multiple by-value attachments with exact ownership. If the first approved export instead provides verified inline CID evidence, authoritative Exchange-to-SMTP mapping, another embedded-message layout, or broader HTML/RTF evidence, select the smallest coherent vertical supported by those bytes.
 
-Issue #475 is active. Stage A must produce a deterministic Linux-generated version-14 PST containing:
+Fixture admission requires:
 
-- a valid ANSI header;
-- one empty NBT leaf root page;
-- one empty BBT leaf root page;
-- valid page trailers, signatures, and CRC values;
-- no allocated message blocks and no extracted objects.
+1. a synthetic source-mailbox manifest containing no private data;
+2. a documented Purview export procedure and relevant settings;
+3. explicit redistribution basis or reproducible controlled generation;
+4. immutable PST bytes, exact length, and SHA-256;
+5. header version and encryption classification;
+6. an independent inventory from at least one pinned comparison implementation;
+7. two PSTD baseline runs with byte-identical semantic output;
+8. exact folder, message, recipient, body, attachment, typed-object, diagnostic, and EML counts;
+9. exact materialised payload and EML paths, lengths, hashes, ownership, and MIME structure;
+10. explicit unavailable, unsupported, ambiguous, corrupt, encrypted, or incomplete statuses.
 
-Acceptance requires:
+The detailed corpus plan is `docs/operations/purview-unicode-corpus-plan.md`.
 
-1. byte-identical regeneration on Linux;
-2. pinned byte length and SHA-256;
-3. independent byte-level checks that do not invoke the production parser;
-4. validation with a pinned external reader used only as a fixture oracle;
-5. PSTD classification as ANSI with bounded root-page decoding only;
-6. zero folders, messages, bodies, recipients, attachments, typed non-mail objects, and EML;
-7. no regression in any approved Unicode fixture workflow.
+## Purview capability sequence
 
-Stage A proves only the structural traversal boundary. It must not be described as ANSI email support.
+After the first admitted baseline, prioritise the smallest evidenced incomplete capability in this order:
 
-After Stage A, Stage B adds one controlled folder and one plain-text `IPM.Note` message with fixed subject, sender, To recipient, timestamp, body, EML path, byte length, and SHA-256. Only after that should the roadmap resume broader attachment layouts, inline Content-ID handling, authoritative Exchange-to-SMTP resolution, and bounded nested embedded-message recursion.
+1. multiple and broader by-value attachment layouts, formats, filenames, and sizes;
+2. inline attachments and exact Content-ID/HTML `cid:` correlation;
+3. complete multi-folder and multi-message discovery across representative exports;
+4. independent plain, HTML, and RTF body forms and encodings;
+5. authoritative Exchange-to-SMTP resolution while preserving unresolved native evidence;
+6. additional method-5 layouts and bounded nested embedded-message recursion;
+7. typed non-mail classification and explicit completeness status;
+8. corrupt, truncated, duplicate, cross-scope, encrypted, and ambiguous cases;
+9. large-export performance and memory hardening;
+10. a narrow stable Rust API after extraction records and diagnostics stabilise.
+
+ANSI traversal remains a later compatibility lane. A deterministic empty ANSI container is useful structural evidence but adds no observable email or EML behaviour and therefore does not outrank Purview Unicode coverage.
 
 ## Fixture and dependency boundary
 
-A fixture may originate from a public upstream repository or a controlled synthetic generation workflow when its redistribution rights or generation recipe, immutable revision or pinned tool version, exact path, byte length, and SHA-256 are documented. Fixture provenance does not make the originating project a dependency.
+Fixtures may originate from controlled Purview exports, public repositories, or controlled synthetic generation when provenance or generation recipe, redistribution basis, immutable revision or pinned tool version, exact path, byte length, and SHA-256 are documented.
 
-Do not add java-libpst, libpst, libpff, Apache Tika, Outlook, or another PST parser/converter as a required library, build, runtime, normal test-runtime, CI, Docker, or end-user dependency. Pinned external implementations may be used offline or in explicitly isolated fixture-generation and comparison workflows to create controlled PSTs and independently inventory expected counts, properties, ownership, payload bytes, hashes, and MIME structure. PSTD acceptance must be established separately by its own Rust implementation and exact fixture evidence.
+Do not add Outlook, libpff, libpst, java-libpst, Apache Tika, or another PST parser/converter as a required library, build, runtime, normal test-runtime, Docker, Python-wrapper, or end-user dependency. Pinned tools may run in isolated fixture-generation or comparison workflows. PSTD acceptance must be established separately by its own Rust implementation and exact fixture evidence.
 
-Agreement with an external implementation is supporting evidence rather than authoritative truth. Parser rules must not be relaxed merely to match another tool or make a fixture pass. Unsupported, encrypted, malformed, duplicate, ambiguous, out-of-range, or unowned structures remain explicit and emit no guessed EML.
+Agreement with another implementation is supporting evidence rather than authoritative truth. Parser rules must not be relaxed merely to match another tool. Unsupported, encrypted, malformed, duplicate, ambiguous, out-of-range, or unowned structures remain explicit and emit no guessed EML.
 
 ## Stable Rust API boundary
 
-The eventual public API should remain narrower than the internal parser modules. It should support:
+The eventual public API should support:
 
 - opening a PST with explicit parser limits;
 - iterating typed mail and non-mail objects;
@@ -103,37 +108,27 @@ The eventual public API should remain narrower than the internal parser modules.
 - reading diagnostics and completeness statuses;
 - distinguishing unavailable, unsupported, corrupt, encrypted, and ambiguous evidence.
 
-Internal page, heap, BTH, and Table Context implementations must not become the de facto compatibility contract.
+Internal page, heap, BTH, and Table Context implementations must not become the compatibility contract.
 
-## Completion definition for reliable extraction
+## Completion definition
 
-PSTD should not be described as conversion-complete or production-ready until a representative fixture corpus demonstrates, with explicit completeness statuses:
+PSTD must not be described as generally reliable for Purview or production-ready until a representative controlled Purview corpus demonstrates, with exact completeness statuses:
 
-- Unicode and ANSI header classification and supported traversal boundaries;
-- folder hierarchy preservation;
-- message discovery without false positives or silent omissions;
-- subject, sender, dates, identifiers, and transport headers where present;
-- To/Cc/Bcc recipients with names and usable addresses where authoritative;
-- plain text, HTML, and RTF handling appropriate to the source;
-- by-value, embedded, inline, and nested attachment handling within explicit limits;
-- typed classification of contacts, appointments, tasks, journals, and distribution lists;
+- folder hierarchy and message discovery without silent omissions;
+- core headers, dates, identifiers, and transport evidence;
+- To/Cc/Bcc recipients and authoritative addresses where available;
+- plain text, HTML, and RTF handling across encodings;
+- by-value, inline, embedded, and nested attachments within explicit limits;
+- typed non-mail classification;
 - deterministic structured output and EML assembly;
-- malformed, encrypted, corrupt, unsupported, and ambiguous behaviour that fails closed;
-- no regressions across the approved fixture set;
+- fail-closed malformed, encrypted, corrupt, unsupported, and ambiguous behaviour;
+- no regressions across all approved fixtures;
 - documented performance and memory limits.
 
 ## Deferred roadmap
 
-1. Broader by-value attachment methods, formats, and storage layouts.
-2. Inline attachment and Content-ID handling.
-3. Authoritative Exchange-to-SMTP resolution.
-4. Bounded nested embedded-message recursion.
-5. Corrupt, truncated, duplicate, cross-scope, and ambiguous fixture cases.
-6. Large-file performance and memory hardening.
-7. Narrow stable Rust API after extraction records and diagnostics stabilise.
-8. Snowflake ingestion.
-9. Search and review web application.
-10. Semantic search, embeddings, tagging, graph, and LLM/RAG workflows.
-11. Distributed orchestration beyond the current local/Docker batch model.
-
-Exact-preservation policy and large-corpus hardening remain later concerns after the readable-message path covers more producers, body forms, attachment layouts, and typed non-mail objects.
+1. ANSI root traversal and message extraction after Purview Unicode coverage is materially broader.
+2. Snowflake ingestion.
+3. Search and review web application.
+4. Semantic search, embeddings, tagging, graph, and LLM/RAG workflows.
+5. Distributed orchestration beyond the current local/Docker batch model.
