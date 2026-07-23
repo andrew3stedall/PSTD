@@ -1,17 +1,17 @@
 # PSTD
 
-PSTD is a Rust-first tool for extracting email data from Microsoft Outlook PST files. The immediate objective is reliable, evidence-backed PST conversion coverage. Downstream Snowflake, search, UI, analytics, and graph work remain parked until extraction fidelity is substantially broader.
+PSTD is a Rust-first tool for extracting email data from Microsoft Outlook PST files. The immediate objective is reliable, evidence-backed PST-to-EML coverage for Microsoft Purview Unicode exports. Downstream Snowflake, search, UI, analytics, and graph work remain parked until extraction fidelity is substantially broader.
 
 ## Current position
 
-_Last reviewed: 22 July 2026._
+_Last reviewed: 23 July 2026._
 
 | Area | State on `main` | Current result |
 |---|---|---|
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI version-14/15 header fields are decoded with variant-correct widths but cannot authorize traversal or extraction. |
-| Current milestone | Dependency-free Unicode email expansion | Select the smallest incomplete email capability supported by approved fixture evidence, beginning with broader by-value attachment methods or layouts. |
+| Current milestone | First controlled Microsoft Purview Unicode export | Admit immutable, redistributable synthetic Purview bytes, lock the exact before-state, then implement the smallest newly evidenced email-to-EML capability. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
 
 ## Intent
@@ -23,12 +23,14 @@ PSTD is intended to become a dependable PST-to-email extraction engine that:
 - fails closed when a PST structure is unsupported or ambiguous;
 - records explicit diagnostics instead of silently guessing;
 - produces deterministic structured output suitable for later EML generation or downstream loading;
-- validates every material parser change against synthetic tests and approved public PST fixtures;
+- validates every material parser change against synthetic tests and approved public or controlled PST fixtures;
 - remains self-contained rather than delegating PST parsing or conversion to another implementation.
 
-## Validated public-fixture evidence
+## Validated fixture evidence
 
-The checked-in public PST is the primary end-to-end progress signal. The current stable baseline is:
+The existing approved fixtures establish two material Unicode paths, but neither is a Microsoft Purview export and neither establishes broad Purview compatibility.
+
+The original public fixture currently yields:
 
 | Metric | Validated result |
 |---|---:|
@@ -42,7 +44,7 @@ The checked-in public PST is the primary end-to-end progress signal. The current
 | Selected properties | 16 |
 | Unknown properties | 19 |
 
-The Table Context path now validates four 52-byte rows. The fixture has separately produced:
+The Table Context path validates four 52-byte rows. The fixture has separately produced:
 
 - recipient roles: `to`, `to`, `cc`, `cc`;
 - display names: `Recipient 1` through `Recipient 4`;
@@ -50,7 +52,9 @@ The Table Context path now validates four 52-byte rows. The fixture has separate
 
 On `main`, these values are published as four complete row-aligned recipient records and assembled into the original fixture's readable EML.
 
-The Tika attachment fixture now emits seven top-level messages assigned by exact contents-table rows to `/Début du fichier de données Outlook`, plus one separately linked embedded child, nine directly owned recipient records, ten body records, six valid body payloads totalling 271 bytes, two explicit unresolved HTML forms, two attachment records, two exact attachment payloads totalling 12,315 bytes, and two deterministic EML files. The method-`5` payload is byte-identical to the 453-byte standalone child EML and uses `message/rfc822`. The attachment owner retains its 17,035-byte `multipart/mixed` EML and byte-identical DOCX; method `5` is deliberately not inserted into the parent MIME tree.
+The Tika attachment fixture emits seven top-level messages assigned by exact contents-table rows to `/Début du fichier de données Outlook`, plus one separately linked embedded child, nine directly owned recipient records, ten body records, six valid body payloads totalling 271 bytes, two explicit unresolved HTML forms, two attachment records, two exact attachment payloads totalling 12,315 bytes, and two deterministic EML files. The method-`5` payload is byte-identical to the 453-byte standalone child EML and uses `message/rfc822`. The attachment owner retains its 17,035-byte `multipart/mixed` EML and byte-identical DOCX; method `5` is deliberately not inserted into the parent MIME tree.
+
+The java-libpst comparison fixture remains a deterministic fail-closed baseline: 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised attachment payloads, 0 validated `IPM.Note*` classes, and 0 EML files. It is comparison evidence rather than an email capability milestone.
 
 ## Progress over time
 
@@ -87,13 +91,21 @@ python -m pstd --help
 
 Implemented capabilities include bounded parsing of PST headers, BBT/NBT pages, blocks, subnodes, Heap-on-Node allocations, BTH structures, Property Contexts, Table Contexts, row storage, selected MAPI values, folder/message candidates, bodies, recipient evidence, structured outputs, batch state, and public-fixture diagnostics. ANSI header values are diagnostic-only; ANSI traversal and extraction remain backlog-only.
 
+## Microsoft Purview corpus target
+
+Purview is the primary producer target, but no controlled Purview export has yet been admitted. The first fixture must use a synthetic mailbox, retain immutable original PST bytes, and record its exact byte length, SHA-256, header/encryption classification, independent inventory, repeated PSTD result, completeness counts, ownership, payload hashes, MIME structure, and explicit unavailable or unsupported evidence.
+
+The preferred first new capability is multiple by-value attachments with exact ownership. If the first admissible export instead proves inline Content-ID correlation, authoritative Exchange-to-SMTP mapping, another embedded-message layout, or broader HTML/RTF evidence, the implementation should select the smallest coherent vertical supported by those bytes.
+
+Purview coverage must be reported by fixture and capability. PSTD must not be described as generally reliable for Purview exports until a representative controlled corpus passes without silent data loss.
+
 ## Dependency boundary
 
-PSTD must not add java-libpst, libpst, libpff, Apache Tika, Outlook, or another PST parser/converter as a required library, build, runtime, normal test-runtime, CI, Docker, or end-user dependency. Pinned external implementations may be used offline or in explicitly isolated fixture-generation and comparison workflows to create controlled fixtures and independently inventory counts, ownership, properties, payload bytes, hashes, and MIME structure. Any committed fixture still requires documented provenance or a reproducible generation recipe, redistribution permission, immutable bytes, byte length, and SHA-256. PSTD acceptance must come from its own Rust implementation and exact fixture output; agreement with another parser is supporting evidence, not authoritative truth.
+PSTD must not add java-libpst, libpst, libpff, Apache Tika, Outlook, or another PST parser/converter as a required library, build, runtime, normal test-runtime, Docker, Python-wrapper, or end-user dependency. Pinned external implementations may be used offline or in explicitly isolated fixture-generation and comparison workflows to create controlled fixtures and independently inventory counts, ownership, properties, payload bytes, hashes, and MIME structure. Any committed fixture still requires documented provenance or a reproducible generation recipe, redistribution permission, immutable bytes, byte length, and SHA-256. PSTD acceptance must come from its own Rust implementation and exact fixture output; agreement with another parser is supporting evidence, not authoritative truth.
 
 ## Important limitations
 
-PSTD is not yet a general-purpose or absolute-coverage PST-to-EML converter. Current evidence is fixture-limited. The Tika sender remains a raw native Exchange distinguished name rather than resolved SMTP; one method-`5` layout is exact, but nested child attachments, broader Unicode producers, inline attachments, real ANSI traversal, and uncommon/corrupt layouts remain incomplete. Do not infer broad compatibility from the milestone count.
+PSTD is not yet a general-purpose or absolute-coverage PST-to-EML converter. Current evidence is fixture-limited. No approved Microsoft Purview export fixture is committed. The Tika sender remains a raw native Exchange distinguished name rather than resolved SMTP; one method-`5` layout is exact, but nested child attachments, broader Unicode producers, inline attachments, real ANSI traversal, and uncommon/corrupt layouts remain incomplete. Do not infer broad compatibility from the milestone count.
 
 ## Validation gate
 
@@ -109,13 +121,14 @@ python -m pstd --help
 docker build -t pstd:local -f docker/Dockerfile .
 ```
 
-Approved fixtures must also pass inspect, extract, batch, and deterministic public-progress artifact checks. Never commit private PST data.
+Approved fixtures must also pass inspect, extract, batch, deterministic output, and exact artifact checks. Never commit private PST data.
 
 ## Documentation
 
 - [Documentation index](docs/README.md)
 - [Current project status](docs/product/project-status.md)
 - [Compatibility matrix](docs/product/compatibility-matrix.md)
+- [Microsoft Purview Unicode corpus plan](docs/operations/purview-unicode-corpus-plan.md)
 - [Public PST progress log](docs/operations/public-pst-progress-log.md)
 - [Extraction roadmap](docs/product/pstd-v1-roadmap.md)
 - [System overview](docs/architecture/system-overview.md)
