@@ -101,6 +101,7 @@ pub fn parse_row_index_bth(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::chunks_exact_to_as_chunks)]
 fn traverse_row_index(
     heap: &HeapOnNode,
     heap_bytes: &[u8],

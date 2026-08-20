@@ -407,6 +407,7 @@ fn decode_utf8_field(bytes: &[u8]) -> Option<String> {
     }
 }
 
+#[allow(clippy::chunks_exact_to_as_chunks)]
 fn decode_utf16_field(bytes: &[u8]) -> Option<String> {
     if bytes.is_empty() {
         return None;
