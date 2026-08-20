@@ -53,6 +53,7 @@ pub fn resolve_recipient_identity_heap_strings(
     })
 }
 
+#[allow(clippy::chunks_exact_to_as_chunks)]
 fn decode_string(bytes: &[u8], property_type: u16) -> Result<String, String> {
     match property_type {
         PT_STRING8 => {

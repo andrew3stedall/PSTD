@@ -1,6 +1,6 @@
 # PSTD Documentation
 
-_Last reviewed: 21 July 2026._
+_Last reviewed: 20 August 2026._
 
 This documentation tree contains both current operating guidance and historical delivery evidence. Use the current-state pages below for present capability and next work. Milestone, PQ, vertical, issue-plan, and implementation-plan files record what was known at the time they were written.
 
@@ -16,6 +16,7 @@ This documentation tree contains both current operating guidance and historical 
 | Controlled ANSI fixture generation and admission | [ANSI PST Fixture Generation](fixtures/ansi-pst-generation.md) |
 | Current extraction roadmap | [PSTD Roadmap](product/pstd-v1-roadmap.md) |
 | Documentation freshness and history policy | [Documentation Status](DOCUMENTATION_STATUS.md) |
+| readpst compatibility gaps and closure plan | [readpst parity gap register](readpst-gaps/README.md) |
 | Architecture | [System Overview](architecture/system-overview.md) |
 | Code navigation | [Codebase Map](engineering/codebase-map.md) |
 | Developer workflow | [Developer Guide](engineering/developer-guide.md) |
@@ -64,6 +65,7 @@ The current roadmap, compatibility matrix, and approved-fixture gap record defin
 - [Local Validation](operations/local-validation.md)
 - [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
 - [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md)
+- [readpst Parity Gap Register](readpst-gaps/README.md)
 - [Vertical 28: Plain-text and HTML EML](operations/vertical-28-emit-plain-html-eml.md)
 - [Vertical 34: Tika embedded message](operations/vertical-34-recover-tika-embedded-message.md)
 - [Vertical 35: Tika child plain-text EML](operations/vertical-35-emit-tika-child-eml.md)

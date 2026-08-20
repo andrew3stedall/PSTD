@@ -37,6 +37,7 @@ These files must be updated whenever capability, roadmap, validation, output mat
 | `docs/engineering/codebase-map.md` | Current source-module map. |
 | `docs/engineering/developer-guide.md` | Current developer workflow. |
 | `docs/data/pstd-v1-output-contract-summary.md` | Current structured output contract and maturity distinctions. |
+| `docs/readpst-gaps/README.md` | Authoritative readpst capability comparison, parity matrix, and closure plan. |
 | `docs/changelog/unreleased.md` | Consolidated unreleased change history and known gaps. |
 | `docs/wiki/Home.md` | Compact navigation. |
 | `docs/wiki/developer-onboarding.md` | Current onboarding baseline. |

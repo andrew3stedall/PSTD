@@ -376,6 +376,7 @@ fn string8_property_def(tag: u32) -> Option<MapiPropertyDef> {
     })
 }
 
+#[allow(clippy::chunks_exact_to_as_chunks)]
 pub fn decode_value(value_type: MapiValueType, raw: &[u8]) -> PstdResult<MapiValue> {
     match value_type {
         MapiValueType::String => {

@@ -137,4 +137,5 @@ Approved fixtures must also pass inspect, extract, batch, deterministic output, 
 - [Local validation](docs/operations/local-validation.md)
 - [Output contract](docs/data/pstd-v1-output-contract-summary.md)
 - [Unsupported and deferred areas](docs/operations/v1-unsupported-deferred-areas.md)
+- [readpst parity gap register](docs/readpst-gaps/README.md)
 - [Documentation status and history policy](docs/DOCUMENTATION_STATUS.md)

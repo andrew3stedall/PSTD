@@ -4,6 +4,10 @@ _Last reviewed: 19 July 2026._
 
 ## Added
 
+### Compatibility analysis
+
+- A pinned `libpst`/`readpst` parity gap register under `docs/readpst-gaps/`, covering CLI modes, PST/OST and encryption inputs, item classes, metadata, MIME and RTF bodies, attachment methods, contacts, calendar/journal outputs, storage formats, and acceptance fixtures.
+
 ### Product foundation
 
 - Rust `pstd` CLI with `inspect`, `extract`, `batch`, and `version` commands.
