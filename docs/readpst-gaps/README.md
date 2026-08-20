@@ -1,0 +1,78 @@
+# PSTD/readpst parity gap register
+
+_Baseline reviewed: 20 August 2026._
+
+This folder is the compatibility register for making PSTD capable of everything that the `readpst` program in `pst-format/libpst` can do. It is deliberately broader than the current PSTD email-to-EML milestone: `readpst` is a mature command-line extractor with multiple input variants, output modes, MIME behaviours, attachments, contacts, appointments, journals, and operational controls.
+
+## Baseline
+
+The comparison is against the `pst-format/libpst` `master` source at commit [`cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89`](https://github.com/pst-format/libpst/tree/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89). The principal implementation is [`src/readpst.c`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/readpst.c); the exposed item model and parser behaviour are in [`src/libpst.h`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/libpst.h) and [`src/libpst.c`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/libpst.c).
+
+This is a behaviour comparison, not a proposal to link PSTD to libpst. PSTD remains a self-contained Rust implementation. GPL-covered source is not copied into PSTD; only observable behaviour, format requirements, and test ideas are used.
+
+## Read this first
+
+| Need | Document |
+|---|---|
+| Understand the comparison rules and evidence standard | [Method and parity guardrails](00-method-and-guardrails.md) |
+| Compare commands, flags, and output modes | [CLI and output-mode parity](01-cli-and-output-parity.md) |
+| Compare PST/OST variants, encryption, and parser foundations | [Input and parser compatibility](02-input-and-parser-compatibility.md) |
+| Compare folder traversal and every item class | [Folders and item types](03-folders-and-item-types.md) |
+| Compare email metadata, headers, flags, and character sets | [Message metadata and headers](04-message-metadata-and-headers.md) |
+| Compare body decoding and MIME reconstruction | [Bodies, MIME, and RTF](05-body-mime-and-rtf.md) |
+| Compare attachment metadata, payloads, references, and filters | [Attachment parity](06-attachments.md) |
+| Compare embedded messages, reports, meetings, and encrypted bodies | [Embedded and special email items](07-embedded-and-special-email-items.md) |
+| Compare contacts, appointments, journals, and unsupported classes | [Non-mail item outputs](08-contacts-calendar-journal.md) |
+| Compare mbox, MH, KMail, Thunderbird, EML, and MSG results | [Storage and interoperability outputs](09-storage-and-interoperability.md) |
+| See one authoritative checklist of all identified capabilities | [Parity matrix](10-parity-matrix.md) |
+| Turn the gaps into implementation and fixture work | [Parity roadmap and acceptance](11-roadmap-and-acceptance.md) |
+| Locate the exact upstream code used for each observation | [Upstream source notes](12-upstream-source-notes.md) |
+
+## Status vocabulary
+
+The status in this folder is intentionally stricter than “there is a field or helper for it”.
+
+| Status | Meaning |
+|---|---|
+| **Implemented** | PSTD has an observable equivalent and current fixture or regression evidence for the stated boundary. |
+| **Partial** | PSTD has a contract, parser primitive, or one validated layout, but not the breadth or output behaviour that readpst provides. |
+| **Gap** | No equivalent user-visible behaviour is currently proven. |
+| **Explicitly unsupported by readpst** | The upstream program classifies or skips the case rather than exporting it. PSTD must still classify it and report the outcome without silently dropping it. |
+
+“Partial” and “Gap” are parity work, even when the existing code is useful groundwork. A capability is not complete merely because its property constant, record field, or parser probe exists.
+
+## Current conclusion
+
+PSTD currently has meaningful, fixture-validated Unicode message extraction, selected metadata, recipients, text/HTML/RTF evidence, by-value attachment evidence, one embedded-message layout, deterministic EML assembly, batch processing, and structured TAR/JSONL output. It does **not** yet have readpst parity.
+
+The largest gaps are:
+
+- ANSI traversal and extraction, OST 2013 coverage, and PST encryption handling;
+- the readpst output family: recursive mbox, MH, KMail, Thunderbird metadata, separate attachment files, and `.msg`;
+- complete item-class routing for contacts, appointments, journals, reports, tasks, sticky notes, and other classes;
+- broad message-property, charset, RFC header, and forensic metadata coverage;
+- all attachment methods, reference resolution, OLE handling, inline CID correlation, and nested embedded-message recursion;
+- exact vCard, vCalendar, vJournal, multipart/report, and meeting-request outputs;
+- an acceptance corpus that proves these behaviours across Unicode, ANSI, OST, encrypted, malformed, mixed-type, and large-file inputs.
+
+## Parity rule
+
+For every capability that readpst exposes, PSTD must provide one of the following before the capability can be marked complete:
+
+1. an equivalent PSTD command, API, or structured-output result;
+2. an explicit, machine-readable unsupported result when readpst itself skips the case; or
+3. a stronger equivalent that preserves the same information and does not silently discard data.
+
+PSTD does not need to reproduce libpst’s legacy filenames or byte-for-byte output formatting as its canonical representation. It does need compatibility adapters or documented equivalent output for each readpst mode, with deterministic results and preserved source evidence.
+
+## Maintenance rule
+
+When a gap is implemented, update the matrix, the relevant topic document, the current-state project documentation, and the fixture evidence. Every row must retain:
+
+- the upstream behaviour;
+- the current PSTD status;
+- the exact acceptance boundary;
+- the fixture or synthetic test that proves it;
+- the fail-closed behaviour for malformed or ambiguous input.
+
+Do not promote a row from Partial to Implemented because it passes one PST. The project’s existing fixture and Purview admission rules remain binding.
