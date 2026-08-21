@@ -11,11 +11,28 @@ fn synthetic_header(index_type: u8, crypt_method: Option<u8>, roots: bool) -> Ve
     header[8..10].copy_from_slice(b"SM");
     header[10] = index_type;
     if roots {
-        header[48..56].copy_from_slice(&1024u64.to_le_bytes());
-        header[56..64].copy_from_slice(&2048u64.to_le_bytes());
+        match index_type {
+            0x0e | 0x0f => {
+                header[188..192].copy_from_slice(&1024u32.to_le_bytes());
+                header[196..200].copy_from_slice(&2048u32.to_le_bytes());
+            }
+            0x24 => {
+                header[224..232].copy_from_slice(&1024u64.to_le_bytes());
+                header[240..248].copy_from_slice(&2048u64.to_le_bytes());
+            }
+            _ => {
+                header[48..56].copy_from_slice(&1024u64.to_le_bytes());
+                header[56..64].copy_from_slice(&2048u64.to_le_bytes());
+            }
+        }
     }
     if let Some(method) = crypt_method {
-        header[513] = method;
+        let offset = if matches!(index_type, 0x0e | 0x0f) {
+            461
+        } else {
+            513
+        };
+        header[offset] = method;
     }
     header
 }
@@ -34,19 +51,39 @@ fn unicode_capability_is_ready_only_with_safe_roots_and_no_crypt() {
 }
 
 #[test]
-fn unsupported_families_and_crypt_are_not_empty_success() {
-    for (index_type, expected_family) in [
-        (0x0e, InputFamily::AnsiPst),
-        (0x24, InputFamily::Ost2013),
-        (0x7e, InputFamily::Unknown),
-    ] {
+fn supported_legacy_families_and_unknown_inputs_are_explicit() {
+    for (index_type, expected_family) in
+        [(0x0e, InputFamily::AnsiPst), (0x24, InputFamily::Ost2013)]
+    {
         let bytes = synthetic_header(index_type, Some(0), true);
-        let header = PstHeader::parse_bytes(&bytes, 4096).expect("header");
+        let file_size = if index_type == 0x24 { 12_288 } else { 4_096 };
+        let header = PstHeader::parse_bytes(&bytes, file_size).expect("header");
         let capability =
             InputCapability::from_header("fixture.pst", &header, InputLimits::default());
         assert_eq!(capability.family, expected_family);
-        assert_eq!(capability.status, InputCapabilityStatus::Unsupported);
-        assert!(!capability.allows_extraction);
+        assert_eq!(capability.status, InputCapabilityStatus::Ready);
+        assert!(capability.allows_extraction);
+    }
+
+    let unknown = synthetic_header(0x7e, Some(0), true);
+    let unknown_header = PstHeader::parse_bytes(&unknown, 4096).expect("header");
+    let unknown_capability =
+        InputCapability::from_header("fixture.pst", &unknown_header, InputLimits::default());
+    assert_eq!(unknown_capability.family, InputFamily::Unknown);
+    assert_eq!(
+        unknown_capability.status,
+        InputCapabilityStatus::Unsupported
+    );
+    assert!(!unknown_capability.allows_extraction);
+
+    for index_type in [0x0e, 0x24] {
+        let bytes = synthetic_header(index_type, Some(1), true);
+        let file_size = if index_type == 0x24 { 12_288 } else { 4_096 };
+        let header = PstHeader::parse_bytes(&bytes, file_size).expect("header");
+        let capability =
+            InputCapability::from_header("fixture.pst", &header, InputLimits::default());
+        assert_eq!(capability.status, InputCapabilityStatus::Ready);
+        assert!(capability.allows_extraction);
     }
 
     let supported_crypt = synthetic_header(0x17, Some(1), true);

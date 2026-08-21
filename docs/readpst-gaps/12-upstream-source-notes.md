@@ -116,6 +116,16 @@ The source-review contract is implemented in `tests/readpst_diff/source_manifest
 4. When a PSTD implementation intentionally improves readpst, document both the compatibility projection and the stronger canonical behaviour in the topic page, matrix, and differential comparator.
 5. Re-review tangential documents after any change to this ledger. A changed helper such as charset conversion, LZFU, attachment references, or MSG property mapping can invalidate multiple plan pages.
 
+## RP-M6-01 source application note
+
+The pinned `pst_open` family branches and index-loading behaviour are applied without
+copying libpst code. PSTD now selects a variant-specific layout before production BBT/NBT
+loads: ANSI v14/v15 uses the 32-bit root and entry widths, while OST 2013 uses the 4 KiB
+page and Unicode-width root/index identities. The source baseline still requires later
+semantic item/property/output corpus work; structural page admission is not promoted as
+full readpst extraction parity. The controlled fixture workflow records the positive and
+negative evidence for this boundary.
+
 `RP-12` is complete for a release only when every upstream source file that is linked into readpst is either mapped to a PSTD module/fixture or explicitly declared out of scope with a reason. The current direct dependency set is the set listed above; sibling utilities are not silently treated as readpst requirements.
 
 ### Pinned helper links

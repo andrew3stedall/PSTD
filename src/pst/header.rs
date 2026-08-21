@@ -1,5 +1,6 @@
 use crate::error::{PstdError, PstdResult};
 use crate::pst::binary::{u16_le_at, u32_le_at, u64_le_at};
+use crate::pst::layout::PstLayout;
 use crate::pst::primitives::{ByteOffset, PageRef, PstVariant, RootPointers};
 use crate::pst::reader::PstByteReader;
 
@@ -41,6 +42,15 @@ pub struct PstRootPointerDiagnostic {
 
 impl PstRootPointerDiagnostic {
     pub fn classify(name: impl Into<String>, offset: Option<u64>, file_size: u64) -> Self {
+        Self::classify_with_page_size(name, offset, file_size, PST_ROOT_PAGE_SIZE_BYTES)
+    }
+
+    pub fn classify_with_page_size(
+        name: impl Into<String>,
+        offset: Option<u64>,
+        file_size: u64,
+        page_size: u64,
+    ) -> Self {
         let name = name.into();
         let (offset_in_bounds, root_page_in_bounds, bytes_beyond_file_size, condition) =
             match offset {
@@ -52,7 +62,7 @@ impl PstRootPointerDiagnostic {
                     "root_offset_beyond_file_size".to_string(),
                 ),
                 Some(value) => {
-                    let page_end = value.saturating_add(PST_ROOT_PAGE_SIZE_BYTES);
+                    let page_end = value.saturating_add(page_size);
                     if page_end > file_size {
                         (
                             true,
@@ -94,9 +104,35 @@ impl PstRootCandidateDiagnostic {
         bbt_root_offset: Option<u64>,
         nbt_root_offset: Option<u64>,
     ) -> Self {
+        Self::from_offsets_with_page_size(
+            source,
+            file_size,
+            bbt_root_offset,
+            nbt_root_offset,
+            PST_ROOT_PAGE_SIZE_BYTES,
+        )
+    }
+
+    pub fn from_offsets_with_page_size(
+        source: impl Into<String>,
+        file_size: u64,
+        bbt_root_offset: Option<u64>,
+        nbt_root_offset: Option<u64>,
+        page_size: u64,
+    ) -> Self {
         let source = source.into();
-        let bbt_root = PstRootPointerDiagnostic::classify("bbt_root", bbt_root_offset, file_size);
-        let nbt_root = PstRootPointerDiagnostic::classify("nbt_root", nbt_root_offset, file_size);
+        let bbt_root = PstRootPointerDiagnostic::classify_with_page_size(
+            "bbt_root",
+            bbt_root_offset,
+            file_size,
+            page_size,
+        );
+        let nbt_root = PstRootPointerDiagnostic::classify_with_page_size(
+            "nbt_root",
+            nbt_root_offset,
+            file_size,
+            page_size,
+        );
         let condition = classify_root_pair(&bbt_root, &nbt_root);
         let selectable_for_traversal = condition == "root_pages_in_bounds";
 
@@ -125,6 +161,14 @@ pub struct PstRootDiagnostics {
 
 impl PstRootDiagnostics {
     pub fn from_candidates(file_size: u64, candidates: Vec<PstRootCandidateDiagnostic>) -> Self {
+        Self::from_candidates_with_page_size(file_size, candidates, PST_ROOT_PAGE_SIZE_BYTES)
+    }
+
+    pub fn from_candidates_with_page_size(
+        file_size: u64,
+        candidates: Vec<PstRootCandidateDiagnostic>,
+        page_size: u64,
+    ) -> Self {
         let selected = candidates
             .iter()
             .find(|candidate| candidate.selectable_for_traversal);
@@ -132,7 +176,9 @@ impl PstRootDiagnostics {
             .or_else(|| candidates.first())
             .cloned()
             .unwrap_or_else(|| {
-                PstRootCandidateDiagnostic::from_offsets("none", file_size, None, None)
+                PstRootCandidateDiagnostic::from_offsets_with_page_size(
+                    "none", file_size, None, None, page_size,
+                )
             });
         let condition = selected
             .map(|candidate| candidate.condition.clone())
@@ -156,7 +202,7 @@ impl PstRootDiagnostics {
 
         Self {
             file_size,
-            root_page_size_bytes: PST_ROOT_PAGE_SIZE_BYTES,
+            root_page_size_bytes: page_size,
             bbt_root: display_candidate.bbt_root,
             nbt_root: display_candidate.nbt_root,
             condition,
@@ -180,6 +226,25 @@ impl PstRootDiagnostics {
                 bbt_root_offset,
                 nbt_root_offset,
             )],
+        )
+    }
+
+    pub fn from_offsets_with_page_size(
+        file_size: u64,
+        bbt_root_offset: Option<u64>,
+        nbt_root_offset: Option<u64>,
+        page_size: u64,
+    ) -> Self {
+        Self::from_candidates_with_page_size(
+            file_size,
+            vec![PstRootCandidateDiagnostic::from_offsets_with_page_size(
+                "legacy_header_fields",
+                file_size,
+                bbt_root_offset,
+                nbt_root_offset,
+                page_size,
+            )],
+            page_size,
         )
     }
 }
@@ -288,6 +353,7 @@ impl PstHeader {
                 read_optional_offset(buf, LEGACY_NBT_ROOT_OFFSET_FIELD)?,
             ),
         };
+        let layout = PstLayout::for_variant(variant);
         let candidates = build_root_candidates(
             buf,
             file_size,
@@ -295,7 +361,11 @@ impl PstHeader {
             legacy_bbt_root_offset,
             legacy_nbt_root_offset,
         )?;
-        let root_diagnostics = PstRootDiagnostics::from_candidates(file_size, candidates);
+        let root_diagnostics = PstRootDiagnostics::from_candidates_with_page_size(
+            file_size,
+            candidates,
+            layout.page_size as u64,
+        );
         let selected_bbt_root_offset = root_diagnostics
             .selected_source
             .as_ref()
@@ -317,10 +387,8 @@ impl PstHeader {
             format: "pst".to_string(),
             parser_status: match variant {
                 PstVariant::Unicode => "supported_unicode_header".to_string(),
-                PstVariant::Ansi => "detected_ansi_header_unsupported_for_extraction".to_string(),
-                PstVariant::Ost2013 => {
-                    "detected_ost2013_header_unsupported_for_extraction".to_string()
-                }
+                PstVariant::Ansi => "supported_ansi_header".to_string(),
+                PstVariant::Ost2013 => "supported_ost2013_header".to_string(),
                 PstVariant::Unknown => "detected_unknown_version".to_string(),
             },
             file_size,
@@ -369,16 +437,19 @@ fn build_root_candidates(
             ));
         }
     } else if variant == PstVariant::Ost2013 {
-        candidates.push(PstRootCandidateDiagnostic::from_offsets(
-            "ost2013_root_fields",
+        let ost_bbt_root_offset = read_optional_offset(buf, UNICODE_BBT_ROOT_OFFSET_FIELD)?;
+        let ost_nbt_root_offset = read_optional_offset(buf, UNICODE_NBT_ROOT_OFFSET_FIELD)?;
+        candidates.push(PstRootCandidateDiagnostic::from_offsets_with_page_size(
+            "ost2013_root_bref_offsets",
             file_size,
-            None,
-            None,
+            ost_bbt_root_offset,
+            ost_nbt_root_offset,
+            4096,
         ));
         return Ok(candidates);
     }
 
-    let mut legacy_candidate = PstRootCandidateDiagnostic::from_offsets(
+    let legacy_candidate = PstRootCandidateDiagnostic::from_offsets(
         if variant == PstVariant::Ansi {
             "ansi_root_bref_offsets"
         } else {
@@ -388,10 +459,6 @@ fn build_root_candidates(
         legacy_bbt_root_offset,
         legacy_nbt_root_offset,
     );
-    if variant == PstVariant::Ansi {
-        legacy_candidate.selectable_for_traversal = false;
-        legacy_candidate.condition = "ansi_root_pages_detected_traversal_disabled".to_string();
-    }
     candidates.push(legacy_candidate);
     Ok(candidates)
 }
@@ -465,32 +532,26 @@ mod tests {
     }
 
     #[test]
-    fn ansi_versions_decode_32_bit_roots_but_do_not_enable_traversal() {
+    fn ansi_versions_decode_32_bit_roots_and_enable_traversal() {
         for version in [14, 15] {
             let header = synthetic_ansi_header(version);
             let parsed = PstHeader::parse_bytes(&header, 0x20_000).unwrap();
 
             assert_eq!(parsed.variant, PstVariant::Ansi);
-            assert_eq!(
-                parsed.summary.parser_status,
-                "detected_ansi_header_unsupported_for_extraction"
-            );
+            assert_eq!(parsed.summary.parser_status, "supported_ansi_header");
             assert_eq!(parsed.summary.magic_client.as_deref(), Some("SM"));
             assert_eq!(parsed.summary.crypt_method, Some(1));
-            assert!(parsed.roots.bbt_root.is_none());
-            assert!(parsed.roots.nbt_root.is_none());
-            assert_eq!(parsed.summary.bbt_root_offset, None);
-            assert_eq!(parsed.summary.nbt_root_offset, None);
+            assert_eq!(parsed.roots.bbt_root.unwrap().offset.0, 0x800);
+            assert_eq!(parsed.roots.nbt_root.unwrap().offset.0, 0x400);
+            assert_eq!(parsed.summary.bbt_root_offset, Some(0x800));
+            assert_eq!(parsed.summary.nbt_root_offset, Some(0x400));
 
             let candidate = &parsed.summary.root_diagnostics.candidates[0];
             assert_eq!(candidate.source, "ansi_root_bref_offsets");
             assert_eq!(candidate.nbt_root.offset, Some(0x400));
             assert_eq!(candidate.bbt_root.offset, Some(0x800));
-            assert!(!candidate.selectable_for_traversal);
-            assert_eq!(
-                candidate.condition,
-                "ansi_root_pages_detected_traversal_disabled"
-            );
+            assert!(candidate.selectable_for_traversal);
+            assert_eq!(candidate.condition, "root_pages_in_bounds");
         }
     }
 

@@ -120,8 +120,18 @@ pub fn extract_metadata(
     let reader = PstByteReader::open(input_path)?;
     let header = PstHeader::parse(&reader)?;
     let limits = ParserLimits::default();
-    let bbt = BbtIndex::load_root_with_limits(&reader, header.roots.bbt_root, limits)?;
-    let nbt = NbtIndex::load_root_with_limits(&reader, header.roots.nbt_root, limits)?;
+    let bbt = BbtIndex::load_root_with_limits_for_variant(
+        &reader,
+        header.roots.bbt_root,
+        limits,
+        header.variant,
+    )?;
+    let nbt = NbtIndex::load_root_with_limits_for_variant(
+        &reader,
+        header.roots.nbt_root,
+        limits,
+        header.variant,
+    )?;
 
     let (mut root_folder, mut root_inventory) = root_folder_from_header(pst_id, &header);
     let mut messages = Vec::new();

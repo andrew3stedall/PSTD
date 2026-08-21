@@ -18,6 +18,12 @@ readpst-compatible EML companion, supported MAPI properties, recipient/attachmen
 storages, explicit unsupported method-5/property decisions, and an independent reader
 gate. Named properties, embedded-message breadth, and input/release gates remain open.
 
+RP-M6-01 adds Partial ANSI v14/v15 and OST 2013 structural input coverage through the
+canonical header/index path. Controlled positive fixtures prove family-specific roots,
+page widths, BBT/NBT identities, explicit negative statuses, and repeat-run equality;
+full semantic item/output corpora, encryption, hardening, and release promotion remain
+open.
+
 ## Baseline
 
 The comparison is against the `pst-format/libpst` `master` source at commit [`cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89`](https://github.com/pst-format/libpst/tree/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89). The principal implementation is [`src/readpst.c`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/readpst.c); the exposed item model and parser behaviour are in [`src/libpst.h`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/libpst.h) and [`src/libpst.c`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/libpst.c).

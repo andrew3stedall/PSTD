@@ -97,18 +97,38 @@ impl InputCapability {
                     false,
                 ),
             },
-            InputFamily::AnsiPst => (
-                InputCapabilityStatus::Unsupported,
-                "unsupported_ansi_family".to_string(),
-                "unavailable_for_unsupported_family".to_string(),
-                false,
-            ),
-            InputFamily::Ost2013 => (
-                InputCapabilityStatus::Unsupported,
-                "unsupported_ost2013_family".to_string(),
-                "unavailable_for_unsupported_family".to_string(),
-                false,
-            ),
+            InputFamily::AnsiPst | InputFamily::Ost2013 => match crypt_method {
+                Some(0 | 1) if roots_ready => (
+                    InputCapabilityStatus::Ready,
+                    "ready_to_attempt".to_string(),
+                    "not_loaded".to_string(),
+                    true,
+                ),
+                Some(0 | 1) => (
+                    InputCapabilityStatus::Partial,
+                    format!("not_ready:{root_condition}"),
+                    "unavailable_until_index_ready".to_string(),
+                    false,
+                ),
+                Some(2) => (
+                    InputCapabilityStatus::Unsupported,
+                    "unsupported_strong_crypt_method".to_string(),
+                    "unavailable_until_decryption".to_string(),
+                    false,
+                ),
+                Some(method) => (
+                    InputCapabilityStatus::Unsupported,
+                    format!("unsupported_crypt_method:{method}"),
+                    "unavailable_until_decryption".to_string(),
+                    false,
+                ),
+                None => (
+                    InputCapabilityStatus::Partial,
+                    "crypt_method_unavailable".to_string(),
+                    "unavailable_until_header_complete".to_string(),
+                    false,
+                ),
+            },
             InputFamily::Unknown => (
                 InputCapabilityStatus::Unsupported,
                 "unsupported_unknown_family".to_string(),
@@ -196,12 +216,13 @@ impl InputCapability {
     ) {
         let bbt_status = bbt_status.into();
         let nbt_status = nbt_status.into();
-        self.index_status = format!("bbt={bbt_status}; nbt={nbt_status}");
+        let crypt_unsupported = self.status == InputCapabilityStatus::Unsupported
+            && matches!(self.crypt_method, Some(2));
+        if !crypt_unsupported {
+            self.index_status = format!("bbt={bbt_status}; nbt={nbt_status}");
+        }
         if self.status == InputCapabilityStatus::Ready
-            && (bbt_status.starts_with("unavailable")
-                || nbt_status.starts_with("unavailable")
-                || bbt_status.contains("error")
-                || nbt_status.contains("error"))
+            && (index_status_is_partial(&bbt_status) || index_status_is_partial(&nbt_status))
         {
             self.status = InputCapabilityStatus::Partial;
             self.allows_extraction = false;
@@ -251,6 +272,24 @@ impl InputCapability {
             diagnostics: vec![detail],
         }
     }
+}
+
+fn index_status_is_partial(status: &str) -> bool {
+    if status.starts_with("unavailable") || status.starts_with("error") {
+        return true;
+    }
+    for field in ["traversal_errors=", "truncated_entries="] {
+        if let Some(value) = status
+            .split(field)
+            .nth(1)
+            .and_then(|value| value.split(';').next())
+        {
+            if value != "0" {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 impl InputFamily {
