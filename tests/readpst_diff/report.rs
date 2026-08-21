@@ -83,17 +83,30 @@ pub fn build_differential_report(
         artifacts,
         deterministic_repeat,
         notes: vec![
-            "One approved fixture differential is E2 evidence, not a final parity claim.".to_string(),
+            "One approved fixture differential is E2 evidence, not a final parity claim."
+                .to_string(),
             format!("comparison_class={:?}", summary.class),
         ],
     };
     evidence.validate()?;
 
     let mut notes = vec![
-        format!("readpst_stdout_sha256={}", readpst.execution.stdout_sha256.clone().unwrap_or_default()),
-        format!("readpst_stderr_sha256={}", readpst.execution.stderr_sha256.clone().unwrap_or_default()),
-        format!("pstd_stdout_sha256={}", pstd.execution.stdout_sha256.clone().unwrap_or_default()),
-        format!("pstd_stderr_sha256={}", pstd.execution.stderr_sha256.clone().unwrap_or_default()),
+        format!(
+            "readpst_stdout_sha256={}",
+            readpst.execution.stdout_sha256.clone().unwrap_or_default()
+        ),
+        format!(
+            "readpst_stderr_sha256={}",
+            readpst.execution.stderr_sha256.clone().unwrap_or_default()
+        ),
+        format!(
+            "pstd_stdout_sha256={}",
+            pstd.execution.stdout_sha256.clone().unwrap_or_default()
+        ),
+        format!(
+            "pstd_stderr_sha256={}",
+            pstd.execution.stderr_sha256.clone().unwrap_or_default()
+        ),
     ];
     if !readpst.escaped_paths.is_empty() || !pstd.escaped_paths.is_empty() {
         notes.push("path_escape_detected".to_string());
@@ -136,8 +149,7 @@ pub fn write_report(
         .map_err(|error| format!("report_temp_write_failed:{error}"))?;
     file.sync_all()
         .map_err(|error| format!("report_temp_sync_failed:{error}"))?;
-    fs::rename(&temporary, &path)
-        .map_err(|error| format!("report_publish_failed:{error}"))?;
+    fs::rename(&temporary, &path).map_err(|error| format!("report_publish_failed:{error}"))?;
     Ok(path)
 }
 
@@ -204,8 +216,12 @@ mod tests {
             version: "test-1".to_string(),
             command: vec![tool.to_string(), "fixture".to_string()],
             exit_status: Some(0),
-            stdout_sha256: Some("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string()),
-            stderr_sha256: Some("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string()),
+            stdout_sha256: Some(
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+            ),
+            stderr_sha256: Some(
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string(),
+            ),
             output_root: root.to_string(),
             status: EvidenceStatus::Present,
         }

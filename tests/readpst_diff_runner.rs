@@ -4,9 +4,7 @@ use readpst_diff::manifest::FixtureManifest;
 use readpst_diff::normalize::{
     normalize_pstd_archive, normalize_readpst_directory, NormalizationLimits,
 };
-use readpst_diff::report::{
-    build_differential_report, reports_are_deterministic, write_report,
-};
+use readpst_diff::report::{build_differential_report, reports_are_deterministic, write_report};
 use readpst_diff::runner::{run_isolated, CommandSpec, RunLimits};
 use std::env;
 use tempfile::tempdir;
@@ -83,7 +81,9 @@ fn approved_unicode_fixture_runs_through_isolated_comparison_contract() {
 #[test]
 fn configured_readpst_approved_fixture_differential() {
     let Some(readpst_bin) = env::var_os("PSTD_READPST_BIN") else {
-        eprintln!("PSTD_READPST_BIN is not set; dedicated pinned-oracle workflow provisions this test");
+        eprintln!(
+            "PSTD_READPST_BIN is not set; dedicated pinned-oracle workflow provisions this test"
+        );
         return;
     };
     let fixture = FixtureManifest::approved_unicode_tika();
@@ -91,8 +91,8 @@ fn configured_readpst_approved_fixture_differential() {
     let fixture_path = readpst_diff::runner::validate_fixture_on_disk(&fixture, repository_root)
         .expect("approved fixture must pass provenance and hash admission");
     let sandbox = tempdir().expect("sandbox");
-    let readpst_version = env::var("PSTD_READPST_VERSION")
-        .unwrap_or_else(|_| "pinned-source-build".to_string());
+    let readpst_version =
+        env::var("PSTD_READPST_VERSION").unwrap_or_else(|_| "pinned-source-build".to_string());
     let pstd_bin = env!("CARGO_BIN_EXE_pstd").to_string();
     let fixture_path = fixture_path.to_string_lossy().into_owned();
     let readpst_bin = readpst_bin.to_string_lossy().into_owned();

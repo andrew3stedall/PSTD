@@ -1,6 +1,4 @@
-use super::manifest::{
-    sha256_hex, ArtifactDigest, EvidenceStatus, FixtureManifest, ToolExecution,
-};
+use super::manifest::{sha256_hex, ArtifactDigest, EvidenceStatus, FixtureManifest, ToolExecution};
 use serde::Serialize;
 use std::fs;
 use std::io::Read;
@@ -91,13 +89,10 @@ pub fn validate_fixture_on_disk(
     let resolved = fs::canonicalize(&candidate)
         .map_err(|error| format!("fixture_unavailable:{}:{error}", fixture.local_path))?;
     if !resolved.starts_with(&root) {
-        return Err(format!(
-            "fixture_path_escape: {}",
-            fixture.local_path
-        ));
+        return Err(format!("fixture_path_escape: {}", fixture.local_path));
     }
-    let metadata = fs::metadata(&resolved)
-        .map_err(|error| format!("fixture_metadata_unavailable:{error}"))?;
+    let metadata =
+        fs::metadata(&resolved).map_err(|error| format!("fixture_metadata_unavailable:{error}"))?;
     if !metadata.is_file() {
         return Err(format!("fixture_is_not_file: {}", fixture.local_path));
     }
@@ -213,15 +208,12 @@ pub fn run_isolated(spec: &CommandSpec, limits: &RunLimits) -> Result<RunResult,
     let escaped_paths = find_escaped_paths(&sandbox, &output_root)?;
     let artifacts = collect_artifacts(&output_root, limits)?;
 
-    let status = if exit_status == Some(0)
-        && !timed_out
-        && !output_limited
-        && escaped_paths.is_empty()
-    {
-        EvidenceStatus::Present
-    } else {
-        EvidenceStatus::Failed
-    };
+    let status =
+        if exit_status == Some(0) && !timed_out && !output_limited && escaped_paths.is_empty() {
+            EvidenceStatus::Present
+        } else {
+            EvidenceStatus::Failed
+        };
     let execution_output_root = path_string(output_relative);
     let stable_command = stable_command(&spec.command, &sandbox, &output_root);
     let execution = ToolExecution {
@@ -375,10 +367,7 @@ fn collect_files(
             return Err(format!("output_file_count_exceeded: {}", limits.max_files));
         }
         if metadata.len() > limits.max_file_bytes {
-            return Err(format!(
-                "output_file_size_exceeded: {}",
-                path.display()
-            ));
+            return Err(format!("output_file_size_exceeded: {}", path.display()));
         }
         total = total
             .checked_add(metadata.len())
@@ -430,7 +419,8 @@ mod tests {
                 vec![
                     "sh".to_string(),
                     "-c".to_string(),
-                    "printf 'stdout'; printf 'stderr' >&2; printf 'payload' > message.eml".to_string(),
+                    "printf 'stdout'; printf 'stderr' >&2; printf 'payload' > message.eml"
+                        .to_string(),
                 ],
             ),
             &RunLimits::default(),

@@ -97,7 +97,10 @@ pub fn compare_outputs(left: &NormalizedOutput, right: &NormalizedOutput) -> Com
                 scope: "record".to_string(),
                 class: ComparisonClass::Failure,
                 reason_code: "readpst_record_missing_from_pstd".to_string(),
-                detail: format!("readpst record {} was not represented by PSTD", record.identity),
+                detail: format!(
+                    "readpst record {} was not represented by PSTD",
+                    record.identity
+                ),
                 left_identity: Some(record.identity.clone()),
                 right_identity: None,
             });
@@ -269,7 +272,10 @@ fn compare_record(
             scope: "record.status".to_string(),
             class: ComparisonClass::Failure,
             reason_code: "status_mismatch".to_string(),
-            detail: format!("normalized status differs: left={:?} right={:?}", left.status, right.status),
+            detail: format!(
+                "normalized status differs: left={:?} right={:?}",
+                left.status, right.status
+            ),
             left_identity: Some(left.identity.clone()),
             right_identity: Some(right.identity.clone()),
         });
@@ -314,8 +320,24 @@ mod tests {
 
     #[test]
     fn matches_semantic_records_without_using_filenames() {
-        let left = output("readpst", vec![record("message", "0001.eml", "Hello", EvidenceStatus::Present)]);
-        let right = output("pstd", vec![record("messages", "msg_source_1", "\"Hello\"", EvidenceStatus::Present)]);
+        let left = output(
+            "readpst",
+            vec![record(
+                "message",
+                "0001.eml",
+                "Hello",
+                EvidenceStatus::Present,
+            )],
+        );
+        let right = output(
+            "pstd",
+            vec![record(
+                "messages",
+                "msg_source_1",
+                "\"Hello\"",
+                EvidenceStatus::Present,
+            )],
+        );
         let summary = compare_outputs(&left, &right);
         assert_eq!(summary.class, ComparisonClass::Parity);
         assert_eq!(summary.matched_records, 1);
@@ -324,7 +346,10 @@ mod tests {
 
     #[test]
     fn records_extensions_and_missing_records_explicitly() {
-        let left = output("readpst", vec![record("message", "m1", "Hello", EvidenceStatus::Present)]);
+        let left = output(
+            "readpst",
+            vec![record("message", "m1", "Hello", EvidenceStatus::Present)],
+        );
         let right = output(
             "pstd",
             vec![
@@ -342,8 +367,19 @@ mod tests {
 
     #[test]
     fn mismatches_and_empty_outputs_are_failures() {
-        let left = output("readpst", vec![record("message", "m1", "Hello", EvidenceStatus::Present)]);
-        let right = output("pstd", vec![record("messages", "m1", "Different", EvidenceStatus::Present)]);
+        let left = output(
+            "readpst",
+            vec![record("message", "m1", "Hello", EvidenceStatus::Present)],
+        );
+        let right = output(
+            "pstd",
+            vec![record(
+                "messages",
+                "m1",
+                "Different",
+                EvidenceStatus::Present,
+            )],
+        );
         let summary = compare_outputs(&left, &right);
         assert_eq!(summary.class, ComparisonClass::Failure);
         assert!(summary

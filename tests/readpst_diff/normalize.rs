@@ -56,9 +56,12 @@ impl NormalizedOutput {
     }
 
     pub fn sort_deterministically(&mut self) {
-        self.records
-            .sort_by(|left, right| (left.kind.as_str(), left.identity.as_str()).cmp(&(right.kind.as_str(), right.identity.as_str())));
-        self.artifacts.sort_by(|left, right| left.path.cmp(&right.path));
+        self.records.sort_by(|left, right| {
+            (left.kind.as_str(), left.identity.as_str())
+                .cmp(&(right.kind.as_str(), right.identity.as_str()))
+        });
+        self.artifacts
+            .sort_by(|left, right| left.path.cmp(&right.path));
         self.diagnostics.sort();
     }
 }
@@ -104,12 +107,18 @@ pub fn normalize_pstd_archive(
             .entries()
             .map_err(|error| format!("canonical_archive_entries_failed:{error}"))?
         {
-            let mut entry = entry.map_err(|error| format!("canonical_archive_entry_failed:{error}"))?;
+            let mut entry =
+                entry.map_err(|error| format!("canonical_archive_entry_failed:{error}"))?;
             let path = entry
                 .path()
                 .map_err(|error| format!("canonical_archive_path_failed:{error}"))?
                 .to_path_buf();
-            let relative = path_string(Path::new("archive").join(&archive_name).join(&path).as_path());
+            let relative = path_string(
+                Path::new("archive")
+                    .join(&archive_name)
+                    .join(&path)
+                    .as_path(),
+            );
             validate_archive_member_path(&path)
                 .map_err(|_| format!("canonical_archive_path_escape: {relative}"))?;
             let size = entry.size();
@@ -130,8 +139,9 @@ pub fn normalize_pstd_archive(
                     if line.iter().all(u8::is_ascii_whitespace) {
                         continue;
                     }
-                    let value: Value = serde_json::from_slice(line)
-                        .map_err(|error| format!("canonical_jsonl_parse_failed:{relative}:{error}"))?;
+                    let value: Value = serde_json::from_slice(line).map_err(|error| {
+                        format!("canonical_jsonl_parse_failed:{relative}:{error}")
+                    })?;
                     output.records.push(normalize_json_record(&kind, value)?);
                     if output.records.len() > limits.max_records {
                         return Err("normalized record count exceeds contract budget".to_string());
@@ -177,7 +187,8 @@ pub fn normalize_readpst_directory(
             path.strip_prefix(output_root)
                 .map_err(|_| "readpst_relative_path_failed".to_string())?,
         );
-        let bytes = fs::read(&path).map_err(|error| format!("readpst_output_read_failed:{error}"))?;
+        let bytes =
+            fs::read(&path).map_err(|error| format!("readpst_output_read_failed:{error}"))?;
         if bytes.len() as u64 > limits.max_member_bytes {
             return Err(format!("readpst_output_file_too_large: {relative}"));
         }
@@ -195,11 +206,17 @@ pub fn normalize_readpst_directory(
             .unwrap_or_default()
             .to_ascii_lowercase();
         if extension == "eml" || extension == "msg" {
-            output.records.push(normalize_message_file(&relative, &bytes));
+            output
+                .records
+                .push(normalize_message_file(&relative, &bytes));
         } else if extension == "vcf" {
-            output.records.push(normalize_text_record("contact", &relative, &bytes));
+            output
+                .records
+                .push(normalize_text_record("contact", &relative, &bytes));
         } else if extension == "ics" || extension == "jrn" {
-            output.records.push(normalize_text_record("typed_item", &relative, &bytes));
+            output
+                .records
+                .push(normalize_text_record("typed_item", &relative, &bytes));
         } else if extension.is_empty() && bytes.windows(5).any(|window| window == b"From ") {
             output.records.extend(normalize_mbox(&relative, &bytes));
         }
@@ -260,11 +277,7 @@ fn normalize_message_file(relative: &str, bytes: &[u8]) -> NormalizedRecord {
         .get("message-id")
         .cloned()
         .unwrap_or_else(|| relative.to_string());
-    let payload_hashes = fields
-        .get("body_sha256")
-        .cloned()
-        .into_iter()
-        .collect();
+    let payload_hashes = fields.get("body_sha256").cloned().into_iter().collect();
     NormalizedRecord {
         kind: "message".to_string(),
         identity,
@@ -302,10 +315,8 @@ fn normalize_mbox(relative: &str, bytes: &[u8]) -> Vec<NormalizedRecord> {
             } else {
                 part.strip_prefix("From ").unwrap_or(part)
             };
-            let mut record = normalize_message_file(
-                &format!("{relative}#{index:06}"),
-                part.as_bytes(),
-            );
+            let mut record =
+                normalize_message_file(&format!("{relative}#{index:06}"), part.as_bytes());
             record.kind = "message".to_string();
             record
         })
@@ -453,7 +464,10 @@ fn walk_files(
         let metadata = fs::symlink_metadata(&path)
             .map_err(|error| format!("normalization_metadata_failed:{}:{error}", path.display()))?;
         if metadata.file_type().is_symlink() {
-            return Err(format!("normalization_symlink_rejected: {}", path.display()));
+            return Err(format!(
+                "normalization_symlink_rejected: {}",
+                path.display()
+            ));
         }
         if metadata.is_dir() {
             walk_files(&path, predicate, files)?;
@@ -499,7 +513,8 @@ mod tests {
         let archive_path = root.path().join("canonical.tar");
         let file = File::create(&archive_path).expect("archive");
         let mut builder = tar::Builder::new(file);
-        let body = br#"{"message_key":"m1","subject":"Hello","timestamp_utc":"now","status":"present"}
+        let body =
+            br#"{"message_key":"m1","subject":"Hello","timestamp_utc":"now","status":"present"}
 "#;
         let mut header = tar::Header::new_gnu();
         header.set_path("data/messages.jsonl").expect("path");
@@ -522,16 +537,17 @@ mod tests {
             b"Message-ID: <m1>\r\nSubject: Hello\r\n\r\nBody",
         )
         .expect("eml");
-        let result = normalize_readpst_directory(root.path(), "readpst", &NormalizationLimits::default())
-            .expect("normalize");
+        let result =
+            normalize_readpst_directory(root.path(), "readpst", &NormalizationLimits::default())
+                .expect("normalize");
         assert_eq!(result.records[0].identity, "<m1>");
         assert_eq!(result.records[0].fields["subject"], "Hello");
     }
 
     #[test]
     fn rejects_archive_path_traversal() {
-        let error = validate_archive_member_path(Path::new("../escape"))
-            .expect_err("escape should fail");
+        let error =
+            validate_archive_member_path(Path::new("../escape")).expect_err("escape should fail");
         assert!(error.contains("traversal"));
     }
 }
