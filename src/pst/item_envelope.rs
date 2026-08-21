@@ -412,8 +412,8 @@ mod tests {
 
     use super::{build_item_envelopes, build_item_routing_counts};
     use crate::output::metadata::{
-        EnvelopeRecordKind, FolderRecord, ItemEnvelopeSource, ItemKind, ItemRoutingCountRecord,
-        ItemVisibility,
+        EnvelopeRecordKind, FolderRecord, ItemEnvelope, ItemEnvelopeSource, ItemKind,
+        ItemRoutingCountRecord, ItemVisibility,
     };
     use crate::pst::message_ownership::MessageOwnershipResolution;
     use crate::pst::nbt::NbtEntry;
