@@ -243,3 +243,4 @@ All seven top-level messages belong to `/Début du fichier de données Outlook` 
 - Added the RP-M7-01 conservative matrix promotion report at main commit `57fbcaf1a83e2ddc79fff300be812a23cc66bb53`: 2 Implemented, 54 Partial, and 19 Gap rows remain explicit.
 - Preserved the distinction between readpst-exposed gaps and cases readpst itself skips; no row was promoted from a helper, field, fixture-only probe, or process exit.
 - The unresolved Gap set is now the fixed input to the RP-M7-02 differential report and RP-M7-03 final decision.
+- Added the RP-M7-02 E4 report and release workflow: the pinned oracle run is green for the approved Unicode fixture, while missing admissible corpus coverage remains explicitly not-proven rather than inferred.

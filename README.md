@@ -82,6 +82,13 @@ The conservative matrix promotion review is complete on main commit
 and 19 remain Gap. The Gap set is explicit in `docs/readpst-gaps/10-parity-matrix.md`;
 RP-M7-02 and RP-M7-03 must complete before any parity or release claim.
 
+### RP-M7-02
+
+The pinned readpst differential workflow passed run `32512518536` with 18 harness tests
+and artifact `9457584897` for the approved Unicode fixture. This is executable E2/Partial
+evidence; the release-wide E4 claim remains not proven because the profile/input corpus
+table in `docs/readpst-gaps/rp-m7-02-e4-report.md` records admissibility blockers.
+
 ## Intent
 
 PSTD is intended to become a dependable PST-to-email extraction engine that:

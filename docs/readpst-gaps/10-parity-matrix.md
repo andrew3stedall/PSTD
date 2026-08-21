@@ -279,6 +279,10 @@ behaviour. The remaining Partial rows likewise remain open until representative
 semantic differentials and full output/import evidence exist. RP-M7-02 must consume
 this exact baseline; RP-M7-03 must use its unresolved set in the final decision.
 
+The independent E4 report is [`rp-m7-02-e4-report.md`](rp-m7-02-e4-report.md). It
+records the pinned-oracle run, output/profile coverage, repeat-run requirement, and
+admissibility blockers without promoting a row.
+
 ## Planned implementation — `RP-10`
 
 The matrix is the release ledger, so each capability row must map to an implementation plan, concrete PSTD boundary, and fixture family. The following mapping is the minimum issue index; sub-issues may split a plan without changing the row ID.
