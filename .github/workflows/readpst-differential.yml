@@ -35,7 +35,7 @@ jobs:
           readpst_bin=$(find /tmp/libpst -type f -name readpst -perm -111 | sort | head -n 1)
           test -n "$readpst_bin"
           echo "PSTD_READPST_BIN=$readpst_bin" >> "$GITHUB_ENV"
-          version=$("$readpst_bin" --version 2>&1 | head -n 1 || true)
+          version=$("$readpst_bin" -V 2>&1 | head -n 1 || true)
           test -n "$version"
           echo "PSTD_READPST_VERSION=$version" >> "$GITHUB_ENV"
           echo "Pinned revision: $revision"
