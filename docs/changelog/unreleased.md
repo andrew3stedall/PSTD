@@ -9,6 +9,7 @@ _Last reviewed: 21 August 2026._
 - A pinned `libpst`/`readpst` parity gap register under `docs/readpst-gaps/`, covering CLI modes, PST/OST and encryption inputs, item classes, metadata, MIME and RTF bodies, attachment methods, contacts, calendar/journal outputs, storage formats, and acceptance fixtures.
 - Issue-ready `RP-00`–`RP-13` implementation plans, a complete direct-source review ledger, and a semantic differential harness contract for translating every reviewed `readpst` capability into Rust-native PSTD work.
 - A dependency-aware readpst parity agent orchestrator with eight milestone definitions, 28 stable work-unit slices, specialist-agent roles, merge gates, and recursive documentation fan-out.
+- Deterministic RP-M0-01 parity contracts and tests for matrix/evidence statuses, fixture provenance, SHA-256/size/family/crypt admission, negative outcomes, pinned source drift, and E2 Unicode baseline evidence.
 
 ### Product foundation
 
