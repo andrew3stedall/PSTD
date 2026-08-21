@@ -81,14 +81,7 @@ pub fn payload_record(
     bytes: Option<&[u8]>,
     status: &str,
 ) -> EvidenceRecord {
-    let mut record = evidence_record(
-        owner_key,
-        evidence_kind,
-        source_ref,
-        None,
-        bytes,
-        status,
-    );
+    let mut record = evidence_record(owner_key, evidence_kind, source_ref, None, bytes, status);
     record.source_ref = format!("{}; archive_path={archive_path}", record.source_ref);
     record
 }
@@ -101,13 +94,9 @@ fn evidence_record(
     bytes: Option<&[u8]>,
     status: &str,
 ) -> EvidenceRecord {
-    let (raw_size_bytes, raw_sha256, raw_bytes_hex) = bytes
-        .map(raw_fields)
-        .unwrap_or((0, None, None));
-    let evidence_key = ids::stable_id(
-        "evidence",
-        &[owner_key, evidence_kind, &source_ref],
-    );
+    let (raw_size_bytes, raw_sha256, raw_bytes_hex) =
+        bytes.map(raw_fields).unwrap_or((0, None, None));
+    let evidence_key = ids::stable_id("evidence", &[owner_key, evidence_kind, &source_ref]);
     EvidenceRecord {
         evidence_key,
         owner_key: owner_key.to_string(),

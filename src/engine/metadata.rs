@@ -6,8 +6,7 @@ use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::ids;
 use crate::output::metadata::{
     AttachmentRecord, BodyRecord, EvidenceRecord, FolderRecord, ItemEnvelope,
-    ItemRoutingCountRecord, ManifestRecord, MessageRecord, MessageReferenceRecord,
-    RecipientRecord,
+    ItemRoutingCountRecord, ManifestRecord, MessageRecord, MessageReferenceRecord, RecipientRecord,
 };
 use crate::pst::attachment_property_context::{
     attachment_payloads_from_property_context_subnodes,
