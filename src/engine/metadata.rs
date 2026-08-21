@@ -5,8 +5,9 @@ use crate::engine::message_folder_ownership::resolve_folder_ownership;
 use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::ids;
 use crate::output::metadata::{
-    AttachmentRecord, BodyRecord, EvidenceRecord, FolderRecord, ItemEnvelope,
-    ItemRoutingCountRecord, ManifestRecord, MessageRecord, MessageReferenceRecord, RecipientRecord,
+    AttachmentRecord, BodyRecord, EvidenceRecord, FolderRecord, HeaderProjectionRecord,
+    ItemEnvelope, ItemRoutingCountRecord, ManifestRecord, MessageRecord, MessageReferenceRecord,
+    RecipientRecord,
 };
 use crate::pst::attachment_property_context::{
     attachment_payloads_from_property_context_subnodes,
@@ -25,6 +26,7 @@ use crate::pst::folder_tree::{
     folder_from_nbt_candidate, is_folder_candidate, root_folder_from_header, FolderInventoryRecord,
 };
 use crate::pst::header::PstHeader;
+use crate::pst::header_projection;
 use crate::pst::item_envelope::{build_item_envelopes, build_item_routing_counts};
 use crate::pst::limits::ParserLimits;
 use crate::pst::message_metadata::{message_from_properties, status_row};
@@ -55,6 +57,7 @@ pub struct MetadataExtractionOutput {
     pub items: Vec<ItemEnvelope>,
     pub item_routing_counts: Vec<ItemRoutingCountRecord>,
     pub evidence: Vec<EvidenceRecord>,
+    pub headers: Vec<HeaderProjectionRecord>,
     pub messages: Vec<MessageRecord>,
     pub recipients: Vec<RecipientRecord>,
     pub message_references: Vec<MessageReferenceRecord>,
@@ -78,6 +81,7 @@ pub struct MetadataExtractionOutput {
 #[derive(Debug, Clone)]
 struct EmbeddedMessageExtractionOutput {
     message: MessageRecord,
+    header: HeaderProjectionRecord,
     recipients: Vec<RecipientRecord>,
     bodies: Vec<BodyRecord>,
     body_payloads: Vec<BodyPayload>,
@@ -109,6 +113,7 @@ pub fn extract_metadata(
     let (mut root_folder, mut root_inventory) = root_folder_from_header(pst_id, &header);
     let mut messages = Vec::new();
     let mut issues = Vec::new();
+    let mut headers = Vec::new();
     let mut recipients: Vec<RecipientRecord> = Vec::new();
     let message_references: Vec<MessageReferenceRecord> = Vec::new();
     let mut bodies: Vec<BodyRecord> = Vec::new();
@@ -281,6 +286,10 @@ pub fn extract_metadata(
                         entry.node_id,
                         &loaded.properties,
                     );
+                    headers.push(header_projection::project(
+                        &message.message_key,
+                        &loaded.properties,
+                    ));
                     evidence.extend(crate::pst::evidence::property_records(
                         &message.message_key,
                         entry.node_id,
@@ -603,6 +612,10 @@ pub fn extract_metadata(
                         entry.data_block_id,
                         &format!("property_context_unavailable; {reason}"),
                     ));
+                    headers.push(header_projection::unavailable(
+                        &message_key,
+                        "node_property_context_unavailable",
+                    ));
                     bodies.push(unavailable_body_record(
                         &message_key,
                         "text",
@@ -623,6 +636,7 @@ pub fn extract_metadata(
 
     let embedded_message_count = embedded_message_outputs.len();
     for mut output in embedded_message_outputs {
+        headers.push(output.header);
         messages.push(output.message);
         recipients.append(&mut output.recipients);
         bodies.append(&mut output.bodies);
@@ -799,6 +813,7 @@ pub fn extract_metadata(
         items,
         item_routing_counts,
         evidence,
+        headers,
         messages,
         recipients,
         message_references,
@@ -926,6 +941,10 @@ fn recover_embedded_message(
         crate::pst::primitives::NodeId(candidate.data_nid as u64),
         &candidate.property_report.context,
     );
+    let header = header_projection::project(
+        &candidate.embedded_message_key,
+        &candidate.property_report.context,
+    );
     message.message_key = candidate.embedded_message_key.clone();
     message.message_node_id = Some(format!("embedded_nid_{:08x}", candidate.data_nid));
     message.item_type = "embedded_message_metadata".to_string();
@@ -999,6 +1018,7 @@ fn recover_embedded_message(
 
     EmbeddedMessageExtractionOutput {
         message,
+        header,
         recipients,
         bodies,
         body_payloads,
@@ -1260,6 +1280,7 @@ pub fn fallback_metadata(
             failed_count: 0,
         }],
         evidence: Vec::new(),
+        headers: Vec::new(),
         messages: vec![status_row(
             run_id,
             pst_id,

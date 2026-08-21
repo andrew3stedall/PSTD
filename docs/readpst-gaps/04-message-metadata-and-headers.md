@@ -25,6 +25,20 @@ available. Missing controls remain null and the metadata status identifies wheth
 report controls were observed. Raw property bytes and decode status remain in the
 canonical evidence stream; no native address is rewritten as SMTP.
 
+## RP-M2-02 delivery
+
+The canonical extraction path now emits `data/headers.jsonl` for every extracted
+message, including embedded messages and unavailable property contexts. Each record
+keeps the exact decoded stored header value, a deterministic LF-normalized header
+projection, the selected Unicode/String8/default-charset policy, and a stable link
+to the raw property evidence. The validator accepts folded RFC fields and fields
+without a space after the colon, keeps valid stored headers authoritative, and marks
+body fragments, malformed names, bare line endings, decode failures, and lossy raw
+encodings non-authoritative without dropping their evidence. `-C`/`-8` remain an
+explicit adapter-policy boundary; the current String8 decoder records its UTF-8
+lossy status and ISO-8859-1 fallback policy rather than silently claiming code-page
+equivalence.
+
 ## Transport headers
 
 readpst prefers the stored `PR_TRANSPORT_MESSAGE_HEADERS` when it looks like a valid RFC 822 header block. It removes duplicated or container-only fields such as MIME-Version, Content-Type, Content-Transfer-Encoding, Content-class, X-MimeOLE, and some Outlook wrapper fields, then reconstructs missing `From`, `Subject`, `To`, `Cc`, `Date`, and `Message-Id` fields from MAPI values.

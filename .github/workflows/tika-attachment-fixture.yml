@@ -115,8 +115,25 @@ jobs:
           items = records('items.jsonl')
           routing_counts = records('item_routing_counts.jsonl')
           evidence_records = records('evidence.jsonl')
+          headers = records('headers.jsonl')
           if len(messages) != 8:
               raise SystemExit(f'unexpected message count: {len(messages)}')
+          if len(headers) != len(messages):
+              raise SystemExit(
+                  f'header projection count mismatch: {len(headers)} != {len(messages)}'
+              )
+          message_keys = {message['message_key'] for message in messages}
+          if {header['message_key'] for header in headers} != message_keys:
+              raise SystemExit('header projections do not cover the message keys')
+          if any(
+              header['authoritative']
+              and header['validation_status'].startswith('stored_header_invalid')
+              for header in headers
+          ):
+              raise SystemExit('invalid stored headers became authoritative')
+          for header in headers:
+              if header['raw_header_size_bytes'] and not header['raw_evidence_key']:
+                  raise SystemExit('raw header bytes are missing their evidence link')
           folder_fields = (
               'folder_key',
               'parent_folder_key',
@@ -752,6 +769,7 @@ jobs:
               'bodies_jsonl_bytes': (data / 'bodies.jsonl').stat().st_size,
               'recipients_jsonl_bytes': (data / 'recipients.jsonl').stat().st_size,
               'attachments_jsonl_bytes': (data / 'attachments.jsonl').stat().st_size,
+              'headers_jsonl_bytes': (data / 'headers.jsonl').stat().st_size,
               'tar_bytes': tar_file.stat().st_size,
               'output_total_bytes': sum(
                   path.stat().st_size for path in output.rglob('*') if path.is_file()
@@ -772,8 +790,9 @@ jobs:
               'bodies_jsonl_bytes': 2922,
               'recipients_jsonl_bytes': 2708,
               'attachments_jsonl_bytes': 1240,
-              'tar_bytes': 525824,
-              'output_total_bytes': 570872,
+              'headers_jsonl_bytes': 4596,
+              'tar_bytes': 530944,
+              'output_total_bytes': 575992,
           }
           if metrics != expected_metrics:
               raise SystemExit(f'fixture metrics mismatch: {metrics!r}')

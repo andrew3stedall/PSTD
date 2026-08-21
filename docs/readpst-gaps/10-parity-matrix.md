@@ -41,6 +41,18 @@ values and absent controls; the Tika production verifier checks the additive fie
 shape and native-address preservation. This promotes the metadata evidence boundary
 only; broad producer coverage, header normalization, and adapter parity remain open.
 
+## RP-M2-02 delivery
+
+The production path now emits `data/headers.jsonl` with one deterministic projection
+per extracted message. It preserves exact stored header text, normalized RFC fields,
+raw-property evidence links and bounded raw bytes, explicit Unicode/String8/default
+charset policy, and non-authoritative statuses for malformed, ambiguous, absent, or
+lossy header inputs. Unit evidence covers folded fields, body-fragment rejection,
+String8 loss reporting, decode failure, raw retention, and stable identifiers; the
+Tika fixture gates verify message-key coverage and authority safety. This advances
+the header evidence boundary but does not claim final MIME adapter or code-page
+conversion parity.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |

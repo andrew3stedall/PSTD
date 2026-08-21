@@ -82,6 +82,13 @@ RP-M0-01 establishes the manifest and report types used by later differential wo
 
 The isolated differential slice is implemented in `tests/readpst_diff/{runner,normalize,compare,report}.rs` and exercised by `tests/readpst_diff_runner.rs`. It validates the approved Apache Tika Unicode fixture, runs bounded readpst/PSTD processes in separate roots, normalizes canonical TAR/JSONL and readpst output semantics, records explicit parity/extension/unsupported/failure findings, rejects unsafe paths and resource-limit violations, and compares repeated reports for determinism. The dedicated `readpst-differential.yml` workflow builds the pinned CLI revision with `--enable-python=no` (the optional binding is outside the oracle surface) and runs the configured differential test. Current evidence is E2/Partial; this harness does not promote a parity row without the downstream feature and corpus gates.
 
+RP-M2-02 extends the canonical artifact set with `data/headers.jsonl`. Differential
+comparisons may use `header_key`, `message_key`, `source`, `charset_policy`,
+`validation_status`, `authoritative`, normalized header text, and the raw evidence
+key; raw bytes are compared through the bounded evidence record rather than inferred
+from filenames. Repeated extraction must preserve these fields byte-for-byte, while
+malformed and lossy inputs remain explicit non-authoritative outcomes.
+
 ## Comparator contract
 
 The harness should run a pinned readpst binary and PSTD against the same approved fixture, then normalize both results into a comparison document. Byte-for-byte output is useful for debugging but is not the primary contract because mbox boundaries, generated filenames, and MIME boundary tokens are implementation details.

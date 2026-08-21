@@ -85,6 +85,16 @@ receipt/report controls. The evidence gate covers positive unit values, absent-f
 null semantics, deterministic canonical serialization, and the existing public
 fixture regressions; broad header and producer parity remains with RP-M2-02 onward.
 
+### RP-M2-02 delivery note
+
+RP-M2-02 adds the production `data/headers.jsonl` projection and raw-property
+evidence linkage. The gate covers readpst's stored-header authority decision,
+folding/field validation, embedded-body truncation, Unicode/String8/default charset
+policy visibility, decode/loss reporting, negative statuses, and deterministic
+message-key coverage. Current String8 conversion is explicitly recorded as lossy
+UTF-8 with the readpst ISO-8859-1 fallback visible; complete item/code-page/`-C`/`-8`
+MIME conversion remains downstream work.
+
 
 ### `RP-M1 — Typed extraction core`
 
