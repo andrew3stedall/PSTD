@@ -451,9 +451,7 @@ fn strip_volatile_json(value: Value) -> Value {
                 .map(|(key, value)| (key, strip_volatile_json(value)))
                 .collect(),
         ),
-        Value::Array(values) => Value::Array(
-            values.into_iter().map(strip_volatile_json).collect(),
-        ),
+        Value::Array(values) => Value::Array(values.into_iter().map(strip_volatile_json).collect()),
         other => other,
     }
 }
@@ -467,9 +465,7 @@ fn canonical_json_value(value: &Value) -> Value {
                 .collect::<BTreeMap<_, _>>();
             Value::Object(sorted.into_iter().collect())
         }
-        Value::Array(values) => {
-            Value::Array(values.iter().map(canonical_json_value).collect())
-        }
+        Value::Array(values) => Value::Array(values.iter().map(canonical_json_value).collect()),
         other => other.clone(),
     }
 }
