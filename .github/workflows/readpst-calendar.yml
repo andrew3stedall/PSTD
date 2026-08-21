@@ -1,0 +1,89 @@
+name: Readpst calendar outputs
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  calendar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test calendar
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Verify typed iCalendar profile and explicit recurrence status
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/pst/sample.pst"
+          fixture_sha256="ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe"
+          evidence="/tmp/pstd-calendar"
+          first="/tmp/pstd-calendar-first"
+          second="/tmp/pstd-calendar-second"
+          mkdir -p "$evidence" "$first" "$second"
+          printf '%s  %s\n' "$fixture_sha256" "$fixture" | sha256sum --check -
+
+          for output in "$first" "$second"; do
+            cargo run -- extract \
+              --input "$fixture" \
+              --output "$output" \
+              --output-profile icalendar \
+              --overwrite > "$evidence/$(basename "$output").stdout" 2> "$evidence/$(basename "$output").stderr"
+            tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+            destination="$evidence/$(basename "$output")"
+            mkdir -p "$destination"
+            tar -xf "$tar_file" -C "$destination"
+            test -f "$destination/outputs/calendar-profile-status.json"
+            test -f "$destination/outputs/appointments.ics"
+          done
+
+          cmp "$evidence/pstd-calendar-first/outputs/appointments.ics" \
+            "$evidence/pstd-calendar-second/outputs/appointments.ics"
+          cmp "$evidence/pstd-calendar-first/outputs/calendar-profile-status.json" \
+            "$evidence/pstd-calendar-second/outputs/calendar-profile-status.json"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          archive = Path('/tmp/pstd-calendar/pstd-calendar-first')
+          status = json.loads((archive / 'outputs/calendar-profile-status.json').read_text())
+          ics = (archive / 'outputs/appointments.ics').read_text()
+          assert status['profile'] == 'icalendar'
+          assert status['status'] in {'calendar_projection_available', 'calendar_records_unavailable'}
+          assert ics.startswith('BEGIN:VCALENDAR\r\n')
+          assert ics.endswith('END:VCALENDAR\r\n')
+          event_count = ics.count('BEGIN:VEVENT\r\n')
+          assert event_count == status['record_count']
+          assert ics.count('END:VEVENT\r\n') == event_count
+          if event_count:
+              assert 'DTSTAMP:19700101T000000Z\r\n' in ics
+              assert 'X-PSTD-DTSTAMP-SYNTHETIC:TRUE\r\n' in ics
+              assert status['recurrence_status'] == 'recurrence_unavailable_source_properties_not_decoded'
+          else:
+              assert status['recurrence_status'] == 'not_applicable'
+          Path('/tmp/pstd-calendar/calendar-report.json').write_text(
+              json.dumps({
+                  'fixture': 'tests/fixtures/pst/sample.pst',
+                  'fixture_sha256': 'ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe',
+                  'icalendar_profile': 'implemented',
+                  'record_count': status['record_count'],
+                  'deterministic_repeat': True,
+                  'empty_or_partial_status_is_explicit': True,
+                  'recurrence_negative_status_is_explicit': True,
+                  'positive_unit_provenance': 'synthetic MessageRecord with appointment source class in src/output/calendar.rs',
+              }, indent=2) + '\n'
+          )
+          PY
+      - name: Upload calendar evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-calendar-evidence
+          path: /tmp/pstd-calendar
+          if-no-files-found: error

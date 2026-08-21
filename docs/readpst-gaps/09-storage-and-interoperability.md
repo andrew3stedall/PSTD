@@ -43,6 +43,11 @@ email               -> .eml / mbox / MH / MSG profile
 
 The adapter must not place different item classes in one file merely because they share a folder.
 
+RP-M4-02 adds the first `icalendar` profile over canonical `CalendarRecord` values.
+It writes a deterministic `outputs/appointments.ics` projection and a
+`calendar-profile-status.json` record. Missing appointment property groups and
+recurrence remain explicit; the adapter never maps an appointment into ordinary email.
+
 ## Path and collision semantics
 
 All adapters need common path policy:

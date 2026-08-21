@@ -4,7 +4,7 @@ PSTD is a Rust-first tool for extracting email data from Microsoft Outlook PST f
 
 ## Current position
 
-_Last reviewed: 23 July 2026._
+_Last reviewed: 21 August 2026._
 
 | Area | State on `main` | Current result |
 |---|---|---|
@@ -13,6 +13,7 @@ _Last reviewed: 23 July 2026._
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI version-14/15 header fields are decoded with variant-correct widths but cannot authorize traversal or extraction. |
 | Current milestone | First controlled Microsoft Purview Unicode export | Admit immutable, redistributable synthetic Purview bytes, lock the exact before-state, then implement the smallest newly evidenced email-to-EML capability. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
+| Readpst parity workboard | RP-M4-01 merged; RP-M4-02 implemented on branch | Canonical contact and appointment records have deterministic vCard/contact-list/iCalendar projections with explicit Partial statuses; remaining adapters and input gates remain open. |
 
 ## Intent
 

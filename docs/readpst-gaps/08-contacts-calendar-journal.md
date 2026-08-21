@@ -16,7 +16,9 @@ With `-cv`, readpst emits RFC 2426-style vCards. The upstream writer covers a br
 - categories from extended `Keywords` fields;
 - RFC 2426 escaping and `VERSION:3.0`.
 
-With `-cl`, it emits a simple `fullname <address>` line. PSTD currently has no typed contact record or contact adapter.
+With `-cl`, it emits a simple `fullname <address>` line. PSTD now has a source-backed
+typed contact record and deterministic contact adapters; full MAPI contact-field
+coverage remains Partial.
 
 ## RP-M4-01 delivery
 
@@ -35,6 +37,23 @@ corpus because PSTD does not yet validate its contact message classes. Positive
 serializer evidence uses a synthetic `MessageRecord` unit fixture whose provenance is
 declared in `src/output/contact.rs`; broader MAPI contact-property coverage remains
 open for a dedicated admitted fixture.
+
+## RP-M4-02 delivery
+
+The canonical path now projects validated `IPM.Appointment*` classes into deterministic
+`CalendarRecord` values and exposes an `icalendar` profile that writes
+`outputs/appointments.ics`. Source identity, class, subject, and sender values are
+retained when present; appointment-specific dates, timezone, recurrence, exceptions,
+alarms, and categories remain explicit unavailable fields until their MAPI property
+groups are decoded. The profile emits a stable synthetic `DTSTAMP` marked with
+`X-PSTD-DTSTAMP-SYNTHETIC:TRUE` so the partial iCalendar projection remains parseable
+and deterministic without pretending it is a source timestamp.
+
+The current repository PST fixture is a negative/partial extraction corpus for this
+slice. Positive serializer evidence is a provenance-labelled synthetic
+`MessageRecord` in `src/output/calendar.rs`; the calendar workflow repeats the profile,
+checks iCalendar component/count structure, and records explicit recurrence status.
+Schedule-email MIME remains owned by RP-M3-02 and is not duplicated as an appointment.
 
 ### Required PSTD model
 
@@ -67,7 +86,7 @@ With appointment output selected, readpst emits a `VCALENDAR`/`VEVENT` component
 - reminders as `VALARM` with bounded trigger values;
 - categories from the item’s `Keywords` fields.
 
-Recurrence types include daily, weekly, monthly, and yearly forms, with interval, weekdays, day-of-month, month, positional occurrence, count, and termination-date semantics. PSTD currently has no appointment record, recurrence decoder, or iCalendar writer.
+Recurrence types include daily, weekly, monthly, and yearly forms, with interval, weekdays, day-of-month, month, positional occurrence, count, and termination-date semantics. PSTD now has a bounded appointment record and iCalendar writer, but not yet an authoritative recurrence decoder or producer fixture that validates appointment property groups.
 
 The implementation must preserve raw recurrence bytes and any exception/deleted-occurrence evidence before projecting to an RFC 5545 form. A recurrence that cannot be represented exactly must be marked partial rather than silently flattened to one event.
 
@@ -152,4 +171,4 @@ Each field should be a `FieldEvidence<T>` with raw property reference, decoded v
 
 ### Issue-ready acceptance
 
-`RP-08A` is contact projection/vCard/list, `RP-08B` recurrence/timezone, `RP-08C` appointment/iCalendar, `RP-08D` journal/vJournal, and `RP-08E` unsupported/task/sticky/other classification. Fixtures must cover every contact field group, distribution list, Unicode/ANSI names, repeated phones/emails, recurring daily/weekly/monthly/yearly events, exceptions, alarms, all-day/timezone values, journals, schedule email methods, and unsupported classes. Validate with independent vCard/iCalendar/vJournal parsers, raw-field retention, exact/partial statuses, mixed-folder counts, and updates to [special email items](07-embedded-and-special-email-items.md), [storage](09-storage-and-interoperability.md), [the matrix](10-parity-matrix.md), and the source ledger.
+`RP-08A` is contact projection/vCard/list, `RP-08B` recurrence/timezone, `RP-08C` appointment/iCalendar, `RP-08D` journal/vJournal, and `RP-08E` unsupported/task/sticky/other classification. RP-M4-02 establishes the appointment record/profile boundary at Partial evidence; it does not promote recurrence or date rows without an admitted property fixture. Fixtures must cover every contact field group, distribution list, Unicode/ANSI names, repeated phones/emails, recurring daily/weekly/monthly/yearly events, exceptions, alarms, all-day/timezone values, journals, schedule email methods, and unsupported classes. Validate with independent vCard/iCalendar/vJournal parsers, raw-field retention, exact/partial statuses, mixed-folder counts, and updates to [special email items](07-embedded-and-special-email-items.md), [storage](09-storage-and-interoperability.md), [the matrix](10-parity-matrix.md), and the source ledger.

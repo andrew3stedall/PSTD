@@ -6,6 +6,7 @@ use sha2::{Digest, Sha256};
 use crate::config::ExtractConfig;
 use crate::engine::metadata::{extract_metadata, fallback_metadata};
 use crate::error::{PstdError, PstdResult};
+use crate::output::calendar::serialize_icalendar;
 use crate::output::contact::{serialize_contact_list, serialize_vcards};
 use crate::output::ids;
 use crate::output::jsonl_writer::JsonlBuffer;
@@ -114,6 +115,11 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         contacts.write_record(record)?;
     }
     let contacts_jsonl = contacts.into_bytes();
+    let mut calendars = JsonlBuffer::new();
+    for record in &metadata.calendars {
+        calendars.write_record(record)?;
+    }
+    let calendars_jsonl = calendars.into_bytes();
     let mut attachments = JsonlBuffer::new();
     for record in &metadata.attachments {
         attachments.write_record(record)?;
@@ -223,6 +229,32 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         tar.append_bytes(
             &archive_path.split('/').collect::<Vec<_>>(),
             output.as_bytes(),
+        )?;
+    }
+    if !metadata.calendars.is_empty() {
+        tar.append_bytes(&["data", "calendars.jsonl"], &calendars_jsonl)?;
+    }
+    if config.readpst.output_profile == crate::config::OutputProfile::Icalendar {
+        tar.append_bytes(
+            &["outputs", "calendar-profile-status.json"],
+            &serde_json::to_vec_pretty(&serde_json::json!({
+                "profile": "icalendar",
+                "record_count": metadata.calendars.len(),
+                "status": if metadata.calendars.is_empty() {
+                    "calendar_records_unavailable"
+                } else {
+                    "calendar_projection_available"
+                },
+                "recurrence_status": if metadata.calendars.is_empty() {
+                    "not_applicable"
+                } else {
+                    "recurrence_unavailable_source_properties_not_decoded"
+                },
+            }))?,
+        )?;
+        tar.append_bytes(
+            &["outputs", "appointments.ics"],
+            serialize_icalendar(&metadata.calendars).as_bytes(),
         )?;
     }
     tar.append_bytes(&["data", "attachments.jsonl"], &attachments.into_bytes())?;

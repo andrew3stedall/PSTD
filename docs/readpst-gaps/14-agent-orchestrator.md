@@ -150,6 +150,15 @@ statuses and evidence, and must not convert contact objects into email. The admi
 java-libpst distribution-list fixture is negative/partial for PSTD contact-class
 authority; synthetic serializer unit evidence must declare its provenance.
 
+### RP-M4-02 dispatch note
+
+RP-M4-02 owns ordinary appointment records and the first iCalendar adapter. It may
+consume only source-backed canonical message identity/class/summary/organizer values
+until appointment property groups are decoded. Dates, timezone, recurrence,
+exceptions, alarms, and categories must remain explicit unavailable or partial
+statuses; schedule-email MIME remains RP-M3-02. The repository PST fixture is
+negative/partial, and the positive serializer unit fixture must declare provenance.
+
 
 ### `RP-M1 — Typed extraction core`
 

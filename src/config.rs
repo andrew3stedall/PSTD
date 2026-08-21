@@ -52,7 +52,10 @@ impl OutputProfile {
     }
 
     pub fn is_supported(self) -> bool {
-        matches!(self, Self::Canonical | Self::Vcard | Self::ContactList)
+        matches!(
+            self,
+            Self::Canonical | Self::Vcard | Self::ContactList | Self::Icalendar
+        )
     }
 }
 

@@ -181,6 +181,35 @@ pub struct ContactRecord {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CalendarRecord {
+    pub calendar_key: String,
+    pub message_key: String,
+    pub folder_path: String,
+    pub source_node_id: Option<String>,
+    pub message_class: Option<String>,
+    pub uid: String,
+    pub summary: Option<String>,
+    pub description: Option<String>,
+    pub location: Option<String>,
+    pub organizer_name: Option<String>,
+    pub organizer_email: Option<String>,
+    pub dtstart: Option<String>,
+    pub dtend: Option<String>,
+    pub timezone: Option<String>,
+    pub all_day: Option<bool>,
+    pub recurrence_rule: Option<String>,
+    pub recurrence_raw: Option<String>,
+    pub recurrence_status: String,
+    pub exception_status: String,
+    pub alarm_status: String,
+    pub categories: Vec<String>,
+    pub status: String,
+    pub authoritative: bool,
+    pub synthetic: bool,
+    pub raw_evidence_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AttachmentRecord {
     pub message_key: String,
     pub attachment_key: String,
