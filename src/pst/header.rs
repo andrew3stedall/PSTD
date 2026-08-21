@@ -161,11 +161,7 @@ pub struct PstRootDiagnostics {
 
 impl PstRootDiagnostics {
     pub fn from_candidates(file_size: u64, candidates: Vec<PstRootCandidateDiagnostic>) -> Self {
-        Self::from_candidates_with_page_size(
-            file_size,
-            candidates,
-            PST_ROOT_PAGE_SIZE_BYTES,
-        )
+        Self::from_candidates_with_page_size(file_size, candidates, PST_ROOT_PAGE_SIZE_BYTES)
     }
 
     pub fn from_candidates_with_page_size(
@@ -181,11 +177,7 @@ impl PstRootDiagnostics {
             .cloned()
             .unwrap_or_else(|| {
                 PstRootCandidateDiagnostic::from_offsets_with_page_size(
-                    "none",
-                    file_size,
-                    None,
-                    None,
-                    page_size,
+                    "none", file_size, None, None, page_size,
                 )
             });
         let condition = selected
