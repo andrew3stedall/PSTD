@@ -518,7 +518,7 @@ impl SourceManifest {
                 return Err(format!("source_entry_has_unknown_work_unit: {}", entry.path));
             }
             let url = source_url(entry.path, entry.line_ref);
-            let expected_prefix = format!("{}{}/{}", UPSTREAM_TREE_URL, self.revision, entry.path);
+            let expected_prefix = format!("{}{}/{}", UPSTREAM_BLOB_URL, self.revision, entry.path);
             if !url.starts_with(&expected_prefix) {
                 return Err(format!("source_url_not_pinned: {}", entry.path));
             }
@@ -573,7 +573,7 @@ mod tests {
             .entries
             .iter()
             .all(|entry| source_url(entry.path, entry.line_ref)
-                .starts_with(&format!("{}{}/{}", UPSTREAM_TREE_URL, READPST_SOURCE_REVISION, entry.path))));
+                .starts_with(&format!("{}{}/{}", UPSTREAM_BLOB_URL, READPST_SOURCE_REVISION, entry.path))));
     }
 
     #[test]
