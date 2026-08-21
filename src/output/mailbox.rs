@@ -1478,7 +1478,7 @@ mod tests {
         let eml = String::from_utf8(output.artifacts[0].bytes.clone()).expect("utf8 eml");
         assert!(eml.contains("Subject: =?UTF-8?B?UsOpc3Vtw6kg4oCUIHLDqXVuaW9u?=\r\n"));
         assert!(eml.contains("From: =?UTF-8?B?Wm/DqyBFeGFtcGxl?= <sender@example.test>\r\n"));
-        assert!(eml.contains("filename*=UTF-8''r%C3%A9sum%C3%A9%20final.pdf"));
+        assert!(eml.contains("filename*=UTF-8''r%C3%A9sum%C3%A9_final.pdf"));
     }
 
     #[test]
