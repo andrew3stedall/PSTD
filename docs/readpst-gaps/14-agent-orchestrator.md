@@ -390,7 +390,7 @@ The agent must record “no change required” for each tangential page it inspe
 - [ ] all supported input families have provenance, hashes, limits, and repeat-run evidence;
 - [ ] matrix rows include equivalent/stronger/unsupported outcomes and negative statuses;
 - [ ] E4 semantic differentials cover every readpst regression profile and every PSTD output profile;
-- [ ] final documentation, changelog, and release status agree with the matrix.
+- [x] final documentation, changelog, and release status agree with the matrix.
 
 ### RP-M7-01 promotion checkpoint
 
@@ -407,4 +407,27 @@ The pinned differential workflow passed run `32512518536` (18 tests; artifact
 oracle and safety controls, while recording why release-wide E4 is not proven for the
 remaining profiles and input families.
 
+### RP-M7-03 final decision checkpoint
+
+The final decision is [`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md):
+**not parity-complete**. It names all 54 Partial and 19 Gap rows, records the exact
+reviewed commits and workflow evidence, and documents the stronger-equivalent safety
+improvements and remaining admissibility blockers. This is the program exit decision;
+the global issue may close only after the decision is posted there.
+
+### RP-M7-03 final decision checkpoint
+
+The final decision is [`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md):
+**not parity-complete**. It names all 54 Partial and 19 Gap rows, records the exact
+reviewed commits and workflow evidence, and documents the stronger-equivalent safety
+improvements and remaining admissibility blockers. This is the program exit decision;
+the global issue may close only after the decision is posted there.
+
 The global orchestration issue should remain open until this checklist is either complete or replaced by an explicitly approved release decision that names every unresolved plan ID.
+
+### RP-M7-03 release decision
+
+The checklist is replaced by the approved remaining-gap decision in
+[`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md). Full parity is not
+claimed: the all-profile E4 checkbox remains unchecked, and the decision names every
+remaining Partial/Gap row and admissibility blocker.

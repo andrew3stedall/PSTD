@@ -116,8 +116,8 @@ As of this review:
 
 - readpst-parity implementation is merged through RP-M6-03 / PR #550;
 - the Tika fixture emits eight structured messages, nine recipients, one exact DOCX payload, one 17,035-byte parent EML, and one 453-byte child EML;
-- the active boundary is RP-M7 release evidence: matrix promotion is complete, while E4 semantic differential and final decision remain open;
+- the active boundary is the published RP-M7 final decision: PSTD is not parity-complete, and future work must resolve the named Partial/Gap rows;
 - the matrix records 2 Implemented, 54 Partial, and 19 Gap rows; fixture breadth, mixed item/output semantics, and broad address/body fidelity remain incomplete;
-- RP-M7-02 has a passing pinned-oracle control run but records release-wide E4 as not proven until the profile/input admissibility blockers are resolved or accepted in the final decision;
+- RP-M7-02 has a passing pinned-oracle control run but records release-wide E4 as not proven; RP-M7-03 accepts that limitation and names the remaining work;
 - downstream Snowflake/UI/search work remains parked;
 - historical M/PQ/vertical files are retained as traceability records and are no longer used as the current roadmap.

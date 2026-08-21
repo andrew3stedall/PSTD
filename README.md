@@ -11,9 +11,9 @@ _Last reviewed: 21 August 2026._
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI v14/v15 and OST 2013 structural page/index traversal is now integrated with explicit evidence boundaries. |
-| Current milestone | Readpst parity RP-M7 release gate | RP-M6 input breadth and hardening are merged and evidenced; RP-M7-01 records 2 Implemented, 54 Partial, and 19 Gap matrix rows, so the final parity decision remains open. |
+| Current milestone | Readpst parity decision published | RP-M7-03 records NOT PARITY-COMPLETE at main `83fdd05`: 2 Implemented, 54 Partial, and 19 Gap rows remain explicit; future work must close them before a full-parity claim. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
-| Readpst parity workboard | RP-M6-01, RP-M6-02, and RP-M6-03 in validation | Canonical typed records feed deterministic output projections; ANSI/OST layouts, libpst method-1/method-2 payload decoding, bounded workers, symlink-safe discovery, archive confinement, and diagnostic caps have explicit evidence; release gates remain open. |
+| Readpst parity workboard | RP-M7-03 final decision published | Canonical typed records feed deterministic output projections; RP-M6 controls and RP-M7 evidence are recorded, but the final decision is NOT PARITY-COMPLETE with 54 Partial and 19 Gap rows remaining. |
 
 ### RP-M4-03
 
@@ -88,6 +88,10 @@ The pinned readpst differential workflow passed run `32512518536` with 18 harnes
 and artifact `9457584897` for the approved Unicode fixture. This is executable E2/Partial
 evidence; the release-wide E4 claim remains not proven because the profile/input corpus
 table in `docs/readpst-gaps/rp-m7-02-e4-report.md` records admissibility blockers.
+
+### RP-M7-03 final decision
+
+The final release decision is [documented here](docs/readpst-gaps/rp-m7-03-parity-decision.md): PSTD is **not parity-complete** at the reviewed baseline. It names all 54 Partial and 19 Gap rows, records the green executable gates, and preserves stronger-equivalent safety and determinism improvements without overclaiming feature parity.
 
 ## Intent
 

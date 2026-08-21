@@ -117,6 +117,11 @@ readpst-exposed behaviours from these anchors, not upstream skips. RP-M7-02 must
 record unavailable or inadmissible regression profiles explicitly; it must not use a
 moving upstream checkout or silently convert missing corpus evidence into parity.
 
+RP-M7-03 final decision: the pinned source review confirms that the remaining 19 Gap
+rows are readpst-exposed behaviours, while the 54 Partial rows lack breadth or E4
+evidence. The source ledger therefore supports a NOT PARITY-COMPLETE release decision,
+not an upstream-skip classification.
+
 ## Planned implementation — `RP-12`
 
 1. Keep this ledger pinned to `cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89` and add a new review row whenever upstream changes the readpst dependency boundary.

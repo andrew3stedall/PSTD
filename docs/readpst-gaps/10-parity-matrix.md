@@ -283,6 +283,20 @@ The independent E4 report is [`rp-m7-02-e4-report.md`](rp-m7-02-e4-report.md). I
 records the pinned-oracle run, output/profile coverage, repeat-run requirement, and
 admissibility blockers without promoting a row.
 
+## RP-M7-03 final decision
+
+The final release decision is [`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md):
+**not parity-complete**. The matrix remains 2 Implemented, 54 Partial, and 19 Gap.
+The decision names every remaining row and preserves the explicit stronger-equivalent
+hardening improvements without treating them as feature parity.
+
+## RP-M7-03 final decision
+
+The final release decision is [`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md):
+**not parity-complete**. The matrix remains 2 Implemented, 54 Partial, and 19 Gap.
+The decision names every remaining row and preserves the explicit stronger-equivalent
+hardening improvements without treating them as feature parity.
+
 ## Planned implementation — `RP-10`
 
 The matrix is the release ledger, so each capability row must map to an implementation plan, concrete PSTD boundary, and fixture family. The following mapping is the minimum issue index; sub-issues may split a plan without changing the row ID.
