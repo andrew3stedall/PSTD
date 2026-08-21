@@ -5,9 +5,9 @@ use crate::engine::message_folder_ownership::resolve_folder_ownership;
 use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::ids;
 use crate::output::metadata::{
-    AttachmentRecord, BodyRecord, EvidenceRecord, FolderRecord, HeaderProjectionRecord,
-    ItemEnvelope, ItemRoutingCountRecord, ManifestRecord, MessageRecord, MessageReferenceRecord,
-    EmbeddedGraphRecord, MimePartRecord, RecipientRecord,
+    AttachmentRecord, BodyRecord, EmbeddedGraphRecord, EvidenceRecord, FolderRecord,
+    HeaderProjectionRecord, ItemEnvelope, ItemRoutingCountRecord, ManifestRecord, MessageRecord,
+    MessageReferenceRecord, MimePartRecord, RecipientRecord,
 };
 use crate::output::mime::build_mime_parts;
 use crate::pst::attachment_property_context::{
@@ -23,10 +23,10 @@ use crate::pst::compatibility::{
     triage_observed_attachment_layouts, CompatibilityTriageRecord, DecoderBacklogItem,
     DecoderBacklogReviewSummary, DecoderCandidateSelection, DecoderIssueCandidate,
 };
+use crate::pst::embedded_graph::build_embedded_graph;
 use crate::pst::folder_tree::{
     folder_from_nbt_candidate, is_folder_candidate, root_folder_from_header, FolderInventoryRecord,
 };
-use crate::pst::embedded_graph::build_embedded_graph;
 use crate::pst::header::PstHeader;
 use crate::pst::header_projection;
 use crate::pst::item_envelope::{build_item_envelopes, build_item_routing_counts};

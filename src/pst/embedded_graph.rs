@@ -19,10 +19,12 @@ pub fn build_embedded_graph(
         .iter()
         .map(|message| message.message_key.clone())
         .collect::<BTreeSet<_>>();
-    let message_counts = messages.iter().fold(BTreeMap::new(), |mut counts, message| {
-        *counts.entry(message.message_key.clone()).or_insert(0usize) += 1;
-        counts
-    });
+    let message_counts = messages
+        .iter()
+        .fold(BTreeMap::new(), |mut counts, message| {
+            *counts.entry(message.message_key.clone()).or_insert(0usize) += 1;
+            counts
+        });
     let message_by_key = messages
         .iter()
         .map(|message| (message.message_key.as_str(), message))
@@ -53,14 +55,21 @@ pub fn build_embedded_graph(
         children.dedup();
     }
     let depths = message_depths(&message_keys, &adjacency);
-    let body_bytes = body_payloads.iter().fold(BTreeMap::new(), |mut bytes, payload| {
-        *bytes.entry(payload.record.message_key.clone()).or_insert(0) += payload.bytes.len() as u64;
-        bytes
-    });
-    let attachment_bytes = attachment_payloads.iter().fold(BTreeMap::new(), |mut bytes, payload| {
-        *bytes.entry(payload.record.message_key.clone()).or_insert(0) += payload.bytes.len() as u64;
-        bytes
-    });
+    let body_bytes = body_payloads
+        .iter()
+        .fold(BTreeMap::new(), |mut bytes, payload| {
+            *bytes.entry(payload.record.message_key.clone()).or_insert(0) +=
+                payload.bytes.len() as u64;
+            bytes
+        });
+    let attachment_bytes =
+        attachment_payloads
+            .iter()
+            .fold(BTreeMap::new(), |mut bytes, payload| {
+                *bytes.entry(payload.record.message_key.clone()).or_insert(0) +=
+                    payload.bytes.len() as u64;
+                bytes
+            });
     let duplicate_keys = duplicate_attachment_keys(&ordered_attachments);
 
     ordered_attachments
@@ -80,7 +89,12 @@ pub fn build_embedded_graph(
                     )
                 });
             let cycle = child_key.as_deref().is_some_and(|child| {
-                reaches(child, &attachment.message_key, &adjacency, &mut BTreeSet::new())
+                reaches(
+                    child,
+                    &attachment.message_key,
+                    &adjacency,
+                    &mut BTreeSet::new(),
+                )
             });
             let depth = child_key
                 .as_deref()
@@ -184,7 +198,10 @@ fn message_depths(
         .values()
         .flat_map(|values| values.iter().cloned())
         .collect::<BTreeSet<_>>();
-    let roots = message_keys.difference(&children).cloned().collect::<BTreeSet<_>>();
+    let roots = message_keys
+        .difference(&children)
+        .cloned()
+        .collect::<BTreeSet<_>>();
     let mut depths = BTreeMap::new();
     let mut queue = VecDeque::new();
     for root in roots {
@@ -242,8 +259,8 @@ mod tests {
     use std::collections::{BTreeMap, BTreeSet};
 
     use super::{
-        budget_status, message_depths, reaches, resolution_status, MAX_EMBEDDED_DEPTH,
-        MAX_EMBEDDED_BYTES, MAX_EMBEDDED_NODES,
+        budget_status, message_depths, reaches, resolution_status, MAX_EMBEDDED_BYTES,
+        MAX_EMBEDDED_DEPTH, MAX_EMBEDDED_NODES,
     };
 
     #[test]
