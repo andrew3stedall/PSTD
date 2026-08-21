@@ -20,6 +20,10 @@ Exit criterion: a mixed synthetic folder can be inspected without any item being
 
 The initial evidence/control slice is implemented in `tests/readpst_diff/manifest.rs` and `tests/readpst_diff_contract.rs`. It validates the approved Apache Tika Unicode fixture (8 folders, 8 messages, 10 bodies, 9 recipients, 2 attachment records, and 12,315 payload bytes), pins readpst revision `cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89`, retains negative and ambiguous outcomes, and proves repeated serialization is deterministic. This is E2/Partial fixture evidence only; RP-M0-02 and RP-M0-03 remain required before feature rows can be promoted.
 
+### RP-M0-03 delivery
+
+The upstream-audit slice is implemented in `tests/readpst_diff/source_manifest.rs`. It validates the pinned `libpst/readpst` revision, all 22 direct ledger paths, all 28 work-unit source mappings, and the eight regression profiles; it emits a deterministic drift report and rejects revision/source-boundary changes until reviewed. It does not import GPL implementation code or require private fixtures/network access.
+
 ## Phase 1 — Unicode message breadth
 
 Broaden the existing strongest path before adding legacy formats:
