@@ -106,9 +106,13 @@ jobs:
               raise SystemExit('embedded child MIME evidence is absent or non-authoritative')
           edge_evidence = [
               item for item in evidence
-              if item['evidence_key'] == 'edge:' + edge['edge_key']
+              if item['source_ref'].startswith('edge:' + edge['edge_key'] + ';')
           ]
-          if len(edge_evidence) != 1 or edge_evidence[0]['status'] != edge['status']:
+          if (
+              len(edge_evidence) != 1
+              or edge_evidence[0]['evidence_kind'] != 'embedded_graph_edge'
+              or edge_evidence[0]['status'] != edge['status']
+          ):
               raise SystemExit('embedded graph evidence link is absent or inconsistent')
           if len({item['edge_key'] for item in edges}) != len(edges):
               raise SystemExit('duplicate embedded graph edge key')
