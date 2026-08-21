@@ -31,7 +31,7 @@ jobs:
           cd /tmp/libpst
           autoreconf -fi
           ./configure --enable-python=no
-          make -j2
+          make -C src -j2
           readpst_bin=$(find /tmp/libpst -type f -name readpst -perm -111 | sort | head -n 1)
           test -n "$readpst_bin"
           echo "PSTD_READPST_BIN=$readpst_bin" >> "$GITHUB_ENV"
