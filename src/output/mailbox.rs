@@ -1293,7 +1293,7 @@ mod tests {
         let unavailable = unavailable_attachment_record(
             "msg-attachments",
             3,
-            Some("missing.bin".to_string()),
+            Some("missing.pdf".to_string()),
             "payload_unavailable",
         );
         let attachments = vec![
@@ -1327,7 +1327,7 @@ mod tests {
         }));
         assert!(output.status.attachment_decisions.iter().any(|decision| {
             decision.status == "unavailable_attachment_payload"
-                && decision.filename == "missing.bin"
+                && decision.filename == "missing.pdf"
         }));
     }
 
