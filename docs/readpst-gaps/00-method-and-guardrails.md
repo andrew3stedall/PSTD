@@ -144,3 +144,9 @@ Documentation fan-out: README, topic page, matrix, roadmap, source ledger, chang
 `RP-00` is complete only when the status enum, provenance shape, source ledger format, differential comparison schema, fixture manifest fields, and documentation fan-out checklist are accepted by the repository. It is a prerequisite for promoting any other row.
 
 See [Issue template and differential harness](13-issue-template-and-differential-harness.md) for the concrete issue body and comparator contract.
+
+The CLI policy layer follows the same guardrail: option translation is deterministic,
+validated before parsing, and recorded with the canonical run. Unsupported output
+families, ambiguous type filters, unsafe attachment extensions, invalid charset names,
+and out-of-range jobs fail with explicit `RPCLI_*` statuses; filters change routing
+status without deleting source envelopes or raw evidence references.

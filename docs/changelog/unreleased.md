@@ -13,6 +13,12 @@ _Last reviewed: 21 August 2026._
 - RP-M0-03 source manifest and deterministic drift report covering all direct readpst/libpst ledger paths, work-unit anchors, regression profiles, and the no-copy GPL boundary.
 - RP-M0-02 bounded semantic differential runner with isolated readpst/PSTD execution, normalized comparison findings, explicit negative outcomes, deterministic reports, and a pinned CLI-oracle workflow.
 
+### RP-M3-03
+
+- Added typed readpst CLI policy translation with fail-closed profile and option validation.
+- Integrated visibility/type routing filters and deterministic policy provenance into canonical extraction.
+- Added negative and repeat-run CLI evidence coverage; legacy output adapters remain explicitly unsupported until their RP-M4/RP-M5 work units land.
+
 ### Product foundation
 
 - Rust `pstd` CLI with `inspect`, `extract`, `batch`, and `version` commands.

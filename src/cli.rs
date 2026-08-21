@@ -1,6 +1,6 @@
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 
-use crate::config::ExtractConfig;
+use crate::config::{ExtractConfig, ReadpstPolicy};
 use crate::engine::batch::{run_batch, BatchConfig};
 use crate::engine::runner::run_extract;
 use crate::pst::inspect::inspect_pst;
@@ -12,6 +12,53 @@ use crate::pst::inspect::inspect_pst;
 pub struct Cli {
     #[command(subcommand)]
     command: Commands,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ReadpstArgs {
+    /// Named output family; non-canonical families fail explicitly until their adapter lands.
+    #[arg(long, default_value = "canonical")]
+    output_profile: String,
+    #[arg(long)]
+    fallback_charset: Option<String>,
+    #[arg(long, default_value_t = false)]
+    prefer_utf8: bool,
+    #[arg(long, default_value_t = false)]
+    include_deleted: bool,
+    #[arg(long, default_value_t = false)]
+    include_associated: bool,
+    #[arg(long, default_value = "all")]
+    item_types: String,
+    #[arg(long)]
+    attachment_extensions: Option<String>,
+    #[arg(long, default_value_t = false)]
+    no_synthetic_rtf: bool,
+    #[arg(long, default_value_t = 1)]
+    jobs: u16,
+    #[arg(long, default_value = "info")]
+    diagnostics: String,
+    #[arg(long, default_value = "suffix")]
+    collision: String,
+}
+
+impl ReadpstArgs {
+    fn policy(&self, overwrite: bool) -> Result<ReadpstPolicy, String> {
+        ReadpstPolicy::from_flags(
+            &self.output_profile,
+            self.fallback_charset.clone(),
+            self.prefer_utf8,
+            self.include_deleted,
+            self.include_associated,
+            &self.item_types,
+            self.attachment_extensions.as_deref(),
+            !self.no_synthetic_rtf,
+            self.jobs,
+            &self.diagnostics,
+            &self.collision,
+            overwrite,
+        )
+        .map_err(|error| error.to_string())
+    }
 }
 
 #[derive(Debug, Subcommand)]
@@ -39,6 +86,8 @@ pub enum Commands {
         log_level: String,
         #[arg(long, default_value = "balanced")]
         profile: String,
+        #[command(flatten)]
+        readpst: ReadpstArgs,
     },
     Batch {
         #[arg(long)]
@@ -65,6 +114,8 @@ pub enum Commands {
         log_level: String,
         #[arg(long, default_value = "balanced")]
         profile: String,
+        #[command(flatten)]
+        readpst: ReadpstArgs,
     },
     Inspect {
         #[arg(long)]
@@ -90,7 +141,15 @@ pub fn run() -> i32 {
             progress,
             log_level,
             profile,
+            readpst,
         } => {
+            let readpst = match readpst.policy(overwrite) {
+                Ok(policy) => policy,
+                Err(error) => {
+                    eprintln!("PSTD extract failed: {error}");
+                    return 1;
+                }
+            };
             let config = ExtractConfig {
                 input,
                 output,
@@ -103,6 +162,7 @@ pub fn run() -> i32 {
                 progress,
                 log_level,
                 profile,
+                readpst,
             };
             match run_extract(config) {
                 Ok(summary) => {
@@ -128,7 +188,15 @@ pub fn run() -> i32 {
             progress,
             log_level,
             profile,
+            readpst,
         } => {
+            let readpst = match readpst.policy(overwrite) {
+                Ok(policy) => policy,
+                Err(error) => {
+                    eprintln!("PSTD batch failed: {error}");
+                    return 1;
+                }
+            };
             let config = BatchConfig {
                 input,
                 output,
@@ -142,6 +210,7 @@ pub fn run() -> i32 {
                 progress,
                 log_level,
                 profile,
+                readpst,
             };
             match run_batch(config) {
                 Ok(summary) => {
@@ -189,5 +258,82 @@ pub fn run() -> i32 {
             println!("pstd {}", env!("CARGO_PKG_VERSION"));
             0
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Cli;
+    use crate::config::{CollisionPolicy, DiagnosticsPolicy, OutputProfile};
+    use clap::Parser;
+
+    #[test]
+    fn translates_readpst_policy_flags_deterministically() {
+        let cli = Cli::try_parse_from([
+            "pstd",
+            "extract",
+            "--input",
+            "fixture.pst",
+            "--output",
+            "out",
+            "--include-deleted",
+            "--include-associated",
+            "--item-types",
+            "c",
+            "--attachment-extensions",
+            ".DOC,txt,.doc",
+            "--jobs",
+            "4",
+            "--diagnostics",
+            "debug",
+            "--collision",
+            "fail",
+            "--no-synthetic-rtf",
+        ])
+        .expect("CLI should parse");
+        let super::Commands::Extract {
+            readpst, overwrite, ..
+        } = cli.command
+        else {
+            panic!("expected extract command");
+        };
+        let policy = readpst.policy(overwrite).expect("policy should validate");
+        assert!(policy.include_deleted);
+        assert!(policy.include_associated);
+        assert_eq!(
+            policy.item_type_filter,
+            crate::pst::item_routing::ItemTypeFilter::Contact
+        );
+        assert_eq!(policy.attachment_extensions, ["doc", "txt"]);
+        assert_eq!(policy.jobs, 4);
+        assert_eq!(policy.diagnostics, DiagnosticsPolicy::Debug);
+        assert_eq!(policy.collision, CollisionPolicy::Fail);
+        assert!(!policy.emit_synthetic_rtf);
+        assert_eq!(policy.output_profile, OutputProfile::Canonical);
+    }
+
+    #[test]
+    fn rejects_unsupported_output_profiles_with_stable_code() {
+        let cli = Cli::try_parse_from([
+            "pstd",
+            "extract",
+            "--input",
+            "fixture.pst",
+            "--output",
+            "out",
+            "--output-profile",
+            "msg",
+        ])
+        .expect("CLI should parse");
+        let super::Commands::Extract {
+            readpst, overwrite, ..
+        } = cli.command
+        else {
+            panic!("expected extract command");
+        };
+        let error = readpst
+            .policy(overwrite)
+            .expect_err("msg is not implemented");
+        assert!(error.contains("RPCLI_UNSUPPORTED_OUTPUT_PROFILE"));
     }
 }

@@ -323,6 +323,20 @@ pub fn build_item_routing_counts(
     counts
 }
 
+pub fn apply_item_routing_policy(items: &mut [ItemEnvelope], policy: ItemRoutingPolicy) {
+    for item in items {
+        if item.record_kind != EnvelopeRecordKind::Item
+            || item.routing_status.starts_with("failed_")
+        {
+            continue;
+        }
+        let classification = classify_message_class(item.message_class.as_deref());
+        item.routing_status = route_item(item.visibility, &classification, policy)
+            .status
+            .to_string();
+    }
+}
+
 fn insert_envelope(
     envelopes: &mut Vec<ItemEnvelope>,
     seen_keys: &mut HashSet<String>,
@@ -410,11 +424,12 @@ fn reconcile_folder_relationships(envelopes: &mut [ItemEnvelope]) {
 mod tests {
     use std::collections::HashMap;
 
-    use super::{build_item_envelopes, build_item_routing_counts};
+    use super::{apply_item_routing_policy, build_item_envelopes, build_item_routing_counts};
     use crate::output::metadata::{
         EnvelopeRecordKind, FolderRecord, ItemEnvelope, ItemEnvelopeSource, ItemKind,
         ItemRoutingCountRecord, ItemVisibility,
     };
+    use crate::pst::item_routing::{ItemRoutingPolicy, ItemTypeFilter};
     use crate::pst::message_ownership::MessageOwnershipResolution;
     use crate::pst::nbt::NbtEntry;
     use crate::pst::primitives::{BlockId, NodeId};
@@ -566,5 +581,41 @@ mod tests {
                 failed_count: 1,
             }]
         );
+    }
+
+    #[test]
+    fn applies_typed_filter_without_erasing_item_provenance() {
+        let mut items = vec![ItemEnvelope {
+            envelope_key: "item-contact".to_string(),
+            record_kind: EnvelopeRecordKind::Item,
+            source: ItemEnvelopeSource {
+                pst_id: "pst-test".to_string(),
+                descriptor_id: Some("node-1".to_string()),
+                node_id: Some("node-1".to_string()),
+                folder_id: Some("folder-a".to_string()),
+                ordinal: 0,
+            },
+            parent_envelope_key: Some("folder-a".to_string()),
+            child_envelope_keys: Vec::new(),
+            folder_path: "/inbox".to_string(),
+            visibility: ItemVisibility::Visible,
+            item_kind: Some(ItemKind::Contact),
+            message_class: Some("IPM.Contact".to_string()),
+            classification_confidence: "test".to_string(),
+            provenance_status: "source_verified".to_string(),
+            extraction_status: "extracted".to_string(),
+            routing_status: "routed_contact".to_string(),
+            raw_evidence_refs: vec!["nbt:node-1".to_string()],
+        }];
+        apply_item_routing_policy(
+            &mut items,
+            ItemRoutingPolicy {
+                item_type_filter: ItemTypeFilter::Email,
+                ..ItemRoutingPolicy::default()
+            },
+        );
+        assert_eq!(items[0].routing_status, "filtered_item_type");
+        assert_eq!(items[0].provenance_status, "source_verified");
+        assert_eq!(items[0].raw_evidence_refs, ["nbt:node-1"]);
     }
 }
