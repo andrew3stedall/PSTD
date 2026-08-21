@@ -1,7 +1,10 @@
 use crate::error::{PstdError, PstdResult};
 use crate::pst::bbt::BbtIndex;
 use crate::pst::block::{load_block, LoadedBlock};
-use crate::pst::header::PST_HEADER_CRYPT_METHOD_OFFSET;
+use crate::pst::header::{
+    PST_ANSI_HEADER_CRYPT_METHOD_OFFSET, PST_HEADER_CRYPT_METHOD_OFFSET, PST_INDEX_TYPE_ANSI32,
+    PST_INDEX_TYPE_ANSI32A, PST_INDEX_TYPE_OFFSET,
+};
 use crate::pst::limits::ParserLimits;
 use crate::pst::primitives::{BlockId, BlockRef};
 use crate::pst::reader::PstByteReader;
@@ -98,10 +101,20 @@ pub fn load_payload_block(
 }
 
 fn read_crypt_method(reader: &PstByteReader) -> PstdResult<u8> {
-    if reader.file_size() <= PST_HEADER_CRYPT_METHOD_OFFSET as u64 {
+    let index_type = if reader.file_size() > PST_INDEX_TYPE_OFFSET as u64 {
+        reader.read_at(PST_INDEX_TYPE_OFFSET as u64, 1)?[0]
+    } else {
+        return Ok(NDB_CRYPT_NONE);
+    };
+    let offset = if matches!(index_type, PST_INDEX_TYPE_ANSI32 | PST_INDEX_TYPE_ANSI32A) {
+        PST_ANSI_HEADER_CRYPT_METHOD_OFFSET
+    } else {
+        PST_HEADER_CRYPT_METHOD_OFFSET
+    };
+    if reader.file_size() <= offset as u64 {
         return Ok(NDB_CRYPT_NONE);
     }
-    Ok(reader.read_at(PST_HEADER_CRYPT_METHOD_OFFSET as u64, 1)?[0])
+    Ok(reader.read_at(offset as u64, 1)?[0])
 }
 
 fn decode_permutative(bytes: &mut [u8]) {

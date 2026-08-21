@@ -60,12 +60,21 @@ pub fn inspect_pst(input: impl AsRef<Path>) -> PstdResult<InspectSummary> {
     let root_diagnostic_condition = header.summary.root_diagnostics.condition.clone();
 
     let (bbt_status, bbt_entries, bbt_page_diagnostics) =
-        match BbtIndex::load_root_with_diagnostics(&reader, header.roots.bbt_root) {
+        match BbtIndex::load_root_with_diagnostics_for_variant(
+            &reader,
+            header.roots.bbt_root,
+            header.variant,
+        ) {
             Ok((bbt, diagnostics)) => (bbt.status, bbt.entries.len(), diagnostics),
             Err(err) => (format!("unavailable: {err}"), 0, Vec::new()),
         };
     let (nbt_status, nbt_entries, nbt_page_diagnostics) =
-        match NbtIndex::load_root(&reader, header.roots.nbt_root) {
+        match NbtIndex::load_root_with_limits_for_variant(
+            &reader,
+            header.roots.nbt_root,
+            crate::pst::limits::ParserLimits::default(),
+            header.variant,
+        ) {
             Ok(nbt) => (nbt.status, nbt.entries.len(), nbt.page_diagnostics),
             Err(err) => (format!("unavailable: {err}"), 0, Vec::new()),
         };

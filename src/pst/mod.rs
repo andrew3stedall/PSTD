@@ -20,6 +20,7 @@ pub mod inspect;
 pub mod item_envelope;
 pub mod item_routing;
 pub mod limits;
+pub mod layout;
 pub mod logical;
 pub mod mapi;
 pub mod message_metadata;

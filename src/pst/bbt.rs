@@ -1,17 +1,12 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate::error::{PstdError, PstdResult};
-use crate::pst::binary::{u16_le_at, u64_le_at, u8_at};
+use crate::pst::binary::{u16_le_at, u32_le_at, u64_le_at};
 use crate::pst::limits::ParserLimits;
-use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, PageRef};
+use crate::pst::layout::PstLayout;
+use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, PageRef, PstVariant};
 use crate::pst::reader::PstByteReader;
 use crate::pst::trailer::PageTrailer;
-
-const BT_PAGE_ENTRY_AREA_BYTES: usize = 488;
-const BT_PAGE_ENTRY_COUNT_OFFSET: usize = 488;
-const BT_PAGE_ENTRY_CAPACITY_OFFSET: usize = 489;
-const BT_PAGE_ENTRY_SIZE_OFFSET: usize = 490;
-const BT_PAGE_LEVEL_OFFSET: usize = 491;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BbtEntry {
@@ -39,9 +34,9 @@ pub struct BbtChildPageRef {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BbtPageDiagnostic {
     pub source_offset: u64,
-    pub entry_count: u8,
-    pub entry_capacity: u8,
-    pub entry_size: u8,
+    pub entry_count: u16,
+    pub entry_capacity: u16,
+    pub entry_size: u16,
     pub parsed_entry_count: usize,
     pub truncated_entry_count: usize,
     pub page_type: Option<u8>,
@@ -52,9 +47,9 @@ pub struct BbtPageDiagnostic {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BbtPage {
     pub source_offset: u64,
-    pub entry_count: u8,
-    pub entry_capacity: u8,
-    pub entry_size: u8,
+    pub entry_count: u16,
+    pub entry_capacity: u16,
+    pub entry_size: u16,
     pub parsed_entry_count: usize,
     pub truncated_entry_count: usize,
     pub page_type: Option<u8>,
@@ -67,24 +62,49 @@ pub struct BbtPage {
 
 impl BbtPage {
     pub fn parse(page: &[u8], source_offset: u64) -> PstdResult<Self> {
+        Self::parse_with_layout(page, source_offset, PstLayout::for_variant(PstVariant::Unicode))
+    }
+
+    pub fn parse_with_layout(
+        page: &[u8],
+        source_offset: u64,
+        layout: PstLayout,
+    ) -> PstdResult<Self> {
         if page.len() < PageTrailer::LEN + 4 {
             return Err(PstdError::pst_parse(
                 Some(source_offset),
                 "BBT page too short",
             ));
         }
-        if page.len() < 512 {
+        if page.len() < layout.page_size {
             return Err(PstdError::pst_parse(
                 Some(source_offset),
-                "BBT page shorter than 512 bytes",
+                format!("BBT page shorter than {} bytes", layout.page_size),
             ));
         }
 
-        let entry_count = u8_at(page, BT_PAGE_ENTRY_COUNT_OFFSET, source_offset)?;
-        let entry_capacity = u8_at(page, BT_PAGE_ENTRY_CAPACITY_OFFSET, source_offset)?;
-        let entry_size = u8_at(page, BT_PAGE_ENTRY_SIZE_OFFSET, source_offset)?;
-        let page_level = u8_at(page, BT_PAGE_LEVEL_OFFSET, source_offset)?;
-        let trailer = PageTrailer::parse_from_page(page, source_offset).ok();
+        let metadata = layout.metadata_offset;
+        let entry_count = layout.read_count(page, metadata, source_offset)?;
+        let entry_capacity = layout.read_count(
+            page,
+            metadata + layout.count_width,
+            source_offset,
+        )?;
+        let entry_size = layout.read_count(
+            page,
+            metadata + layout.count_width * 2,
+            source_offset,
+        )?;
+        let page_level = layout.read_level(
+            page,
+            metadata + layout.count_width * 3,
+            source_offset,
+        )?;
+        let trailer = if layout.has_unicode_page_trailer() {
+            PageTrailer::parse_from_page(page, source_offset).ok()
+        } else {
+            None
+        };
         let page_type = trailer.as_ref().map(|value| value.page_type);
 
         if entry_size == 0 {
@@ -100,7 +120,7 @@ impl BbtPage {
             ));
         }
 
-        let capacity_by_size = BT_PAGE_ENTRY_AREA_BYTES / entry_size as usize;
+        let capacity_by_size = layout.entry_area_bytes / entry_size as usize;
         let entries_to_parse = (entry_count as usize)
             .min(entry_capacity as usize)
             .min(capacity_by_size);
@@ -111,7 +131,7 @@ impl BbtPage {
         for idx in 0..entries_to_parse {
             let start = idx * entry_size as usize;
             if page_level > 0 {
-                if entry_size < 24 {
+                if (entry_size as usize) < layout.id_width * 3 {
                     return Ok(Self::unsupported(
                         source_offset,
                         entry_count,
@@ -123,11 +143,16 @@ impl BbtPage {
                         "unsupported_internal_entry_size",
                     ));
                 }
-                let block_id = BlockId(u64_le_at(page, start + 8, source_offset)?);
-                let offset = ByteOffset(u64_le_at(page, start + 16, source_offset)?);
+                let block_id = BlockId(read_uint(page, start + layout.id_width, layout.id_width, source_offset)?);
+                let offset = ByteOffset(read_uint(
+                    page,
+                    start + layout.id_width * 2,
+                    layout.id_width,
+                    source_offset,
+                )?);
                 child_page_refs.push(BbtChildPageRef { block_id, offset });
             } else {
-                if entry_size < 20 {
+                if (entry_size as usize) < layout.id_width * 2 + 2 {
                     return Ok(Self::unsupported(
                         source_offset,
                         entry_count,
@@ -139,9 +164,14 @@ impl BbtPage {
                         "unsupported_leaf_entry_size",
                     ));
                 }
-                let block_id = BlockId(u64_le_at(page, start, source_offset)?);
-                let offset = ByteOffset(u64_le_at(page, start + 8, source_offset)?);
-                let size = u16_le_at(page, start + 16, source_offset)? as u64;
+                let block_id = BlockId(read_uint(page, start, layout.id_width, source_offset)?);
+                let offset = ByteOffset(read_uint(
+                    page,
+                    start + layout.id_width,
+                    layout.id_width,
+                    source_offset,
+                )?);
+                let size = u16_le_at(page, start + layout.id_width * 2, source_offset)? as u64;
                 entries.push(BbtEntry {
                     block_id,
                     offset,
@@ -180,9 +210,9 @@ impl BbtPage {
 
     fn unsupported(
         source_offset: u64,
-        entry_count: u8,
-        entry_capacity: u8,
-        entry_size: u8,
+        entry_count: u16,
+        entry_capacity: u16,
+        entry_size: u16,
         page_type: Option<u8>,
         page_level: u8,
         trailer: Option<PageTrailer>,
@@ -244,7 +274,25 @@ impl BbtIndex {
         reader: &PstByteReader,
         root: Option<PageRef>,
     ) -> PstdResult<(Self, Vec<BbtPageDiagnostic>)> {
-        Self::load_root_with_limits_and_diagnostics(reader, root, ParserLimits::default())
+        Self::load_root_with_limits_and_diagnostics(
+            reader,
+            root,
+            ParserLimits::default(),
+            PstLayout::for_variant(PstVariant::Unicode),
+        )
+    }
+
+    pub fn load_root_with_diagnostics_for_variant(
+        reader: &PstByteReader,
+        root: Option<PageRef>,
+        variant: PstVariant,
+    ) -> PstdResult<(Self, Vec<BbtPageDiagnostic>)> {
+        Self::load_root_with_limits_and_diagnostics(
+            reader,
+            root,
+            ParserLimits::default(),
+            PstLayout::for_variant(variant),
+        )
     }
 
     pub fn load_root_with_limits(
@@ -252,13 +300,35 @@ impl BbtIndex {
         root: Option<PageRef>,
         limits: ParserLimits,
     ) -> PstdResult<Self> {
-        Self::load_root_with_limits_and_diagnostics(reader, root, limits).map(|(index, _)| index)
+        Self::load_root_with_limits_and_diagnostics(
+            reader,
+            root,
+            limits,
+            PstLayout::for_variant(PstVariant::Unicode),
+        )
+        .map(|(index, _)| index)
+    }
+
+    pub fn load_root_with_limits_for_variant(
+        reader: &PstByteReader,
+        root: Option<PageRef>,
+        limits: ParserLimits,
+        variant: PstVariant,
+    ) -> PstdResult<Self> {
+        Self::load_root_with_limits_and_diagnostics(
+            reader,
+            root,
+            limits,
+            PstLayout::for_variant(variant),
+        )
+        .map(|(index, _)| index)
     }
 
     fn load_root_with_limits_and_diagnostics(
         reader: &PstByteReader,
         root: Option<PageRef>,
         limits: ParserLimits,
+        layout: PstLayout,
     ) -> PstdResult<(Self, Vec<BbtPageDiagnostic>)> {
         let Some(root_ref) = root else {
             return Ok((
@@ -306,9 +376,9 @@ impl BbtIndex {
             }
 
             let remaining = reader.file_size() - page_ref.offset.0;
-            let page_size = remaining.min(512) as usize;
+            let page_size = remaining.min(layout.page_size as u64) as usize;
             let page = reader.read_at(page_ref.offset.0, page_size)?;
-            let parsed = match BbtPage::parse(&page, page_ref.offset.0) {
+            let parsed = match BbtPage::parse_with_layout(&page, page_ref.offset.0, layout) {
                 Ok(parsed) => parsed,
                 Err(error) if parsed_pages == 0 => return Err(error),
                 Err(_) => {
@@ -371,6 +441,17 @@ impl BbtIndex {
             .iter()
             .find(|entry| entry.block_id == block_id)
             .map(BbtEntry::block_ref)
+    }
+}
+
+fn read_uint(page: &[u8], offset: usize, width: usize, source_offset: u64) -> PstdResult<u64> {
+    match width {
+        4 => Ok(u32_le_at(page, offset, source_offset)? as u64),
+        8 => u64_le_at(page, offset, source_offset),
+        _ => Err(PstdError::pst_parse(
+            Some(source_offset + offset as u64),
+            format!("unsupported BBT integer width {width}"),
+        )),
     }
 }
 

@@ -97,18 +97,38 @@ impl InputCapability {
                     false,
                 ),
             },
-            InputFamily::AnsiPst => (
-                InputCapabilityStatus::Unsupported,
-                "unsupported_ansi_family".to_string(),
-                "unavailable_for_unsupported_family".to_string(),
-                false,
-            ),
-            InputFamily::Ost2013 => (
-                InputCapabilityStatus::Unsupported,
-                "unsupported_ost2013_family".to_string(),
-                "unavailable_for_unsupported_family".to_string(),
-                false,
-            ),
+            InputFamily::AnsiPst | InputFamily::Ost2013 => match crypt_method {
+                Some(0 | 1) if roots_ready => (
+                    InputCapabilityStatus::Ready,
+                    "ready_to_attempt".to_string(),
+                    "not_loaded".to_string(),
+                    true,
+                ),
+                Some(0 | 1) => (
+                    InputCapabilityStatus::Partial,
+                    format!("not_ready:{root_condition}"),
+                    "unavailable_until_index_ready".to_string(),
+                    false,
+                ),
+                Some(2) => (
+                    InputCapabilityStatus::Unsupported,
+                    "unsupported_strong_crypt_method".to_string(),
+                    "unavailable_until_decryption".to_string(),
+                    false,
+                ),
+                Some(method) => (
+                    InputCapabilityStatus::Unsupported,
+                    format!("unsupported_crypt_method:{method}"),
+                    "unavailable_until_decryption".to_string(),
+                    false,
+                ),
+                None => (
+                    InputCapabilityStatus::Partial,
+                    "crypt_method_unavailable".to_string(),
+                    "unavailable_until_header_complete".to_string(),
+                    false,
+                ),
+            },
             InputFamily::Unknown => (
                 InputCapabilityStatus::Unsupported,
                 "unsupported_unknown_family".to_string(),

@@ -1,0 +1,185 @@
+name: Readpst ANSI and OST 2013 traversal
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ansi-ost:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Build controlled ANSI and OST fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pstd-ansi-ost/fixtures /tmp/pstd-ansi-ost/evidence
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path('/tmp/pstd-ansi-ost/fixtures')
+
+          def put_int(buf, offset, value, width):
+              buf[offset:offset + width] = value.to_bytes(width, 'little')
+
+          def page_metadata(page, metadata, count_width, entry_size):
+              put_int(page, metadata, 1, count_width)
+              put_int(page, metadata + count_width, 1, count_width)
+              put_int(page, metadata + count_width * 2, entry_size, count_width)
+              page[metadata + count_width * 3] = 0
+
+          def make_ansi(crypt=0):
+              page_size = 512
+              bbt_offset, nbt_offset = 1024, 2048
+              data = bytearray(nbt_offset + page_size)
+              data[0:4] = b'!BDN'
+              data[8:10] = b'SM'
+              data[10] = 0x0e
+              put_int(data, 188, nbt_offset, 4)
+              put_int(data, 196, bbt_offset, 4)
+              data[461] = crypt
+              bbt = memoryview(data)[bbt_offset:bbt_offset + page_size]
+              put_int(bbt, 0, 0x22, 4)
+              put_int(bbt, 4, 0x3000, 4)
+              put_int(bbt, 8, 64, 2)
+              page_metadata(bbt, 496, 1, 12)
+              nbt = memoryview(data)[nbt_offset:nbt_offset + page_size]
+              put_int(nbt, 0, 0x61, 4)
+              put_int(nbt, 4, 0x22, 4)
+              put_int(nbt, 8, 0, 4)
+              page_metadata(nbt, 496, 1, 12)
+              return bytes(data)
+
+          def make_ost(crypt=0):
+              page_size = 4096
+              bbt_offset, nbt_offset = 4096, 8192
+              data = bytearray(nbt_offset + page_size)
+              data[0:4] = b'!BDN'
+              data[8:10] = b'SM'
+              data[10] = 0x24
+              put_int(data, 224, nbt_offset, 8)
+              put_int(data, 240, bbt_offset, 8)
+              data[513] = crypt
+              bbt = memoryview(data)[bbt_offset:bbt_offset + page_size]
+              put_int(bbt, 0, 0x22, 8)
+              put_int(bbt, 8, 0x9000, 8)
+              put_int(bbt, 16, 128, 2)
+              page_metadata(bbt, 4056, 2, 24)
+              nbt = memoryview(data)[nbt_offset:nbt_offset + page_size]
+              put_int(nbt, 0, 0x61, 8)
+              put_int(nbt, 8, 0x22, 8)
+              put_int(nbt, 16, 0, 8)
+              page_metadata(nbt, 4056, 2, 32)
+              return bytes(data)
+
+          fixtures = {
+              'ansi-v14.pst': make_ansi(),
+              'ansi-v14-strong-crypt.pst': make_ansi(2),
+              'ost2013-4k.pst': make_ost(),
+              'ost2013-truncated.pst': make_ost()[:-1],
+              'malformed-short.pst': b'!BDN' + bytes(16),
+          }
+          for name, payload in fixtures.items():
+              (root / name).write_bytes(payload)
+          PY
+          sha256sum /tmp/pstd-ansi-ost/fixtures/* | tee /tmp/pstd-ansi-ost/evidence/fixture-sha256.txt
+      - name: Run ANSI and OST parser tests
+        run: |
+          set -euo pipefail
+          cargo test --test readpst_rp_m6_01 -- --nocapture
+          cargo test --test input_capability -- --nocapture
+      - name: Inspect admitted variants and explicit negatives
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence=/tmp/pstd-ansi-ost/evidence
+          for fixture in ansi-v14.pst ost2013-4k.pst; do
+            cargo run --quiet -- inspect \
+              --input "/tmp/pstd-ansi-ost/fixtures/$fixture" --json \
+              > "$evidence/$fixture.json"
+            cargo run --quiet -- inspect \
+              --input "/tmp/pstd-ansi-ost/fixtures/$fixture" --json \
+              > "$evidence/$fixture.repeat.json"
+            cmp "$evidence/$fixture.json" "$evidence/$fixture.repeat.json"
+          done
+          cargo run --quiet -- inspect \
+            --input /tmp/pstd-ansi-ost/fixtures/ansi-v14-strong-crypt.pst --json \
+            > "$evidence/ansi-v14-strong-crypt.json"
+          cargo run --quiet -- inspect \
+            --input /tmp/pstd-ansi-ost/fixtures/ost2013-truncated.pst --json \
+            > "$evidence/ost2013-truncated.json"
+          if cargo run --quiet -- inspect \
+            --input /tmp/pstd-ansi-ost/fixtures/malformed-short.pst --json \
+            > "$evidence/malformed-short.json" 2> "$evidence/malformed-short.stderr"; then
+            echo 'short malformed fixture unexpectedly succeeded' >&2
+            exit 1
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          evidence = Path('/tmp/pstd-ansi-ost/evidence')
+          admitted = []
+          for name, family in [('ansi-v14.pst', 'ansi-pst'), ('ost2013-4k.pst', 'ost2013')]:
+              value = json.loads((evidence / f'{name}.json').read_text())
+              assert value['capability']['family'] == family, value
+              assert value['capability']['status'] == 'Ready', value
+              assert value['capability']['allows_extraction'] is True, value
+              assert value['bbt_entries'] == 1, value
+              assert value['nbt_entries'] == 1, value
+              assert value['header']['root_diagnostics']['condition'] == 'root_pages_in_bounds', value
+              admitted.append({
+                  'fixture': name,
+                  'family': family,
+                  'status': value['capability']['status'],
+                  'bbt_entries': value['bbt_entries'],
+                  'nbt_entries': value['nbt_entries'],
+                  'root_condition': value['header']['root_diagnostics']['condition'],
+              })
+
+          strong = json.loads((evidence / 'ansi-v14-strong-crypt.json').read_text())
+          assert strong['capability']['status'] == 'Unsupported', strong
+          assert strong['capability']['allows_extraction'] is False, strong
+          assert strong['capability']['index_status'] == 'unsupported_strong_crypt_method', strong
+
+          truncated = json.loads((evidence / 'ost2013-truncated.json').read_text())
+          assert truncated['capability']['status'] == 'Partial', truncated
+          assert truncated['capability']['allows_extraction'] is False, truncated
+
+          report = {
+              'work_unit': 'RP-M6-01',
+              'issue': 519,
+              'source_revision': 'cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89',
+              'fixture_provenance': 'controlled byte-level fixtures generated in this workflow; no external PST bytes',
+              'admitted_variants': admitted,
+              'canonical_identity_evidence': {
+                  'ansi_node_id': '0x61',
+                  'ansi_block_id': '0x22',
+                  'ost_node_id': '0x61',
+                  'ost_block_id': '0x22',
+                  'verified_by': 'tests/readpst_rp_m6_01.rs',
+              },
+              'negative_cases': [
+                  {'fixture': 'ansi-v14-strong-crypt.pst', 'observed': 'explicit unsupported strong crypt status'},
+                  {'fixture': 'ost2013-truncated.pst', 'observed': 'explicit partial/truncated status'},
+                  {'fixture': 'malformed-short.pst', 'observed': 'inspect exits non-zero with parse error'},
+              ],
+              'determinism': 'identical repeated inspect JSON for ANSI and OST fixtures',
+              'bounded_traversal': 'shared ParserLimits and visited-page traversal exercised by production inspect path',
+          }
+          (evidence / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
+      - name: Upload ANSI and OST evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-ansi-ost-evidence
+          path: /tmp/pstd-ansi-ost
+          if-no-files-found: error
