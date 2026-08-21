@@ -196,8 +196,7 @@ pub fn render_profile(
             } else {
                 "msg_projection_partial".to_string()
             };
-            let mut observed_eml_path = None;
-            match eml_result {
+            let observed_eml_path = match eml_result {
                 Ok(bytes) => {
                     artifacts.push(artifact(
                         eml_path.clone(),
@@ -208,7 +207,7 @@ pub fn render_profile(
                         "msg_eml_compatibility_file_emitted",
                     ));
                     eml_artifact_count += 1;
-                    observed_eml_path = Some(eml_path);
+                    Some(eml_path)
                 }
                 Err(error) => {
                     status = "msg_projection_partial_eml_unavailable".to_string();
