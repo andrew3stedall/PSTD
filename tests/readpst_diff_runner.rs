@@ -156,6 +156,66 @@ fn configured_readpst_approved_fixture_differential() {
     assert!(pstd_a.execution.exit_status.is_some());
     let deterministic_repeat =
         readpst_normalized_a == readpst_normalized_b && pstd_normalized_a == pstd_normalized_b;
+    if !deterministic_repeat {
+        eprintln!(
+            "readpst repeat summary: {:?}",
+            (
+                &readpst_normalized_a.status,
+                readpst_normalized_a
+                    .records
+                    .iter()
+                    .map(|record| (
+                        &record.kind,
+                        &record.identity,
+                        &record.status,
+                        &record.payload_hashes
+                    ))
+                    .collect::<Vec<_>>(),
+                &readpst_normalized_a.artifacts,
+                &readpst_normalized_b.status,
+                readpst_normalized_b
+                    .records
+                    .iter()
+                    .map(|record| (
+                        &record.kind,
+                        &record.identity,
+                        &record.status,
+                        &record.payload_hashes
+                    ))
+                    .collect::<Vec<_>>(),
+                &readpst_normalized_b.artifacts
+            )
+        );
+        eprintln!(
+            "pstd repeat summary: {:?}",
+            (
+                &pstd_normalized_a.status,
+                pstd_normalized_a
+                    .records
+                    .iter()
+                    .map(|record| (
+                        &record.kind,
+                        &record.identity,
+                        &record.status,
+                        &record.payload_hashes
+                    ))
+                    .collect::<Vec<_>>(),
+                &pstd_normalized_a.artifacts,
+                &pstd_normalized_b.status,
+                pstd_normalized_b
+                    .records
+                    .iter()
+                    .map(|record| (
+                        &record.kind,
+                        &record.identity,
+                        &record.status,
+                        &record.payload_hashes
+                    ))
+                    .collect::<Vec<_>>(),
+                &pstd_normalized_b.artifacts
+            )
+        );
+    }
     let report = build_differential_report(
         &fixture,
         &readpst_a,
