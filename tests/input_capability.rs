@@ -49,14 +49,21 @@ fn unsupported_families_and_crypt_are_not_empty_success() {
         assert!(!capability.allows_extraction);
     }
 
-    for crypt_method in [1, 2, 7] {
+    let supported_crypt = synthetic_header(0x17, Some(1), true);
+    let supported_header = PstHeader::parse_bytes(&supported_crypt, 4096).expect("header");
+    let supported_capability =
+        InputCapability::from_header("permute-encrypted.pst", &supported_header, InputLimits::default());
+    assert_eq!(supported_capability.status, InputCapabilityStatus::Ready);
+    assert!(supported_capability.allows_extraction);
+
+    for crypt_method in [2, 7] {
         let bytes = synthetic_header(0x17, Some(crypt_method), true);
         let header = PstHeader::parse_bytes(&bytes, 4096).expect("header");
         let capability =
             InputCapability::from_header("encrypted.pst", &header, InputLimits::default());
         assert_eq!(capability.status, InputCapabilityStatus::Unsupported);
-        let expected_index_status = if [1, 2].contains(&crypt_method) {
-            "blocked_by_crypt_method".to_string()
+        let expected_index_status = if crypt_method == 2 {
+            "unsupported_strong_crypt_method".to_string()
         } else {
             format!("unsupported_crypt_method:{crypt_method}")
         };
