@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use crate::eml::materialize_embedded_message_payloads;
 use crate::engine::message_folder_ownership::resolve_folder_ownership;
 use crate::error::{PstdError, PstdResult, StatusRecord};
+use crate::output::contact::build_contact_records;
 use crate::output::ids;
 use crate::output::metadata::{
     AttachmentRecord, BodyRecord, ContactRecord, EmbeddedGraphRecord, EvidenceRecord, FolderRecord,
@@ -10,7 +11,6 @@ use crate::output::metadata::{
     MessageReferenceRecord, MimePartRecord, RecipientRecord, SpecialItemRecord,
 };
 use crate::output::mime::build_mime_parts;
-use crate::output::contact::build_contact_records;
 use crate::output::special::build_special_items;
 use crate::pst::attachment_property_context::{
     attachment_payloads_from_property_context_subnodes,
