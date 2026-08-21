@@ -59,6 +59,9 @@ The `Depends on` column names stable work-unit keys. The global orchestrator mus
 
 RP-M0-01, RP-M0-02, and RP-M0-03 are the serialized control-plane slices: contracts first, then the bounded semantic differential runner, then pinned-source drift evidence. The runner’s current accepted fixture evidence is E2/Partial; it records parity, intentional PSTD extension, unsupported, and failure outcomes without promoting downstream matrix rows. Feature dispatch remains subject to the merged-contract and dependency checklist below.
 
+### RP-M1-01 dispatch note
+
+RP-M1-01 is the serialized input-parser slice. Its accepted boundary is the typed capability record and bounded reader policy, with inspect and canonical extraction visibility. It must merge before the dependent typed extraction, charset, and hardening slices are dispatched; unsupported or partial capability states remain explicit and never establish false ownership.
 ### `RP-M1 — Typed extraction core`
 
 | Key | Work unit | Source/readpst anchors | PSTD boundary | Depends on | Specialist |
