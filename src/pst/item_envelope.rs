@@ -102,7 +102,7 @@ pub fn build_item_envelopes(
             ),
             Some(MessageNodeType::NormalMessage) => {
                 (ItemVisibility::Visible, ItemKind::Note, "node_type_only")
-            },
+            }
             None => (
                 ItemVisibility::Unknown,
                 ItemKind::Other,
