@@ -15,6 +15,7 @@ pub mod header;
 pub mod heap;
 pub mod inspect;
 pub mod item_envelope;
+pub mod item_routing;
 pub mod limits;
 pub mod logical;
 pub mod mapi;

@@ -103,6 +103,10 @@ The shared parity contract is implemented in the test/support boundary at `tests
 ### RP-M1-01 delivery
 
 The input boundary now emits a typed `InputCapability` before extraction: Unicode PST, ANSI PST, OST 2013, and unknown families; index type/version; crypt method; root readiness; the documented ISO-8859-1 fallback; index/extended-attribute readiness; and explicit unsupported, malformed, partial, unavailable, or budget-exceeded status. File size, single-read, candidate, property, diagnostic, and recursion budgets are serialized with the capability. Header classification never claims extraction support by itself.
+
+### RP-M1-03 delivery
+
+The canonical item stream now applies a source-class routing policy after ownership and visibility are known. `IPM.Note`, schedule, appointment, contact, journal/activity, report, task, sticky-note, and unknown message classes are classified without using display names or guessing missing properties. Each item carries a deterministic `routing_status` such as `routed_contact`, `filtered_associated`, `filtered_deleted`, `filtered_item_type`, `skipped_unsupported_by_readpst`, or `unavailable_missing_item_class`; the default policy excludes associated/deleted content while retaining the item envelope and its evidence. This is a production routing boundary, not a claim that the CLI flags or typed output adapters are complete.
 ### Implementation algorithm
 
 1. Pin the upstream revision and record the source function, line anchor, and observable behaviour in a plan issue.

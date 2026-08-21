@@ -2,6 +2,10 @@
 
 `readpst` exposes a single command with a compact flag set. PSTD currently exposes `inspect`, `extract`, `batch`, and `version`, with structured TAR/JSONL output. The structured interface is a good foundation, but it does not yet provide an equivalent for the legacy output modes.
 
+### RP-M1-03 classification boundary
+
+The canonical item stream now has an immutable routing policy that distinguishes visible, deleted, associated, unknown, filtered, and readpst-skipped classes. It is intentionally below the command-line layer: `-D`, `-t`, output-profile selection, and adapter scheduling remain RP-M3-03 work. No CLI option is implied by the presence of a routing status in `data/items.jsonl`.
+
 ## Command surface
 
 | readpst option | Upstream behaviour | PSTD status | Required closure |

@@ -1,6 +1,7 @@
 use crate::output::ids;
 use crate::output::metadata::MessageRecord;
 use crate::pst::mapi::{
+    PR_MESSAGE_CLASS, PR_MESSAGE_CLASS_A,
     PR_CONVERSATION_INDEX, PR_CONVERSATION_TOPIC, PR_CONVERSATION_TOPIC_A, PR_HASATTACH,
     PR_INTERNET_MESSAGE_ID, PR_INTERNET_MESSAGE_ID_A, PR_IN_REPLY_TO_ID, PR_IN_REPLY_TO_ID_A,
     PR_MESSAGE_DELIVERY_TIME, PR_SENDER_ADDRTYPE, PR_SENDER_ADDRTYPE_A, PR_SENDER_EMAIL_ADDRESS,
@@ -21,6 +22,7 @@ pub fn message_from_properties(
 ) -> MessageRecord {
     let message_identity = format!("node_{:x}", node_id.0);
     let subject = properties.first_string_value(&[PR_SUBJECT, PR_SUBJECT_A]);
+    let message_class = properties.first_string_value(&[PR_MESSAGE_CLASS, PR_MESSAGE_CLASS_A]);
     let internet_message_id =
         properties.first_string_value(&[PR_INTERNET_MESSAGE_ID, PR_INTERNET_MESSAGE_ID_A]);
     let in_reply_to_id = properties.first_string_value(&[PR_IN_REPLY_TO_ID, PR_IN_REPLY_TO_ID_A]);
@@ -49,7 +51,7 @@ pub fn message_from_properties(
         message_key: ids::message_key(pst_id, &message_identity),
         message_node_id: Some(message_identity),
         folder_path: folder_path.to_string(),
-        item_type: "message_metadata".to_string(),
+        item_type: message_class.unwrap_or_else(|| "message_metadata".to_string()),
         subject: subject.clone(),
         sender_name: properties.first_string_value(&[PR_SENDER_NAME, PR_SENDER_NAME_A]),
         sender_email: sender_email.clone(),

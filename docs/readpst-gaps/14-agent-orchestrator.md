@@ -66,6 +66,10 @@ RP-M1-01 is the serialized input-parser slice. Its accepted boundary is the type
 
 RP-M1-02 adds the production `ItemEnvelope` contract and `data/items.jsonl` archive stream over the validated folder/message ownership path. Its evidence boundary is source identity, canonical folder relationships, visibility, ownership status, deterministic ordering, and explicit unknown/duplicate/path-collision outcomes. It does not claim mixed non-mail routing or deleted-item policy. #504 remains serialized until this shared envelope contract is merged and reconciled.
 
+### RP-M1-03 dispatch note
+
+RP-M1-03 owns the serialized class/routing boundary consumed by #504 and the downstream message/non-mail slices. Its accepted implementation must classify source message classes, preserve missing/unknown evidence, and emit explicit visibility/filter/unsupported statuses without changing raw-property ownership. The implementation is now integrated on the classification branch pending draft-PR review and CI; #504 remains blocked until that PR is merged and its evidence packet is recorded.
+
 
 ### `RP-M1 — Typed extraction core`
 
