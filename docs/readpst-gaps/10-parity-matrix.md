@@ -8,6 +8,8 @@ Status is assessed against PSTD `main` at the time of this review, not against a
 
 The matrix uses the shared status, provenance, fixture, and evidence types in `tests/readpst_diff/manifest.rs`. A row may be promoted only when its evidence level supports the claim; the approved Tika Unicode fixture remains E2/Partial baseline evidence and does not change any matrix row. Comparison reports retain the pinned readpst revision, input family, crypt method, output profile, worker count, observed outcomes, artifact digests, inventory counts, and repeat-run determinism result. Malformed, ambiguous, unsupported, unavailable, corrupt, and failed outcomes remain explicit rather than being collapsed into a successful extraction.
 
+The RP-M0-03 source manifest pins every reviewed direct path and work-unit anchor to the same upstream revision. Source drift is a release-blocking evidence failure until the ledger and comparison oracle are explicitly reviewed; no matrix row is promoted from a moving upstream baseline.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |
