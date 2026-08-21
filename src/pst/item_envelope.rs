@@ -180,11 +180,7 @@ pub fn build_item_envelopes(
         if seen_keys.contains(&envelope_key) {
             continue;
         }
-        let item_kind = if message.item_type == "embedded_message_metadata" {
-            ItemKind::Note
-        } else {
-            ItemKind::Note
-        };
+        let item_kind = ItemKind::Note;
         let envelope = ItemEnvelope {
             envelope_key,
             record_kind: EnvelopeRecordKind::Item,
