@@ -7,7 +7,7 @@ use crate::output::ids;
 use crate::output::metadata::{
     AttachmentRecord, HeaderProjectionRecord, MessageRecord, RecipientRecord,
 };
-use crate::output::paths::sanitize_segment;
+use crate::output::paths::{sanitize_segment, UniquePathTracker};
 use crate::pst::attachments::AttachmentPayload;
 use crate::pst::item_routing::classify_message_class;
 use crate::pst::messages::BodyPayload;
@@ -41,10 +41,18 @@ pub struct MailboxProfileStatus {
     pub artifact_count: usize,
     pub skipped_count: usize,
     pub unavailable_count: usize,
+    pub attachment_count: usize,
+    pub emitted_attachment_count: usize,
+    pub filtered_attachment_count: usize,
+    pub attachment_unavailable_count: usize,
+    pub attachment_filter: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kmail_index_policy: Option<String>,
     pub path_policy: String,
     pub publication_policy: String,
     pub artifacts: Vec<MailboxArtifactSummary>,
     pub decisions: Vec<MailboxDecision>,
+    pub attachment_decisions: Vec<MailboxAttachmentDecision>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -53,6 +61,16 @@ pub struct MailboxDecision {
     pub folder_path: String,
     pub status: String,
     pub source_class: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MailboxAttachmentDecision {
+    pub attachment_key: String,
+    pub message_key: String,
+    pub filename: String,
+    pub path: Option<String>,
+    pub status: String,
+    pub extension: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -68,6 +86,7 @@ enum MailMode {
     Mh,
     Eml,
     Separate,
+    Kmail,
 }
 
 impl MailMode {
@@ -78,6 +97,7 @@ impl MailMode {
             OutputProfile::Mh => Some(Self::Mh),
             OutputProfile::Eml => Some(Self::Eml),
             OutputProfile::Separate => Some(Self::Separate),
+            OutputProfile::Kmail => Some(Self::Kmail),
             _ => None,
         }
     }
@@ -89,6 +109,7 @@ impl MailMode {
             Self::Mh => "mh",
             Self::Eml => "eml",
             Self::Separate => "separate",
+            Self::Kmail => "kmail",
         }
     }
 
@@ -99,6 +120,7 @@ impl MailMode {
             Self::Mh => "outputs/mh",
             Self::Eml => "outputs/eml",
             Self::Separate => "outputs/separate",
+            Self::Kmail => "outputs/kmail",
         }
     }
 }
@@ -118,6 +140,7 @@ pub fn render_profile(
     body_payloads: &[BodyPayload],
     attachments: &[AttachmentRecord],
     attachment_payloads: &[AttachmentPayload],
+    attachment_extensions: &[String],
 ) -> Option<MailboxRender> {
     let mode = MailMode::from_profile(profile)?;
     let ordered_messages = ordered_mail_messages(messages);
@@ -162,6 +185,12 @@ pub fn render_profile(
     let folder_paths = folder_path_map(folders, &eligible);
     let mut artifacts = Vec::new();
     let mut emitted_message_count = 0usize;
+    let mut attachment_count = 0usize;
+    let mut emitted_attachment_count = 0usize;
+    let mut filtered_attachment_count = 0usize;
+    let mut attachment_unavailable_count = 0usize;
+    let mut attachment_decisions = Vec::new();
+    let mut attachment_paths = UniquePathTracker::default();
 
     let mut groups = BTreeMap::<String, Vec<&MessageRecord>>::new();
     for message in eligible {
@@ -178,7 +207,7 @@ pub fn render_profile(
 
     for (folder, group) in &groups {
         match mode {
-            MailMode::Mbox | MailMode::RecursiveMbox => {
+            MailMode::Mbox | MailMode::RecursiveMbox | MailMode::Kmail => {
                 let mut output = Vec::new();
                 for message in group {
                     match serialize_message_eml(
@@ -189,6 +218,7 @@ pub fn render_profile(
                         body_payloads,
                         attachments,
                         attachment_payloads,
+                        false,
                     ) {
                         Ok(eml) => {
                             output.extend_from_slice(&mbox_separator(message).into_bytes());
@@ -213,10 +243,13 @@ pub fn render_profile(
                     }
                 }
                 if !output.is_empty() {
-                    let path = if mode == MailMode::Mbox {
-                        format!("{}/{}/email.mbox", mode.output_root(), folder)
-                    } else {
-                        format!("{}/{}/mbox", mode.output_root(), folder)
+                    let path = match mode {
+                        MailMode::Mbox => format!("{}/{}/email.mbox", mode.output_root(), folder),
+                        MailMode::RecursiveMbox => {
+                            format!("{}/{}/mbox", mode.output_root(), folder)
+                        }
+                        MailMode::Kmail => kmail_mbox_path(folder),
+                        _ => unreachable!(),
                     };
                     artifacts.push(artifact(
                         path,
@@ -238,6 +271,7 @@ pub fn render_profile(
                         body_payloads,
                         attachments,
                         attachment_payloads,
+                        mode == MailMode::Separate,
                     ) {
                         Ok(eml) => {
                             let bytes = eml;
@@ -250,7 +284,7 @@ pub fn render_profile(
                             };
                             let path = format!("{}/{}/{}", mode.output_root(), folder, filename);
                             artifacts.push(artifact(
-                                path,
+                                path.clone(),
                                 Some(message.message_key.clone()),
                                 message.folder_path.clone(),
                                 mode.name(),
@@ -258,6 +292,23 @@ pub fn render_profile(
                                 "message_file_emitted",
                             ));
                             emitted_message_count += 1;
+                            if mode == MailMode::Separate {
+                                append_separate_attachments(
+                                    message,
+                                    &format!("{}/{folder}", mode.output_root()),
+                                    &filename,
+                                    attachment_extensions,
+                                    attachments,
+                                    attachment_payloads,
+                                    &mut artifacts,
+                                    &mut attachment_decisions,
+                                    &mut attachment_paths,
+                                    &mut attachment_count,
+                                    &mut emitted_attachment_count,
+                                    &mut filtered_attachment_count,
+                                    &mut attachment_unavailable_count,
+                                );
+                            }
                             decisions.push(MailboxDecision {
                                 message_key: message.message_key.clone(),
                                 folder_path: message.folder_path.clone(),
@@ -285,9 +336,19 @@ pub fn render_profile(
             .cmp(&right.message_key)
             .then(left.status.cmp(&right.status))
     });
+    attachment_decisions.sort_by(|left, right| {
+        left.message_key
+            .cmp(&right.message_key)
+            .then(left.attachment_key.cmp(&right.attachment_key))
+            .then(left.status.cmp(&right.status))
+    });
     let status = if message_count == 0 || emitted_message_count == 0 {
         "mail_records_unavailable"
-    } else if unavailable_count > 0 || skipped_count > 0 {
+    } else if unavailable_count > 0
+        || skipped_count > 0
+        || filtered_attachment_count > 0
+        || attachment_unavailable_count > 0
+    {
         "mail_projection_partial"
     } else {
         "mail_projection_available"
@@ -306,10 +367,24 @@ pub fn render_profile(
             artifact_count: artifacts.len(),
             skipped_count,
             unavailable_count,
+            attachment_count,
+            emitted_attachment_count,
+            filtered_attachment_count,
+            attachment_unavailable_count,
+            attachment_filter: if attachment_extensions.is_empty() {
+                "all extensions; unnamed and extensionless attachments allowed".to_string()
+            } else {
+                format!("allowlist: {}", attachment_extensions.join(","))
+            },
+            kmail_index_policy: (mode == MailMode::Kmail).then(|| {
+                "existing ../.<folder>.index is logically invalidated; no mutable index is emitted"
+                    .to_string()
+            }),
             path_policy: "sanitized relative paths; folder collisions receive stable suffixes".to_string(),
             publication_policy: "archive entries are appended only after complete in-memory serialization; no partial direct files".to_string(),
             artifacts: summaries,
             decisions,
+            attachment_decisions,
         },
         artifacts,
     })
@@ -369,6 +444,21 @@ fn safe_folder_path(folder_path: &str) -> String {
     }
 }
 
+fn kmail_mbox_path(folder: &str) -> String {
+    let mut segments = folder
+        .split('/')
+        .filter(|segment| !segment.is_empty())
+        .map(sanitize_segment)
+        .collect::<Vec<_>>();
+    let leaf = segments.pop().unwrap_or_else(|| "root".to_string());
+    let parent = if segments.is_empty() {
+        String::new()
+    } else {
+        format!("{}/", segments.join("/"))
+    };
+    format!("outputs/kmail/{parent}.{leaf}.directory/{leaf}.mbox")
+}
+
 fn artifact(
     path: String,
     message_key: Option<String>,
@@ -391,6 +481,115 @@ fn artifact(
     }
 }
 
+fn append_separate_attachments(
+    message: &MessageRecord,
+    folder_root: &str,
+    message_filename: &str,
+    attachment_extensions: &[String],
+    attachments: &[AttachmentRecord],
+    attachment_payloads: &[AttachmentPayload],
+    artifacts: &mut Vec<MailboxArtifact>,
+    decisions: &mut Vec<MailboxAttachmentDecision>,
+    paths: &mut UniquePathTracker,
+    attachment_count: &mut usize,
+    emitted_attachment_count: &mut usize,
+    filtered_attachment_count: &mut usize,
+    attachment_unavailable_count: &mut usize,
+) {
+    let mut selected = attachments
+        .iter()
+        .filter(|attachment| attachment.message_key == message.message_key)
+        .collect::<Vec<_>>();
+    selected.sort_by(|left, right| {
+        left.ordinal
+            .cmp(&right.ordinal)
+            .then(left.attachment_key.cmp(&right.attachment_key))
+    });
+
+    for attachment in selected {
+        *attachment_count += 1;
+        let filename = sanitize_segment(&attachment.filename_safe);
+        let extension_allowed = attachment_extensions.is_empty()
+            || attachment.extension.as_ref().is_none_or(|extension| {
+                attachment_extensions.contains(&extension.to_ascii_lowercase())
+            });
+        if !extension_allowed {
+            *filtered_attachment_count += 1;
+            decisions.push(MailboxAttachmentDecision {
+                attachment_key: attachment.attachment_key.clone(),
+                message_key: message.message_key.clone(),
+                filename,
+                path: None,
+                status: "filtered_attachment_extension".to_string(),
+                extension: attachment.extension.clone(),
+            });
+            continue;
+        }
+        if attachment.attachment_method
+            == Some(crate::pst::attachments::ATTACH_METHOD_EMBEDDED_MESSAGE)
+        {
+            *attachment_unavailable_count += 1;
+            decisions.push(MailboxAttachmentDecision {
+                attachment_key: attachment.attachment_key.clone(),
+                message_key: message.message_key.clone(),
+                filename,
+                path: None,
+                status: "skipped_embedded_message_attachment".to_string(),
+                extension: attachment.extension.clone(),
+            });
+            continue;
+        }
+        let Some(payload) = attachment_payloads
+            .iter()
+            .find(|payload| payload.record.attachment_key == attachment.attachment_key)
+        else {
+            *attachment_unavailable_count += 1;
+            decisions.push(MailboxAttachmentDecision {
+                attachment_key: attachment.attachment_key.clone(),
+                message_key: message.message_key.clone(),
+                filename,
+                path: None,
+                status: "unavailable_attachment_payload".to_string(),
+                extension: attachment.extension.clone(),
+            });
+            continue;
+        };
+        if payload.bytes.is_empty() {
+            *attachment_unavailable_count += 1;
+            decisions.push(MailboxAttachmentDecision {
+                attachment_key: attachment.attachment_key.clone(),
+                message_key: message.message_key.clone(),
+                filename,
+                path: None,
+                status: "unavailable_zero_length_attachment".to_string(),
+                extension: attachment.extension.clone(),
+            });
+            continue;
+        }
+
+        let base_name = format!("{message_filename}-{filename}");
+        let safe_name = paths.unique_file_name(&base_name);
+        let path = format!("{folder_root}/{safe_name}");
+        artifacts.push(artifact(
+            path.clone(),
+            Some(message.message_key.clone()),
+            message.folder_path.clone(),
+            "attachment_file",
+            payload.bytes.clone(),
+            "attachment_file_emitted",
+        ));
+        *emitted_attachment_count += 1;
+        decisions.push(MailboxAttachmentDecision {
+            attachment_key: attachment.attachment_key.clone(),
+            message_key: message.message_key.clone(),
+            filename,
+            path: Some(path),
+            status: "attachment_file_emitted".to_string(),
+            extension: attachment.extension.clone(),
+        });
+    }
+}
+
 fn serialize_message_eml(
     message: &MessageRecord,
     headers: &[HeaderProjectionRecord],
@@ -399,6 +598,7 @@ fn serialize_message_eml(
     body_payloads: &[BodyPayload],
     attachments: &[AttachmentRecord],
     attachment_payloads: &[AttachmentPayload],
+    separate_attachments: bool,
 ) -> Result<Vec<u8>, RenderError> {
     let payloads = body_payloads
         .iter()
@@ -553,6 +753,9 @@ fn serialize_message_eml(
         .filter(|attachment| attachment.message_key == message.message_key)
         .collect::<Vec<_>>()
     {
+        if separate_attachments {
+            continue;
+        }
         let Some(payload) = attachment_payloads
             .iter()
             .find(|payload| payload.record.attachment_key == attachment.attachment_key)
@@ -877,6 +1080,9 @@ mod tests {
     use super::{mboxrd_escape, render_profile};
     use crate::config::OutputProfile;
     use crate::output::metadata::{BodyRecord, HeaderProjectionRecord, MessageRecord};
+    use crate::pst::attachments::{
+        attachment_payload, unavailable_attachment_record, AttachmentMetadata,
+    };
     use crate::pst::messages::text_body_payload;
 
     fn message(key: &str, folder: &str, class: Option<&str>) -> MessageRecord {
@@ -969,6 +1175,7 @@ mod tests {
             std::slice::from_ref(&body),
             &[],
             &[],
+            &[],
         )
         .expect("mbox profile");
         let repeat = render_profile(
@@ -979,6 +1186,7 @@ mod tests {
             &[],
             std::slice::from_ref(&body.record),
             std::slice::from_ref(&body),
+            &[],
             &[],
             &[],
         )
@@ -997,6 +1205,7 @@ mod tests {
             std::slice::from_ref(&body),
             &[],
             &[],
+            &[],
         )
         .expect("eml profile");
         assert!(eml.artifacts[0].summary.path.ends_with("/1.eml"));
@@ -1011,6 +1220,7 @@ mod tests {
             OutputProfile::RecursiveMbox,
             &[],
             &[unsupported, missing],
+            &[],
             &[],
             &[],
             &[],
@@ -1047,12 +1257,102 @@ mod tests {
             std::slice::from_ref(&body),
             &[],
             &[],
+            &[],
         )
         .expect("eml profile");
         let eml = String::from_utf8(output.artifacts[0].bytes.clone()).expect("utf8 eml");
         assert_eq!(eml.matches("MIME-Version:").count(), 1);
         assert_eq!(eml.matches("Content-Type:").count(), 2);
         assert!(eml.contains("X-Test: yes\r\n"));
+    }
+
+    #[test]
+    fn separate_profile_emits_binary_attachments_with_filter_decisions() {
+        let msg = message("msg-attachments", "/Inbox", Some("IPM.Note"));
+        let body = text_body_payload("msg-attachments", "body");
+        let payload = attachment_payload(
+            "msg-attachments",
+            1,
+            AttachmentMetadata {
+                filename_original: Some("report.PDF".to_string()),
+                content_type: Some("application/pdf".to_string()),
+                ..AttachmentMetadata::default()
+            },
+            b"pdf-bytes".to_vec(),
+        );
+        let filtered = attachment_payload(
+            "msg-attachments",
+            2,
+            AttachmentMetadata {
+                filename_original: Some("image.png".to_string()),
+                content_type: Some("image/png".to_string()),
+                ..AttachmentMetadata::default()
+            },
+            b"png-bytes".to_vec(),
+        );
+        let unavailable = unavailable_attachment_record(
+            "msg-attachments",
+            3,
+            Some("missing.pdf".to_string()),
+            "payload_unavailable",
+        );
+        let attachments = vec![
+            payload.record.clone(),
+            filtered.record.clone(),
+            unavailable.clone(),
+        ];
+        let output = render_profile(
+            OutputProfile::Separate,
+            &[],
+            &[msg],
+            &[],
+            &[],
+            std::slice::from_ref(&body.record),
+            std::slice::from_ref(&body),
+            &attachments,
+            &[payload.clone(), filtered],
+            &["pdf".to_string()],
+        )
+        .expect("separate profile");
+        assert_eq!(output.status.emitted_attachment_count, 1);
+        assert_eq!(output.status.filtered_attachment_count, 1);
+        assert_eq!(output.status.attachment_unavailable_count, 1);
+        assert_eq!(output.artifacts.len(), 2);
+        assert!(output
+            .artifacts
+            .iter()
+            .any(|artifact| artifact.summary.path.ends_with("1-report.PDF")));
+        assert!(output.status.attachment_decisions.iter().any(|decision| {
+            decision.status == "filtered_attachment_extension" && decision.filename == "image.png"
+        }));
+        assert!(output.status.attachment_decisions.iter().any(|decision| {
+            decision.status == "unavailable_attachment_payload"
+                && decision.filename == "missing.pdf"
+        }));
+    }
+
+    #[test]
+    fn kmail_profile_uses_directory_mbox_and_explicit_index_policy() {
+        let msg = message("msg-kmail", "/Inbox", Some("IPM.Note"));
+        let body = text_body_payload("msg-kmail", "body");
+        let output = render_profile(
+            OutputProfile::Kmail,
+            &[],
+            &[msg],
+            &[],
+            &[],
+            std::slice::from_ref(&body.record),
+            std::slice::from_ref(&body),
+            &[],
+            &[],
+            &[],
+        )
+        .expect("kmail profile");
+        assert!(output.artifacts[0]
+            .summary
+            .path
+            .ends_with(".Inbox.directory/Inbox.mbox"));
+        assert!(output.status.kmail_index_policy.is_some());
     }
 
     #[allow(dead_code)]

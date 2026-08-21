@@ -60,6 +60,7 @@ impl OutputProfile {
                 | Self::Mh
                 | Self::Eml
                 | Self::Separate
+                | Self::Kmail
                 | Self::Vcard
                 | Self::ContactList
                 | Self::Icalendar

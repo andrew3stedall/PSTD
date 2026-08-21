@@ -305,6 +305,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         &metadata.body_payloads,
         &metadata.attachments,
         &metadata.attachment_payloads,
+        &config.readpst.attachment_extensions,
     ) {
         tar.append_bytes(
             &[
@@ -992,7 +993,11 @@ fn append_archive_payload(
     bytes: &[u8],
 ) -> PstdResult<()> {
     let parts = archive_path.split('/').collect::<Vec<_>>();
-    tar.append_bytes(&parts, bytes)
+    if parts.iter().any(|part| part.starts_with('.')) {
+        tar.append_bytes_preserve_hidden(&parts, bytes)
+    } else {
+        tar.append_bytes(&parts, bytes)
+    }
 }
 
 fn write_root_progress(config: &ExtractConfig, event: &ProgressEvent) -> PstdResult<()> {

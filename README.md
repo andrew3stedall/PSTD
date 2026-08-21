@@ -13,7 +13,7 @@ _Last reviewed: 21 August 2026._
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI version-14/15 header fields are decoded with variant-correct widths but cannot authorize traversal or extraction. |
 | Current milestone | First controlled Microsoft Purview Unicode export | Admit immutable, redistributable synthetic Purview bytes, lock the exact before-state, then implement the smallest newly evidenced email-to-EML capability. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
-| Readpst parity workboard | RP-M5-01 in progress | Canonical typed records now feed deterministic mbox, recursive-mbox, MH, EML, and separate message-file profiles; KMail, Thunderbird, binary attachment files, MSG, and input gates remain open. |
+| Readpst parity workboard | RP-M5-02 in progress | Canonical typed records now feed deterministic mbox, recursive-mbox, MH, EML, separate message files and binary attachments, plus a KMail directory projection; Thunderbird, MSG, and input gates remain open. |
 
 ### RP-M4-03
 
@@ -30,8 +30,21 @@ extended EML, and separate message-file outputs. Header MIME fields are normaliz
 PSTD-owned MIME fields are added; mbox streams use mboxrd escaping and message files omit
 the separator. Missing body evidence and non-mail classes remain explicit unavailable or
 skipped decisions, and each emitted archive path is recorded in the adapter manifest.
-KMail, Thunderbird sidecars, separate binary attachment files, extension filters, and MSG
-remain downstream work units.
+KMail now uses a deterministic `.<folder>.directory/<folder>.mbox` projection with an
+explicit index-invalidation policy. Separate profiles publish only resolved, non-empty
+binary payloads, retain filtered/unavailable decisions, and apply normalized extension
+allow-lists and collision-safe names. Thunderbird sidecars, and MSG remain downstream
+work units.
+
+### RP-M5-02
+
+The attachment/KMail slice is integrated over canonical `AttachmentRecord` evidence.
+The `separate` profile emits readpst-shaped `<message-file>-<filename>` binary files
+only for resolved non-empty payloads; filtered, embedded, missing, unsafe, and zero-length
+cases remain explicit decisions. The `kmail` profile emits safe relative
+`.<folder>.directory/<folder>.mbox` paths and records the readpst index invalidation
+policy without producing a mutable index. Repeated profile output and the adapter
+manifest are deterministic.
 
 ## Intent
 

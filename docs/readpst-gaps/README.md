@@ -4,6 +4,11 @@ _Baseline reviewed: 21 August 2026._
 
 This folder is the compatibility register for making PSTD capable of everything that the `readpst` program in `pst-format/libpst` can do. It is deliberately broader than the current PSTD email-to-EML milestone: `readpst` is a mature command-line extractor with multiple input variants, output modes, MIME behaviours, attachments, contacts, appointments, journals, and operational controls.
 
+RP-M5-02 is now integrated as a Partial output capability: separate binary attachment
+files and the KMail directory projection consume canonical records, with explicit filter,
+payload, path, index-policy, and determinism evidence. Remaining output and input gaps
+stay visible in the matrix rather than being promoted by profile recognition alone.
+
 ## Baseline
 
 The comparison is against the `pst-format/libpst` `master` source at commit [`cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89`](https://github.com/pst-format/libpst/tree/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89). The principal implementation is [`src/readpst.c`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/readpst.c); the exposed item model and parser behaviour are in [`src/libpst.h`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/libpst.h) and [`src/libpst.c`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/libpst.c).
