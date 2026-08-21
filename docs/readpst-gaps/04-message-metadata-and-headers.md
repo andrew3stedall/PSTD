@@ -81,7 +81,7 @@ Do not copy readpst’s display-string flattening into the canonical record; pro
 
 ## Header encoding
 
-The readpst path applies RFC 2047 encoding to non-ASCII generated header values and RFC 2231 encoding to non-ASCII attachment filenames. PSTD needs a standards-tested header/parameter encoder for:
+The readpst path applies RFC 2047 encoding to non-ASCII generated header values and RFC 2231 encoding to non-ASCII attachment filenames. PSTD now has a focused standards-aware projection encoder for the generated mailbox/MSG MIME path, while the broader stored-header and reader corpus remains open. The complete parity target still requires:
 
 - display names and subjects containing non-ASCII characters;
 - long filenames containing non-ASCII characters;
@@ -90,6 +90,16 @@ The readpst path applies RFC 2047 encoding to non-ASCII generated header values 
 - preserved raw headers that already contain encoded words.
 
 The output must be deterministic and round-trip through a standards-compliant MIME parser.
+
+## Post-RP-M7 output encoding delivery
+
+`src/output/headers.rs` provides deterministic UTF-8 RFC 2047 encoded words for generated
+subjects and display names. The same output layer emits RFC 2231 `name`/`filename`
+parameters with ASCII fallbacks and continuation segments for long values. The mailbox,
+MSG compatibility EML, embedded-message EML, and standalone `pstd-eml` projections use
+these helpers; ASCII values retain their existing wire form. Canonical UTF-8 records and
+raw stored headers are not rewritten, and stored-header normalization, folding, and
+independent MIME-reader differentials remain Partial.
 
 ## Date and status policy
 

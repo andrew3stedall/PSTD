@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::output::ids;
 use crate::output::metadata::{
@@ -323,6 +323,20 @@ pub fn build_item_routing_counts(
     counts
 }
 
+/// Return the source message identities selected by the applied readpst-style
+/// item filter. The canonical item stream remains complete; this set is only
+/// for output adapters that must project the selected `-t` family.
+pub fn routed_message_keys(items: &[ItemEnvelope]) -> BTreeSet<String> {
+    items
+        .iter()
+        .filter(|item| {
+            item.record_kind == EnvelopeRecordKind::Item
+                && item.routing_status.starts_with("routed_")
+        })
+        .map(|item| item.envelope_key.clone())
+        .collect()
+}
+
 pub fn apply_item_routing_policy(items: &mut [ItemEnvelope], policy: ItemRoutingPolicy) {
     for item in items {
         if item.record_kind != EnvelopeRecordKind::Item
@@ -424,7 +438,10 @@ fn reconcile_folder_relationships(envelopes: &mut [ItemEnvelope]) {
 mod tests {
     use std::collections::HashMap;
 
-    use super::{apply_item_routing_policy, build_item_envelopes, build_item_routing_counts};
+    use super::{
+        apply_item_routing_policy, build_item_envelopes, build_item_routing_counts,
+        routed_message_keys,
+    };
     use crate::output::metadata::{
         EnvelopeRecordKind, FolderRecord, ItemEnvelope, ItemEnvelopeSource, ItemKind,
         ItemRoutingCountRecord, ItemVisibility,
@@ -617,5 +634,43 @@ mod tests {
         assert_eq!(items[0].routing_status, "filtered_item_type");
         assert_eq!(items[0].provenance_status, "source_verified");
         assert_eq!(items[0].raw_evidence_refs, ["nbt:node-1"]);
+    }
+
+    #[test]
+    fn projects_only_routed_message_identities_for_typed_outputs() {
+        let mut items = Vec::new();
+        for (key, status, kind) in [
+            ("msg-email", "routed_email", ItemKind::Note),
+            ("msg-contact", "filtered_item_type", ItemKind::Contact),
+            ("msg-task", "skipped_unsupported_by_readpst", ItemKind::Task),
+        ] {
+            items.push(ItemEnvelope {
+                envelope_key: key.to_string(),
+                record_kind: EnvelopeRecordKind::Item,
+                source: ItemEnvelopeSource {
+                    pst_id: "pst-test".to_string(),
+                    descriptor_id: Some(key.to_string()),
+                    node_id: Some(key.to_string()),
+                    folder_id: Some("folder-a".to_string()),
+                    ordinal: items.len() as u64,
+                },
+                parent_envelope_key: Some("folder-a".to_string()),
+                child_envelope_keys: Vec::new(),
+                folder_path: "/inbox".to_string(),
+                visibility: ItemVisibility::Visible,
+                item_kind: Some(kind),
+                message_class: None,
+                classification_confidence: "test".to_string(),
+                provenance_status: "test".to_string(),
+                extraction_status: "test".to_string(),
+                routing_status: status.to_string(),
+                raw_evidence_refs: Vec::new(),
+            });
+        }
+
+        assert_eq!(
+            routed_message_keys(&items).into_iter().collect::<Vec<_>>(),
+            vec!["msg-email".to_string()]
+        );
     }
 }

@@ -4,6 +4,9 @@ use chrono::{DateTime, FixedOffset, Utc};
 use sha2::{Digest, Sha256};
 
 use crate::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
+use crate::output::headers::{
+    clean_header_value, encode_display_name, encode_unstructured_value,
+};
 use crate::pst::attachments::{AttachmentPayload, ATTACH_METHOD_EMBEDDED_MESSAGE};
 use crate::pst::messages::BodyPayload;
 
@@ -38,7 +41,7 @@ pub fn build_plain_text_eml(
     if let Some(cc) = cc {
         push_header(&mut eml, "Cc", &cc);
     }
-    push_header(&mut eml, "Subject", &subject);
+    push_header(&mut eml, "Subject", &encode_unstructured_value(&subject));
     push_header(&mut eml, "Date", &date);
     if let Some(message_id) = message
         .internet_message_id
@@ -209,32 +212,13 @@ fn recipient_header(records: &[RecipientRecord], role: &str) -> Option<String> {
 
 fn format_address(name: Option<&str>, address: &str) -> String {
     match name.filter(|name| !name.is_empty()) {
-        Some(name) => format!("{} <{}>", quote_display_name(name), address),
+        Some(name) => format!("{} <{}>", encode_display_name(name), address),
         None => address.to_string(),
     }
 }
 
-fn quote_display_name(value: &str) -> String {
-    if value
-        .chars()
-        .all(|character| character.is_ascii_alphanumeric() || " ._-".contains(character))
-    {
-        value.to_string()
-    } else {
-        format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
-    }
-}
-
 fn clean_header(value: &str) -> Option<String> {
-    if value.contains('\r') || value.contains('\n') {
-        return None;
-    }
-    let cleaned = value
-        .chars()
-        .filter(|character| !character.is_control() || *character == '\t')
-        .collect::<String>();
-    let cleaned = cleaned.trim();
-    (!cleaned.is_empty()).then(|| cleaned.to_string())
+    clean_header_value(value)
 }
 
 fn push_header(output: &mut String, name: &str, value: &str) {

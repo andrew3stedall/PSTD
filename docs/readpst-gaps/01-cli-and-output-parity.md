@@ -32,8 +32,8 @@ semantically undecodable encrypted payloads remain explicit unsupported/failed e
 | `-C <charset>` | Default character set for items without an explicit charset. | **Gap** | Add a per-run fallback charset option and preserve the selected source/target charset in records. |
 | `-8` | Prefer UTF-8 bodies when an UTF-8 version exists. | **Partial** | Add explicit body-selection policy rather than always assuming UTF-8; preserve original bytes when conversion is lossy or unavailable. |
 | `-D` | Include deleted items. | **Gap** | Traverse and emit deleted content by default-excluded policy, with source flags and a deterministic include option. |
-| `-t[eajc]` | Filter output to email, appointment, journal, and contact classes. | **Gap** | Add typed item filtering at extraction and output-adapter layers without hiding skipped counts. |
-| `-a <exts>` | Keep only attachments whose filename extension is in a comma-separated allow-list. | **Partial**: separate attachment publication applies a normalized case-insensitive allow-list while canonical records retain filtered decisions. | Full cross-input differential coverage remains. |
+| `-t[eajc]` | Filter output to email, appointment, journal, and contact classes. | **Partial** | Routed source identities now filter every named output projection without hiding canonical skipped counts; broad mixed-folder differential evidence remains. |
+| `-a <exts>` | Keep only attachments whose filename extension is in a comma-separated allow-list. | **Partial**: mailbox and MSG/EML MIME projections now apply the same normalized case-insensitive allow-list as separate attachment publication while canonical records retain filtered decisions. | Full cross-input differential coverage remains. |
 | `-b` | Do not emit the decompressed RTF body as `rtf-body.rtf`. | **Partial** | Make RTF preservation a policy choice in structured output and every MIME/file adapter. |
 | `-c[v\|l]` | Emit contacts as vCard or a simple `name <address>` list. | **Gap** | Implement both contact adapters from one typed contact record. |
 
@@ -86,6 +86,20 @@ PST/OST -> bounded parser -> typed records + raw artefacts
 ```
 
 An adapter must never reparse the PST or invent a value that is missing from the typed evidence. A requested output that cannot be constructed must produce a scoped unavailable result, not a plausible but incomplete file.
+
+## Post-RP-M7 output parity expansion
+
+The production runner now separates canonical evidence from output selection. When a
+typed `-t[eajc]` filter is requested, routed `ItemEnvelope` identities select the
+matching mailbox/MSG messages and typed contact, appointment, journal, and Thunderbird
+records. The complete `data/items.jsonl`, routing counts, messages, and payload evidence
+remain in the archive, so a projection cannot erase filtered source content.
+
+The normalized `-a` allow-list is applied to generated MIME parts and Rust-native MSG
+compatibility EML as well as separate binary files. Filtered attachments produce
+explicit adapter decisions; canonical `AttachmentRecord` values and raw payloads are
+unchanged. This is an output-equivalent implementation slice with focused synthetic
+coverage, not a full readpst differential claim.
 
 ## Planned implementation — `RP-01`
 

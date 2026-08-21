@@ -20,7 +20,7 @@ PSTD already produces deterministic EML for selected plain/HTML, by-value attach
 
 - stored valid headers plus reconstructed missing headers;
 - mbox separators only where the selected output format needs them;
-- RFC 2047 encoded subjects/display names;
+- RFC 2047 encoded generated subjects/display names;
 - RFC 2231 filename parameters and safe fallback names;
 - report, schedule, and embedded-message MIME types;
 - Content-ID and inline disposition;
@@ -29,6 +29,11 @@ PSTD already produces deterministic EML for selected plain/HTML, by-value attach
 - stable MIME boundary generation and nested ownership.
 
 The EML adapter should expose a semantic validation report: decoded headers, part tree, body hashes, attachment hashes, and warnings. A byte comparison to readpst is useful but not sufficient because readpst’s boundary strings and formatting are implementation details.
+
+The current output expansion supplies deterministic RFC 2047/RFC 2231 generation and
+cross-profile extension filtering for mailbox and MSG/EML projections. Stored-header
+normalization, full MIME reader round trips, and broad readpst semantic differentials
+remain Partial.
 
 ## Contact and calendar files
 

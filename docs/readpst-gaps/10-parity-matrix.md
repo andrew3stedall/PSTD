@@ -146,8 +146,8 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | CLI-06 | Fallback charset (`-C`) | Gap | Per-run fallback charset with provenance and conversion tests. |
 | CLI-07 | Prefer UTF-8 (`-8`) | Partial | Explicit body/output encoding policy with raw-byte retention. |
 | CLI-08 | Include deleted items (`-D`) | Gap | Deleted traversal, filter, counts, and scoped records. |
-| CLI-09 | Item-type filter (`-t`) | Gap | Email/appointment/journal/contact filters over mixed folders. |
-| CLI-10 | Attachment extension allow-list (`-a`) | Gap | Filtered payload status and metadata retention. |
+| CLI-09 | Item-type filter (`-t`) | Partial | Applied to every named mail/typed output projection through routed source identities; broad mixed-folder differential evidence remains. |
+| CLI-10 | Attachment extension allow-list (`-a`) | Partial | Case-insensitive filtering now applies to mailbox and MSG/EML projections while canonical payload metadata remains complete; broad corpus evidence remains. |
 | CLI-11 | Suppress synthetic RTF attachment (`-b`) | Partial | Adapter policy that does not erase canonical RTF evidence. |
 | CLI-12 | Contact modes (`-cv`, `-cl`) | Partial | Source-backed vCard and simple contact-list profiles with explicit partial/empty status. |
 | CLI-13 | Appointment iCalendar profile | Partial | Deterministic `icalendar` profile with explicit unavailable date/recurrence status. |
@@ -196,8 +196,8 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | MSG-06 | Message-ID/In-Reply-To/References | Partial | References array, duplicate handling, and exact threading status. |
 | MSG-07 | Conversation index/topic/normalized subject | Partial | Broader property forms and provenance. |
 | MSG-08 | Stored transport header validation | Partial | Folded/invalid/duplicate header corpus and safe normalization. |
-| MSG-09 | RFC 2047 header encoding | Gap | Non-ASCII subject/display-name round trips. |
-| MSG-10 | RFC 2231 filename encoding | Gap | Non-ASCII and long filename MIME round trips. |
+| MSG-09 | RFC 2047 header encoding | Partial | Generated non-ASCII subjects/display names use deterministic UTF-8 encoded words; stored-header and broad parser round trips remain. |
+| MSG-10 | RFC 2231 filename encoding | Partial | Generated MIME name/filename parameters use UTF-8 percent encoding with ASCII fallbacks and continuations; broad reader corpus remains. |
 | BODY-01 | Plain text | Partial | Charset and body-only producer coverage. |
 | BODY-02 | HTML binary/string forms | Partial | Valid direct HTML, locator, raw, and malformed cases. |
 | BODY-03 | Compressed/generic RTF | Partial | Generic RTF payload preservation and decompression corpus. |
@@ -219,7 +219,7 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | ATT-06 | OLE method 6 | Gap | Lossless OLE bytes and metadata. |
 | ATT-07 | Content-ID/inline correlation | Partial | Unique, missing, duplicate, and unmatched CID cases. |
 | ATT-08 | Rendering position/MIME sequence | Gap | Order/position retention and MIME projection. |
-| ATT-09 | Attachment extension filter | Gap | Case-insensitive filter with metadata/status retention. |
+| ATT-09 | Attachment extension filter | Partial | Case-insensitive filter/status decisions now cover mailbox and MSG/EML projections without mutating canonical attachment records; broad corpus remains. |
 | ATT-10 | Synthetic RTF/encrypted body attachments | Gap | Synthetic-source markers and policy tests. |
 | ATT-11 | Nested ownership and recursion limits | Partial | Deterministic parent/child graph and bounded recursion. |
 
@@ -267,7 +267,7 @@ record controlled ANSI v14/v15 and OST 2013 derivatives, method-1/method-2 crypt
 vectors, symlink/path/TAR/diagnostic negatives, bounded-worker equality, and the
 reviewed run IDs in #519–#521.
 
-The unresolved Gap set is intentionally explicit:
+The unresolved Gap set is intentionally explicit for the reviewed RP-M7-01 baseline:
 
 `CLI-06`, `CLI-08`, `CLI-09`, `CLI-10`, `ITEM-04`, `ITEM-06`, `ITEM-11`, `MSG-04`,
 `MSG-05`, `MSG-09`, `MSG-10`, `BODY-05`, `BODY-06`, `BODY-08`, `ATT-04`, `ATT-06`,
@@ -286,16 +286,33 @@ admissibility blockers without promoting a row.
 ## RP-M7-03 final decision
 
 The final release decision is [`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md):
-**not parity-complete**. The matrix remains 2 Implemented, 54 Partial, and 19 Gap.
-The decision names every remaining row and preserves the explicit stronger-equivalent
-hardening improvements without treating them as feature parity.
+**not parity-complete** for its reviewed baseline of 2 Implemented, 54 Partial, and 19 Gap.
 
-## RP-M7-03 final decision
+## Post-RP-M7 output parity expansion — 22 August 2026
 
-The final release decision is [`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md):
-**not parity-complete**. The matrix remains 2 Implemented, 54 Partial, and 19 Gap.
-The decision names every remaining row and preserves the explicit stronger-equivalent
-hardening improvements without treating them as feature parity.
+The first post-decision implementation slice is now present on the working branch
+`agent/readpst-output-parity-expansion`. It keeps canonical `messages.jsonl`, typed
+records, payloads, and item-routing evidence complete while applying the requested
+projection policy only to named outputs:
+
+- `-t[eajc]` routed source identities now select mailbox, MSG/EML, vCard,
+  iCalendar, vJournal, and Thunderbird typed projections; filtered items remain in
+  canonical JSONL with their routing statuses and folder counts.
+- `-a` extension allow-lists now apply to every generated mail/MSG MIME projection,
+  not only separate attachment files. Filter decisions remain explicit and
+  case-insensitive; canonical attachment records and payloads are not deleted.
+- Generated subjects/display names use deterministic RFC 2047 UTF-8 encoded words.
+  Generated MIME `name`/`filename` parameters use RFC 2231 UTF-8 percent encoding,
+  ASCII fallbacks, and safe continuations for long values.
+
+Focused tests cover routed identity selection, repeated output, extension filtering,
+header encoding, filename encoding, and unchanged ASCII output. The rows move from
+Gap to Partial only: broad mixed-folder/input corpus and independent readpst/import
+differentials are still required before promotion to Implemented.
+
+This changes the current ledger to **2 Implemented, 59 Partial, and 14 Gap**. The
+RP-M7-03 document remains the historical release decision for its reviewed baseline;
+the current row states above are the maintained ledger after this expansion.
 
 ## Planned implementation — `RP-10`
 

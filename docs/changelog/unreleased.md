@@ -238,6 +238,21 @@ All seven top-level messages belong to `/Début du fichier de données Outlook` 
 - Raw `text/rtf` as the preferred rich EML alternative for the current HTML-derived fixture body.
 - The earlier evidence blocker that no approved attachment-bearing PST was available.
 - The assumption that the attachment file payload must be padded or truncated to the 15,503-byte `PidTagAttachSize` value.
+### Post-RP-M7 output parity expansion
+
+- Applied routed `-t[eajc]` identities to mailbox, MSG/EML, vCard, iCalendar,
+  vJournal, and Thunderbird typed projections while preserving complete canonical
+  records and routing counts.
+- Extended case-insensitive `-a` attachment filtering from separate files to generated
+  mailbox/MSG MIME output, with explicit filtered decisions and unchanged canonical
+  payload evidence.
+- Added shared deterministic RFC 2047 UTF-8 encoded-word and RFC 2231 MIME parameter
+  projection helpers, including ASCII fallbacks and long-value continuations, and used
+  them in generated mailbox, embedded, MSG compatibility, and standalone EML output.
+- Added focused regression tests for typed projection selection, extension filtering,
+  ASCII stability, non-ASCII headers, and long filenames. The ledger is now 2
+  Implemented, 59 Partial, and 14 Gap; no full-parity claim is made.
+
 ## RP-M7 release-gate review
 
 - Added the RP-M7-01 conservative matrix promotion report at main commit `57fbcaf1a83e2ddc79fff300be812a23cc66bb53`: 2 Implemented, 54 Partial, and 19 Gap rows remain explicit.

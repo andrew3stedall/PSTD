@@ -66,14 +66,14 @@ readpst emits `Content-ID` but does not itself prove a full HTML `cid:` relation
 
 ## Attachment filtering
 
-The `-a` option filters separate attachment files by extension. It must not destroy canonical metadata. PSTD’s equivalent should record:
+The `-a` option filters separate attachment files by extension. It must not destroy canonical metadata. PSTD’s equivalent now applies to separate files and generated mailbox/MSG MIME projections, and records:
 
 ```text
 payload_status = extracted | filtered_by_extension | unavailable | unsupported | failed
 filter_policy  = none | allow_list(<normalized extensions>)
 ```
 
-The filter must be case-insensitive, apply to the selected long/short filename according to the same documented rule, and leave message attachment counts explainable. RP-M5-02 now implements this as a Partial separate-output policy: canonical attachment records remain unchanged, filtered records produce explicit decisions, and only resolved non-empty payloads become files.
+The filter is case-insensitive, applies to the selected long/short filename according to the same documented rule, and leaves message attachment counts explainable. The current output slice is Partial: canonical attachment records remain unchanged, filtered records produce explicit decisions, and only allowed payloads enter separate files or generated MIME parts. Broad input and readpst differential coverage remains required.
 
 ## Filename and path safety
 
@@ -93,6 +93,14 @@ The fixture corpus must include, at minimum:
 8. OLE bytes;
 9. zero-length and declared-size-mismatch payloads;
 10. filtered extensions and unnamed attachments.
+
+## Post-RP-M7 output delivery
+
+The attachment projection now shares one normalized extension predicate across mbox,
+recursive mbox, MH, EML, separate files, KMail, Thunderbird mbox, and the MSG
+compatibility EML/OLE path. Filtered attachments remain visible in adapter decisions and
+canonical JSONL/payload evidence. MIME filenames additionally use the shared RFC 2231
+encoder, retaining the original canonical filename separately from any ASCII fallback.
 
 ## Planned implementation — `RP-06`
 
