@@ -4,7 +4,7 @@
 
 readpst starts from the message-store root, locates the top of the folder tree, recursively enters child folders, and processes every descriptor in each folder. It supports folders containing more than one item type and keeps output type streams separate so a calendar item is not placed into an email mbox.
 
-PSTD now emits a typed folder/item envelope stream alongside folder inventory and message ownership records for the validated Unicode path. The envelope preserves source IDs, canonical paths, parent/child links, visibility, item-kind confidence, ownership status, and explicit skipped/ambiguous outcomes; `data/items.jsonl` is published through the canonical TAR output. Mixed non-mail class routing remains a later slice. The following behaviours remain parity requirements:
+PSTD now emits a typed folder/item envelope stream alongside folder inventory and message ownership records for the validated Unicode path. The envelope preserves source IDs, canonical paths, parent/child links, visibility, item-kind confidence, ownership status, and explicit skipped/ambiguous outcomes; `data/items.jsonl` is published through the canonical TAR output. RP-M1-03 adds class-aware routing and explicit filter/unsupported statuses, while CLI translation and typed non-mail serializers remain later slices. The following behaviours remain parity requirements:
 
 - preserve the complete folder path and stable source node identity;
 - preserve folder content, unread, associated-content, and child-folder counts;
@@ -19,6 +19,10 @@ PSTD now emits a typed folder/item envelope stream alongside folder inventory an
 ## RP-M1-02 delivery
 
 The typed envelope contract is integrated through folder discovery, message-table membership, ownership resolution, metadata extraction, and the canonical archive writer. Folder records and validated message candidates retain source node/folder identity; associated candidates are marked `associated`; unresolved or ambiguous ownership is never guessed. Non-table NBT entries that cannot yet be classified are retained as `other` with `skipped_unclassified_source_entry`, while duplicate source identities and folder-path collisions receive explicit failure statuses. The envelope is additive and does not promote schedule, appointment, contact, journal, report, deleted, or `-t` routing parity.
+
+## RP-M1-03 delivery
+
+The production envelope path now reads `PR_MESSAGE_CLASS`/String8 evidence when available and classifies the observable readpst families: ordinary note, schedule email, appointment, contact, journal/activity, report, task, sticky note, and unknown. `ItemRoutingPolicy` records the default exclusion of associated/deleted content and provides the semantic `-t` filter family for later CLI wiring. Every item retains its source class and receives a deterministic `routing_status`; unknown or missing classes are never promoted to ordinary mail, task/sticky-note/unknown classes receive explicit readpst-equivalent skip statuses, and filtered items remain in canonical output. Synthetic mixed-folder tests cover positive, unsupported, missing, ambiguous, visibility, filter, and repeat-run cases. This slice does not claim vCard/iCalendar/vJournal/report MIME or command-line parity.
 
 ## Item classes exposed by libpst
 

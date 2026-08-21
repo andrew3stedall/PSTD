@@ -7,6 +7,7 @@ pub struct MessageRecord {
     pub message_node_id: Option<String>,
     pub folder_path: String,
     pub item_type: String,
+    pub message_class: Option<String>,
     pub subject: Option<String>,
     pub sender_name: Option<String>,
     pub sender_email: Option<String>,
@@ -158,6 +159,7 @@ pub struct ItemEnvelope {
     pub classification_confidence: String,
     pub provenance_status: String,
     pub extraction_status: String,
+    pub routing_status: String,
     pub raw_evidence_refs: Vec<String>,
 }
 

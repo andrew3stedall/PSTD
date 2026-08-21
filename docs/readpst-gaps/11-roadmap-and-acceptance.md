@@ -35,6 +35,10 @@ The first typed-core slice is implemented across `src/pst/capability.rs`, the he
 
 The typed folder/item envelope is integrated into metadata extraction and canonical TAR/JSONL output. It records folder and message source identity, ownership, visibility, item-kind confidence, parent/child links, provenance references, and explicit duplicate, path-collision, unknown, and ambiguous statuses. The current evidence is the approved Tika Unicode fixture plus deterministic synthetic ownership tests; no mixed-folder non-mail capability row is promoted by this slice.
 
+### RP-M1-03 delivery
+
+The classification slice is integrated into `src/pst/item_envelope.rs` and `src/pst/item_routing.rs`. It reads validated message-class evidence, maps the readpst item families, applies an immutable default visibility/type policy, and emits deterministic routing statuses in `data/items.jsonl`. The evidence includes a mixed synthetic class corpus, unsupported/missing/unknown classes, associated/deleted/filter decisions, and byte-identical repeated serialization. The result deliberately leaves CLI flag plumbing, typed non-mail serializers, and broad real-PST mixed-folder evidence to their dependent issues.
+
 ## Phase 1 — Unicode message breadth
 
 Broaden the existing strongest path before adding legacy formats:

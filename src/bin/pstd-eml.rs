@@ -792,6 +792,7 @@ mod tests {
             message_node_id: None,
             folder_path: "/Inbox".to_string(),
             item_type: "message".to_string(),
+            message_class: None,
             subject: Some("Fixture subject".to_string()),
             sender_name: Some("Fixture Sender".to_string()),
             sender_email: Some("sender@example.com".to_string()),

@@ -983,6 +983,7 @@ fn candidate_message(
         message_node_id: Some(message_identity),
         folder_path: folder_path.to_string(),
         item_type: "message_metadata_candidate".to_string(),
+        message_class: None,
         subject: None,
         sender_name: None,
         sender_email: None,

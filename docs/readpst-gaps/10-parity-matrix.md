@@ -19,6 +19,10 @@ The parser boundary now emits a typed capability projection before traversal. It
 
 The canonical extraction path now publishes `data/items.jsonl` with deterministic folder and item envelopes. Source node identity, folder ownership, canonical paths, associated visibility, item-kind confidence, raw evidence references, and unresolved/ambiguous/duplicate/path-collision statuses are explicit. This improves the ITEM-01/ITEM-02 evidence boundary but does not promote mixed non-mail routing, deleted filtering, or typed schedule/contact/calendar/journal/report output; those rows remain at their existing statuses until their own corpus gates pass.
 
+## RP-M1-03 classification and routing delivery
+
+The canonical extraction path now classifies available `PR_MESSAGE_CLASS` evidence and records `routing_status` for ordinary notes, schedule emails, appointments, contacts, journals, reports, tasks, sticky notes, unknown classes, associated content, deleted content, and type-filter decisions. The default policy is fail-closed for missing/unknown visibility or class and excludes associated/deleted content without deleting its envelope. This is E1/E2 synthetic-policy evidence plus the existing public Unicode integration path; it does not promote a row to Implemented or claim CLI/output-adapter parity.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |
@@ -57,14 +61,14 @@ The canonical extraction path now publishes `data/items.jsonl` with deterministi
 |---|---|---|---|
 | ITEM-01 | Folder hierarchy and paths | Partial | Complete folder ownership across producers and duplicate-name cases. |
 | ITEM-02 | Content/unread/associated/child counts | Partial | Counts reconcile with typed item statuses. |
-| ITEM-03 | Mixed item types in one folder | Gap | One folder fixture containing email, contact, calendar, journal, and skipped classes. |
+| ITEM-03 | Mixed item types in one folder | Partial | Production routing statuses plus a synthetic mixed-folder class matrix; an admissible mixed PST and typed output adapters remain required. |
 | ITEM-04 | Deleted and associated contents | Gap | Visible/deleted/associated filtering with explicit counts. |
 | ITEM-05 | Ordinary note/email | Partial | Broader message metadata/body/attachment corpus. |
 | ITEM-06 | Schedule/meeting email | Gap | Email plus validated `text/calendar` part. |
 | ITEM-07 | Appointment/event | Gap | Typed appointment plus iCalendar output. |
 | ITEM-08 | Contact | Gap | Typed contact plus vCard/list output. |
 | ITEM-09 | Journal | Gap | Typed journal plus vJournal output. |
-| ITEM-10 | Sticky note/task/other classification | Gap | Explicit typed metadata and readpst-equivalent skip status. |
+| ITEM-10 | Sticky note/task/other classification | Partial | Source-class classification and explicit skip/unknown statuses are integrated; typed non-mail preservation remains RP-M4. |
 | ITEM-11 | Delivery/disposition report | Gap | Typed report and `multipart/report` output. |
 
 ## Message fields and body handling

@@ -3,9 +3,10 @@ use crate::output::metadata::MessageRecord;
 use crate::pst::mapi::{
     PR_CONVERSATION_INDEX, PR_CONVERSATION_TOPIC, PR_CONVERSATION_TOPIC_A, PR_HASATTACH,
     PR_INTERNET_MESSAGE_ID, PR_INTERNET_MESSAGE_ID_A, PR_IN_REPLY_TO_ID, PR_IN_REPLY_TO_ID_A,
-    PR_MESSAGE_DELIVERY_TIME, PR_SENDER_ADDRTYPE, PR_SENDER_ADDRTYPE_A, PR_SENDER_EMAIL_ADDRESS,
-    PR_SENDER_EMAIL_ADDRESS_A, PR_SENDER_NAME, PR_SENDER_NAME_A, PR_SUBJECT, PR_SUBJECT_A,
-    PR_TRANSPORT_MESSAGE_HEADERS, PR_TRANSPORT_MESSAGE_HEADERS_A,
+    PR_MESSAGE_CLASS, PR_MESSAGE_CLASS_A, PR_MESSAGE_DELIVERY_TIME, PR_SENDER_ADDRTYPE,
+    PR_SENDER_ADDRTYPE_A, PR_SENDER_EMAIL_ADDRESS, PR_SENDER_EMAIL_ADDRESS_A, PR_SENDER_NAME,
+    PR_SENDER_NAME_A, PR_SUBJECT, PR_SUBJECT_A, PR_TRANSPORT_MESSAGE_HEADERS,
+    PR_TRANSPORT_MESSAGE_HEADERS_A,
 };
 use crate::pst::primitives::NodeId;
 use crate::pst::property_context::PropertyContext;
@@ -21,6 +22,7 @@ pub fn message_from_properties(
 ) -> MessageRecord {
     let message_identity = format!("node_{:x}", node_id.0);
     let subject = properties.first_string_value(&[PR_SUBJECT, PR_SUBJECT_A]);
+    let message_class = properties.first_string_value(&[PR_MESSAGE_CLASS, PR_MESSAGE_CLASS_A]);
     let internet_message_id =
         properties.first_string_value(&[PR_INTERNET_MESSAGE_ID, PR_INTERNET_MESSAGE_ID_A]);
     let in_reply_to_id = properties.first_string_value(&[PR_IN_REPLY_TO_ID, PR_IN_REPLY_TO_ID_A]);
@@ -50,6 +52,7 @@ pub fn message_from_properties(
         message_node_id: Some(message_identity),
         folder_path: folder_path.to_string(),
         item_type: "message_metadata".to_string(),
+        message_class,
         subject: subject.clone(),
         sender_name: properties.first_string_value(&[PR_SENDER_NAME, PR_SENDER_NAME_A]),
         sender_email: sender_email.clone(),
@@ -98,6 +101,7 @@ pub fn status_row(
         message_node_id: None,
         folder_path: folder_path.to_string(),
         item_type: "metadata_status".to_string(),
+        message_class: None,
         subject: Some("PSTD metadata extraction status".to_string()),
         sender_name: None,
         sender_email: None,

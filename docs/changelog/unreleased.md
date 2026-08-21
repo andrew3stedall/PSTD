@@ -24,6 +24,7 @@ _Last reviewed: 21 August 2026._
 
 - Typed input capability envelopes for Unicode/ANSI/OST/unknown family classification, crypt/root readiness, explicit unsupported/malformed/budget statuses, bounded reader limits, inspect visibility, and canonical extraction publication.
 - Typed folder/item envelopes with source-ID ownership, visibility, item-kind confidence, parent/child links, explicit ambiguity/duplicate/path-collision statuses, and canonical `data/items.jsonl` output.
+- Class-aware canonical routing statuses for ordinary, schedule, appointment, contact, journal, report, task, sticky-note, unknown, associated, deleted, filtered, and unavailable items, with immutable policy tests and no silent ordinary-message fallback.
 - Safe PST header/root selection, bounded byte reads, checked arithmetic, BBT/NBT traversal, block and subnode access, depth/cycle guards, Heap-on-Node, BTH, Property Context, and Table Context parsing.
 - Public PST progress workflow and deterministic bounded artifacts.
 - Table Context descriptor evidence, bitmap mapping, row-payload candidate resolution, direct/ordinal addressing, validated row transport, fixed-width scalar decoding, and production diagnostics through PQ74.

@@ -5,6 +5,7 @@ use crate::output::metadata::{
     EnvelopeRecordKind, FolderRecord, ItemEnvelope, ItemEnvelopeSource, ItemKind, ItemVisibility,
     MessageRecord,
 };
+use crate::pst::item_routing::{classify_message_class, route_item, ItemRoutingPolicy};
 use crate::pst::message_ownership::MessageOwnershipResolution;
 use crate::pst::message_table::{
     message_node_type, message_table_node_type, node_identity, MessageNodeType,
@@ -19,6 +20,26 @@ pub fn build_item_envelopes(
     message_candidates: &[NbtEntry],
     ownership: &HashMap<NodeId, MessageOwnershipResolution>,
     messages: &[MessageRecord],
+) -> Vec<ItemEnvelope> {
+    build_item_envelopes_with_policy(
+        pst_id,
+        folders,
+        nbt_entries,
+        message_candidates,
+        ownership,
+        messages,
+        ItemRoutingPolicy::default(),
+    )
+}
+
+pub fn build_item_envelopes_with_policy(
+    pst_id: &str,
+    folders: &[FolderRecord],
+    nbt_entries: &[NbtEntry],
+    message_candidates: &[NbtEntry],
+    ownership: &HashMap<NodeId, MessageOwnershipResolution>,
+    messages: &[MessageRecord],
+    policy: ItemRoutingPolicy,
 ) -> Vec<ItemEnvelope> {
     let mut envelopes = Vec::new();
     let mut seen_keys = HashSet::new();
@@ -53,6 +74,7 @@ pub fn build_item_envelopes(
             classification_confidence: "folder_source_record".to_string(),
             provenance_status: folder.status.clone(),
             extraction_status: "folder_discovered".to_string(),
+            routing_status: "not_applicable_folder".to_string(),
             raw_evidence_refs: vec![format!("folder_record:{}", folder.folder_key)],
         };
         insert_envelope(&mut envelopes, &mut seen_keys, envelope);
@@ -94,21 +116,28 @@ pub fn build_item_envelopes(
                     "unavailable_unresolved_owner".to_string(),
                 ),
             };
-        let (visibility, item_kind, confidence) = match message_node_type(entry.node_id) {
-            Some(MessageNodeType::AssociatedMessage) => (
-                ItemVisibility::Associated,
-                ItemKind::Note,
-                "node_type_only_associated",
-            ),
-            Some(MessageNodeType::NormalMessage) => {
-                (ItemVisibility::Visible, ItemKind::Note, "node_type_only")
-            }
-            None => (
-                ItemVisibility::Unknown,
-                ItemKind::Other,
-                "node_type_unavailable",
-            ),
+        let visibility = match message_node_type(entry.node_id) {
+            Some(MessageNodeType::AssociatedMessage) => ItemVisibility::Associated,
+            Some(MessageNodeType::NormalMessage) => ItemVisibility::Visible,
+            None => ItemVisibility::Unknown,
         };
+        let message_class = messages_by_node
+            .get(source_node_id.as_str())
+            .and_then(|message| {
+                message
+                    .message_class
+                    .clone()
+                    .or_else(|| message_class_from_item_type(&message.item_type))
+            });
+        let classification = classify_message_class(message_class.as_deref());
+        let item_kind = classification.kind.unwrap_or(ItemKind::Other);
+        let routing = route_item(visibility, &classification, policy);
+        let extraction_status =
+            if classification.kind.is_none() && extraction_status == "item_metadata_unavailable" {
+                "unavailable_missing_item_class".to_string()
+            } else {
+                extraction_status
+            };
         let envelope = ItemEnvelope {
             envelope_key,
             record_kind: EnvelopeRecordKind::Item,
@@ -124,10 +153,11 @@ pub fn build_item_envelopes(
             folder_path,
             visibility,
             item_kind: Some(item_kind),
-            message_class: None,
-            classification_confidence: confidence.to_string(),
+            message_class,
+            classification_confidence: classification.confidence.to_string(),
             provenance_status,
             extraction_status,
+            routing_status: routing.status.to_string(),
             raw_evidence_refs: vec![
                 format!("nbt:{}", source_node_id),
                 format!("message_candidate:{}", source_node_id),
@@ -167,6 +197,7 @@ pub fn build_item_envelopes(
             classification_confidence: "node_type_unclassified".to_string(),
             provenance_status: "source_nbt_entry_not_message_or_folder".to_string(),
             extraction_status: "skipped_unclassified_source_entry".to_string(),
+            routing_status: "unavailable_unclassified_source_entry".to_string(),
             raw_evidence_refs: vec![format!("nbt:{}", source_node_id)],
         };
         insert_envelope(&mut envelopes, &mut seen_keys, envelope);
@@ -180,7 +211,14 @@ pub fn build_item_envelopes(
         if seen_keys.contains(&envelope_key) {
             continue;
         }
-        let item_kind = ItemKind::Note;
+        let class = message
+            .message_class
+            .clone()
+            .or_else(|| message_class_from_item_type(&message.item_type));
+        let classification = classify_message_class(class.as_deref());
+        let item_kind = classification.kind.unwrap_or(ItemKind::Other);
+        let visibility = ItemVisibility::Visible;
+        let routing = route_item(visibility, &classification, policy);
         let envelope = ItemEnvelope {
             envelope_key,
             record_kind: EnvelopeRecordKind::Item,
@@ -195,12 +233,17 @@ pub fn build_item_envelopes(
                 .then(|| message.folder_key.clone()),
             child_envelope_keys: Vec::new(),
             folder_path: message.folder_path.clone(),
-            visibility: ItemVisibility::Visible,
+            visibility,
             item_kind: Some(item_kind),
-            message_class: Some(message.item_type.clone()),
-            classification_confidence: "message_record_fallback".to_string(),
+            message_class: class,
+            classification_confidence: classification.confidence.to_string(),
             provenance_status: "message_record_source".to_string(),
-            extraction_status: message.extraction_status.clone(),
+            extraction_status: if classification.kind.is_none() {
+                "unavailable_missing_item_class".to_string()
+            } else {
+                message.extraction_status.clone()
+            },
+            routing_status: routing.status.to_string(),
             raw_evidence_refs: vec![format!("message_record:{}", message.message_key)],
         };
         insert_envelope(&mut envelopes, &mut seen_keys, envelope);
@@ -233,7 +276,17 @@ fn insert_envelope(
     duplicate.envelope_key = duplicate_key;
     duplicate.provenance_status = "duplicate_source_identity".to_string();
     duplicate.extraction_status = "failed_duplicate_source_identity".to_string();
+    duplicate.routing_status = "failed_duplicate_source_identity".to_string();
     envelopes.push(duplicate);
+}
+
+fn message_class_from_item_type(item_type: &str) -> Option<String> {
+    let value = item_type.trim();
+    if value.starts_with("IPM.") || value.starts_with("ipm.") || value.starts_with("REPORT.") {
+        Some(value.to_string())
+    } else {
+        None
+    }
 }
 
 fn reconcile_folder_relationships(envelopes: &mut [ItemEnvelope]) {
@@ -351,8 +404,9 @@ mod tests {
             .iter()
             .filter(|envelope| envelope.record_kind == EnvelopeRecordKind::Item)
             .all(|envelope| {
-                envelope.item_kind == Some(ItemKind::Note)
+                envelope.item_kind == Some(ItemKind::Other)
                     && envelope.visibility == ItemVisibility::Visible
+                    && envelope.routing_status == "unavailable_missing_item_class"
             }));
     }
 
@@ -386,6 +440,10 @@ mod tests {
         assert_eq!(
             envelope.extraction_status,
             "skipped_unclassified_source_entry"
+        );
+        assert_eq!(
+            envelope.routing_status,
+            "unavailable_unclassified_source_entry"
         );
     }
 }
