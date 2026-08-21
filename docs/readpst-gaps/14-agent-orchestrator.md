@@ -2,7 +2,7 @@
 
 _Baseline reviewed: 21 August 2026._
 
-This document is the execution control plane for the `RP-00`–`RP-13` readpst parity register. It turns the source review into a dependency-aware program that can be operated by a global orchestrator and specialist sub-agents. The GitHub issue keys in this document are stable work-unit IDs; the issue links below are the provisioned workboard, and milestone links are added when GitHub milestone administration is available.
+This document is the execution control plane for the `RP-00`–`RP-13` readpst parity register. It turns the source review into a dependency-aware program that can be operated by a global orchestrator and specialist sub-agents. The GitHub issue keys in this document are stable work-unit IDs; the issue and milestone links below are the provisioned workboard.
 
 The authoritative technical baseline remains the pinned `pst-format/libpst` revision [`cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89`](https://github.com/pst-format/libpst/tree/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89), with the source-to-behaviour ledger in [upstream source notes](12-upstream-source-notes.md). The orchestrator may split or resequence implementation issues, but it may not weaken the parity rule, evidence boundary, or fail-closed requirements in [method and parity guardrails](00-method-and-guardrails.md).
 
@@ -29,18 +29,18 @@ The milestone names below are exact. They are intentionally vertical: each miles
 
 | Milestone | Scope | Plan IDs | Entry dependency | Exit evidence | Suggested concurrency |
 |---|---|---|---|---|---:|
-| `RP-M0 — Control plane and parity evidence` | Status/provenance model, differential runner, upstream drift, and agent protocol | `RP-00`, `RP-12`, `RP-13` | Existing validated Unicode baseline | One fixture runs through readpst and PSTD, produces normalized evidence, and is tracked by the orchestrator | 2–3 |
-| `RP-M1 — Typed extraction core` | Input capability envelope, bounded parser policy, folders, ownership, visibility, and typed item routing | `RP-02`, `RP-03` | `RP-M0` | A mixed fixture has reconciled folders/items and no silent ordinary-message fallback | 3–4 |
-| `RP-M2 — Unicode message fidelity` | Message metadata, headers, charset, bodies, MIME/RTF, and attachment evidence | `RP-04`, `RP-05`, `RP-06` | `RP-M1` | E3 Unicode evidence covers identities, headers, bodies, MIME parts, attachment methods, order, CID, and negative status | 3–4 |
-| `RP-M3 — Relationships and special items` | Embedded graph, bounded recursion, reports, schedules, encrypted-body status, and CLI policy | `RP-01`, `RP-07` | `RP-M2` | Nested and special email fixtures produce typed graph/MIME/status records with deterministic limits | 2–3 |
-| `RP-M4 — Non-mail item outputs` | Contacts, appointments/recurrence, journals, tasks, sticky notes, and explicit unsupported routing | `RP-08` | `RP-M1`, `RP-M2` | Mixed folders yield reconciled typed records and validated vCard/iCalendar/vJournal values | 2–3 |
-| `RP-M5 — Readpst output adapters` | mbox, recursive folder output, MH, EML, KMail, Thunderbird, separate files, typed files, and MSG | `RP-09` | `RP-M3`, `RP-M4` | Each readpst output family has a semantic adapter or explicit equivalent/unsupported result | 3–4 |
-| `RP-M6 — Input breadth and hardening` | ANSI, OST 2013, encryption, large/sparse inputs, malformed derivatives, fuzzing, and bounded parallelism | `RP-02`, `RP-13` | `RP-M0`, `RP-M1` | Supported input families and adversarial derivatives have reproducible, bounded evidence | 2–3 |
-| `RP-M7 — Readpst parity release gate` | Matrix promotion, E4 differential corpus, release decision, and synchronized documentation | `RP-10`, `RP-11` | `RP-M0`–`RP-M6` | No applicable unresolved matrix rows; repeat-run, output, negative, and documentation gates pass | 2 |
+| [`RP-M0 — Control plane and parity evidence`](https://github.com/andrew3stedall/PSTD/milestone/1) | Status/provenance model, differential runner, upstream drift, and agent protocol | `RP-00`, `RP-12`, `RP-13` | Existing validated Unicode baseline | One fixture runs through readpst and PSTD, produces normalized evidence, and is tracked by the orchestrator | 2–3 |
+| [`RP-M1 — Typed extraction core`](https://github.com/andrew3stedall/PSTD/milestone/2) | Input capability envelope, bounded parser policy, folders, ownership, visibility, and typed item routing | `RP-02`, `RP-03` | `RP-M0` | A mixed fixture has reconciled folders/items and no silent ordinary-message fallback | 3–4 |
+| [`RP-M2 — Unicode message fidelity`](https://github.com/andrew3stedall/PSTD/milestone/3) | Message metadata, headers, charset, bodies, MIME/RTF, and attachment evidence | `RP-04`, `RP-05`, `RP-06` | `RP-M1` | E3 Unicode evidence covers identities, headers, bodies, MIME parts, attachment methods, order, CID, and negative status | 3–4 |
+| [`RP-M3 — Relationships and special items`](https://github.com/andrew3stedall/PSTD/milestone/4) | Embedded graph, bounded recursion, reports, schedules, encrypted-body status, and CLI policy | `RP-01`, `RP-07` | `RP-M2` | Nested and special email fixtures produce typed graph/MIME/status records with deterministic limits | 2–3 |
+| [`RP-M4 — Non-mail item outputs`](https://github.com/andrew3stedall/PSTD/milestone/5) | Contacts, appointments/recurrence, journals, tasks, sticky notes, and explicit unsupported routing | `RP-08` | `RP-M1`, `RP-M2` | Mixed folders yield reconciled typed records and validated vCard/iCalendar/vJournal values | 2–3 |
+| [`RP-M5 — Readpst output adapters`](https://github.com/andrew3stedall/PSTD/milestone/6) | mbox, recursive folder output, MH, EML, KMail, Thunderbird, separate files, typed files, and MSG | `RP-09` | `RP-M3`, `RP-M4` | Each readpst output family has a semantic adapter or explicit equivalent/unsupported result | 3–4 |
+| [`RP-M6 — Input breadth and hardening`](https://github.com/andrew3stedall/PSTD/milestone/7) | ANSI, OST 2013, encryption, large/sparse inputs, malformed derivatives, fuzzing, and bounded parallelism | `RP-02`, `RP-13` | `RP-M0`, `RP-M1` | Supported input families and adversarial derivatives have reproducible, bounded evidence | 2–3 |
+| [`RP-M7 — Readpst parity release gate`](https://github.com/andrew3stedall/PSTD/milestone/8) | Matrix promotion, E4 differential corpus, release decision, and synchronized documentation | `RP-10`, `RP-11` | `RP-M0`–`RP-M6` | No applicable unresolved matrix rows; repeat-run, output, negative, and documentation gates pass | 2 |
 
 `RP-M6` can run partly in parallel with `RP-M3`–`RP-M5` after the parser envelope exists, but its results cannot be promoted until the differential and status contracts from `RP-M0` are stable.
 
-Milestone provisioning and keyed issue assignment are idempotently automated by [the repository workboard workflow](../../.github/workflows/readpst-parity-workboard.yml). It runs when this orchestrator changes on `main` and can be rerun manually; it creates or reopens the exact milestone names above and assigns every issue whose title begins with an `RP-Mx-yy` work-unit key.
+Milestone provisioning and keyed issue assignment are idempotently automated by [the repository workboard workflow](../../.github/workflows/readpst-parity-workboard.yml). It ran successfully after PR #525 and can be rerun manually; it creates or reopens the exact milestone names above and assigns every issue whose title begins with an `RP-Mx-yy` work-unit key.
 
 ## Work-unit register
 
@@ -218,9 +218,9 @@ The agent must record “no change required” for each tangential page it inspe
 
 ## Global completion checklist
 
-- [ ] all eight GitHub milestones exist with the exact names in this document;
-- [ ] all 28 work-unit issues exist, use their stable keys, and link dependencies;
-- [ ] every issue is assigned to one milestone and one specialist role;
+- [x] all eight GitHub milestones exist with the exact names in this document;
+- [x] all 28 work-unit issues exist, use their stable keys, and link dependencies;
+- [x] every issue is assigned to one milestone and one specialist role;
 - [ ] `RP-M0` evidence and differential contracts are merged before feature dispatch;
 - [ ] no active issue bypasses the typed envelope or raw-evidence boundary;
 - [ ] every output adapter consumes canonical records rather than reparsing PST bytes;
