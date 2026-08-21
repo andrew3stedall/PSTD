@@ -323,10 +323,7 @@ pub fn build_item_routing_counts(
     counts
 }
 
-pub fn apply_item_routing_policy(
-    items: &mut [ItemEnvelope],
-    policy: ItemRoutingPolicy,
-) {
+pub fn apply_item_routing_policy(items: &mut [ItemEnvelope], policy: ItemRoutingPolicy) {
     for item in items {
         if item.record_kind != EnvelopeRecordKind::Item
             || item.routing_status.starts_with("failed_")
@@ -432,9 +429,9 @@ mod tests {
         EnvelopeRecordKind, FolderRecord, ItemEnvelope, ItemEnvelopeSource, ItemKind,
         ItemRoutingCountRecord, ItemVisibility,
     };
+    use crate::pst::item_routing::{ItemRoutingPolicy, ItemTypeFilter};
     use crate::pst::message_ownership::MessageOwnershipResolution;
     use crate::pst::nbt::NbtEntry;
-    use crate::pst::item_routing::{ItemRoutingPolicy, ItemTypeFilter};
     use crate::pst::primitives::{BlockId, NodeId};
 
     fn folder(name: &str, key: &str, node: Option<&str>) -> FolderRecord {

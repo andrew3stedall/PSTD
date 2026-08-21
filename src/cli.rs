@@ -264,8 +264,8 @@ pub fn run() -> i32 {
 #[cfg(test)]
 mod tests {
     use super::Cli;
-    use clap::Parser;
     use crate::config::{CollisionPolicy, DiagnosticsPolicy, OutputProfile};
+    use clap::Parser;
 
     #[test]
     fn translates_readpst_policy_flags_deterministically() {
@@ -291,13 +291,19 @@ mod tests {
             "--no-synthetic-rtf",
         ])
         .expect("CLI should parse");
-        let super::Commands::Extract { readpst, overwrite, .. } = cli.command else {
+        let super::Commands::Extract {
+            readpst, overwrite, ..
+        } = cli.command
+        else {
             panic!("expected extract command");
         };
         let policy = readpst.policy(overwrite).expect("policy should validate");
         assert!(policy.include_deleted);
         assert!(policy.include_associated);
-        assert_eq!(policy.item_type_filter, crate::pst::item_routing::ItemTypeFilter::Contact);
+        assert_eq!(
+            policy.item_type_filter,
+            crate::pst::item_routing::ItemTypeFilter::Contact
+        );
         assert_eq!(policy.attachment_extensions, ["doc", "txt"]);
         assert_eq!(policy.jobs, 4);
         assert_eq!(policy.diagnostics, DiagnosticsPolicy::Debug);
@@ -319,10 +325,15 @@ mod tests {
             "msg",
         ])
         .expect("CLI should parse");
-        let super::Commands::Extract { readpst, overwrite, .. } = cli.command else {
+        let super::Commands::Extract {
+            readpst, overwrite, ..
+        } = cli.command
+        else {
             panic!("expected extract command");
         };
-        let error = readpst.policy(overwrite).expect_err("msg is not implemented");
+        let error = readpst
+            .policy(overwrite)
+            .expect_err("msg is not implemented");
         assert!(error.contains("RPCLI_UNSUPPORTED_OUTPUT_PROFILE"));
     }
 }

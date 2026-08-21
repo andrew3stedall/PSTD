@@ -13,7 +13,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - run: cargo test cli item_envelope
+      - run: cargo test cli
+      - run: cargo test item_envelope
       - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
       - run: cargo fmt --check
       - name: Verify typed policy translation and fail-closed profiles

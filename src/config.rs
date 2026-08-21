@@ -240,7 +240,11 @@ fn parse_attachment_extensions(raw: Option<&str>) -> PstdResult<Vec<String>> {
         return Ok(Vec::new());
     };
     let mut extensions = Vec::new();
-    for value in raw.split(',').map(str::trim).filter(|value| !value.is_empty()) {
+    for value in raw
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
         let normalized = value.trim_start_matches('.').to_ascii_lowercase();
         if normalized.is_empty()
             || !normalized
