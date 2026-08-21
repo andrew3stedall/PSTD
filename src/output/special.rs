@@ -135,7 +135,9 @@ fn append_body_kind(
             "report" => "report_payload_observed_report_type_unavailable",
             _ => "schedule_payload_observed_method_unavailable",
         };
-        records.push(body_record(message, kind, media_type, body, payload, status, true, true, false));
+        records.push(body_record(
+            message, kind, media_type, body, payload, status, true, true, false,
+        ));
     }
 }
 
