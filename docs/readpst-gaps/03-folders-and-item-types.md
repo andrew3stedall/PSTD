@@ -4,7 +4,7 @@
 
 readpst starts from the message-store root, locates the top of the folder tree, recursively enters child folders, and processes every descriptor in each folder. It supports folders containing more than one item type and keeps output type streams separate so a calendar item is not placed into an email mbox.
 
-PSTD currently emits folder inventory and message ownership records for validated Unicode fixtures. The following behaviours remain parity requirements:
+PSTD now emits a typed folder/item envelope stream alongside folder inventory and message ownership records for the validated Unicode path. The envelope preserves source IDs, canonical paths, parent/child links, visibility, item-kind confidence, ownership status, and explicit skipped/ambiguous outcomes; `data/items.jsonl` is published through the canonical TAR output. Mixed non-mail class routing remains a later slice. The following behaviours remain parity requirements:
 
 - preserve the complete folder path and stable source node identity;
 - preserve folder content, unread, associated-content, and child-folder counts;
@@ -15,6 +15,10 @@ PSTD currently emits folder inventory and message ownership records for validate
 - preserve the message-store root’s well-known folder references and store metadata;
 - sanitize names only at the filesystem-output boundary, never in canonical records;
 - report null descriptors, skipped children, and failed branches without losing the parent folder count.
+
+## RP-M1-02 delivery
+
+The typed envelope contract is integrated through folder discovery, message-table membership, ownership resolution, metadata extraction, and the canonical archive writer. Folder records and validated message candidates retain source node/folder identity; associated candidates are marked `associated`; unresolved or ambiguous ownership is never guessed. Non-table NBT entries that cannot yet be classified are retained as `other` with `skipped_unclassified_source_entry`, while duplicate source identities and folder-path collisions receive explicit failure statuses. The envelope is additive and does not promote schedule, appointment, contact, journal, report, deleted, or `-t` routing parity.
 
 ## Item classes exposed by libpst
 
