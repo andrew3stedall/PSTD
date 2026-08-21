@@ -10,6 +10,8 @@ The matrix uses the shared status, provenance, fixture, and evidence types in `t
 
 The RP-M0-03 source manifest pins every reviewed direct path and work-unit anchor to the same upstream revision. Source drift is a release-blocking evidence failure until the ledger and comparison oracle are explicitly reviewed; no matrix row is promoted from a moving upstream baseline.
 
+The RP-M0-02 runner now provides the executable comparison contract: isolated bounded tool runs, semantic normalization, explicit parity/extension/unsupported/failure outcomes, negative path/resource checks, and repeated-report determinism. The approved Tika fixture remains E2/Partial evidence, and no capability row changes status from this control-plane work.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |
