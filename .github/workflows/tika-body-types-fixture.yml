@@ -63,6 +63,7 @@ jobs:
               ]
 
           messages = records('messages.jsonl')
+          headers = records('headers.jsonl')
           bodies = records('bodies.jsonl')
           by_message = defaultdict(list)
           for body in bodies:
@@ -70,6 +71,12 @@ jobs:
 
           if len(messages) != 4:
               raise SystemExit(f'unexpected message count: {len(messages)}')
+          if len(headers) != len(messages):
+              raise SystemExit(f'unexpected header projection count: {len(headers)}')
+          if {header['message_key'] for header in headers} != {
+              message['message_key'] for message in messages
+          }:
+              raise SystemExit('body-types headers do not cover message keys')
           if len(bodies) != 5:
               raise SystemExit(f'unexpected body record count: {len(bodies)}')
 

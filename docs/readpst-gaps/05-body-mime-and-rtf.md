@@ -45,6 +45,13 @@ PSTD’s `pstd-eml` binary already produces deterministic plain/HTML alternative
 
 readpst chooses a default charset from item metadata, code page, internet CPID, or `-C`. For an available UTF-8 representation it can prefer UTF-8 with `-8`; otherwise it converts UTF-8 to the selected target charset where possible. The writer uses `8bit` for suitable body text and base64 for binary attachment bytes.
 
+RP-M2-02 now publishes the header authority and charset decision before MIME
+assembly. Stored Unicode and String8 header values retain raw-property evidence;
+invalid or lossy values are explicitly non-authoritative. The current String8
+projection records its UTF-8-lossy decoder and ISO-8859-1 fallback policy so the
+later MIME adapter can implement readpst's item/code-page/`-C`/`-8` precedence
+without silently changing the default output.
+
 PSTD should separate:
 
 ```text

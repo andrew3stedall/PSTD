@@ -13,6 +13,7 @@ pub mod evidence;
 pub mod folder_tree;
 pub mod folders;
 pub mod header;
+pub mod header_projection;
 pub mod heap;
 pub mod inspect;
 pub mod item_envelope;

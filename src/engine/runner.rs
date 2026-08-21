@@ -73,6 +73,10 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     for record in &metadata.evidence {
         evidence.write_record(record)?;
     }
+    let mut headers = JsonlBuffer::new();
+    for record in &metadata.headers {
+        headers.write_record(record)?;
+    }
     let mut messages = JsonlBuffer::new();
     for record in &metadata.messages {
         messages.write_record(record)?;
@@ -148,6 +152,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         &item_routing_counts.into_bytes(),
     )?;
     tar.append_bytes(&["data", "evidence.jsonl"], &evidence.into_bytes())?;
+    tar.append_bytes(&["data", "headers.jsonl"], &headers.into_bytes())?;
     tar.append_bytes(&["data", "messages.jsonl"], &messages.into_bytes())?;
     tar.append_bytes(&["data", "recipients.jsonl"], &recipients.into_bytes())?;
     tar.append_bytes(

@@ -49,6 +49,23 @@ pub struct MessageRecord {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HeaderProjectionRecord {
+    pub message_key: String,
+    pub header_key: String,
+    pub source: String,
+    pub charset_policy: String,
+    pub raw_evidence_key: Option<String>,
+    pub raw_header_size_bytes: u64,
+    pub raw_header_sha256: Option<String>,
+    pub raw_header_bytes_hex: Option<String>,
+    pub stored_headers: Option<String>,
+    pub normalized_headers: Option<String>,
+    pub validation_status: String,
+    pub authoritative: bool,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RecipientRecord {
     pub message_key: String,
     pub recipient_key: String,
