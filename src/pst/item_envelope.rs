@@ -127,7 +127,9 @@ pub fn build_item_envelopes_with_policy(
         let classification = classify_message_class(message_class.as_deref());
         let item_kind = classification.kind.unwrap_or(ItemKind::Other);
         let routing = route_item(visibility, &classification, policy);
-        let extraction_status = if classification.kind.is_none() {
+        let extraction_status = if classification.kind.is_none()
+            && extraction_status == "item_metadata_unavailable"
+        {
             "unavailable_missing_item_class".to_string()
         } else {
             extraction_status
