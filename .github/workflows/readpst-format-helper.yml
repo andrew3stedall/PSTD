@@ -1,0 +1,28 @@
+name: Temporary readpst formatter
+
+on:
+  push:
+    branches:
+      - agent/readpst-rp-m0-02-differential-runner
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor == 'andrew3stedall'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Apply rustfmt to the changed harness files
+        run: |
+          cargo fmt
+          if git diff --quiet -- tests/readpst_diff/normalize.rs tests/readpst_diff_runner.rs; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/readpst_diff/normalize.rs tests/readpst_diff_runner.rs
+          git commit -m "style(readpst): apply rustfmt to differential diagnostics"
+          git push origin HEAD:agent/readpst-rp-m0-02-differential-runner
