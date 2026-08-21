@@ -90,6 +90,14 @@ evidence with separate readpst and PSTD statuses and are never promoted to ordin
 mail. Full journal MAPI field coverage and dedicated task/sticky renderers remain
 open.
 
+RP-M5-01 now establishes the first mailbox adapter family over canonical records:
+default mbox, recursive mbox, MH/rfc822, extended `.eml`, and separate numbered
+message files. The profiles preserve deterministic folder-local ordering, mboxrd versus
+message-file boundaries, safe relative paths, output hashes, and explicit skipped or
+unavailable decisions. The exit criterion remains Partial until the pinned readpst
+differential corpus, separate binary attachment/KMail/Thunderbird adapters, and later
+MSG gate are complete.
+
 ## Phase 3 — output adapters
 
 Add adapters over validated canonical records:

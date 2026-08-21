@@ -34,6 +34,12 @@ _Last reviewed: 21 August 2026._
 - Added canonical `NonMailRecord` evidence for journals, tasks, sticky notes, unknown classes, and missing message classes.
 - Added deterministic Partial `vjournal` output and distinct readpst/PSTD statuses for skipped, preserved, and unsupported non-mail items.
 
+### RP-M5-01
+
+- Added production mailbox projections over canonical records for default mbox, recursive mbox, MH/rfc822, extended EML, and separate numbered message files.
+- Added deterministic mboxrd escaping, MIME-header normalization/reconstruction, nested plain/HTML alternatives, binary attachment projection, path-safe folder collision handling, per-message negative decisions, output hashes, and an adapter manifest.
+- Kept KMail, Thunderbird sidecars, separate binary attachment files/extension filters, and MSG explicitly downstream rather than silently treating them as complete.
+
 ### Product foundation
 
 - Rust `pstd` CLI with `inspect`, `extract`, `batch`, and `version` commands.

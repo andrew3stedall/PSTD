@@ -1,0 +1,106 @@
+name: Readpst mailbox adapters
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  mailbox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test mailbox
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Verify mailbox, recursive, MH, EML, and separate profiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/pst/sample.pst"
+          fixture_sha256="ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe"
+          evidence="/tmp/pstd-mailbox"
+          first="/tmp/pstd-mailbox-first"
+          second="/tmp/pstd-mailbox-second"
+          mkdir -p "$evidence" "$first" "$second"
+          printf '%s  %s\n' "$fixture_sha256" "$fixture" | sha256sum --check -
+
+          for output in "$first" "$second"; do
+            for profile in mbox recursive_mbox mh eml separate; do
+              cargo run -- extract \
+                --input "$fixture" \
+                --output "$output/$profile" \
+                --output-profile "$profile" \
+                --overwrite > "$evidence/$(basename "$output")-$profile.stdout" \
+                2> "$evidence/$(basename "$output")-$profile.stderr"
+              tar_file=$(find "$output/$profile/archives" -type f -name '*.tar' | sort | head -n 1)
+              destination="$evidence/$(basename "$output")-$profile"
+              mkdir -p "$destination"
+              tar -xf "$tar_file" -C "$destination"
+              test -f "$destination/outputs/${profile}-profile-status.json"
+              test -f "$destination/data/mailbox_adapter_manifest.jsonl"
+            done
+          done
+
+          for profile in mbox recursive_mbox mh eml separate; do
+            diff -ru "$evidence/pstd-mailbox-first-$profile/outputs" \
+              "$evidence/pstd-mailbox-second-$profile/outputs"
+            cmp "$evidence/pstd-mailbox-first-$profile/data/mailbox_adapter_manifest.jsonl" \
+              "$evidence/pstd-mailbox-second-$profile/data/mailbox_adapter_manifest.jsonl"
+          done
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('/tmp/pstd-mailbox')
+          for profile in ('mbox', 'recursive_mbox', 'mh', 'eml', 'separate'):
+              archive = root / f'pstd-mailbox-first-{profile}'
+              status = json.loads((archive / 'outputs' / f'{profile}-profile-status.json').read_text())
+              assert status['profile'] == profile
+              assert status['publication_policy'].startswith('archive entries')
+              for artifact in status['artifacts']:
+                  path = artifact['path']
+                  assert not path.startswith('/')
+                  assert '..' not in Path(path).parts
+                  assert (archive / path).is_file()
+              if profile in {'mbox', 'recursive_mbox'}:
+                  mailbox_files = [
+                      path for path in (archive / 'outputs').rglob('*')
+                      if path.is_file() and path.name in {'mbox', 'email.mbox'}
+                  ]
+                  separators = sum(
+                      path.read_bytes().count(b'From ')
+                      for path in mailbox_files
+                  )
+                  assert separators == status['emitted_message_count']
+              else:
+                  assert all(
+                      not (archive / artifact['path']).read_bytes().startswith(b'From ')
+                      for artifact in status['artifacts']
+                  )
+              Path('/tmp/pstd-mailbox') .joinpath(f'{profile}-report.json').write_text(
+                  json.dumps({
+                      'fixture': str(Path('tests/fixtures/pst/sample.pst')),
+                      'fixture_sha256': 'ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe',
+                      'profile': profile,
+                      'status': status['status'],
+                      'emitted_message_count': status['emitted_message_count'],
+                      'artifact_count': status['artifact_count'],
+                      'deterministic_repeat': True,
+                      'path_safety_checked': True,
+                      'positive_unit_provenance': 'synthetic MIME/header/mbox cases in src/output/mailbox.rs',
+                      'negative_unit_provenance': 'missing class/body and non-mail classes in src/output/mailbox.rs',
+                  }, indent=2) + '\n'
+              )
+          PY
+      - name: Upload mailbox evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-mailbox-evidence
+          path: /tmp/pstd-mailbox
+          if-no-files-found: error

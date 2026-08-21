@@ -127,6 +127,11 @@ For every capability that readpst exposes, PSTD must provide one of the followin
 
 PSTD does not need to reproduce libpst’s legacy filenames or byte-for-byte output formatting as its canonical representation. It does need compatibility adapters or documented equivalent output for each readpst mode, with deterministic results and preserved source evidence.
 
+RP-M5-01 is the first adapter delivery: default mbox, recursive mbox, MH/rfc822,
+extended EML, and separate numbered message files now consume canonical PSTD records.
+The delivery is intentionally Partial pending the pinned readpst differential corpus and
+the downstream binary-attachment, KMail, Thunderbird, and MSG gates.
+
 ## Maintenance rule
 
 When a gap is implemented, update the matrix, the relevant topic document, the current-state project documentation, and the fixture evidence. Every row must retain:

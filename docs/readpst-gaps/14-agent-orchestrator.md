@@ -212,6 +212,16 @@ appear at most once in the non-mail stream.
 | [RP-M5-03](https://github.com/andrew3stedall/PSTD/issues/517) | Add Thunderbird sidecars and typed contact/calendar/journal file adapters | `mk_thunderbird_dir`, `write_vcard`, `write_appointment`, `write_journal` | `.type`/`.size` sidecars and typed output profiles | `RP-M4-01`, `RP-M4-02`, `RP-M4-03`, `RP-M3-03` | interoperability agent |
 | [RP-M5-04](https://github.com/andrew3stedall/PSTD/issues/518) | Implement OLE `.msg` output with a round-trip gate | `src/msg.cpp`, property/recipient/attachment storages; method-5 limitation | Rust OLE writer, supported-property map, independent MSG reader | `RP-M2-01`, `RP-M2-04`, `RP-M3-01` | MSG/OLE agent |
 
+### RP-M5-01 delivery note
+
+RP-M5-01 is integrated on the canonical runner as the first mailbox adapter family.
+`mbox`, `recursive_mbox`, `mh`, `eml`, and `separate` consume typed message/header/body/
+recipient/attachment evidence without reopening PST bytes. The adapter records mbox
+separator versus message-file semantics, sanitized folder paths, stable collision suffixes,
+per-message unavailable/skipped decisions, output hashes, and a mailbox manifest. The
+sample-PST workflow proves repeat-run equality; full pinned readpst differential promotion,
+binary attachment files, KMail, Thunderbird, and MSG remain downstream work.
+
 ### `RP-M6 — Input breadth and hardening`
 
 | Key | Work unit | Source/readpst anchors | PSTD boundary | Depends on | Specialist |

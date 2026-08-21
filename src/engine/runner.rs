@@ -10,6 +10,7 @@ use crate::output::calendar::serialize_icalendar;
 use crate::output::contact::{serialize_contact_list, serialize_vcards};
 use crate::output::ids;
 use crate::output::jsonl_writer::JsonlBuffer;
+use crate::output::mailbox::render_profile;
 use crate::output::metadata::MessageRecord;
 use crate::output::non_mail::serialize_vjournals;
 use crate::output::summary::ExtractionSummary;
@@ -292,6 +293,47 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         tar.append_bytes(
             &["outputs", "journals.vjournal"],
             serialize_vjournals(&metadata.non_mail).as_bytes(),
+        )?;
+    }
+    if let Some(mailbox) = render_profile(
+        config.readpst.output_profile,
+        &metadata.folders,
+        &metadata.messages,
+        &metadata.headers,
+        &metadata.recipients,
+        &metadata.bodies,
+        &metadata.body_payloads,
+        &metadata.attachments,
+        &metadata.attachment_payloads,
+    ) {
+        tar.append_bytes(
+            &[
+                "outputs",
+                &format!("{}-profile-status.json", mailbox.status.profile),
+            ],
+            &serde_json::to_vec_pretty(&mailbox.status)?,
+        )?;
+        let mut adapter_manifest = JsonlBuffer::new();
+        for artifact in &mailbox.artifacts {
+            append_archive_payload(&mut tar, &artifact.summary.path, &artifact.bytes)?;
+            let record = crate::output::metadata::ManifestRecord {
+                run_id: run_id.clone(),
+                pst_id: pst_id.clone(),
+                message_key: artifact.summary.message_key.clone(),
+                folder_key: None,
+                artefact_type: format!("mailbox_{}", mailbox.status.profile),
+                archive_path: artifact.summary.path.clone(),
+                sha256: Some(artifact.summary.sha256.clone()),
+                size_bytes: Some(artifact.summary.size_bytes),
+                status: artifact.summary.status.clone(),
+                issue_count: 0,
+            };
+            manifest.write_record(&record)?;
+            adapter_manifest.write_record(&record)?;
+        }
+        tar.append_bytes(
+            &["data", "mailbox_adapter_manifest.jsonl"],
+            &adapter_manifest.into_bytes(),
         )?;
     }
     tar.append_bytes(&["data", "attachments.jsonl"], &attachments.into_bytes())?;

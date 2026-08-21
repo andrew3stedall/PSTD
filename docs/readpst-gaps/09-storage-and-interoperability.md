@@ -6,10 +6,10 @@ PSTD’s TAR/JSONL archive is the correct canonical evidence boundary for the pr
 
 | Format | readpst result | PSTD status | Required behaviour |
 |---|---|---|---|
-| mbox | One file per folder/type, multiple messages with mbox `From ` separators. | **Gap** | Emit deterministic mbox with mboxrd escaping and preserved message order. |
-| recursive mbox (`-r`) | PST folder tree as directories; each folder has a reduced-type mailbox. | **Gap** | Recreate folder hierarchy safely and keep each item type in its own stream. |
-| MH/rfc822 (`-M`) | One message per numbered file, no separator line. | **Gap** | Emit individual RFC 822/EML files and sidecar attachments according to policy. |
-| separate with extensions (`-e`) | Numbered `.eml`, `.vcf`, and `.ics` files. | **Partial** | Generalize current EML assembly and add typed non-mail extensions. |
+| mbox | One file per folder/type, multiple messages with mbox `From ` separators. | **Partial** | `src/output/mailbox.rs` emits deterministic mboxrd streams over canonical mail records; reduced-type and broad-corpus evidence remain. |
+| recursive mbox (`-r`) | PST folder tree as directories; each folder has a reduced-type mailbox. | **Partial** | `recursive_mbox` recreates sanitized folder paths and records skipped/unavailable decisions; typed side streams remain. |
+| MH/rfc822 (`-M`) | One message per numbered file, no separator line. | **Partial** | `mh` emits folder-local numbered files with no mbox separator. |
+| separate with extensions (`-e`) | Numbered `.eml`, `.vcf`, and `.ics` files. | **Partial** | `eml` emits numbered `.eml`; contact/calendar/journal extensions are covered by their named profiles and broader combination tests remain. |
 | separate with MSG (`-m`) | Extended separate output plus `.msg`. | **Gap** | Provide a tested MSG writer or clearly scoped equivalent; do not generate a mislabeled EML. |
 | KMail (`-k`) | `.folder.directory` layout and mbox files suitable for KMail. | **Gap** | Add a KMail adapter with safe folder names and documented index behaviour. |
 | Thunderbird (`-u`) | Recursive output plus `.type` and `.size` files per folder. | **Gap** | Emit the two sidecars from canonical counts and preserve skipped/unavailable counts separately. |
@@ -136,6 +136,15 @@ profiles. They consume `ContactRecord` values from canonical extraction, publish
 deterministic `contacts.vcf`/`contacts.txt` projections, and emit an explicit
 profile-status record when the source contains no validated contacts. No contact
 profile reparses PST bytes or promotes missing contact fields.
+
+RP-M5-01 adds the first mailbox adapter family. The implementation is a pure projection
+over `MessageRecord`, `HeaderProjectionRecord`, body payloads, recipients, and available
+attachment payloads; it never reparses PST bytes. It publishes profile status, per-message
+decisions, output hashes, and `data/mailbox_adapter_manifest.jsonl` inside the canonical
+TAR. Paths are sanitized relative paths with stable folder collision suffixes. Complete
+serialization is performed before archive publication, so a failed or unavailable message
+does not leave a partial direct output file. This slice is Partial until the pinned
+readpst differential corpus and downstream attachment/KMail/Thunderbird gates pass.
 # RP-M2-03 delivery
 
 Canonical attachment output now records method/source, order, CID, original and safe
