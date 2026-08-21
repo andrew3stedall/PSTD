@@ -329,7 +329,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
                 issue_count: 0,
             };
             manifest.write_record(&record)?;
-            adapter_manifest.write_record(&record)?;
+            adapter_manifest.write_record(&artifact.summary)?;
         }
         tar.append_bytes(
             &["data", "mailbox_adapter_manifest.jsonl"],
