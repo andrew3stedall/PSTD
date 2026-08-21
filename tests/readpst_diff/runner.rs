@@ -222,7 +222,7 @@ pub fn run_isolated(spec: &CommandSpec, limits: &RunLimits) -> Result<RunResult,
     let execution = ToolExecution {
         tool: spec.tool.clone(),
         version: spec.version.clone(),
-        command: spec.command.clone(),
+        command: stable_command(&spec.command, &sandbox, &output_root),
         exit_status,
         stdout_sha256: Some(sha256_hex(&stdout.bytes)),
         stderr_sha256: Some(sha256_hex(&stderr.bytes)),
@@ -240,6 +240,19 @@ pub fn run_isolated(spec: &CommandSpec, limits: &RunLimits) -> Result<RunResult,
         timed_out,
         output_limited,
     })
+}
+
+fn stable_command(command: &[String], sandbox: &Path, output_root: &Path) -> Vec<String> {
+    let sandbox = path_string(sandbox);
+    let output_root = path_string(output_root);
+    command
+        .iter()
+        .map(|argument| {
+            argument
+                .replace(&sandbox, "{sandbox}")
+                .replace(&output_root, "{output_root}")
+        })
+        .collect()
 }
 
 fn capture_stream<R: Read>(
