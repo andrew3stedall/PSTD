@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::output::ids;
 use crate::output::metadata::{
-    EnvelopeRecordKind, ItemEnvelope, ItemEnvelopeSource, ItemKind, ItemVisibility, MessageRecord,
-    FolderRecord,
+    EnvelopeRecordKind, FolderRecord, ItemEnvelope, ItemEnvelopeSource, ItemKind, ItemVisibility,
+    MessageRecord,
 };
 use crate::pst::message_ownership::MessageOwnershipResolution;
 use crate::pst::message_table::{
@@ -100,11 +100,9 @@ pub fn build_item_envelopes(
                 ItemKind::Note,
                 "node_type_only_associated",
             ),
-            Some(MessageNodeType::NormalMessage) => (
-                ItemVisibility::Visible,
-                ItemKind::Note,
-                "node_type_only",
-            ),
+            Some(MessageNodeType::NormalMessage) => {
+                (ItemVisibility::Visible, ItemKind::Note, "node_type_only")
+            },
             None => (
                 ItemVisibility::Unknown,
                 ItemKind::Other,
@@ -197,7 +195,8 @@ pub fn build_item_envelopes(
                 folder_id: (!message.folder_key.is_empty()).then(|| message.folder_key.clone()),
                 ordinal: messages.len() as u64,
             },
-            parent_envelope_key: (!message.folder_key.is_empty()).then(|| message.folder_key.clone()),
+            parent_envelope_key: (!message.folder_key.is_empty())
+                .then(|| message.folder_key.clone()),
             child_envelope_keys: Vec::new(),
             folder_path: message.folder_path.clone(),
             visibility: ItemVisibility::Visible,
@@ -280,7 +279,9 @@ fn reconcile_folder_relationships(envelopes: &mut [ItemEnvelope]) {
                 .values()
                 .any(|indices| indices.len() > 1 && indices.contains(&index))
             {
-                envelope.provenance_status.push_str("; folder_path_collision");
+                envelope
+                    .provenance_status
+                    .push_str("; folder_path_collision");
                 envelope.extraction_status = "failed_folder_path_collision".to_string();
             }
         }
@@ -292,12 +293,10 @@ mod tests {
     use std::collections::HashMap;
 
     use super::build_item_envelopes;
-    use crate::output::metadata::{EnvelopeRecordKind, ItemKind, ItemVisibility};
+    use crate::output::metadata::{EnvelopeRecordKind, FolderRecord, ItemKind, ItemVisibility};
     use crate::pst::message_ownership::MessageOwnershipResolution;
-    use crate::pst::message_table::MessageNodeType;
     use crate::pst::nbt::NbtEntry;
     use crate::pst::primitives::{BlockId, NodeId};
-    use crate::output::metadata::FolderRecord;
 
     fn folder(name: &str, key: &str, node: Option<&str>) -> FolderRecord {
         FolderRecord {
@@ -352,10 +351,13 @@ mod tests {
             .collect();
         assert_eq!(keys.len(), 2);
         assert_ne!(keys[0], keys[1]);
-        assert!(envelopes.iter().all(|envelope| {
-            envelope.item_kind == Some(ItemKind::Note)
-                && envelope.visibility == ItemVisibility::Visible
-        }));
+        assert!(envelopes
+            .iter()
+            .filter(|envelope| envelope.record_kind == EnvelopeRecordKind::Item)
+            .all(|envelope| {
+                envelope.item_kind == Some(ItemKind::Note)
+                    && envelope.visibility == ItemVisibility::Visible
+            }));
     }
 
     #[test]
@@ -374,18 +376,14 @@ mod tests {
             .iter()
             .find(|envelope| envelope.source.node_id.as_deref() == Some("node_24"))
             .unwrap();
-        assert_eq!(
-            envelope.extraction_status,
-            "unavailable_ambiguous_owner"
-        );
+        assert_eq!(envelope.extraction_status, "unavailable_ambiguous_owner");
         assert_eq!(envelope.parent_envelope_key, None);
     }
 
     #[test]
     fn classifies_unmapped_source_entries_as_explicit_other() {
         let entries = vec![entry(0x21)];
-        let envelopes =
-            build_item_envelopes("pst-test", &[], &entries, &[], &HashMap::new(), &[]);
+        let envelopes = build_item_envelopes("pst-test", &[], &entries, &[], &HashMap::new(), &[]);
         let envelope = &envelopes[0];
         assert_eq!(envelope.item_kind, Some(ItemKind::Other));
         assert_eq!(envelope.visibility, ItemVisibility::Unknown);
