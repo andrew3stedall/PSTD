@@ -28,6 +28,20 @@ pub fn archive_path(parts: &[impl AsRef<str>]) -> PathBuf {
     path
 }
 
+pub fn archive_path_preserve_hidden(parts: &[impl AsRef<str>]) -> PathBuf {
+    let mut path = PathBuf::new();
+    for part in parts {
+        let raw = part.as_ref();
+        let safe = sanitize_segment(raw);
+        if raw.starts_with('.') && raw != "." && raw != ".." {
+            path.push(format!(".{safe}"));
+        } else {
+            path.push(safe);
+        }
+    }
+    path
+}
+
 #[derive(Debug, Default)]
 pub struct UniquePathTracker {
     seen: HashMap<String, usize>,

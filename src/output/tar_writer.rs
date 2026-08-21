@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use tar::{Builder, Header};
 
 use crate::error::{PstdError, PstdResult};
-use crate::output::paths::archive_path;
+use crate::output::paths::{archive_path, archive_path_preserve_hidden};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ShardInfo {
@@ -51,13 +51,24 @@ impl TarShardWriter {
     }
 
     pub fn append_bytes(&mut self, path_parts: &[impl AsRef<str>], bytes: &[u8]) -> PstdResult<()> {
+        self.append_path(archive_path(path_parts), bytes)
+    }
+
+    pub fn append_bytes_preserve_hidden(
+        &mut self,
+        path_parts: &[impl AsRef<str>],
+        bytes: &[u8],
+    ) -> PstdResult<()> {
+        self.append_path(archive_path_preserve_hidden(path_parts), bytes)
+    }
+
+    fn append_path(&mut self, path: PathBuf, bytes: &[u8]) -> PstdResult<()> {
         if self.current_size > 0
             && self.current_size.saturating_add(bytes.len() as u64) > self.target_size_bytes
         {
             self.rotate()?;
         }
 
-        let path = archive_path(path_parts);
         let mut header = Header::new_gnu();
         header.set_size(bytes.len() as u64);
         header.set_mode(0o644);
