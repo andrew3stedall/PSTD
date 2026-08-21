@@ -91,8 +91,9 @@ for report, schedule/meeting, encrypted, and synthetic RTF branches. Raw readabl
 special-body hashes survive missing or malformed semantic properties; encrypted
 records never expose decoded hashes; validated RTF emits a synthetic non-authoritative
 `application/rtf` MIME part without replacing raw evidence. Synthetic unit and
-repeat-run body-fixture evidence pass, while broad report-type, recurrence, and
-calendar-property coverage remains Partial.
+repeat-run evidence uses the repository `sample.pst` RTF fixture and the existing
+body/MIME fixtures, while broad report-type, recurrence, and calendar-property
+coverage remains Partial.
 
 ## CLI, policy, and operational behaviour
 

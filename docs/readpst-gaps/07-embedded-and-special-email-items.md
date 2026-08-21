@@ -157,6 +157,9 @@ raw body evidence.
 
 The special-item workflow repeats extraction, checks evidence linkage and the
 encrypted decoding prohibition, and reconciles synthetic RTF records with MIME parts.
+Its RTF gate uses the repository's existing `tests/fixtures/pst/sample.pst` fixture
+(SHA-256 `ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe`),
+whose readable RTF path is independently exercised by the RTF fixture workflow.
 Synthetic unit evidence covers unavailable reports/schedules, opaque encrypted bytes,
 and valid RTF; broad recurrence/report-property producer coverage remains open.
 # RP-M2-03 delivery

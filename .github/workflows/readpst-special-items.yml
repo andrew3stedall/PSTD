@@ -20,12 +20,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          fixture="tests/fixtures/upstream/tika-various-body-types.pst"
+          fixture="tests/fixtures/pst/sample.pst"
+          fixture_sha256="ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe"
           evidence="/tmp/pstd-special-items"
           first="/tmp/pstd-special-items-first"
           second="/tmp/pstd-special-items-second"
           mkdir -p "$evidence" "$first" "$second"
-          (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
+          printf '%s  %s\n' "$fixture_sha256" "$fixture" | sha256sum --check -
 
           cargo run -- extract --input "$fixture" --output "$first" --overwrite \
             > "$evidence/first.stdout" 2> "$evidence/first.stderr"
@@ -87,8 +88,8 @@ jobs:
               raise SystemExit('synthetic RTF MIME part was marked authoritative')
           Path('/tmp/pstd-special-items/special-items-report.json').write_text(
               json.dumps({
-                  'fixture': 'tests/fixtures/upstream/tika-various-body-types.pst',
-                  'fixture_sha256': '24c5e6bbb8bf26a817c977283e40e7b69d2661fec0845abbe177f97efcb05fb0',
+                  'fixture': 'tests/fixtures/pst/sample.pst',
+                  'fixture_sha256': 'ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe',
                   'special_item_count': len(specials),
                   'rtf_synthetic_count': len(rtf_specials),
                   'synthetic_mime_count': len(synthetic_rtf_parts),
