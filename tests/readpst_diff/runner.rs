@@ -165,8 +165,12 @@ pub fn run_isolated(spec: &CommandSpec, limits: &RunLimits) -> Result<RunResult,
     let limit_hit = Arc::new(AtomicBool::new(false));
     let stdout_limit = Arc::clone(&limit_hit);
     let stderr_limit = Arc::clone(&limit_hit);
-    let stdout_thread = thread::spawn(move || capture_stream(stdout, limits.max_stdout_bytes, stdout_limit));
-    let stderr_thread = thread::spawn(move || capture_stream(stderr, limits.max_stderr_bytes, stderr_limit));
+    let max_stdout_bytes = limits.max_stdout_bytes;
+    let max_stderr_bytes = limits.max_stderr_bytes;
+    let stdout_thread =
+        thread::spawn(move || capture_stream(stdout, max_stdout_bytes, stdout_limit));
+    let stderr_thread =
+        thread::spawn(move || capture_stream(stderr, max_stderr_bytes, stderr_limit));
 
     let started = Instant::now();
     let mut timed_out = false;
@@ -410,7 +414,6 @@ fn path_string(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use tempfile::tempdir;
 
     fn spec(root: &Path, command: Vec<String>) -> CommandSpec {
@@ -427,7 +430,7 @@ mod tests {
                 vec![
                     "sh".to_string(),
                     "-c".to_string(),
-                    "printf 'stdout'; printf 'stderr' >&2; printf 'payload' > message.eml",
+                    "printf 'stdout'; printf 'stderr' >&2; printf 'payload' > message.eml".to_string(),
                 ],
             ),
             &RunLimits::default(),
@@ -456,7 +459,7 @@ mod tests {
                 vec![
                     "sh".to_string(),
                     "-c".to_string(),
-                    "printf 'this output is too long'; touch ../escape",
+                    "printf 'this output is too long'; touch ../escape".to_string(),
                 ],
             ),
             &limits,
@@ -476,7 +479,7 @@ mod tests {
         let result = run_isolated(
             &spec(
                 root.path(),
-                vec!["sh".to_string(), "-c".to_string(), "sleep 1"],
+                vec!["sh".to_string(), "-c".to_string(), "sleep 1".to_string()],
             ),
             &limits,
         )
