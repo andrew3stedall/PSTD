@@ -5,7 +5,7 @@ use crate::engine::message_folder_ownership::resolve_folder_ownership;
 use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::ids;
 use crate::output::metadata::{
-    AttachmentRecord, BodyRecord, FolderRecord, ManifestRecord, MessageRecord,
+    AttachmentRecord, BodyRecord, FolderRecord, ItemEnvelope, ManifestRecord, MessageRecord,
     MessageReferenceRecord, RecipientRecord,
 };
 use crate::pst::attachment_property_context::{
@@ -25,6 +25,7 @@ use crate::pst::folder_tree::{
     folder_from_nbt_candidate, is_folder_candidate, root_folder_from_header, FolderInventoryRecord,
 };
 use crate::pst::header::PstHeader;
+use crate::pst::item_envelope::build_item_envelopes;
 use crate::pst::limits::ParserLimits;
 use crate::pst::message_metadata::{message_from_properties, status_row};
 use crate::pst::message_ownership::MessageOwnershipResolution;
@@ -51,6 +52,7 @@ use crate::pst::tc_run_reporting::TcRunProbeCollector;
 pub struct MetadataExtractionOutput {
     pub folders: Vec<FolderRecord>,
     pub folder_inventory: Vec<FolderInventoryRecord>,
+    pub items: Vec<ItemEnvelope>,
     pub messages: Vec<MessageRecord>,
     pub recipients: Vec<RecipientRecord>,
     pub message_references: Vec<MessageReferenceRecord>,
@@ -622,6 +624,15 @@ pub fn extract_metadata(
         ));
     }
 
+    let items = build_item_envelopes(
+        pst_id,
+        &folders,
+        &nbt.entries,
+        &message_table_discovery.message_candidates,
+        &ownership_report.resolutions,
+        &messages,
+    );
+
     let table_probe_summary = finalize_table_probe_collection(run_id, table_probe_collector);
     if let Some(issue) = table_probe_summary.issue.clone() {
         issues.push(issue);
@@ -739,6 +750,7 @@ pub fn extract_metadata(
     Ok(MetadataExtractionOutput {
         folders,
         folder_inventory,
+        items,
         messages,
         recipients,
         message_references,
@@ -1173,6 +1185,7 @@ pub fn fallback_metadata(
     MetadataExtractionOutput {
         folders: vec![folder],
         folder_inventory: vec![inventory],
+        items: Vec::new(),
         messages: vec![status_row(
             run_id,
             pst_id,

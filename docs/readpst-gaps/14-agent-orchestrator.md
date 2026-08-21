@@ -62,6 +62,11 @@ RP-M0-01, RP-M0-02, and RP-M0-03 are the serialized control-plane slices: contra
 ### RP-M1-01 dispatch note
 
 RP-M1-01 is the serialized input-parser slice. Its accepted boundary is the typed capability record and bounded reader policy, with inspect and canonical extraction visibility. It must merge before the dependent typed extraction, charset, and hardening slices are dispatched; unsupported or partial capability states remain explicit and never establish false ownership.
+### RP-M1-02 delivery note
+
+RP-M1-02 adds the production `ItemEnvelope` contract and `data/items.jsonl` archive stream over the validated folder/message ownership path. Its evidence boundary is source identity, canonical folder relationships, visibility, ownership status, deterministic ordering, and explicit unknown/duplicate/path-collision outcomes. It does not claim mixed non-mail routing or deleted-item policy. #504 remains serialized until this shared envelope contract is merged and reconciled.
+
+
 ### `RP-M1 — Typed extraction core`
 
 | Key | Work unit | Source/readpst anchors | PSTD boundary | Depends on | Specialist |

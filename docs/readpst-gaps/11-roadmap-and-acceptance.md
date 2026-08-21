@@ -31,6 +31,10 @@ The semantic differential slice is implemented in `tests/readpst_diff/{runner,no
 ### RP-M1-01 delivery
 
 The first typed-core slice is implemented across `src/pst/capability.rs`, the header/index-family decoder, bounded reader/limits policy, inspect projection, and canonical extraction archive. Positive Unicode capability evidence and controlled ANSI/OST/unknown/crypt/short-header/budget negatives are covered by deterministic tests. The slice is deliberately a prerequisite contract; it does not promote broad Unicode traversal or any output-mode row.
+### RP-M1-02 delivery
+
+The typed folder/item envelope is integrated into metadata extraction and canonical TAR/JSONL output. It records folder and message source identity, ownership, visibility, item-kind confidence, parent/child links, provenance references, and explicit duplicate, path-collision, unknown, and ambiguous statuses. The current evidence is the approved Tika Unicode fixture plus deterministic synthetic ownership tests; no mixed-folder non-mail capability row is promoted by this slice.
+
 ## Phase 1 — Unicode message breadth
 
 Broaden the existing strongest path before adding legacy formats:
