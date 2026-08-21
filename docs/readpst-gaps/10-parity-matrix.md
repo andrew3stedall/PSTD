@@ -95,6 +95,15 @@ repeat-run evidence uses the repository `sample.pst` RTF fixture and the existin
 body/MIME fixtures, while broad report-type, recurrence, and calendar-property
 coverage remains Partial.
 
+## RP-M3-03 delivery
+
+Typed CLI policy translation is integrated into the canonical path. `canonical` is the
+implemented output profile; mbox, recursive mbox, MH, EML, separate, KMail, Thunderbird,
+vCard, contact-list, iCalendar, vJournal, and MSG names are recognized and return
+explicit unsupported results until RP-M4/RP-M5 adapters land. Visibility/type filters
+are applied to item routing statuses while source provenance remains present, and
+policy JSON plus repeat-run item output are deterministic. Adapter parity remains open.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |

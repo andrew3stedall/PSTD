@@ -13,6 +13,7 @@ use crate::output::summary::ExtractionSummary;
 use crate::output::tar_writer::TarShardWriter;
 use crate::progress::{ProgressEvent, ProgressEventType};
 use crate::pst::capability::{InputCapability, InputCapabilityStatus};
+use crate::pst::item_envelope::{apply_item_routing_policy, build_item_routing_counts};
 use crate::pst::limits::InputLimits;
 
 pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
@@ -37,7 +38,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     )?;
 
     let capability = InputCapability::probe(&config.input, InputLimits::default());
-    let metadata = if capability.allows_extraction {
+    let mut metadata = if capability.allows_extraction {
         match extract_metadata(&input_display, &run_id, &pst_id) {
             Ok(value) => value,
             Err(reason) if config.continue_on_error => fallback_metadata(&run_id, &pst_id, &reason),
@@ -51,6 +52,8 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
             return Err(reason);
         }
     };
+    apply_item_routing_policy(&mut metadata.items, config.readpst.routing_policy());
+    metadata.item_routing_counts = build_item_routing_counts(&metadata.folders, &metadata.items);
     let metadata_status = status_with_property_diagnostics(&metadata.status, &metadata.messages);
 
     let mut folders = JsonlBuffer::new();
@@ -144,6 +147,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         "input": input_display,
         "manifest_only": config.manifest_only,
         "profile": config.profile,
+        "readpst_policy": config.readpst.clone(),
         "metadata_status": metadata_status.clone(),
         "input_capability_status": capability.status,
         "input_capability_family": capability.family,
@@ -827,6 +831,7 @@ fn validate_config(config: &ExtractConfig) -> PstdResult<()> {
             "data-format must be jsonl".to_string(),
         ));
     }
+    config.readpst.validate()?;
     Ok(())
 }
 

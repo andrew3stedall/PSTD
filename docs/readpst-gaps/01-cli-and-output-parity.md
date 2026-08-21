@@ -125,3 +125,19 @@ The CLI parser should translate legacy flags into this typed configuration and r
 - rerun behaviour for every overwrite mode.
 
 The affected documents are [folders and item types](03-folders-and-item-types.md), [attachments](06-attachments.md), [storage outputs](09-storage-and-interoperability.md), [the matrix](10-parity-matrix.md), and [the roadmap](11-roadmap-and-acceptance.md).
+
+## RP-M3-03 typed policy delivery
+
+PSTD now translates the readpst-visible policy surface into a serializable
+`ReadpstPolicy` before extraction. The policy records canonical versus named legacy
+output profiles, fallback charset and UTF-8 preference, deleted/associated visibility,
+one typed `-t` family filter, normalized attachment extensions, synthetic RTF policy,
+bounded jobs, diagnostics, collision, and overwrite settings. The canonical path
+applies the visibility/type filter to `data/items.jsonl` routing statuses while retaining
+source IDs and raw evidence references; it also records the policy in the run manifest.
+
+Legacy output names are recognized but fail closed with a stable
+`RPCLI_UNSUPPORTED_OUTPUT_PROFILE` result until their dedicated adapters are merged.
+Invalid item-type combinations, attachment extensions, charset names, diagnostic levels,
+collision policies, and job bounds likewise return explicit `RPCLI_*` configuration
+errors. Profile selection therefore cannot silently fall back to canonical output.

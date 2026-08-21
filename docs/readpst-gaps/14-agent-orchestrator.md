@@ -134,6 +134,14 @@ repository fixture `tests/fixtures/pst/sample.pst` (SHA-256
 `ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe`), while
 report/schedule/encrypted negative cases remain covered by synthetic unit evidence.
 
+### RP-M3-03 dispatch note
+
+RP-M3-03 owns the typed CLI policy boundary. `ReadpstPolicy` validates named output
+profiles, visibility/type filters, charset and attachment policies, diagnostics,
+collision/overwrite policy, and bounded jobs before extraction. The canonical path
+records the policy and applies routing filters without removing provenance. Legacy
+profiles fail explicitly as unsupported until their adapter work is complete.
+
 
 ### `RP-M1 — Typed extraction core`
 

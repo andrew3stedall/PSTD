@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use crate::config::ExtractConfig;
+use crate::config::{ExtractConfig, ReadpstPolicy};
 use crate::engine::runner::run_extract;
 use crate::error::PstdResult;
 use crate::output::summary::ExtractionSummary;
@@ -21,6 +21,7 @@ pub struct BatchConfig {
     pub progress: String,
     pub log_level: String,
     pub profile: String,
+    pub readpst: ReadpstPolicy,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -247,6 +248,7 @@ fn run_batch_item(config: &BatchConfig, pst_path: &Path, item_output: &Path) -> 
         progress: config.progress.clone(),
         log_level: config.log_level.clone(),
         profile: config.profile.clone(),
+        readpst: config.readpst.clone(),
     };
 
     match run_extract(extract_config) {
