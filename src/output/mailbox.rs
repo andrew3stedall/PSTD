@@ -525,7 +525,8 @@ fn append_separate_attachments(
             });
             continue;
         }
-        if attachment.attachment_method == Some(crate::pst::attachments::ATTACH_METHOD_EMBEDDED_MESSAGE)
+        if attachment.attachment_method
+            == Some(crate::pst::attachments::ATTACH_METHOD_EMBEDDED_MESSAGE)
         {
             *attachment_unavailable_count += 1;
             decisions.push(MailboxAttachmentDecision {
@@ -1322,8 +1323,7 @@ mod tests {
             .iter()
             .any(|artifact| artifact.summary.path.ends_with("1-report.PDF")));
         assert!(output.status.attachment_decisions.iter().any(|decision| {
-            decision.status == "filtered_attachment_extension"
-                && decision.filename == "image.png"
+            decision.status == "filtered_attachment_extension" && decision.filename == "image.png"
         }));
         assert!(output.status.attachment_decisions.iter().any(|decision| {
             decision.status == "unavailable_attachment_payload"
