@@ -103,7 +103,6 @@ pub struct FolderRecord {
     pub status: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EnvelopeRecordKind {
@@ -162,6 +161,7 @@ pub struct ItemEnvelope {
     pub raw_evidence_refs: Vec<String>,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ManifestRecord {
     pub run_id: String,
     pub pst_id: String,
