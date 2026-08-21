@@ -9,6 +9,12 @@ pub const PST_HEADER_CRYPT_METHOD_OFFSET: usize = 513;
 pub const PST_ANSI_HEADER_CRYPT_METHOD_OFFSET: usize = 461;
 const PST_HEADER_READ_BYTES: usize = PST_HEADER_CRYPT_METHOD_OFFSET + 1;
 pub const PST_MAGIC: [u8; 4] = [0x21, 0x42, 0x44, 0x4e];
+pub const PST_INDEX_TYPE_OFFSET: usize = 0x0a;
+pub const PST_INDEX_TYPE_ANSI32: u8 = 0x0e;
+pub const PST_INDEX_TYPE_ANSI32A: u8 = 0x0f;
+pub const PST_INDEX_TYPE_UNICODE64A: u8 = 0x15;
+pub const PST_INDEX_TYPE_UNICODE64: u8 = 0x17;
+pub const PST_INDEX_TYPE_OST2013: u8 = 0x24;
 pub const PST_ROOT_PAGE_SIZE_BYTES: u64 = 512;
 
 const LEGACY_NBT_ROOT_OFFSET_FIELD: usize = 48;
@@ -224,6 +230,7 @@ pub struct PstHeaderSummary {
     pub magic: String,
     pub magic_client: Option<String>,
     pub version: Option<u16>,
+    pub index_type: Option<u8>,
     pub variant: String,
     pub crypt_method: Option<u8>,
     pub bbt_root_offset: Option<u64>,
@@ -258,9 +265,16 @@ impl PstHeader {
 
         let magic_client = String::from_utf8_lossy(&buf[8..10]).to_string();
         let version = u16_le_at(buf, 10, 0)?;
-        let variant = match version {
-            23 | 36 => PstVariant::Unicode,
-            14 | 15 => PstVariant::Ansi,
+        let index_type = buf.get(PST_INDEX_TYPE_OFFSET).copied();
+        let variant = match index_type {
+            Some(PST_INDEX_TYPE_UNICODE64A | PST_INDEX_TYPE_UNICODE64) => PstVariant::Unicode,
+            Some(PST_INDEX_TYPE_ANSI32 | PST_INDEX_TYPE_ANSI32A) => PstVariant::Ansi,
+            Some(PST_INDEX_TYPE_OST2013) => PstVariant::Ost2013,
+            _ if index_type.is_none() => match version {
+                23 | 36 => PstVariant::Unicode,
+                14 | 15 => PstVariant::Ansi,
+                _ => PstVariant::Unknown,
+            },
             _ => PstVariant::Unknown,
         };
 
@@ -304,15 +318,19 @@ impl PstHeader {
             parser_status: match variant {
                 PstVariant::Unicode => "supported_unicode_header".to_string(),
                 PstVariant::Ansi => "detected_ansi_header_unsupported_for_extraction".to_string(),
+                PstVariant::Ost2013 => "detected_ost2013_header_unsupported_for_extraction".to_string(),
                 PstVariant::Unknown => "detected_unknown_version".to_string(),
             },
             file_size,
             magic: "!BDN".to_string(),
             magic_client: Some(magic_client),
             version: Some(version),
+            index_type,
             variant: format!("{:?}", variant).to_lowercase(),
             crypt_method: match variant {
-                PstVariant::Unicode => buf.get(PST_HEADER_CRYPT_METHOD_OFFSET).copied(),
+                PstVariant::Unicode | PstVariant::Ost2013 => {
+                    buf.get(PST_HEADER_CRYPT_METHOD_OFFSET).copied()
+                }
                 PstVariant::Ansi => buf.get(PST_ANSI_HEADER_CRYPT_METHOD_OFFSET).copied(),
                 PstVariant::Unknown => None,
             },
@@ -348,6 +366,14 @@ fn build_root_candidates(
                 unicode_nbt_root_offset,
             ));
         }
+    } else if variant == PstVariant::Ost2013 {
+        candidates.push(PstRootCandidateDiagnostic::from_offsets(
+            "ost2013_root_fields",
+            file_size,
+            None,
+            None,
+        ));
+        return Ok(candidates);
     }
 
     let mut legacy_candidate = PstRootCandidateDiagnostic::from_offsets(
