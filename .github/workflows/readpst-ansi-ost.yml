@@ -130,7 +130,7 @@ jobs:
           for name, family in [('ansi-v14.pst', 'ansi_pst'), ('ost2013-4k.pst', 'ost2013')]:
               value = json.loads((evidence / f'{name}.json').read_text())
               assert value['capability']['family'] == family, value
-              assert value['capability']['status'] == 'Ready', value
+              assert value['capability']['status'] == 'ready', value
               assert value['capability']['allows_extraction'] is True, value
               assert value['bbt_entries'] == 1, value
               assert value['nbt_entries'] == 1, value
@@ -145,12 +145,12 @@ jobs:
               })
 
           strong = json.loads((evidence / 'ansi-v14-strong-crypt.json').read_text())
-          assert strong['capability']['status'] == 'Unsupported', strong
+          assert strong['capability']['status'] == 'unsupported', strong
           assert strong['capability']['allows_extraction'] is False, strong
           assert strong['capability']['index_status'] == 'unsupported_strong_crypt_method', strong
 
           truncated = json.loads((evidence / 'ost2013-truncated.json').read_text())
-          assert truncated['capability']['status'] == 'Partial', truncated
+          assert truncated['capability']['status'] == 'partial', truncated
           assert truncated['capability']['allows_extraction'] is False, truncated
 
           report = {
