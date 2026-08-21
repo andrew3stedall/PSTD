@@ -1,6 +1,6 @@
 # PSTD Project Status
 
-_Last reviewed: 23 July 2026._
+_Last reviewed: 21 August 2026._
 
 ## Purpose
 
@@ -22,6 +22,7 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Microsoft Purview Unicode exports | Active corpus target | No approved Purview export fixture is yet committed. Compatibility must be established capability-by-capability on controlled synthetic Purview exports rather than inferred from the existing fixtures. |
 | External PST implementations | Comparison-only tooling | Pinned external tools may generate or independently inventory controlled fixtures, but PSTD acceptance must come from its own Rust implementation and exact deterministic output. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
+| Readpst parity release gate | RP-M7-01 complete; RP-M7-02 and RP-M7-03 open | Main `57fbcaf1a83e2ddc79fff300be812a23cc66bb53` has 2 Implemented, 54 Partial, and 19 Gap rows. No full-parity claim is permitted until the differential report and final decision are published. |
 
 ## Exact Tika baseline
 

@@ -157,6 +157,13 @@ extended EML, and separate numbered message files now consume canonical PSTD rec
 The delivery is intentionally Partial pending the pinned readpst differential corpus and
 the downstream binary-attachment, KMail, Thunderbird, and MSG gates.
 
+RP-M7-01 has completed the conservative matrix promotion review on main commit
+`57fbcaf1a83e2ddc79fff300be812a23cc66bb53`. The current ledger contains 2 Implemented,
+54 Partial, and 19 Gap rows. The Gap set and its release consequence are recorded in
+`10-parity-matrix.md`; RP-M7-02 owns the independent semantic differential and RP-M7-03
+owns the final compatibility decision. The project must not claim full readpst parity
+while those rows remain unresolved.
+
 ## Maintenance rule
 
 When a gap is implemented, update the matrix, the relevant topic document, the current-state project documentation, and the fixture evidence. Every row must retain:

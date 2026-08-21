@@ -11,7 +11,7 @@ _Last reviewed: 21 August 2026._
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI v14/v15 and OST 2013 structural page/index traversal is now integrated with explicit evidence boundaries. |
-| Current milestone | Readpst parity RP-M6 input breadth | Complete the serialized hardening slice after the controlled ANSI/OST and crypto admissions, then run the RP-M7 matrix, differential, and release gates. |
+| Current milestone | Readpst parity RP-M7 release gate | RP-M6 input breadth and hardening are merged and evidenced; RP-M7-01 records 2 Implemented, 54 Partial, and 19 Gap matrix rows, so the final parity decision remains open. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
 | Readpst parity workboard | RP-M6-01, RP-M6-02, and RP-M6-03 in validation | Canonical typed records feed deterministic output projections; ANSI/OST layouts, libpst method-1/method-2 payload decoding, bounded workers, symlink-safe discovery, archive confinement, and diagnostic caps have explicit evidence; release gates remain open. |
 
@@ -74,6 +74,13 @@ method-2 vectors, and repeat-run equality. This is a Partial structural/crypto i
 contract; broader family-specific item/output corpus coverage, hardening, and final
 parity promotion remain open. The pinned NDB transforms do not use passwords, so no
 wrong-password result is fabricated.
+
+### RP-M7-01
+
+The conservative matrix promotion review is complete on main commit
+`57fbcaf1a83e2ddc79fff300be812a23cc66bb53`: 2 rows are Implemented, 54 remain Partial,
+and 19 remain Gap. The Gap set is explicit in `docs/readpst-gaps/10-parity-matrix.md`;
+RP-M7-02 and RP-M7-03 must complete before any parity or release claim.
 
 ## Intent
 

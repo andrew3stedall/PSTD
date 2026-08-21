@@ -243,6 +243,42 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 
 The overall project cannot claim readpst parity while any applicable row is Gap or Partial. Rows that readpst itself skips still require an explicit PSTD classification and status so the skipped content is visible and auditable.
 
+## RP-M7-01 promotion report — reviewed 21 August 2026
+
+Review basis: PSTD `main` at `57fbcaf1a83e2ddc79fff300be812a23cc66bb53`, the pinned
+libpst/readpst revision `cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89`, the source ledger,
+and the merged evidence packets for issues #497–#521. The matrix was reviewed row by
+row against the E2/E3/E4 definition of done; no row was promoted from a field accessor,
+helper, fixture-only probe, successful process exit, or empty output.
+
+| Promotion class | Rows | Decision |
+|---|---:|---|
+| Implemented | 2 | `CLI-02`, `OUT-01` retain current Implemented status with production-path and deterministic output evidence. |
+| Partial | 54 | Retain Partial: the canonical boundary and selected fixtures are evidenced, but broad readpst input, item, semantic, or adapter coverage is not proven. |
+| Gap | 19 | Retain Gap: no equivalent user-visible behaviour is currently proven. These rows block a full-parity claim. |
+
+Evidence is grouped by the merged work-unit packets: control/evidence #497–#500;
+typed extraction #501–#504; Unicode/message fidelity #505–#508; relationships and
+special items #509–#511; non-mail outputs #512–#514; output adapters #515–#518;
+input breadth and hardening #519–#521. Each packet records source anchors, production
+modules, fixture provenance, positive and negative cases, deterministic-repeat results,
+CI/workflow evidence, and remaining limitations. The RP-M6 workflows additionally
+record controlled ANSI v14/v15 and OST 2013 derivatives, method-1/method-2 crypto
+vectors, symlink/path/TAR/diagnostic negatives, bounded-worker equality, and the
+reviewed run IDs in #519–#521.
+
+The unresolved Gap set is intentionally explicit:
+
+`CLI-06`, `CLI-08`, `CLI-09`, `CLI-10`, `ITEM-04`, `ITEM-06`, `ITEM-11`, `MSG-04`,
+`MSG-05`, `MSG-09`, `MSG-10`, `BODY-05`, `BODY-06`, `BODY-08`, `ATT-04`, `ATT-06`,
+`ATT-08`, `ATT-09`, and `ATT-10`.
+
+These are not reclassified as “unsupported by readpst”; the source review confirms
+that readpst exposes the corresponding command, item, body, attachment, or output
+behaviour. The remaining Partial rows likewise remain open until representative
+semantic differentials and full output/import evidence exist. RP-M7-02 must consume
+this exact baseline; RP-M7-03 must use its unresolved set in the final decision.
+
 ## Planned implementation — `RP-10`
 
 The matrix is the release ledger, so each capability row must map to an implementation plan, concrete PSTD boundary, and fixture family. The following mapping is the minimum issue index; sub-issues may split a plan without changing the row ID.

@@ -160,3 +160,11 @@ symlink input, skips symlink directories, and fails at explicit depth/file-count
 TAR entries are validated as relative confined paths, shards are written to `.part`
 files and renamed only after the archive closes, and the canonical issue stream is
 capped by `InputLimits.max_diagnostics` with a machine-readable truncation record.
+
+### RP-M7 source and promotion checkpoint
+
+The RP-M7-01 review uses the pinned revision above and retains the E0–E4 distinction:
+source observations do not become capability claims, and E1/E2 fixtures do not become
+broad parity. On main `57fbcaf1a83e2ddc79fff300be812a23cc66bb53`, the matrix has 2
+Implemented, 54 Partial, and 19 Gap rows. The final gate therefore requires independent
+semantic differential evidence and an explicit remaining-gap decision.

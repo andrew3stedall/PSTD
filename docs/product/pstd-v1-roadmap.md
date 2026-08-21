@@ -1,6 +1,6 @@
 # PSTD Roadmap
 
-_Last reviewed: 23 July 2026._
+_Last reviewed: 21 August 2026._
 
 ## Objective
 
@@ -52,6 +52,14 @@ Vertical 39 decodes version-14/15 header roots and crypt-method fields for diagn
 PR #491 records the java-libpst fixture's deterministic fail-closed result: 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised payloads, 0 validated `IPM.Note*` classes, and 0 EML files.
 
 ## Current milestone
+
+### Readpst parity release gate
+
+RP-M6-01 through RP-M6-03 are merged with controlled input, crypto, hardening, and
+determinism evidence. RP-M7-01 has reviewed the live matrix on main and retained 2
+Implemented, 54 Partial, and 19 Gap rows. RP-M7-02 is the next serialized boundary for
+independent semantic differential evidence; RP-M7-03 will publish the final decision.
+The project is not yet parity-complete.
 
 ### First controlled Microsoft Purview Unicode export
 
