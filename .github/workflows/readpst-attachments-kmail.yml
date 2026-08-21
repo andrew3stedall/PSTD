@@ -67,7 +67,7 @@ jobs:
                   path = artifact['path']
                   assert not path.startswith('/')
                   assert '..' not in Path(path).parts
-                  assert (archive / path).is_file()
+                  assert (archive / path).is_file(), (profile, path)
               for decision in status['attachment_decisions']:
                   if decision['status'] == 'attachment_file_emitted':
                       assert decision['path']
