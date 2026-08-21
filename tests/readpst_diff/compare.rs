@@ -315,7 +315,7 @@ mod tests {
     #[test]
     fn matches_semantic_records_without_using_filenames() {
         let left = output("readpst", vec![record("message", "0001.eml", "Hello", EvidenceStatus::Present)]);
-        let right = output("pstd", vec![record("messages", "msg_source_1", ""Hello"", EvidenceStatus::Present)]);
+        let right = output("pstd", vec![record("messages", "msg_source_1", "\"Hello\"", EvidenceStatus::Present)]);
         let summary = compare_outputs(&left, &right);
         assert_eq!(summary.class, ComparisonClass::Parity);
         assert_eq!(summary.matched_records, 1);
