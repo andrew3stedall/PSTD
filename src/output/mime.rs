@@ -314,7 +314,10 @@ pub fn build_mime_parts(
         }
 
         if !is_encrypted {
-            for spec in body_specs.iter().filter(|spec| spec.record.body_type == "rtf") {
+            for spec in body_specs
+                .iter()
+                .filter(|spec| spec.record.body_type == "rtf")
+            {
                 let status = if spec.authoritative {
                     "synthetic_rtf_attachment_available"
                 } else {

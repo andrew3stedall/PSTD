@@ -135,17 +135,7 @@ fn append_body_kind(
             "report" => "report_payload_observed_report_type_unavailable",
             _ => "schedule_payload_observed_method_unavailable",
         };
-        records.push(body_record(
-            message,
-            kind,
-            media_type,
-            body,
-            payload,
-            status,
-            true,
-            true,
-            false,
-        ));
+        records.push(body_record(message, kind, media_type, body, payload, status, true, true, false));
     }
 }
 
@@ -238,7 +228,10 @@ fn rtf_record(
     let Some(payload) = payload else {
         return SpecialItemRecord {
             message_key: message.message_key.clone(),
-            special_key: ids::stable_id("special", &[&message.message_key, "rtf_synthetic", &body.body_key]),
+            special_key: ids::stable_id(
+                "special",
+                &[&message.message_key, "rtf_synthetic", &body.body_key],
+            ),
             kind: "rtf_synthetic".to_string(),
             message_class: message.message_class.clone(),
             media_type: "application/rtf".to_string(),
@@ -259,7 +252,10 @@ fn rtf_record(
     let decoded = validation.decoded.as_deref();
     SpecialItemRecord {
         message_key: message.message_key.clone(),
-        special_key: ids::stable_id("special", &[&message.message_key, "rtf_synthetic", &body.body_key]),
+        special_key: ids::stable_id(
+            "special",
+            &[&message.message_key, "rtf_synthetic", &body.body_key],
+        ),
         kind: "rtf_synthetic".to_string(),
         message_class: message.message_class.clone(),
         media_type: "application/rtf".to_string(),
@@ -374,18 +370,17 @@ mod tests {
 
     #[test]
     fn marks_valid_rtf_as_synthetic_without_promoting_it() {
-        let payload = crate::pst::messages::body_payload(
-            "msg",
-            "rtf",
-            b"{\\rtf1\\ansi text}".to_vec(),
-            None,
-        );
+        let payload =
+            crate::pst::messages::body_payload("msg", "rtf", b"{\\rtf1\\ansi text}".to_vec(), None);
         let items = build_special_items(
             &[message(None)],
             std::slice::from_ref(&payload.record),
             std::slice::from_ref(&payload),
         );
-        let rtf = items.iter().find(|item| item.kind == "rtf_synthetic").unwrap();
+        let rtf = items
+            .iter()
+            .find(|item| item.kind == "rtf_synthetic")
+            .unwrap();
         assert!(rtf.synthetic);
         assert!(!rtf.authoritative);
         assert_eq!(rtf.status, "synthetic_rtf_attachment_available");
