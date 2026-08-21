@@ -164,6 +164,23 @@ pub struct SpecialItemRecord {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ContactRecord {
+    pub contact_key: String,
+    pub message_key: String,
+    pub folder_path: String,
+    pub source_node_id: Option<String>,
+    pub full_name: Option<String>,
+    pub email: Option<String>,
+    pub address_type: Option<String>,
+    pub notes: Option<String>,
+    pub categories: Vec<String>,
+    pub status: String,
+    pub authoritative: bool,
+    pub synthetic: bool,
+    pub raw_evidence_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AttachmentRecord {
     pub message_key: String,
     pub attachment_key: String,

@@ -142,6 +142,14 @@ collision/overwrite policy, and bounded jobs before extraction. The canonical pa
 records the policy and applies routing filters without removing provenance. Legacy
 profiles fail explicitly as unsupported until their adapter work is complete.
 
+### RP-M4-01 dispatch note
+
+RP-M4-01 owns contact records and the first non-mail adapters. It may consume only
+source-backed contact fields from canonical message metadata, must retain missing-field
+statuses and evidence, and must not convert contact objects into email. The admitted
+java-libpst distribution-list fixture is negative/partial for PSTD contact-class
+authority; synthetic serializer unit evidence must declare its provenance.
+
 
 ### `RP-M1 — Typed extraction core`
 

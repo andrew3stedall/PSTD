@@ -3,9 +3,10 @@ use std::collections::HashMap;
 use crate::eml::materialize_embedded_message_payloads;
 use crate::engine::message_folder_ownership::resolve_folder_ownership;
 use crate::error::{PstdError, PstdResult, StatusRecord};
+use crate::output::contact::build_contact_records;
 use crate::output::ids;
 use crate::output::metadata::{
-    AttachmentRecord, BodyRecord, EmbeddedGraphRecord, EvidenceRecord, FolderRecord,
+    AttachmentRecord, BodyRecord, ContactRecord, EmbeddedGraphRecord, EvidenceRecord, FolderRecord,
     HeaderProjectionRecord, ItemEnvelope, ItemRoutingCountRecord, ManifestRecord, MessageRecord,
     MessageReferenceRecord, MimePartRecord, RecipientRecord, SpecialItemRecord,
 };
@@ -69,6 +70,7 @@ pub struct MetadataExtractionOutput {
     pub embedded_graph: Vec<EmbeddedGraphRecord>,
     pub mime_parts: Vec<MimePartRecord>,
     pub special_items: Vec<SpecialItemRecord>,
+    pub contacts: Vec<ContactRecord>,
     pub attachments: Vec<AttachmentRecord>,
     pub attachment_payloads: Vec<AttachmentPayload>,
     pub compatibility_triage: Vec<CompatibilityTriageRecord>,
@@ -676,6 +678,7 @@ pub fn extract_metadata(
         &attachment_payloads,
     );
     let special_items = build_special_items(&messages, &bodies, &body_payloads);
+    let contacts = build_contact_records(&messages);
 
     let items = build_item_envelopes(
         pst_id,
@@ -710,6 +713,16 @@ pub fn extract_metadata(
             &attachment.archive_path,
             payload.map(|value| value.bytes.as_slice()),
             &attachment.extraction_status,
+        ));
+    }
+    for contact in &contacts {
+        evidence.push(crate::pst::evidence::payload_record(
+            &contact.message_key,
+            "contact_record",
+            format!("contact:{}", contact.contact_key),
+            "data/contacts.jsonl",
+            None,
+            &contact.status,
         ));
     }
     for mime_part in &mime_parts {
@@ -806,6 +819,20 @@ pub fn extract_metadata(
             issue_count: 0,
         });
     }
+    if !contacts.is_empty() {
+        manifest.push(ManifestRecord {
+            run_id: run_id.to_string(),
+            pst_id: pst_id.to_string(),
+            message_key: None,
+            folder_key: None,
+            artefact_type: "contacts".to_string(),
+            archive_path: "data/contacts.jsonl".to_string(),
+            sha256: None,
+            size_bytes: None,
+            status: "contact_projection_available".to_string(),
+            issue_count: 0,
+        });
+    }
 
     let folders_discovered = folders.len() as u64;
     let messages_discovered = message_table_discovery.message_candidate_count() as u64;
@@ -872,6 +899,7 @@ pub fn extract_metadata(
         embedded_graph,
         mime_parts,
         special_items,
+        contacts,
         attachments,
         attachment_payloads,
         compatibility_triage,
@@ -1384,6 +1412,7 @@ pub fn fallback_metadata(
         embedded_graph: Vec::new(),
         mime_parts: Vec::new(),
         special_items: Vec::new(),
+        contacts: Vec::new(),
         attachments: Vec::new(),
         attachment_payloads: Vec::new(),
         compatibility_triage: Vec::new(),

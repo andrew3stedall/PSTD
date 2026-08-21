@@ -71,6 +71,11 @@ Implement the typed outputs that readpst already exposes:
 
 Exit criterion: the pinned `java-libpst-dist-list.pst` and a mixed synthetic fixture produce reconciled typed counts, with contacts, appointments, recurrence, and unsupported classes visible in the structured output.
 
+RP-M4-01 now establishes the contact projection and vCard/contact-list adapter boundary.
+The exit criterion is not promoted: the pinned java-libpst corpus remains explicit
+negative/partial evidence until contact-class ownership and full MAPI field groups are
+validated by PSTD.
+
 ## Phase 3 — output adapters
 
 Add adapters over validated canonical records:

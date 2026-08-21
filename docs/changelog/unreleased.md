@@ -19,6 +19,11 @@ _Last reviewed: 21 August 2026._
 - Integrated visibility/type routing filters and deterministic policy provenance into canonical extraction.
 - Added negative and repeat-run CLI evidence coverage; legacy output adapters remain explicitly unsupported until their RP-M4/RP-M5 work units land.
 
+### RP-M4-01
+
+- Added canonical contact records plus deterministic vCard and contact-list projections over source-backed fields.
+- Preserved explicit partial/unavailable contact status and evidence when the admitted corpus cannot authorize contact classes.
+
 ### Product foundation
 
 - Rust `pstd` CLI with `inspect`, `extract`, `batch`, and `version` commands.

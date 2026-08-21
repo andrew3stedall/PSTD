@@ -50,6 +50,10 @@ impl OutputProfile {
     pub fn is_canonical(self) -> bool {
         self == Self::Canonical
     }
+
+    pub fn is_supported(self) -> bool {
+        matches!(self, Self::Canonical | Self::Vcard | Self::ContactList)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -171,7 +175,7 @@ impl ReadpstPolicy {
     }
 
     pub fn validate(&self) -> PstdResult<()> {
-        if !self.output_profile.is_canonical() {
+        if !self.output_profile.is_supported() {
             return Err(PstdError::InvalidConfig(format!(
                 "RPCLI_UNSUPPORTED_OUTPUT_PROFILE: {:?}; use a dedicated adapter when available",
                 self.output_profile

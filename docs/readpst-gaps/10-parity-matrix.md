@@ -104,6 +104,15 @@ explicit unsupported results until RP-M4/RP-M5 adapters land. Visibility/type fi
 are applied to item routing statuses while source provenance remains present, and
 policy JSON plus repeat-run item output are deterministic. Adapter parity remains open.
 
+## RP-M4-01 delivery
+
+Contact-class records now have a canonical `ContactRecord` projection and deterministic
+vCard/contact-list serializers. Source-backed fields retain evidence and missing or
+unvalidated contact properties remain explicit partial/unavailable statuses. The
+java-libpst contact/distribution-list corpus is currently negative/partial because its
+contact classes are not yet authoritative in PSTD; the positive serializer gate is a
+provenance-labelled synthetic unit fixture. Full contact-field parity remains Partial.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |
