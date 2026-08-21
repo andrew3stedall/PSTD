@@ -141,8 +141,10 @@ acyclic, and within the depth/node/byte limits.
 Missing references, unavailable or non-email children, duplicate owners, cycles, and
 budget rejection remain records rather than silent drops. The approved Tika attachment
 fixture verifies parent/child identity, payload hash, child MIME ownership, and
-repeat-run byte determinism. Schedule/report/encrypted semantics and `.msg`
-materialization remain downstream work.
+repeat-run byte determinism. Schedule/report/encrypted semantics remain partial. The
+MSG/OLE adapter now materializes supported by-value attachments and records
+`embedded_method_5_not_supported` rather than silently placing an embedded child in
+an ordinary attachment stream.
 
 ## RP-M3-02 special-item delivery
 

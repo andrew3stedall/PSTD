@@ -1,6 +1,6 @@
 # CLI and output-mode parity
 
-`readpst` exposes a single command with a compact flag set. PSTD exposes `inspect`, `extract`, `batch`, and `version`, with structured TAR/JSONL output plus named adapter profiles. The mailbox and attachment/KMail slices are now integrated; the remaining legacy families stay explicitly partial or unsupported until their dedicated work units land.
+`readpst` exposes a single command with a compact flag set. PSTD exposes `inspect`, `extract`, `batch`, and `version`, with structured TAR/JSONL output plus named adapter profiles. The mailbox, attachment/KMail, Thunderbird, and MSG/OLE slices are now integrated; input breadth and release promotion remain explicitly partial until their dedicated work units land.
 
 ### RP-M1-03 classification boundary
 
@@ -34,7 +34,7 @@ The mode flags are mutually exclusive in readpst. PSTD should expose equivalent 
 | `-S` | A directory tree with numbered individual message files and separate binary attachment files. | **Partial**: `separate` emits numbered RFC 822 files plus resolved non-empty `<message-file>-<filename>` attachments; full differential coverage remains. |
 | `-M` | MH/rfc822 individual message files without output extensions. | **Partial**: `mh` emits numbered files without mbox separators; full readpst corpus remains. |
 | `-e` | MH/rfc822 individual message files with extensions, normally `.eml`/`.vcf`/`.ics`. | **Partial**: `eml` emits numbered `.eml` files; typed non-mail extensions remain downstream. |
-| `-m` | The `-e` result plus `.msg` files. | **Gap** |
+| `-m` | The `-e` result plus `.msg` files. | **Partial**: `msg` emits deterministic CFB/OLE `.msg` files and `.eml` companions from canonical records; independent property/recipient/attachment round trips pass, while full named-property and embedded-message breadth remains explicit. |
 | `-k` | KMail directory layout, including folder mbox names and index invalidation behaviour. | **Partial**: `kmail` emits safe `.<folder>.directory/<folder>.mbox` entries and explicit index policy; import/read coverage remains. |
 | `-u` | Thunderbird recursive mode plus `.type` per folder and `.size` counts. | **Partial**: `thunderbird` emits recursive mbox, explicit `.type` source-status JSON, `.size` counts, and typed non-mail files; exact import compatibility remains. |
 | `-c[v]` | vCard output with contact fields, notes, categories, and RFC 2426 escaping. | **Gap** |
@@ -68,7 +68,7 @@ PST/OST -> bounded parser -> typed records + raw artefacts
                               ├─ MH / EML / separate files
                               ├─ KMail / Thunderbird layouts
                               ├─ vCard / vCalendar / vJournal
-                              └─ MSG (only after a separately tested writer)
+                              └─ MSG/OLE (Rust-native writer + independent reader)
 ```
 
 An adapter must never reparse the PST or invent a value that is missing from the typed evidence. A requested output that cannot be constructed must produce a scoped unavailable result, not a plausible but incomplete file.

@@ -5,6 +5,7 @@ pub mod jsonl_writer;
 pub mod mailbox;
 pub mod metadata;
 pub mod mime;
+pub mod msg;
 pub mod non_mail;
 pub mod paths;
 pub mod special;

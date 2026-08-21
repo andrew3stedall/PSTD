@@ -12,6 +12,7 @@ use crate::output::ids;
 use crate::output::jsonl_writer::JsonlBuffer;
 use crate::output::mailbox::render_profile;
 use crate::output::metadata::MessageRecord;
+use crate::output::msg::render_profile as render_msg_profile;
 use crate::output::non_mail::serialize_vjournals;
 use crate::output::summary::ExtractionSummary;
 use crate::output::tar_writer::TarShardWriter;
@@ -360,6 +361,44 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         }
         tar.append_bytes(
             &["data", "mailbox_adapter_manifest.jsonl"],
+            &adapter_manifest.into_bytes(),
+        )?;
+    }
+    if let Some(msg) = render_msg_profile(
+        config.readpst.output_profile,
+        &metadata.folders,
+        &metadata.messages,
+        &metadata.headers,
+        &metadata.recipients,
+        &metadata.bodies,
+        &metadata.body_payloads,
+        &metadata.attachments,
+        &metadata.attachment_payloads,
+    ) {
+        tar.append_bytes(
+            &["outputs", "msg-profile-status.json"],
+            &serde_json::to_vec_pretty(&msg.status)?,
+        )?;
+        let mut adapter_manifest = JsonlBuffer::new();
+        for artifact in &msg.artifacts {
+            append_archive_payload(&mut tar, &artifact.summary.path, &artifact.bytes)?;
+            let record = crate::output::metadata::ManifestRecord {
+                run_id: run_id.clone(),
+                pst_id: pst_id.clone(),
+                message_key: artifact.summary.message_key.clone(),
+                folder_key: None,
+                artefact_type: artifact.summary.output_kind.clone(),
+                archive_path: artifact.summary.path.clone(),
+                sha256: Some(artifact.summary.sha256.clone()),
+                size_bytes: Some(artifact.summary.size_bytes),
+                status: artifact.summary.status.clone(),
+                issue_count: 0,
+            };
+            manifest.write_record(&record)?;
+            adapter_manifest.write_record(&artifact.summary)?;
+        }
+        tar.append_bytes(
+            &["data", "msg_adapter_manifest.jsonl"],
             &adapter_manifest.into_bytes(),
         )?;
     }

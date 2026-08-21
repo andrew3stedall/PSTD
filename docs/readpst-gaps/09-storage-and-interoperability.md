@@ -10,7 +10,7 @@ PSTD’s TAR/JSONL archive is the correct canonical evidence boundary for the pr
 | recursive mbox (`-r`) | PST folder tree as directories; each folder has a reduced-type mailbox. | **Partial** | `recursive_mbox` recreates sanitized folder paths and records skipped/unavailable decisions; typed side streams remain. |
 | MH/rfc822 (`-M`) | One message per numbered file, no separator line. | **Partial** | `mh` emits folder-local numbered files with no mbox separator. |
 | separate with extensions (`-e`) | Numbered `.eml`, `.vcf`, and `.ics` files. | **Partial** | `eml` emits numbered `.eml`; contact/calendar/journal extensions are covered by their named profiles and broader combination tests remain. |
-| separate with MSG (`-m`) | Extended separate output plus `.msg`. | **Gap** | Provide a tested MSG writer or clearly scoped equivalent; do not generate a mislabeled EML. |
+| separate with MSG (`-m`) | Extended separate output plus `.msg`. | **Partial** | Rust-native CFB/OLE MSG plus deterministic `.eml` companion, supported-property map, and independent reader gate; named properties and embedded method-5 breadth remain explicit. |
 | KMail (`-k`) | `.folder.directory` layout and mbox files suitable for KMail. | **Partial** | `kmail` emits safe `.<folder>.directory/<folder>.mbox` entries and an explicit index-invalidation policy; import/read compatibility remains. |
 | Thunderbird (`-u`) | Recursive output plus `.type` and `.size` files per folder. | **Partial** | `thunderbird` emits recursive mbox, canonical-identity `.type`/`.size` sidecars, and independent typed non-mail files; exact import compatibility remains. |
 
@@ -73,7 +73,9 @@ readpst’s `-m` mode writes Microsoft OLE MSG files through `msg.cpp`, includin
 4. recipients, attachments, embedded messages, dates, and named-property handling;
 5. deterministic output and safe failure on unsupported properties.
 
-An EML file with a `.msg` extension is not an acceptable substitute.
+An EML file with a `.msg` extension is not an acceptable substitute. PSTD now emits
+a real CFB/OLE container through `src/output/msg.rs`; the compatibility EML is a
+separate artifact and never stands in for the MSG file.
 
 ## Structured output remains authoritative
 
@@ -105,7 +107,7 @@ Implement adapters in dependency order: `mbox`, `recursive_mbox`, `mh`, `eml`, `
 4. For recursive/KMail/Thunderbird, map canonical folder segments to safe paths and emit sidecars/counts from the same `FolderOutputSummary`.
 5. For vCard/list/calendar/journal, dispatch typed records and choose `.vcf`/`.ics`/documented vJournal extensions without placing different classes in an email stream.
 6. For separate attachment profiles, emit payload files only when their `AttachmentRecord` status is available and not filtered; record all other decisions.
-7. Implement MSG in a dedicated Rust OLE compound-document module. Generate a property table with explicit MAPI types, top-level flags/dates/subject/body/header fields, recipient rows, attachment storages, and NameID entries. Do not use an EML body with a `.msg` suffix.
+7. Implement MSG in a dedicated Rust OLE compound-document module. Generate a property table with explicit MAPI types, top-level flags/dates/subject/body/header fields, recipient rows, attachment storages, and NameID entries. Do not use an EML body with a `.msg` suffix. The `msg` profile now implements this bounded map, records unsupported values, and emits a separate `.eml` companion for the `-m` surface.
 8. Round-trip every output through a semantic reader before marking the adapter result complete. Atomic publish happens only after validation.
 
 ### `.msg` implementation boundary
@@ -157,6 +159,10 @@ the mutable parent index is logically invalidated; it does not emit an index fil
 attachment/KMail workflow proves repeated output equality and archive path safety.
 
 RP-M5-03 adds Thunderbird sidecars and typed non-mail files over canonical records.
+RP-M5-04 adds a Rust-native CFB/OLE MSG projection with UTF-16 property streams,
+recipient/attachment storages, deterministic output, and an independent `olefile`
+round-trip gate. Method-5 embedded attachments and unrepresentable properties remain
+explicit status decisions; raw canonical evidence remains authoritative.
 `.size` retains the readpst two-count form; `.type` is a deterministic JSON
 stronger-equivalent with an explicit null type when the canonical folder schema does not
 expose the numeric source type. Contacts, appointments, journals, and preserved

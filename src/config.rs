@@ -66,6 +66,7 @@ impl OutputProfile {
                 | Self::ContactList
                 | Self::Icalendar
                 | Self::Vjournal
+                | Self::Msg
         )
     }
 }

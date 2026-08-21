@@ -13,6 +13,11 @@ RP-M5-03 adds the Partial Thunderbird/typed-file capability: recursive mbox outp
 canonical-identity `.type`/`.size` sidecars, and independent typed projections for
 non-mail records. An unavailable folder type remains explicit rather than guessed.
 
+RP-M5-04 adds the Partial MSG/OLE capability: a Rust-native CFB/OLE writer, a separate
+readpst-compatible EML companion, supported MAPI properties, recipient/attachment
+storages, explicit unsupported method-5/property decisions, and an independent reader
+gate. Named properties, embedded-message breadth, and input/release gates remain open.
+
 ## Baseline
 
 The comparison is against the `pst-format/libpst` `master` source at commit [`cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89`](https://github.com/pst-format/libpst/tree/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89). The principal implementation is [`src/readpst.c`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/readpst.c); the exposed item model and parser behaviour are in [`src/libpst.h`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/libpst.h) and [`src/libpst.c`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/libpst.c).
@@ -119,7 +124,7 @@ PSTD currently has meaningful, fixture-validated Unicode message extraction, sel
 The largest gaps are:
 
 - ANSI traversal and extraction, OST 2013 coverage, and PST encryption handling;
-- the readpst output family: recursive mbox, MH, KMail, Thunderbird metadata, separate attachment files, and `.msg`;
+- the remaining readpst output breadth: reduced typed streams, full vCard/list and calendar/journal fidelity, named MSG properties, and exact Thunderbird import compatibility;
 - complete item-class routing for contacts, appointments, journals, reports, tasks, sticky notes, and other classes;
 - broad message-property, charset, RFC header, and forensic metadata coverage;
 - all attachment methods, reference resolution, OLE handling, inline CID correlation, and nested embedded-message recursion;

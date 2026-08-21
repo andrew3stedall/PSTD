@@ -226,6 +226,13 @@ readpst differential promotion remains open. RP-M5-03 adds Thunderbird recursive
 canonical-identity `.type`/`.size` sidecars, and independent typed contact/calendar/
 journal/non-mail files. MSG and input breadth remain downstream work.
 
+RP-M5-04 is integrated on main after PR #548: the canonical `msg` profile emits a
+Rust-native CFB/OLE `.msg` and a separate readpst-compatible `.eml` companion, with
+supported MAPI properties, recipient/attachment storages, explicit unsupported
+decisions, deterministic manifests, and an independent `olefile` reader gate. Full
+named-property and embedded-message breadth remains Partial and is not silently
+promoted.
+
 ### `RP-M6 — Input breadth and hardening`
 
 | Key | Work unit | Source/readpst anchors | PSTD boundary | Depends on | Specialist |

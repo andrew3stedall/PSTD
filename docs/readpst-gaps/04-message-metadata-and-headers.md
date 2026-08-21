@@ -101,6 +101,11 @@ PSTD must preserve every validated FILETIME as a typed timestamp and must not su
 
 `readpst.c::write_normal_email` validates `item->email->header` through `valid_headers`/`header_is_reasonable`, extracts fields with `header_has_field`, `header_get_field`, and `header_get_subfield`, strips container-owned duplicates, and then reconstructs missing fields from MAPI values. It adds `Status: RO`, forensic sender/Bcc headers, RFC 2047 encodings, a fallback sender, and a deterministic mbox separator. `libpst.c::pst_process` populates sender, representing-party, received-by, recipient-row, date, flag, delivery-control, report, and threading fields. The `.msg` writer consumes the same model and maps selected properties into ANSI MAPI property streams.
 
+RP-M5-04 maps the canonical metadata boundary into real OLE property records: Unicode
+message class/subject/sender/body/header/message IDs, typed scalar flags, FILETIME sent
+dates, and recipient role storages. Invalid or absent scalar values remain explicit MSG
+status decisions; they are never replaced with guessed defaults.
+
 ### Planned PSTD model
 
 Build a provenance-preserving metadata layer above the current `MessageRecord`, `RecipientRecord`, `MessageReferenceRecord`, and selected MAPI property records:

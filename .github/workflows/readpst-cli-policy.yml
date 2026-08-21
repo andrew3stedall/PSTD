@@ -59,11 +59,11 @@ jobs:
           cargo run -- extract \
             --input "$fixture" \
             --output "$evidence/unsupported" \
-            --output-profile msg > "$evidence/unsupported.log" 2>&1
+            --output-profile unsupported-profile > "$evidence/unsupported.log" 2>&1
           unsupported_status=$?
           set -e
           test "$unsupported_status" -eq 1
-          grep -q 'RPCLI_UNSUPPORTED_OUTPUT_PROFILE' "$evidence/unsupported.log"
+          grep -q 'RPCLI_UNKNOWN_OUTPUT_PROFILE' "$evidence/unsupported.log"
 
           set +e
           cargo run -- extract \

@@ -13,7 +13,7 @@ _Last reviewed: 21 August 2026._
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI version-14/15 header fields are decoded with variant-correct widths but cannot authorize traversal or extraction. |
 | Current milestone | First controlled Microsoft Purview Unicode export | Admit immutable, redistributable synthetic Purview bytes, lock the exact before-state, then implement the smallest newly evidenced email-to-EML capability. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
-| Readpst parity workboard | RP-M5-03 in progress | Canonical typed records now feed deterministic mailbox, attachment, KMail, Thunderbird-sidecar, and typed non-mail projections; MSG and input gates remain open. |
+| Readpst parity workboard | RP-M5-04 in progress | Canonical typed records now feed deterministic mailbox, attachment, KMail, Thunderbird-sidecar, typed non-mail, and Rust-native OLE MSG projections; input and release gates remain open. |
 
 ### RP-M4-03
 
@@ -54,6 +54,15 @@ task, sticky-note, unknown, and missing-class evidence is published through inde
 vCard, iCalendar, vJournal, or JSONL projections; unsupported folder type remains explicit
 instead of being guessed. Sidecars, typed files, and adapter manifests are repeat-run
 deterministic and archive-path safe.
+
+### RP-M5-04
+
+The `msg` profile now emits valid Rust-native CFB/OLE `.msg` files plus the readpst
+`-e` compatibility `.eml` companion from canonical message, recipient, body, and
+attachment records. A supported MAPI property map, deterministic recipient and
+attachment storages, explicit method-5/method-6 decisions, and an independent
+`olefile` round-trip workflow keep unsupported values visible without using an EML
+file disguised as MSG.
 
 ## Intent
 
