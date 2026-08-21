@@ -70,8 +70,8 @@ pub fn build_differential_report(
     };
     comparison.validate()?;
 
-    let mut artifacts = prefixed_artifacts("readpst", &readpst.artifacts)?;
-    artifacts.extend(prefixed_artifacts("pstd", &pstd.artifacts)?);
+    let mut artifacts = prefixed_artifacts("readpst", &readpst_output.artifacts)?;
+    artifacts.extend(prefixed_artifacts("pstd", &pstd_output.artifacts)?);
     let evidence = EvidenceReport {
         report_id: format!("{}-evidence", comparison.comparison_id),
         fixture_id: fixture.fixture_id.clone(),
