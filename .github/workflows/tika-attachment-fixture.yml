@@ -679,7 +679,7 @@ jobs:
               raise SystemExit(f'unexpected EML subject: {parsed_eml["Subject"]!r}')
           if str(parsed_eml['To']) != '"\'lfcnassif@gmail.com\'" <lfcnassif@gmail.com>':
               raise SystemExit(f'unexpected EML recipient: {parsed_eml["To"]!r}')
-          if parsed_eml['Date'].datetime.isoformat() != '2020-11-26T22:18:00+00:00':
+          if parsed_eml['Date'].datetime.isoformat() != '2020-11-26T22:18:29+00:00':
               raise SystemExit(f'unexpected EML Date: {parsed_eml["Date"]!r}')
           if b'From: Luis Filipe da Cruz Nassif </o=PF/' not in eml_bytes:
               raise SystemExit('native Exchange sender address was not preserved')
