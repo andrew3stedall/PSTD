@@ -53,7 +53,7 @@ pub fn build_differential_report(
         .collect::<Vec<_>>();
     let parity_status = parity_status(summary.class);
     let comparison = ComparisonRun {
-        comparison_id: format!("{}-{}", fixture.fixture_id, output_profile.into()),
+        comparison_id: format!("{}-{}", fixture.fixture_id, output_profile),
         fixture_id: fixture.fixture_id.clone(),
         fixture_sha256: fixture.sha256.clone(),
         readpst_source_revision: READPST_SOURCE_REVISION.to_string(),
