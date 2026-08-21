@@ -17,7 +17,7 @@ jobs:
       - name: Install pinned readpst build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y             autoconf automake gettext libgsf-1-dev libicu-dev libpcre2-dev             libtool libtool-bin pkg-config zlib1g-dev
+          sudo apt-get install -y             autoconf automake autopoint gettext libgsf-1-dev libicu-dev libpcre2-dev             libtool libtool-bin pkg-config zlib1g-dev
       - name: Build the pinned readpst oracle
         shell: bash
         run: |
