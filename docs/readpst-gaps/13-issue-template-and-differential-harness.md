@@ -7,6 +7,16 @@ This document turns the `RP-00`–`RP-12` plans into GitHub-ready work and defin
 Copy the following body into an issue and replace every bracketed value:
 
 ```markdown
+## Workboard
+
+- Work unit: `RP-Mx-yy`
+- GitHub milestone: `RP-Mx`
+- Specialist role: [role]
+- State: [PLANNED | READY | IN PROGRESS | BLOCKED | ...]
+- Depends on: [issue links or `—`]
+- Blocks: [issue links or `—`]
+- Allowed module boundary: [paths]
+
 ## Capability
 
 - Plan ID: `RP-[nn]`
@@ -55,6 +65,7 @@ Copy the following body into an issue and replace every bracketed value:
 - [ ] repeat runs and worker counts are identical
 - [ ] limits/path/atomic-write checks pass
 - [ ] matrix, topic page, README, roadmap, source ledger, and changelog are updated
+- [ ] agent dispatch/return packet and final issue state are recorded
 
 ## Documentation fan-out
 
@@ -137,3 +148,7 @@ The production equivalent should expose a stable machine-readable inspection/exp
 ### Acceptance and maintenance
 
 `RP-13` is complete when an issue can be created from this template, a fixture can be run through both tools, normalized semantic output can be compared, and the report can distinguish parity, intentional stronger behaviour, unsupported, and failure. Every implementation issue must use the harness or document why a local unit/synthetic test is the only applicable evidence. Changes to normalization rules must update [the matrix](10-parity-matrix.md), [the roadmap](11-roadmap-and-acceptance.md), and every topic page whose output semantics changed.
+
+## Orchestrator handoff
+
+Use the stable work-unit key and dependency graph in [the readpst parity agent orchestrator](14-agent-orchestrator.md). The global orchestrator owns readiness, specialist assignment, merge sequencing, and recursive documentation review. An issue may be closed only after its dispatch packet has a returned implementation/evidence packet and the linked matrix status is either unchanged for a documented reason or promoted with the required evidence level.

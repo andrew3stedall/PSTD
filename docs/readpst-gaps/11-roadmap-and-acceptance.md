@@ -185,3 +185,9 @@ Before declaring “readpst parity” complete, the release issue must show:
 - synchronized README, topic pages, matrix, source ledger, current-state docs, and changelog.
 
 The project may ship intermediate milestones, but their release notes must name the remaining plan IDs and must not claim full readpst capability coverage while the matrix contains unresolved rows.
+
+## Agent execution plan
+
+The phase outline above is operationalized by [the readpst parity agent orchestrator](14-agent-orchestrator.md). It groups the work into eight GitHub milestones (`RP-M0` through `RP-M7`) and 28 stable work-unit issues. Each issue is a vertical slice with a readpst source anchor, PSTD module boundary, positive/negative evidence, dependency links, a specialist role, and a recursive documentation fan-out. The global orchestrator must dispatch only ready units, serialize shared contract changes, and re-evaluate the graph after each green squash merge.
+
+The exact work-unit register, agent roles, dispatch packet, issue state machine, and release checklist live in [14-agent-orchestrator.md](14-agent-orchestrator.md). This page remains the acceptance authority; the orchestrator is the execution authority.
