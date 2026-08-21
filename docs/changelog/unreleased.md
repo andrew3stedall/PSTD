@@ -125,12 +125,12 @@ Embedded attachment ordinal/key: 1/att_a9c94a13d70f1cb3
 Embedded message key/NID: msg_0ff529af59d373d5/0x00200104
 Embedded child text/unresolved-HTML payload bytes: 23/0
 EML files/bytes: 2/17488
-Messages JSONL bytes: 23865
+Messages JSONL bytes: 24069
 Bodies JSONL bytes: 2922
 Recipient JSONL bytes: 2708
 Attachment JSONL bytes: 1240
-Extraction TAR bytes: 234496
-Total output bytes: 279543
+Extraction TAR bytes: 521728
+Total output bytes: 566775
 ```
 
 All seven top-level messages belong to `/Début du fichier de données Outlook` through exact physical contents-table rows. The method-`5` attachment belongs to `msg_c6163b9157944cc9`, links to the separately emitted child, and publishes the exact child EML bytes at its existing archive path. The child owns its recipient and body records; both child and parent retain their valid plain-text bodies and explicit unavailable HTML forms. The parent retains only its direct recipient, DOCX, and unchanged EML.
