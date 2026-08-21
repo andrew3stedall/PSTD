@@ -211,12 +211,23 @@ fn index_records<'a>(
 }
 
 fn semantic_key(record: &NormalizedRecord) -> String {
+    let kind = logical_kind(&record.kind);
     for field in ["message-id", "subject", "first_line"] {
         if let Some(value) = record.fields.get(field) {
-            return format!("{}:{}", record.kind, display_value(value).to_ascii_lowercase());
+            return format!("{kind}:{}", display_value(value).to_ascii_lowercase());
         }
     }
-    format!("{}:{}", record.kind, record.identity)
+    format!("{kind}:{}", record.identity)
+}
+
+fn logical_kind(kind: &str) -> &str {
+    match kind {
+        "messages" => "message",
+        "folders" => "folder",
+        "bodies" => "body",
+        "attachments" => "attachment",
+        other => other,
+    }
 }
 
 fn compare_record(
