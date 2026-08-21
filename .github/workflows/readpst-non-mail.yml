@@ -1,0 +1,109 @@
+name: Readpst non-mail outputs
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  non-mail:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test non_mail
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Verify journal and unsupported non-mail evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/pst/sample.pst"
+          fixture_sha256="ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe"
+          evidence="/tmp/pstd-non-mail"
+          first="/tmp/pstd-non-mail-first"
+          second="/tmp/pstd-non-mail-second"
+          mkdir -p "$evidence" "$first" "$second"
+          printf '%s  %s\n' "$fixture_sha256" "$fixture" | sha256sum --check -
+
+          for output in "$first" "$second"; do
+            cargo run -- extract \
+              --input "$fixture" \
+              --output "$output" \
+              --output-profile vjournal \
+              --overwrite > "$evidence/$(basename "$output").stdout" 2> "$evidence/$(basename "$output").stderr"
+            tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+            destination="$evidence/$(basename "$output")"
+            mkdir -p "$destination"
+            tar -xf "$tar_file" -C "$destination"
+            test -f "$destination/outputs/journal-profile-status.json"
+            test -f "$destination/outputs/journals.vjournal"
+          done
+
+          cmp "$evidence/pstd-non-mail-first/outputs/journal-profile-status.json" \
+            "$evidence/pstd-non-mail-second/outputs/journal-profile-status.json"
+          cmp "$evidence/pstd-non-mail-first/outputs/journals.vjournal" \
+            "$evidence/pstd-non-mail-second/outputs/journals.vjournal"
+
+          if [[ -f "$evidence/pstd-non-mail-first/data/non_mail.jsonl" ]]; then
+            cmp "$evidence/pstd-non-mail-first/data/non_mail.jsonl" \
+              "$evidence/pstd-non-mail-second/data/non_mail.jsonl"
+          fi
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          archive = Path('/tmp/pstd-non-mail/pstd-non-mail-first')
+          status = json.loads((archive / 'outputs/journal-profile-status.json').read_text())
+          vjournal = (archive / 'outputs/journals.vjournal').read_bytes().decode('utf-8')
+          assert status['profile'] == 'vjournal'
+          assert status['status'] in {
+              'journal_projection_partial',
+              'journal_records_unavailable',
+          }
+          assert status['readpst_status'] in {'routed_journal', 'not_applicable'}
+          assert vjournal.count('BEGIN:VJOURNAL\r\n') == status['record_count']
+          assert vjournal.count('END:VJOURNAL\r\n') == status['record_count']
+          if status['record_count']:
+              assert vjournal.startswith('BEGIN:VJOURNAL\r\nVERSION:1.0\r\n')
+              assert 'X-PSTD-DTSTAMP-SYNTHETIC:TRUE\r\n' in vjournal
+              assert 'X-PSTD-READPST-STATUS:routed_journal\r\n' in vjournal
+          records_path = archive / 'data/non_mail.jsonl'
+          records = []
+          if records_path.exists():
+              records = [
+                  json.loads(line)
+                  for line in records_path.read_text(encoding='utf-8').splitlines()
+                  if line.strip()
+              ]
+          keys = [record['message_key'] for record in records]
+          assert len(keys) == len(set(keys))
+          for record in records:
+              assert record['raw_evidence_refs']
+              assert record['item_kind'] in {'journal', 'task', 'sticky_note', 'other', 'unknown'}
+              assert record['readpst_status'] != record['pstd_status']
+              if record['readpst_status'] == 'skipped_unsupported_by_readpst':
+                  assert record['pstd_status'] == 'typed_non_mail_preserved_no_readpst_renderer'
+          Path('/tmp/pstd-non-mail/report.json').write_text(
+              json.dumps({
+                  'fixture': 'tests/fixtures/pst/sample.pst',
+                  'fixture_sha256': 'ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe',
+                  'vjournal_profile': 'partial',
+                  'journal_record_count': status['record_count'],
+                  'canonical_non_mail_record_count': len(records),
+                  'deterministic_repeat': True,
+                  'readpst_and_pstd_statuses_distinct': True,
+                  'positive_unit_provenance': 'synthetic MessageRecord classes in src/output/non_mail.rs',
+              }, indent=2) + '\n'
+          )
+          PY
+      - name: Upload non-mail evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-non-mail-evidence
+          path: /tmp/pstd-non-mail
+          if-no-files-found: error

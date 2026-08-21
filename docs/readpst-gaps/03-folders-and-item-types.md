@@ -4,7 +4,7 @@
 
 readpst starts from the message-store root, locates the top of the folder tree, recursively enters child folders, and processes every descriptor in each folder. It supports folders containing more than one item type and keeps output type streams separate so a calendar item is not placed into an email mbox.
 
-PSTD now emits a typed folder/item envelope stream alongside folder inventory and message ownership records for the validated Unicode path. The envelope preserves source IDs, canonical paths, parent/child links, visibility, item-kind confidence, ownership status, and explicit skipped/ambiguous outcomes; `data/items.jsonl` is published through the canonical TAR output. RP-M1-03 adds class-aware routing and explicit filter/unsupported statuses, while CLI translation and typed non-mail serializers remain later slices. The following behaviours remain parity requirements:
+PSTD now emits a typed folder/item envelope stream alongside folder inventory and message ownership records for the validated Unicode path. The envelope preserves source IDs, canonical paths, parent/child links, visibility, item-kind confidence, ownership status, and explicit skipped/ambiguous outcomes; `data/items.jsonl` is published through the canonical TAR output. RP-M1-03 adds class-aware routing and explicit filter/unsupported statuses, and RP-M4-03 adds the first typed non-mail evidence/profile boundary; broader CLI adapters and full field coverage remain later slices. The following behaviours remain parity requirements:
 
 - preserve the complete folder path and stable source node identity;
 - preserve folder content, unread, associated-content, and child-folder counts;
@@ -22,7 +22,7 @@ The typed envelope contract is integrated through folder discovery, message-tabl
 
 ## RP-M1-03 delivery
 
-The production envelope path now reads `PR_MESSAGE_CLASS`/String8 evidence when available and classifies the observable readpst families: ordinary note, schedule email, appointment, contact, journal/activity, report, task, sticky note, and unknown. `ItemRoutingPolicy` records the default exclusion of associated/deleted content and provides the semantic `-t` filter family for later CLI wiring. Every item retains its source class and receives a deterministic `routing_status`; unknown or missing classes are never promoted to ordinary mail, task/sticky-note/unknown classes receive explicit readpst-equivalent skip statuses, and filtered items remain in canonical output. Synthetic mixed-folder tests cover positive, unsupported, missing, ambiguous, visibility, filter, and repeat-run cases. This slice does not claim vCard/iCalendar/vJournal/report MIME or command-line parity.
+The production envelope path now reads `PR_MESSAGE_CLASS`/String8 evidence when available and classifies the observable readpst families: ordinary note, schedule email, appointment, contact, journal/activity, report, task, sticky note, and unknown. `ItemRoutingPolicy` records the default exclusion of associated/deleted content and provides the semantic `-t` filter family for later CLI wiring. Every item retains its source class and receives a deterministic `routing_status`; unknown or missing classes are never promoted to ordinary mail, task/sticky-note/unknown classes receive explicit readpst-equivalent skip statuses, and filtered items remain in canonical output. `NonMailRecord` now preserves each journal/task/sticky-note/unknown class exactly once with distinct readpst and PSTD statuses; journal records have a Partial vJournal adapter. Synthetic mixed-folder tests cover positive, unsupported, missing, ambiguous, visibility, filter, and repeat-run cases.
 
 ## RP-M2-01 delivery
 
@@ -39,9 +39,9 @@ The item type constants in `libpst.h` are derived from `PR_MESSAGE_CLASS` or `PR
 |---|---|---|---|
 | `PST_TYPE_NOTE` | Ordinary mail or generic note. | Emits through the email/MIME path. | **Partial**: message path is fixture-validated, generic note handling is not. |
 | `PST_TYPE_SCHEDULE` | Meeting request/response transported as email. | Emits an email plus a `text/calendar` schedule part. | **Gap** |
-| `PST_TYPE_APPOINTMENT` | Calendar appointment/event. | Emits iCalendar. | **Gap** |
-| `PST_TYPE_CONTACT` | Contact item. | Emits vCard or a simple list. | **Gap** |
-| `PST_TYPE_JOURNAL` | Journal entry. | Emits vJournal. | **Gap** |
+| `PST_TYPE_APPOINTMENT` | Calendar appointment/event. | Emits iCalendar. | **Partial**: source-backed `CalendarRecord` and deterministic profile; appointment-property corpus remains open. |
+| `PST_TYPE_CONTACT` | Contact item. | Emits vCard or a simple list. | **Partial**: source-backed contact record/profile; full MAPI fields remain open. |
+| `PST_TYPE_JOURNAL` | Journal entry. | Emits vJournal. | **Partial** |
 | `PST_TYPE_STICKYNOTE` | Sticky note. | Classified but falls through the normal readpst processing path. | **Explicitly unsupported by readpst**: PSTD must still classify and report it. |
 | `PST_TYPE_TASK` | Task item. | Classified but not emitted by the current `readpst` process path. | **Explicitly unsupported by readpst**: preserve typed metadata and skip status. |
 | `PST_TYPE_OTHER` | Other message class. | Classified; some versions route it through email-like handling, but unknown cases can be skipped. | **Partial**: preserve class and evidence; choose email-like output only with validated semantics. |

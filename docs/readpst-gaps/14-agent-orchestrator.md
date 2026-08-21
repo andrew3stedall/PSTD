@@ -159,6 +159,15 @@ exceptions, alarms, and categories must remain explicit unavailable or partial
 statuses; schedule-email MIME remains RP-M3-02. The repository PST fixture is
 negative/partial, and the positive serializer unit fixture must declare provenance.
 
+### RP-M4-03 dispatch note
+
+RP-M4-03 owns the canonical `NonMailRecord` boundary for journals, tasks, sticky
+notes, unknown classes, and missing message classes. It may add a Partial vJournal
+adapter over source-backed journal fields, but must preserve the distinction between
+readpst skip/unknown status and PSTD's typed-preservation or unsupported status. No
+non-mail record may be promoted to ordinary email, and each source message key must
+appear at most once in the non-mail stream.
+
 
 ### `RP-M1 — Typed extraction core`
 

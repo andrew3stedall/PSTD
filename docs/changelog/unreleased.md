@@ -29,6 +29,11 @@ _Last reviewed: 21 August 2026._
 - Added canonical appointment `CalendarRecord` values and a deterministic `icalendar` profile.
 - Preserved explicit missing date/timezone/recurrence/exception/alarm statuses and marked the synthetic iCalendar `DTSTAMP`.
 
+### RP-M4-03
+
+- Added canonical `NonMailRecord` evidence for journals, tasks, sticky notes, unknown classes, and missing message classes.
+- Added deterministic Partial `vjournal` output and distinct readpst/PSTD statuses for skipped, preserved, and unsupported non-mail items.
+
 ### Product foundation
 
 - Rust `pstd` CLI with `inspect`, `extract`, `batch`, and `version` commands.

@@ -802,8 +802,8 @@ jobs:
               'recipients_jsonl_bytes': 2708,
               'attachments_jsonl_bytes': 1390,
               'headers_jsonl_bytes': 4596,
-              'tar_bytes': 547840,
-              'stable_archive_bytes': 547840,
+              'tar_bytes': 550912,
+              'stable_archive_bytes': 550912,
           }
           stable_metrics = {
               key: value for key, value in metrics.items() if key != 'output_total_bytes'

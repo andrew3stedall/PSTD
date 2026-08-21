@@ -103,14 +103,20 @@ DTSTART
 END:VJOURNAL
 ```
 
-PSTD needs a typed journal record for start/end timestamps, type, description, subject, body, create/modify times, categories, and raw properties. It must offer deterministic vJournal output and preserve source bytes when a field is absent.
+PSTD now emits a canonical `NonMailRecord` for each journal class and a deterministic Partial `vjournal` profile at `outputs/journals.vjournal`. Source identity, class, summary, sender, and decoded create/modify values are retained where available; raw body evidence references and explicit readpst/PSTD statuses remain attached. Full journal MAPI field coverage is still open, and the profile uses a marked synthetic `DTSTAMP` rather than guessing a source timestamp.
 
 ## Tasks, sticky notes, and other classes
 
-The current readpst process path classifies sticky notes, tasks, and other classes but does not emit dedicated output records. Parity therefore has two levels:
+The current readpst process path classifies sticky notes, tasks, and other classes but does not emit dedicated output records. PSTD now preserves them as canonical `NonMailRecord` values without claiming a readpst renderer. Parity therefore has two levels:
 
 1. match readpst by identifying and explicitly reporting the skipped class;
 2. provide stronger typed preservation when PSTD can do so without changing the ordinary email semantics.
+
+Task and sticky-note records use `skipped_unsupported_by_readpst` plus
+`typed_non_mail_preserved_no_readpst_renderer`. Unknown and missing classes use
+separate `skipped_unknown_item_class`/`unavailable_missing_item_class` and
+PSTD-unsupported preservation statuses. No such record is counted as a successful
+ordinary message.
 
 At no point may these objects be silently counted as successfully extracted messages.
 
@@ -171,4 +177,4 @@ Each field should be a `FieldEvidence<T>` with raw property reference, decoded v
 
 ### Issue-ready acceptance
 
-`RP-08A` is contact projection/vCard/list, `RP-08B` recurrence/timezone, `RP-08C` appointment/iCalendar, `RP-08D` journal/vJournal, and `RP-08E` unsupported/task/sticky/other classification. RP-M4-02 establishes the appointment record/profile boundary at Partial evidence; it does not promote recurrence or date rows without an admitted property fixture. Fixtures must cover every contact field group, distribution list, Unicode/ANSI names, repeated phones/emails, recurring daily/weekly/monthly/yearly events, exceptions, alarms, all-day/timezone values, journals, schedule email methods, and unsupported classes. Validate with independent vCard/iCalendar/vJournal parsers, raw-field retention, exact/partial statuses, mixed-folder counts, and updates to [special email items](07-embedded-and-special-email-items.md), [storage](09-storage-and-interoperability.md), [the matrix](10-parity-matrix.md), and the source ledger.
+`RP-08A` is contact projection/vCard/list, `RP-08B` recurrence/timezone, `RP-08C` appointment/iCalendar, `RP-08D` journal/vJournal, and `RP-08E` unsupported/task/sticky/other classification. RP-M4-02 establishes the appointment record/profile boundary at Partial evidence; RP-M4-03 establishes the journal/non-mail record boundary at Partial evidence without promoting unsupported classes to ordinary mail. Fixtures must cover every contact field group, distribution list, Unicode/ANSI names, repeated phones/emails, recurring daily/weekly/monthly/yearly events, exceptions, alarms, all-day/timezone values, journals, schedule email methods, and unsupported classes. Validate with independent vCard/iCalendar/vJournal parsers, raw-field retention, exact/partial statuses, mixed-folder counts, and updates to [special email items](07-embedded-and-special-email-items.md), [storage](09-storage-and-interoperability.md), [the matrix](10-parity-matrix.md), and the source ledger.
