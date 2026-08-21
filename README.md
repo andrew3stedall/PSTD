@@ -138,5 +138,5 @@ Approved fixtures must also pass inspect, extract, batch, deterministic output, 
 - [Output contract](docs/data/pstd-v1-output-contract-summary.md)
 - [Unsupported and deferred areas](docs/operations/v1-unsupported-deferred-areas.md)
 - [readpst parity gap register](docs/readpst-gaps/README.md)
-  The RP-M0-01 evidence contract and approved Unicode baseline are now CI-validated; parity remains open until downstream evidence and adapter gates pass.
+  The RP-M0-01 evidence contract and approved Unicode baseline are now CI-validated; RP-M0-03 also pins the reviewed upstream source ledger and drift boundary; parity remains open until downstream evidence and adapter gates pass.
 - [Documentation status and history policy](docs/DOCUMENTATION_STATUS.md)
