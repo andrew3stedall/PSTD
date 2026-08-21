@@ -25,6 +25,9 @@ _Last reviewed: 21 August 2026._
 - RP-M1-04 canonical evidence stream with stable property, subnode, body-payload,
   and attachment-payload provenance, bounded raw retention, hashes, and explicit
   unavailable/failed statuses.
+- RP-M2-01 additive message metadata projection for native representing/received-by
+  identities, source dates, flags, importance, priority, sensitivity, and receipt/
+  report controls with null-preserving missing-field semantics.
 - Typed input capability envelopes for Unicode/ANSI/OST/unknown family classification, crypt/root readiness, explicit unsupported/malformed/budget statuses, bounded reader limits, inspect visibility, and canonical extraction publication.
 - Typed folder/item envelopes with source-ID ownership, visibility, item-kind confidence, parent/child links, explicit ambiguity/duplicate/path-collision statuses, and canonical `data/items.jsonl` output.
 - Class-aware canonical routing statuses for ordinary, schedule, appointment, contact, journal, report, task, sticky-note, unknown, associated, deleted, filtered, and unavailable items, with immutable policy tests and no silent ordinary-message fallback.
@@ -123,14 +126,15 @@ DOCX SHA-256: 0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0
 DOCX attachment ordinal/key: 0/att_0695091e19397627
 Embedded attachment ordinal/key: 1/att_a9c94a13d70f1cb3
 Embedded message key/NID: msg_0ff529af59d373d5/0x00200104
+Embedded child sent FILETIME: filetime:132509026807730000
 Embedded child text/unresolved-HTML payload bytes: 23/0
 EML files/bytes: 2/17488
-Messages JSONL bytes: 24069
+Messages JSONL bytes: 28727
 Bodies JSONL bytes: 2922
 Recipient JSONL bytes: 2708
 Attachment JSONL bytes: 1240
-Extraction TAR bytes: 521728
-Total output bytes: 566775
+Extraction TAR bytes: 525824
+Total output bytes: 570872
 ```
 
 All seven top-level messages belong to `/Début du fichier de données Outlook` through exact physical contents-table rows. The method-`5` attachment belongs to `msg_c6163b9157944cc9`, links to the separately emitted child, and publishes the exact child EML bytes at its existing archive path. The child owns its recipient and body records; both child and parent retain their valid plain-text bodies and explicit unavailable HTML forms. The parent retains only its direct recipient, DOCX, and unchanged EML.

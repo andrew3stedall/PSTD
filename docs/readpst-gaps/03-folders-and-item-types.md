@@ -24,6 +24,13 @@ The typed envelope contract is integrated through folder discovery, message-tabl
 
 The production envelope path now reads `PR_MESSAGE_CLASS`/String8 evidence when available and classifies the observable readpst families: ordinary note, schedule email, appointment, contact, journal/activity, report, task, sticky note, and unknown. `ItemRoutingPolicy` records the default exclusion of associated/deleted content and provides the semantic `-t` filter family for later CLI wiring. Every item retains its source class and receives a deterministic `routing_status`; unknown or missing classes are never promoted to ordinary mail, task/sticky-note/unknown classes receive explicit readpst-equivalent skip statuses, and filtered items remain in canonical output. Synthetic mixed-folder tests cover positive, unsupported, missing, ambiguous, visibility, filter, and repeat-run cases. This slice does not claim vCard/iCalendar/vJournal/report MIME or command-line parity.
 
+## RP-M2-01 delivery
+
+Message metadata projection now carries native sent-representing and received-by
+identity fields plus date, flag, importance, priority, sensitivity, and report
+control evidence on the canonical message record. Null source properties stay null;
+the projection does not turn an absent identity or control into a guessed value.
+
 ## Item classes exposed by libpst
 
 The item type constants in `libpst.h` are derived from `PR_MESSAGE_CLASS` or `PR_CONTAINER_CLASS`.

@@ -77,6 +77,14 @@ RP-M1-02 adds the production `ItemEnvelope` contract and `data/items.jsonl` arch
 
 RP-M1-03 owns the serialized class/routing boundary consumed by #504 and the downstream message/non-mail slices. Its accepted implementation must classify source message classes, preserve missing/unknown evidence, and emit explicit visibility/filter/unsupported statuses without changing raw-property ownership. The implementation is now integrated on the classification branch pending draft-PR review and CI; #504 remains blocked until that PR is merged and its evidence packet is recorded.
 
+### RP-M2-01 delivery note
+
+RP-M2-01 adds additive message metadata fields for native representing/received-by
+identities, source date summaries, flags, importance/priority/sensitivity, and
+receipt/report controls. The evidence gate covers positive unit values, absent-field
+null semantics, deterministic canonical serialization, and the existing public
+fixture regressions; broad header and producer parity remains with RP-M2-02 onward.
+
 
 ### `RP-M1 — Typed extraction core`
 

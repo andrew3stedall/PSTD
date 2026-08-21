@@ -32,6 +32,15 @@ The canonical extraction path now publishes `data/items.jsonl` with deterministi
 
 The canonical extraction path now classifies available `PR_MESSAGE_CLASS` evidence and records `routing_status` for ordinary notes, schedule emails, appointments, contacts, journals, reports, tasks, sticky notes, unknown classes, associated content, deleted content, and type-filter decisions. The default policy is fail-closed for missing/unknown visibility or class and excludes associated/deleted content without deleting its envelope. This is E1/E2 synthetic-policy evidence plus the existing public Unicode integration path; it does not promote a row to Implemented or claim CLI/output-adapter parity.
 
+## RP-M2-01 delivery
+
+The canonical message projection now exposes sent-representing/received-by native
+address fields, four relevant date summaries, flags, importance, priority,
+sensitivity, and receipt/report/delete controls. Unit evidence covers positive
+values and absent controls; the Tika production verifier checks the additive field
+shape and native-address preservation. This promotes the metadata evidence boundary
+only; broad producer coverage, header normalization, and adapter parity remain open.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |

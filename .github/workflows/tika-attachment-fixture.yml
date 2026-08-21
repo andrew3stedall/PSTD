@@ -394,6 +394,35 @@ jobs:
               raise SystemExit('item envelope routing status is missing')
           if any('message_class' not in message for message in messages):
               raise SystemExit('message class evidence field is missing')
+          metadata_fields = (
+              'sent_representing_email',
+              'received_by_email',
+              'received_by_address_type',
+              'sent_at',
+              'received_at',
+              'created_at',
+              'modified_at',
+              'importance',
+              'message_flags',
+              'priority',
+              'sensitivity',
+              'read_receipt_requested',
+              'reply_requested',
+              'delivery_report_requested',
+              'delete_after_submit',
+          )
+          if any(
+              field not in message
+              for message in messages
+              for field in metadata_fields
+          ):
+              raise SystemExit('complete metadata projection fields are missing')
+          if any(
+              message['sender_email'] is not None
+              and message['sender_raw_address'] != message['sender_email']
+              for message in messages
+          ):
+              raise SystemExit('native sender address evidence was rewritten')
           if not evidence_records:
               raise SystemExit('canonical evidence graph is empty')
           if len({row['evidence_key'] for row in evidence_records}) != len(evidence_records):
@@ -551,7 +580,7 @@ jobs:
                   'Luis Filipe da Cruz N'
               ),
               'sender_address_type': 'EX',
-              'sent_at': None,
+              'sent_at': 'filetime:132509026807730000',
               'received_at': 'filetime:132509026800000000',
               'internet_message_id': (
                   '<3148510c2360443396a78d35e0888de9@pf.gov.br>'
@@ -565,8 +594,8 @@ jobs:
               'attachment_count': 0,
               'metadata_status': (
                   'embedded_property_context_loaded; data_bid=0x670; '
-                  'property_count=58; selected_properties=17; '
-                  'unknown_properties=41; decode_errors=0'
+                  'property_count=58; selected_properties=22; '
+                  'unknown_properties=36; decode_errors=0'
               ),
               'body_status': (
                   'body_payload_extracted; payloads=1; '
@@ -650,7 +679,7 @@ jobs:
               raise SystemExit(f'unexpected EML subject: {parsed_eml["Subject"]!r}')
           if str(parsed_eml['To']) != '"\'lfcnassif@gmail.com\'" <lfcnassif@gmail.com>':
               raise SystemExit(f'unexpected EML recipient: {parsed_eml["To"]!r}')
-          if parsed_eml['Date'].datetime.isoformat() != '2020-11-26T22:18:00+00:00':
+          if parsed_eml['Date'].datetime.isoformat() != '2020-11-26T22:18:29+00:00':
               raise SystemExit(f'unexpected EML Date: {parsed_eml["Date"]!r}')
           if b'From: Luis Filipe da Cruz Nassif </o=PF/' not in eml_bytes:
               raise SystemExit('native Exchange sender address was not preserved')
@@ -739,12 +768,12 @@ jobs:
               'attachment_payload_bytes': 12315,
               'eml_files': 2,
               'eml_bytes': 17488,
-              'messages_jsonl_bytes': 24069,
+              'messages_jsonl_bytes': 28727,
               'bodies_jsonl_bytes': 2922,
               'recipients_jsonl_bytes': 2708,
               'attachments_jsonl_bytes': 1240,
-              'tar_bytes': 521728,
-              'output_total_bytes': 566775,
+              'tar_bytes': 525824,
+              'output_total_bytes': 570872,
           }
           if metrics != expected_metrics:
               raise SystemExit(f'fixture metrics mismatch: {metrics!r}')

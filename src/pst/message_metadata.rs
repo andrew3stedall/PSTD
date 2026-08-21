@@ -1,11 +1,19 @@
 use crate::output::ids;
 use crate::output::metadata::MessageRecord;
 use crate::pst::mapi::{
-    PR_CONVERSATION_INDEX, PR_CONVERSATION_TOPIC, PR_CONVERSATION_TOPIC_A, PR_HASATTACH,
-    PR_INTERNET_MESSAGE_ID, PR_INTERNET_MESSAGE_ID_A, PR_IN_REPLY_TO_ID, PR_IN_REPLY_TO_ID_A,
-    PR_MESSAGE_CLASS, PR_MESSAGE_CLASS_A, PR_MESSAGE_DELIVERY_TIME, PR_SENDER_ADDRTYPE,
+    PR_CLIENT_SUBMIT_TIME, PR_CONVERSATION_INDEX, PR_CONVERSATION_TOPIC, PR_CONVERSATION_TOPIC_A,
+    PR_CREATION_TIME, PR_DELETE_AFTER_SUBMIT, PR_HASATTACH, PR_IMPORTANCE, PR_INTERNET_MESSAGE_ID,
+    PR_INTERNET_MESSAGE_ID_A, PR_IN_REPLY_TO_ID, PR_IN_REPLY_TO_ID_A, PR_LAST_MODIFICATION_TIME,
+    PR_MESSAGE_CLASS, PR_MESSAGE_CLASS_A, PR_MESSAGE_DELIVERY_TIME, PR_MESSAGE_FLAGS,
+    PR_ORIGINATOR_DELIVERY_REPORT_REQUESTED, PR_PRIORITY, PR_READ_RECEIPT_REQUESTED,
+    PR_RECEIVED_BY_ADDRTYPE, PR_RECEIVED_BY_ADDRTYPE_A, PR_RECEIVED_BY_EMAIL_ADDRESS,
+    PR_RECEIVED_BY_EMAIL_ADDRESS_A, PR_RECEIVED_REPRESENTING_ADDRTYPE,
+    PR_RECEIVED_REPRESENTING_ADDRTYPE_A, PR_RECEIVED_REPRESENTING_EMAIL_ADDRESS,
+    PR_RECEIVED_REPRESENTING_EMAIL_ADDRESS_A, PR_REPLY_REQUESTED, PR_SENDER_ADDRTYPE,
     PR_SENDER_ADDRTYPE_A, PR_SENDER_EMAIL_ADDRESS, PR_SENDER_EMAIL_ADDRESS_A, PR_SENDER_NAME,
-    PR_SENDER_NAME_A, PR_SUBJECT, PR_SUBJECT_A, PR_TRANSPORT_MESSAGE_HEADERS,
+    PR_SENDER_NAME_A, PR_SENSITIVITY, PR_SENT_REPRESENTING_ADDRTYPE,
+    PR_SENT_REPRESENTING_ADDRTYPE_A, PR_SENT_REPRESENTING_EMAIL_ADDRESS,
+    PR_SENT_REPRESENTING_EMAIL_ADDRESS_A, PR_SUBJECT, PR_SUBJECT_A, PR_TRANSPORT_MESSAGE_HEADERS,
     PR_TRANSPORT_MESSAGE_HEADERS_A,
 };
 use crate::pst::primitives::NodeId;
@@ -43,6 +51,19 @@ pub fn message_from_properties(
 
     let sender_email =
         properties.first_string_value(&[PR_SENDER_EMAIL_ADDRESS, PR_SENDER_EMAIL_ADDRESS_A]);
+    let report_controls = [
+        ("read_receipt", PR_READ_RECEIPT_REQUESTED),
+        ("reply_requested", PR_REPLY_REQUESTED),
+        ("delivery_report", PR_ORIGINATOR_DELIVERY_REPORT_REQUESTED),
+        ("delete_after_submit", PR_DELETE_AFTER_SUBMIT),
+    ]
+    .into_iter()
+    .filter_map(|(name, tag)| {
+        properties
+            .string_value(tag)
+            .map(|value| format!("{name}={value}"))
+    })
+    .collect::<Vec<_>>();
 
     MessageRecord {
         run_id: run_id.to_string(),
@@ -59,10 +80,38 @@ pub fn message_from_properties(
         sender_raw_address: sender_email,
         sender_address_type: properties
             .first_string_value(&[PR_SENDER_ADDRTYPE, PR_SENDER_ADDRTYPE_A]),
-        sent_at: None,
+        sent_representing_email: properties.first_string_value(&[
+            PR_SENT_REPRESENTING_EMAIL_ADDRESS,
+            PR_SENT_REPRESENTING_EMAIL_ADDRESS_A,
+        ]),
+        sent_representing_address_type: properties.first_string_value(&[
+            PR_SENT_REPRESENTING_ADDRTYPE,
+            PR_SENT_REPRESENTING_ADDRTYPE_A,
+        ]),
+        received_by_email: properties
+            .first_string_value(&[PR_RECEIVED_BY_EMAIL_ADDRESS, PR_RECEIVED_BY_EMAIL_ADDRESS_A]),
+        received_by_address_type: properties
+            .first_string_value(&[PR_RECEIVED_BY_ADDRTYPE, PR_RECEIVED_BY_ADDRTYPE_A]),
+        received_representing_email: properties.first_string_value(&[
+            PR_RECEIVED_REPRESENTING_EMAIL_ADDRESS,
+            PR_RECEIVED_REPRESENTING_EMAIL_ADDRESS_A,
+        ]),
+        received_representing_address_type: properties.first_string_value(&[
+            PR_RECEIVED_REPRESENTING_ADDRTYPE,
+            PR_RECEIVED_REPRESENTING_ADDRTYPE_A,
+        ]),
+        sent_at: properties.string_value(PR_CLIENT_SUBMIT_TIME),
         received_at: properties.string_value(PR_MESSAGE_DELIVERY_TIME),
-        created_at: None,
-        modified_at: None,
+        created_at: properties.string_value(PR_CREATION_TIME),
+        modified_at: properties.string_value(PR_LAST_MODIFICATION_TIME),
+        importance: properties.string_value(PR_IMPORTANCE),
+        message_flags: properties.string_value(PR_MESSAGE_FLAGS),
+        priority: properties.string_value(PR_PRIORITY),
+        sensitivity: properties.string_value(PR_SENSITIVITY),
+        read_receipt_requested: properties.string_value(PR_READ_RECEIPT_REQUESTED),
+        reply_requested: properties.string_value(PR_REPLY_REQUESTED),
+        delivery_report_requested: properties.string_value(PR_ORIGINATOR_DELIVERY_REPORT_REQUESTED),
+        delete_after_submit: properties.string_value(PR_DELETE_AFTER_SUBMIT),
         transport_message_headers: properties
             .first_string_value(&[PR_TRANSPORT_MESSAGE_HEADERS, PR_TRANSPORT_MESSAGE_HEADERS_A]),
         internet_message_id,
@@ -74,7 +123,14 @@ pub fn message_from_properties(
         has_html_body: false,
         has_attachments,
         attachment_count: 0,
-        metadata_status: "partial".to_string(),
+        metadata_status: if report_controls.is_empty() {
+            "metadata_projected_without_report_controls".to_string()
+        } else {
+            format!(
+                "metadata_projected; report_controls={}",
+                report_controls.join(",")
+            )
+        },
         threading_status,
         body_status: "deferred_to_m5".to_string(),
         attachment_status: "deferred_to_m5".to_string(),
@@ -107,10 +163,24 @@ pub fn status_row(
         sender_email: None,
         sender_raw_address: None,
         sender_address_type: None,
+        sent_representing_email: None,
+        sent_representing_address_type: None,
+        received_by_email: None,
+        received_by_address_type: None,
+        received_representing_email: None,
+        received_representing_address_type: None,
         sent_at: None,
         received_at: None,
         created_at: None,
         modified_at: None,
+        importance: None,
+        message_flags: None,
+        priority: None,
+        sensitivity: None,
+        read_receipt_requested: None,
+        reply_requested: None,
+        delivery_report_requested: None,
+        delete_after_submit: None,
         transport_message_headers: None,
         internet_message_id: None,
         in_reply_to_id: None,
@@ -135,8 +205,9 @@ mod tests {
 
     use super::{message_from_properties, status_row};
     use crate::pst::mapi::{
-        MapiValue, PR_SUBJECT, PR_SUBJECT_A, PR_TRANSPORT_MESSAGE_HEADERS,
-        PR_TRANSPORT_MESSAGE_HEADERS_A,
+        MapiValue, PR_CLIENT_SUBMIT_TIME, PR_IMPORTANCE, PR_MESSAGE_FLAGS, PR_PRIORITY,
+        PR_READ_RECEIPT_REQUESTED, PR_RECEIVED_BY_EMAIL_ADDRESS, PR_SENSITIVITY, PR_SUBJECT,
+        PR_SUBJECT_A, PR_TRANSPORT_MESSAGE_HEADERS, PR_TRANSPORT_MESSAGE_HEADERS_A,
     };
     use crate::pst::primitives::NodeId;
     use crate::pst::property_context::{PropertyContext, PropertyValue};
@@ -247,5 +318,103 @@ mod tests {
 
         assert_eq!(message.transport_message_headers, None);
         assert_eq!(message.item_type, "metadata_status");
+    }
+
+    #[test]
+    fn projects_dates_identity_controls_and_native_addresses() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_CLIENT_SUBMIT_TIME,
+            PropertyValue {
+                tag: PR_CLIENT_SUBMIT_TIME,
+                name: "sent_at".to_string(),
+                raw: vec![1; 8],
+                decoded: Some(MapiValue::FileTime("filetime:1".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_RECEIVED_BY_EMAIL_ADDRESS,
+            PropertyValue {
+                tag: PR_RECEIVED_BY_EMAIL_ADDRESS,
+                name: "received_by_email_address".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String(
+                    "/o=Exchange/ou=Example/cn=Recipients/cn=1".into(),
+                )),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_IMPORTANCE,
+            PropertyValue {
+                tag: PR_IMPORTANCE,
+                name: "importance".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::Integer32(2)),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_MESSAGE_FLAGS,
+            PropertyValue {
+                tag: PR_MESSAGE_FLAGS,
+                name: "message_flags".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::Integer32(5)),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_PRIORITY,
+            PropertyValue {
+                tag: PR_PRIORITY,
+                name: "priority".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::Integer32(2)),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_SENSITIVITY,
+            PropertyValue {
+                tag: PR_SENSITIVITY,
+                name: "sensitivity".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::Integer32(1)),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_READ_RECEIPT_REQUESTED,
+            PropertyValue {
+                tag: PR_READ_RECEIPT_REQUESTED,
+                name: "read_receipt_requested".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::Boolean(true)),
+                status: "selected".to_string(),
+            },
+        );
+
+        let message = message_from_properties(
+            "run_123",
+            "pst_123",
+            "folder_123",
+            "/Inbox",
+            NodeId(42),
+            &PropertyContext::from_values(values),
+        );
+
+        assert_eq!(message.sent_at.as_deref(), Some("filetime:1"));
+        assert_eq!(
+            message.received_by_email.as_deref(),
+            Some("/o=Exchange/ou=Example/cn=Recipients/cn=1")
+        );
+        assert_eq!(message.importance.as_deref(), Some("2"));
+        assert_eq!(message.message_flags.as_deref(), Some("5"));
+        assert_eq!(message.priority.as_deref(), Some("2"));
+        assert_eq!(message.sensitivity.as_deref(), Some("1"));
+        assert_eq!(message.read_receipt_requested.as_deref(), Some("true"));
+        assert!(message.metadata_status.contains("read_receipt=true"));
     }
 }

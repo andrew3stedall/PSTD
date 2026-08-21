@@ -15,6 +15,16 @@ The libpst email model exposes more than the current PSTD `MessageRecord`. The p
 | Delivery/report controls | importance, priority, sensitivity, read receipt, reply requested, delivery report, delete after submit. | **Gap** |
 | Exchange forensic identities | search keys, received-by/representing fields, native Exchange addresses. | **Partial**: raw Exchange addresses are preserved where proved; the full field set is not. |
 
+## RP-M2-01 delivery
+
+The canonical MessageRecord now projects sent-representing and received-by native
+addresses, client-submit/delivery/creation/modification FILETIME summaries,
+importance, message flags, priority, sensitivity, and the read-receipt, reply,
+delivery-report, and delete-after-submit controls when the source properties are
+available. Missing controls remain null and the metadata status identifies whether
+report controls were observed. Raw property bytes and decode status remain in the
+canonical evidence stream; no native address is rewritten as SMTP.
+
 ## Transport headers
 
 readpst prefers the stored `PR_TRANSPORT_MESSAGE_HEADERS` when it looks like a valid RFC 822 header block. It removes duplicated or container-only fields such as MIME-Version, Content-Type, Content-Transfer-Encoding, Content-class, X-MimeOLE, and some Outlook wrapper fields, then reconstructs missing `From`, `Subject`, `To`, `Cc`, `Date`, and `Message-Id` fields from MAPI values.

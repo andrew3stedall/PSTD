@@ -51,6 +51,10 @@ Broaden the existing strongest path before adding legacy formats:
 - by-value, inline/CID, multiple, zero-length, size-mismatch, and non-ASCII attachments;
 - nested embedded messages with recursion guards.
 
+RP-M2-01 is the first metadata slice in this phase. It is integrated into the
+canonical message JSONL path and preserves raw property provenance, but it does not
+close the broader corpus, header, body, attachment-method, or output-adapter gates.
+
 Exit criterion: a multi-producer Unicode corpus reaches E3 evidence for messages, bodies, headers, recipients, attachments, and embedded children.
 
 ## Phase 2 — non-mail and mixed folders
