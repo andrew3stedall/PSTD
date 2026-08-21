@@ -53,6 +53,15 @@ Tika fixture gates verify message-key coverage and authority safety. This advanc
 the header evidence boundary but does not claim final MIME adapter or code-page
 conversion parity.
 
+## RP-M2-03 delivery
+
+Attachment records now publish deterministic method/source and rendering-position
+fields through the production canonical path. Existing attachment and embedded
+fixtures verify by-value and method-5 payload hashes, safe archive paths, CID/method
+metadata, size mismatch visibility, and stable ordering. Reference/ambiguous/empty
+payload outcomes remain explicit; this does not yet close all adapter-specific
+extension filtering or OLE round-trip rows.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |

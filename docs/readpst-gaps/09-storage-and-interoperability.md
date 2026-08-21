@@ -117,3 +117,9 @@ Implement adapters in dependency order: `mbox`, `recursive_mbox`, `mh`, `eml`, `
 ### Issue-ready acceptance
 
 `RP-09A` is mbox/recursive, `RP-09B` MH/EML/separate, `RP-09C` KMail/Thunderbird, `RP-09D` contact/calendar/journal file profiles, and `RP-09E` MSG/OLE. For every profile, compare folder/item counts, decoded fields, body/attachment hashes, typed output, paths, and statuses; test reruns, collisions, overwrite modes, malformed evidence, worker counts, and path traversal. MSG additionally requires an OLE reader round trip and property/recipient/attachment matrix. Update [CLI policy](01-cli-and-output-parity.md), [metadata](04-message-metadata-and-headers.md), [bodies](05-body-mime-and-rtf.md), [attachments](06-attachments.md), [non-mail outputs](08-contacts-calendar-journal.md), and the matrix.
+# RP-M2-03 delivery
+
+Canonical attachment output now records method/source, order, CID, original and safe
+names, payload hash, size status, and adapter-independent extraction status. Archive
+paths continue to be sanitized and bounded before TAR publication; the attachment
+source fields make file/MIME/MSG adapters consume the same evidence graph.

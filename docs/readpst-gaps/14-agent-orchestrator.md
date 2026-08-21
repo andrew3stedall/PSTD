@@ -95,6 +95,14 @@ message-key coverage. Current String8 conversion is explicitly recorded as lossy
 UTF-8 with the readpst ISO-8859-1 fallback visible; complete item/code-page/`-C`/`-8`
 MIME conversion remains downstream work.
 
+### RP-M2-03 dispatch note
+
+RP-M2-03 owns attachment method/source, order, CID, filename/path safety, and raw
+payload evidence over the existing attachment table and recursive Property Context
+paths. Its acceptance gate requires production `AttachmentRecord` fields and
+adapter-independent negative statuses; #508 remains serialized until this and the
+header slice are merged.
+
 
 ### `RP-M1 — Typed extraction core`
 

@@ -52,6 +52,11 @@ projection records its UTF-8-lossy decoder and ISO-8859-1 fallback policy so the
 later MIME adapter can implement readpst's item/code-page/`-C`/`-8` precedence
 without silently changing the default output.
 
+RP-M2-03 keeps attachment source references, rendering positions, CID values,
+method-specific status, and raw payload hashes in the canonical record before any
+MIME or file adapter runs. Empty, unresolved, size-mismatched, and embedded-message
+payloads remain explicit statuses.
+
 PSTD should separate:
 
 ```text

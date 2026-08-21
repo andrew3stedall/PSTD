@@ -144,3 +144,12 @@ Implement method-specific resolvers for none/unknown, by-value, by-reference, by
 ### Issue-ready acceptance
 
 `RP-06A` covers row/property projection, `RP-06B` payload methods, `RP-06C` filename/path/filter policy, `RP-06D` CID/order, and `RP-06E` OLE/lossless evidence. Every issue needs positive and negative fixtures for direct, split, subnode, reference, embedded, OLE, zero-length, size-mismatch, duplicate-name, unsafe-name, non-ASCII, and unresolved cases. Verify payload hashes, source order, MIME projection, filtered statuses, and parent ownership; update [bodies](05-body-mime-and-rtf.md), [special items](07-embedded-and-special-email-items.md), [storage](09-storage-and-interoperability.md), and the matrix.
+# RP-M2-03 delivery
+
+The canonical `AttachmentRecord` now exposes a deterministic `source_ref` and
+`rendering_position` alongside method, MIME type, CID, original/safe names, size
+status, payload hash, archive path, and extraction status. By-value and embedded
+message methods have explicit source labels; method-absent table rows remain
+unresolved rather than being presented as a successful empty file. Existing Tika
+attachment and embedded-message evidence verifies exact payload hashes, safe paths,
+ordinals, and method/source correlation.

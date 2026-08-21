@@ -128,3 +128,9 @@ EmbeddedGraph {
 ### Issue-ready acceptance
 
 `RP-07A` covers embedded graph/reference expansion, `RP-07B` nested MIME, `RP-07C` schedule/meeting email, `RP-07D` report/disposition, and `RP-07E` encrypted/RTF synthetic artefacts. Acceptance fixtures must include valid nested mail, nested attachments, non-email child, cycle, duplicate reference, depth overflow, missing ID2, malformed child, schedule methods, report types, encrypted body, and compressed RTF. Assert parent/child ownership, graph termination, raw preservation, MIME part types, partial statuses, and deterministic output; fan out to [bodies](05-body-mime-and-rtf.md), [attachments](06-attachments.md), [non-mail outputs](08-contacts-calendar-journal.md), [storage](09-storage-and-interoperability.md), and the matrix.
+# RP-M2-03 delivery
+
+Attachment method-5 records now carry an explicit embedded-message source reference
+and deterministic rendering position in addition to the existing child-message key,
+archive path, declared/actual size, and payload hash. Reference failures remain
+linked metadata and are not materialized as successful empty payloads.
