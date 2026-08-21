@@ -150,3 +150,10 @@ Keep raw transport text separate from normalized output. Add typed identity fiel
 - date values at epoch boundaries, invalid FILETIME, and timezone conversions;
 - EML and MSG semantic checks plus raw evidence assertions;
 - documentation fan-out to [bodies](05-body-mime-and-rtf.md), [attachments](06-attachments.md), [storage](09-storage-and-interoperability.md), [the matrix](10-parity-matrix.md), and the source ledger.
+
+## RP-M2-04 integration boundary
+
+The canonical MIME projection consumes the validated `HeaderProjectionRecord` and
+does not reparse PST header bytes. Generated MIME ownership is represented by
+semantic part records, leaving malformed, lossy, or unavailable stored headers
+non-authoritative for downstream adapters.

@@ -153,3 +153,10 @@ message methods have explicit source labels; method-absent table rows remain
 unresolved rather than being presented as a successful empty file. Existing Tika
 attachment and embedded-message evidence verifies exact payload hashes, safe paths,
 ordinals, and method/source correlation.
+
+## RP-M2-04 MIME consumption
+
+`data/mime_parts.jsonl` consumes attachment method/source, rendering position, safe
+path, CID, payload hash, and embedded-child key from `AttachmentRecord`. Attachment
+rows remain ordered by source rendering position; unresolved or size-mismatched rows
+are represented as non-authoritative MIME parts rather than guessed zero-byte content.

@@ -69,6 +69,10 @@ RP-M1-04 adds data/evidence.jsonl to the canonical evidence graph. It links deco
 properties, subnode references, body payloads, and attachment payloads to stable
 owners with bounded raw bytes, hashes, and explicit unavailable/failed statuses.
 
+RP-M2-04 adds `data/mime_parts.jsonl` as the canonical semantic MIME projection over
+those evidence records. It is a production evidence boundary, not a claim that the
+readpst output-adapter family or typed special-item exports are complete.
+
 The execution control plane for implementing this architecture is [the readpst parity agent orchestrator](14-agent-orchestrator.md). It defines eight delivery milestones, 28 stable work-unit keys, dependency gates, specialist sub-agent roles, branch/PR rules, and recursive documentation fan-out. GitHub issues should use those keys verbatim so implementation, fixtures, matrix rows, and agent handoffs remain traceable.
 
 ## Issue slicing rules

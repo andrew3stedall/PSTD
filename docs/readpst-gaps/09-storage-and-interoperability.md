@@ -123,3 +123,10 @@ Canonical attachment output now records method/source, order, CID, original and 
 names, payload hash, size status, and adapter-independent extraction status. Archive
 paths continue to be sanitized and bounded before TAR publication; the attachment
 source fields make file/MIME/MSG adapters consume the same evidence graph.
+
+## RP-M2-04 canonical storage
+
+The archive now includes `data/mime_parts.jsonl` beside bodies, attachments, headers,
+and evidence. MIME boundaries are represented as stable part ownership keys derived
+from the message key and semantic role; adapter serializers can choose their own
+wire boundary while consuming the same raw/decoded hashes and explicit statuses.

@@ -1,0 +1,101 @@
+name: Readpst body MIME projection
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  body-mime-projection:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test --all
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Verify canonical MIME projection and determinism
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/upstream/tika-various-body-types.pst"
+          evidence="/tmp/pstd-body-mime-projection"
+          first="/tmp/pstd-body-mime-first"
+          second="/tmp/pstd-body-mime-second"
+          mkdir -p "$evidence" "$first" "$second"
+          (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
+
+          cargo run -- extract --input "$fixture" --output "$first" --overwrite > "$evidence/first.stdout" 2> "$evidence/first.stderr"
+          cargo run -- extract --input "$fixture" --output "$second" --overwrite > "$evidence/second.stdout" 2> "$evidence/second.stderr"
+
+          for output in "$first" "$second"; do
+            tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+            destination="$evidence/$(basename "$output")"
+            mkdir -p "$destination"
+            tar -xf "$tar_file" -C "$destination"
+            test -s "$destination/data/mime_parts.jsonl"
+          done
+
+          cmp "$evidence/pstd-body-mime-first/data/mime_parts.jsonl" "$evidence/pstd-body-mime-second/data/mime_parts.jsonl"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          archive = Path('/tmp/pstd-body-mime-projection/pstd-body-mime-first')
+          parts = [
+              json.loads(line)
+              for line in (archive / 'data/mime_parts.jsonl').read_text(encoding='utf-8').splitlines()
+              if line.strip()
+          ]
+          bodies = [
+              json.loads(line)
+              for line in (archive / 'data/bodies.jsonl').read_text(encoding='utf-8').splitlines()
+              if line.strip()
+          ]
+          if len({part['part_key'] for part in parts}) != len(parts):
+              raise SystemExit('duplicate MIME part key')
+          keys = {part['part_key'] for part in parts}
+          if any(part['parent_part_key'] not in keys for part in parts if part['parent_part_key']):
+              raise SystemExit('MIME parent ownership reference is missing')
+          unresolved_html = next(
+              body for body in bodies
+              if body['message_key'] == 'msg_58f39dbbca78135b' and body['body_type'] == 'html'
+          )
+          html_part = next(
+              part for part in parts
+              if part['source_body_key'] == unresolved_html['body_key']
+          )
+          if html_part['authoritative'] or html_part['decoded_size_bytes'] is not None:
+              raise SystemExit('unresolved HTML was promoted to an authoritative MIME body')
+          text_part = next(
+              part for part in parts
+              if part['message_key'] == 'msg_58f39dbbca78135b' and part['source_body_key']
+              and part['part_type'] == 'body' and part['media_type'] == 'text/plain'
+          )
+          if not text_part['authoritative'] or text_part['decoded_sha256'] is None:
+              raise SystemExit('valid text body lost decoded evidence')
+          for part in parts:
+              if part['part_type'].startswith('multipart_') and part['status'] == 'mime_duplicate_header':
+                  raise SystemExit('duplicate generated MIME header status')
+          Path('/tmp/pstd-body-mime-projection/body-mime-report.json').write_text(
+              json.dumps({
+                  'fixture': 'tests/fixtures/upstream/tika-various-body-types.pst',
+                  'fixture_sha256': '24c5e6bbb8bf26a817c977283e40e7b69d2661fec0845abbe177f97efcb05fb0',
+                  'mime_part_count': len(parts),
+                  'body_record_count': len(bodies),
+                  'deterministic_mime_jsonl': True,
+                  'unresolved_html_non_authoritative': True,
+                  'text_decoded_hash_present': True,
+              }, indent=2) + '\n', encoding='utf-8'
+          )
+          PY
+      - name: Upload body MIME evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-body-mime-projection-evidence
+          path: /tmp/pstd-body-mime-projection
+          if-no-files-found: error

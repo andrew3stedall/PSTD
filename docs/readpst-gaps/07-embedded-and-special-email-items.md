@@ -134,3 +134,10 @@ Attachment method-5 records now carry an explicit embedded-message source refere
 and deterministic rendering position in addition to the existing child-message key,
 archive path, declared/actual size, and payload hash. Reference failures remain
 linked metadata and are not materialized as successful empty payloads.
+
+## RP-M2-04 integration boundary
+
+Method-5 attachments are projected as `embedded_message` MIME parts with explicit
+parent ownership and child message keys. Missing child payloads remain
+`mime_embedded_message_payload_unavailable`; recursive depth, cycle detection, and
+typed child special-item semantics remain RP-M3 acceptance work.

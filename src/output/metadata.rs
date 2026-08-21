@@ -101,6 +101,30 @@ pub struct BodyRecord {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MimePartRecord {
+    pub message_key: String,
+    pub part_key: String,
+    pub parent_part_key: Option<String>,
+    pub ordinal: u64,
+    pub part_type: String,
+    pub media_type: Option<String>,
+    pub parameters: Option<String>,
+    pub transfer_encoding: Option<String>,
+    pub disposition: Option<String>,
+    pub content_id: Option<String>,
+    pub source_body_key: Option<String>,
+    pub source_attachment_key: Option<String>,
+    pub child_message_key: Option<String>,
+    pub raw_size_bytes: u64,
+    pub raw_sha256: Option<String>,
+    pub decoded_size_bytes: Option<u64>,
+    pub decoded_sha256: Option<String>,
+    pub status: String,
+    pub authoritative: bool,
+    pub synthetic: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AttachmentRecord {
     pub message_key: String,
     pub attachment_key: String,

@@ -93,6 +93,10 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     for record in &metadata.bodies {
         bodies.write_record(record)?;
     }
+    let mut mime_parts = JsonlBuffer::new();
+    for record in &metadata.mime_parts {
+        mime_parts.write_record(record)?;
+    }
     let mut attachments = JsonlBuffer::new();
     for record in &metadata.attachments {
         attachments.write_record(record)?;
@@ -160,6 +164,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         &message_references.into_bytes(),
     )?;
     tar.append_bytes(&["data", "bodies.jsonl"], &bodies.into_bytes())?;
+    tar.append_bytes(&["data", "mime_parts.jsonl"], &mime_parts.into_bytes())?;
     tar.append_bytes(&["data", "attachments.jsonl"], &attachments.into_bytes())?;
     tar.append_bytes(
         &["data", "compatibility_triage.jsonl"],
