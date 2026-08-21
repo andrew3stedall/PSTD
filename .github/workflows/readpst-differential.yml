@@ -1,0 +1,58 @@
+name: Readpst differential harness
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-differential:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install pinned readpst build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y             autoconf autoconf-archive automake autopoint gettext libgsf-1-dev libicu-dev libpcre2-dev             libtool libtool-bin pkg-config zlib1g-dev
+      - name: Build the pinned readpst oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          revision=$(sed -n 's/.*READPST_SOURCE_REVISION: &str = "\([^"]*\)".*/\1/p'             tests/readpst_diff/manifest.rs)
+          test -n "$revision"
+          git init /tmp/libpst
+          git -C /tmp/libpst remote add origin https://github.com/pst-format/libpst.git
+          git -C /tmp/libpst fetch --depth=1 origin "$revision"
+          git -C /tmp/libpst checkout --detach FETCH_HEAD
+          cd /tmp/libpst
+          autoreconf -fi
+          ./configure --enable-python=no
+          make -C src -j2
+          readpst_bin=$(find /tmp/libpst -type f -name readpst -perm -111 | sort | head -n 1)
+          test -n "$readpst_bin"
+          echo "PSTD_READPST_BIN=$readpst_bin" >> "$GITHUB_ENV"
+          version=$("$readpst_bin" -V 2>&1 | head -n 1 || true)
+          test -n "$version"
+          echo "PSTD_READPST_VERSION=$version" >> "$GITHUB_ENV"
+          echo "Pinned revision: $revision"
+          echo "Readpst binary: $readpst_bin"
+          echo "Readpst version: $version"
+      - name: Run the approved Unicode fixture differential
+        shell: bash
+        env:
+          PSTD_DIFFERENTIAL_EVIDENCE: /tmp/pstd-readpst-differential
+        run: |
+          set -euo pipefail
+          mkdir -p "$PSTD_DIFFERENTIAL_EVIDENCE"
+          cargo test --test readpst_diff_runner -- --nocapture
+      - name: Upload differential report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-differential-evidence
+          path: /tmp/pstd-readpst-differential
+          if-no-files-found: error

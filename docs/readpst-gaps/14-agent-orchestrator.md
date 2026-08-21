@@ -55,6 +55,10 @@ The `Depends on` column names stable work-unit keys. The global orchestrator mus
 | [RP-M0-03](https://github.com/andrew3stedall/PSTD/issues/499) | Automate pinned upstream source review and drift detection | `12` ledger; `readpst.c`, `libpst.c/.h`, `msg.cpp`, helper sources, `Makefile.am` | source manifest/check script, revision/hash report, documented drift failure | `RP-M0-01` | upstream-audit agent |
 | [RP-M0-04](https://github.com/andrew3stedall/PSTD/issues/500) | Install the global agent orchestration protocol and workboard rules | `00`, `11`, `13`, this document | GitHub issue/PR protocol, dependency state machine, documentation fan-out checklist | `RP-M0-01` | orchestration/release agent |
 
+### RP-M0 delivery note
+
+RP-M0-01, RP-M0-02, and RP-M0-03 are the serialized control-plane slices: contracts first, then the bounded semantic differential runner, then pinned-source drift evidence. The runner’s current accepted fixture evidence is E2/Partial; it records parity, intentional PSTD extension, unsupported, and failure outcomes without promoting downstream matrix rows. Feature dispatch remains subject to the merged-contract and dependency checklist below.
+
 ### `RP-M1 — Typed extraction core`
 
 | Key | Work unit | Source/readpst anchors | PSTD boundary | Depends on | Specialist |
