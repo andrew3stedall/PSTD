@@ -7,8 +7,9 @@ use crate::output::ids;
 use crate::output::metadata::{
     AttachmentRecord, BodyRecord, EvidenceRecord, FolderRecord, HeaderProjectionRecord,
     ItemEnvelope, ItemRoutingCountRecord, ManifestRecord, MessageRecord, MessageReferenceRecord,
-    RecipientRecord,
+    MimePartRecord, RecipientRecord,
 };
+use crate::output::mime::build_mime_parts;
 use crate::pst::attachment_property_context::{
     attachment_payloads_from_property_context_subnodes,
     attachment_records_from_property_context_subnodes, EmbeddedMessageCandidate,
@@ -63,6 +64,7 @@ pub struct MetadataExtractionOutput {
     pub message_references: Vec<MessageReferenceRecord>,
     pub bodies: Vec<BodyRecord>,
     pub body_payloads: Vec<BodyPayload>,
+    pub mime_parts: Vec<MimePartRecord>,
     pub attachments: Vec<AttachmentRecord>,
     pub attachment_payloads: Vec<AttachmentPayload>,
     pub compatibility_triage: Vec<CompatibilityTriageRecord>,
@@ -118,6 +120,7 @@ pub fn extract_metadata(
     let message_references: Vec<MessageReferenceRecord> = Vec::new();
     let mut bodies: Vec<BodyRecord> = Vec::new();
     let mut body_payloads: Vec<BodyPayload> = Vec::new();
+    let mut mime_parts: Vec<MimePartRecord> = Vec::new();
     let mut attachments: Vec<AttachmentRecord> = Vec::new();
     let mut attachment_payloads: Vec<AttachmentPayload> = Vec::new();
     let mut embedded_message_outputs: Vec<EmbeddedMessageExtractionOutput> = Vec::new();
@@ -656,6 +659,13 @@ pub fn extract_metadata(
             format!("Materialised {embedded_message_payload_count} method-5 child EML payload(s)."),
         ));
     }
+    mime_parts = build_mime_parts(
+        &messages,
+        &bodies,
+        &body_payloads,
+        &attachments,
+        &attachment_payloads,
+    );
 
     let items = build_item_envelopes(
         pst_id,
@@ -690,6 +700,16 @@ pub fn extract_metadata(
             &attachment.archive_path,
             payload.map(|value| value.bytes.as_slice()),
             &attachment.extraction_status,
+        ));
+    }
+    for mime_part in &mime_parts {
+        evidence.push(crate::pst::evidence::payload_record(
+            &mime_part.message_key,
+            "mime_part",
+            format!("mime:{}", mime_part.part_key),
+            "data/mime_parts.jsonl",
+            None,
+            &mime_part.status,
         ));
     }
 
@@ -819,6 +839,7 @@ pub fn extract_metadata(
         message_references,
         bodies,
         body_payloads,
+        mime_parts,
         attachments,
         attachment_payloads,
         compatibility_triage,
@@ -1168,6 +1189,18 @@ fn base_manifest(
             pst_id: pst_id.to_string(),
             message_key: None,
             folder_key: None,
+            artefact_type: "mime_parts".to_string(),
+            archive_path: "data/mime_parts.jsonl".to_string(),
+            sha256: None,
+            size_bytes: None,
+            status: "rp_m2_04_canonical_mime_projection".to_string(),
+            issue_count: 0,
+        },
+        ManifestRecord {
+            run_id: run_id.to_string(),
+            pst_id: pst_id.to_string(),
+            message_key: None,
+            folder_key: None,
             artefact_type: "attachments".to_string(),
             archive_path: "data/attachments.jsonl".to_string(),
             sha256: None,
@@ -1292,6 +1325,7 @@ pub fn fallback_metadata(
         message_references: Vec::new(),
         bodies: Vec::new(),
         body_payloads: Vec::new(),
+        mime_parts: Vec::new(),
         attachments: Vec::new(),
         attachment_payloads: Vec::new(),
         compatibility_triage: Vec::new(),

@@ -103,6 +103,15 @@ paths. Its acceptance gate requires production `AttachmentRecord` fields and
 adapter-independent negative statuses; #508 remains serialized until this and the
 header slice are merged.
 
+### RP-M2-04 delivery note
+
+RP-M2-04 is merged on main as the canonical body/MIME/RTF projection slice. It adds
+bounded RTF validation/recovery and `data/mime_parts.jsonl` over the production body,
+header, attachment, and embedded evidence graph. The repeat-run workflow verifies
+stable part keys, ownership, raw/decoded hash linkage, and unresolved HTML safety.
+Report, schedule, encrypted-body, recursive child, and output-adapter semantics stay
+serialized behind RP-M3/RP-M5 rather than being silently inferred here.
+
 
 ### `RP-M1 — Typed extraction core`
 

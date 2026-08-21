@@ -62,6 +62,17 @@ metadata, size mismatch visibility, and stable ordering. Reference/ambiguous/emp
 payload outcomes remain explicit; this does not yet close all adapter-specific
 extension filtering or OLE round-trip rows.
 
+## RP-M2-04 delivery
+
+The canonical extraction path now publishes deterministic `data/mime_parts.jsonl`
+records over independent body candidates and attachment evidence. Plain/HTML/RTF
+media types, selection order, transfer encoding, raw/decoded hashes, inline/CID
+metadata, embedded ownership, bounded RTF validation, and derived `fromhtml1` HTML
+are covered by unit tests and the repeat-run body/MIME workflow. Unresolved locators,
+invalid RTF, encrypted bodies, reports, and schedules remain explicit
+non-authoritative statuses; typed special-item and adapter parity rows are not yet
+promoted.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |

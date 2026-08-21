@@ -32,6 +32,7 @@ pub mod payload;
 pub mod primitives;
 pub mod property_context;
 pub mod reader;
+pub mod rtf;
 pub mod recipients;
 pub mod subnodes;
 pub mod table_context;

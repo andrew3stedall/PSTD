@@ -143,3 +143,20 @@ Use `src/pst/messages.rs` and the current `BodyRecord`/payload maps as the evide
 ### Issue-ready acceptance
 
 `RP-05A` covers body evidence/selection, `RP-05B` MIME tree assembly, `RP-05C` charset/transfer encodings, `RP-05D` RTF/LZFU, `RP-05E` report/schedule parts, and `RP-05F` semantic MIME comparison. Required fixtures include plain-only, HTML-only, text+HTML, body-only RTF, generic RTF, compressed RTF, binary-looking text, malformed locators, encrypted bodies, report, schedule, and embedded MIME cases. Assertions must cover decoded bytes, media types, charsets, dispositions, CIDs, synthetic markers, boundaries, and negative statuses; update [attachments](06-attachments.md), [special items](07-embedded-and-special-email-items.md), [storage](09-storage-and-interoperability.md), and the matrix.
+
+## RP-M2-04 delivery
+
+The production path now emits `data/mime_parts.jsonl` as a deterministic flat MIME
+tree over the canonical body and attachment records. It preserves independent plain,
+HTML, and RTF candidates, stable multipart/alternative and multipart/mixed ownership,
+media parameters, transfer encoding, disposition, Content-ID, raw/decoded hashes,
+and explicit non-authoritative statuses for unresolved, encrypted, report, and
+schedule payloads. Direct and Outlook-wrapped RTF is bounded by header, CRC, size,
+dictionary, and output-budget checks; validated `\\fromhtml1` RTF may add a synthetic
+derived HTML part without replacing the raw RTF evidence.
+
+The body/MIME workflow repeats extraction and compares canonical MIME JSONL bytes,
+while the approved Tika body fixture verifies that an unresolved HTML locator remains
+non-authoritative and that a valid text body retains decoded evidence. Full report,
+schedule, encrypted-body, and adapter-specific output semantics remain downstream
+typed work in RP-M3/RP-M5.
