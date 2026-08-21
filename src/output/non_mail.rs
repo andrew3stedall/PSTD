@@ -21,12 +21,7 @@ pub fn build_non_mail_records(
                     } else {
                         "journal_fields_unavailable"
                     };
-                    (
-                        "journal",
-                        "routed_journal",
-                        status,
-                        status,
-                    )
+                    ("journal", "routed_journal", status, status)
                 }
                 Some(ItemKind::Task) => (
                     "task",
@@ -109,7 +104,10 @@ pub fn serialize_vjournals(records: &[NonMailRecord]) -> String {
         .filter(|record| record.item_kind == "journal")
     {
         output.push_str("BEGIN:VJOURNAL\r\nVERSION:1.0\r\n");
-        output.push_str(&format!("UID:{}\r\n", escape_vjournal(&record.non_mail_key)));
+        output.push_str(&format!(
+            "UID:{}\r\n",
+            escape_vjournal(&record.non_mail_key)
+        ));
         output.push_str("DTSTAMP:19700101T000000Z\r\n");
         output.push_str("X-PSTD-DTSTAMP-SYNTHETIC:TRUE\r\n");
         if let Some(summary) = record.summary.as_deref() {
