@@ -6,10 +6,10 @@ use sha2::{Digest, Sha256};
 use crate::config::ExtractConfig;
 use crate::engine::metadata::{extract_metadata, fallback_metadata};
 use crate::error::{PstdError, PstdResult};
+use crate::output::contact::{serialize_contact_list, serialize_vcards};
 use crate::output::ids;
 use crate::output::jsonl_writer::JsonlBuffer;
 use crate::output::metadata::MessageRecord;
-use crate::output::contact::{serialize_contact_list, serialize_vcards};
 use crate::output::summary::ExtractionSummary;
 use crate::output::tar_writer::TarShardWriter;
 use crate::progress::{ProgressEvent, ProgressEventType};
@@ -220,7 +220,10 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
                 },
             }))?,
         )?;
-        tar.append_bytes(&archive_path.split('/').collect::<Vec<_>>(), output.as_bytes())?;
+        tar.append_bytes(
+            &archive_path.split('/').collect::<Vec<_>>(),
+            output.as_bytes(),
+        )?;
     }
     tar.append_bytes(&["data", "attachments.jsonl"], &attachments.into_bytes())?;
     tar.append_bytes(
