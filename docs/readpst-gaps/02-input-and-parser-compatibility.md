@@ -12,6 +12,9 @@
 | Files larger than 2 GiB | Uses large-file-safe offsets and 64-bit sizes where supported by the build. | **Partial**: internal offsets are wide, but large-file behaviour is not fixture-proven. | Sparse/large synthetic fixture and a real large-file performance run without overflow or whole-file loading. |
 | Empty, truncated, corrupt, or malicious input | Must not produce unbounded reads or silently valid-looking content. | **Partial**: bounded reads and diagnostics exist. | Differential corruptions for every parser stage with stable error codes and no partial ownership claims. |
 
+## RP-M1-01 delivery
+
+PSTD now projects a bounded `InputCapability` at the parser boundary. It classifies the libpst index types for Unicode, ANSI, and OST 2013, records crypt method and root-pointer readiness, preserves the ISO-8859-1 default charset policy, and exposes file/read/candidate/property/diagnostic/depth budgets. Unsupported families and crypt methods, short headers, invalid roots, and budget violations are explicit statuses; they do not become an empty folder tree. Inspect JSON and canonical extraction archives carry the capability record.
 ## Encryption
 
 The libpst header exposes three states:
