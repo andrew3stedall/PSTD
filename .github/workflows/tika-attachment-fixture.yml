@@ -112,6 +112,7 @@ jobs:
           bodies = records('bodies.jsonl')
           recipients = records('recipients.jsonl')
           attachments = records('attachments.jsonl')
+          items = records('items.jsonl')
           if len(messages) != 8:
               raise SystemExit(f'unexpected message count: {len(messages)}')
           folder_fields = (
@@ -382,6 +383,36 @@ jobs:
               raise SystemExit(f'unexpected recipients: {recipients!r}')
           if len(attachments) != 2:
               raise SystemExit(f'unexpected attachment record count: {len(attachments)}')
+          if len(items) < len(folders) + len(messages):
+              raise SystemExit(
+                  f'item envelope stream is incomplete: {len(items)} '
+                  f'for {len(folders)} folders and {len(messages)} messages'
+              )
+          envelope_by_key = {item['envelope_key']: item for item in items}
+          for folder in folders:
+              envelope = envelope_by_key.get(folder['folder_key'])
+              if envelope is None or envelope['record_kind'] != 'folder':
+                  raise SystemExit(
+                      f'missing folder envelope: {folder["folder_key"]!r}'
+                  )
+              if envelope['folder_path'] != folder['folder_path']:
+                  raise SystemExit(
+                      f'folder envelope path mismatch: {envelope!r}'
+                  )
+          for message in messages:
+              envelope = envelope_by_key.get(message['message_key'])
+              if envelope is None or envelope['record_kind'] != 'item':
+                  raise SystemExit(
+                      f'missing message envelope: {message["message_key"]!r}'
+                  )
+              if envelope['source']['pst_id'] != message['pst_id']:
+                  raise SystemExit(
+                      f'message envelope source mismatch: {envelope!r}'
+                  )
+              if envelope['extraction_status'] == 'failed_duplicate_source_identity':
+                  raise SystemExit(
+                      f'message envelope unexpectedly duplicated: {envelope!r}'
+                  )
 
           attachment = attachments[0]
           expected = {
@@ -680,8 +711,8 @@ jobs:
               'bodies_jsonl_bytes': 2922,
               'recipients_jsonl_bytes': 2708,
               'attachments_jsonl_bytes': 1240,
-              'tar_bytes': 236032,
-              'output_total_bytes': 281079,
+              'tar_bytes': 261120,
+              'output_total_bytes': 306167,
           }
           if metrics != expected_metrics:
               raise SystemExit(f'fixture metrics mismatch: {metrics!r}')
