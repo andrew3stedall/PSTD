@@ -100,6 +100,9 @@ The shared parity contract is implemented in the test/support boundary at `tests
 
 `tests/readpst_diff/source_manifest.rs` is the pinned upstream-audit boundary. It covers the complete direct ledger, selected function/helper anchors, all 28 work-unit mappings, and the regression profile categories without importing or copying GPL implementation code. The check fails closed on revision drift, missing or duplicate source paths, unresolved symbols, changed repository/license boundary, and out-of-range work-unit mappings. Its report is stable JSON and is independent of private PST payloads or network access.
 
+### RP-M1-01 delivery
+
+The input boundary now emits a typed `InputCapability` before extraction: Unicode PST, ANSI PST, OST 2013, and unknown families; index type/version; crypt method; root readiness; the documented ISO-8859-1 fallback; index/extended-attribute readiness; and explicit unsupported, malformed, partial, unavailable, or budget-exceeded status. File size, single-read, candidate, property, diagnostic, and recursion budgets are serialized with the capability. Header classification never claims extraction support by itself.
 ### Implementation algorithm
 
 1. Pin the upstream revision and record the source function, line anchor, and observable behaviour in a plan issue.

@@ -31,6 +31,7 @@ pub struct BlockRef {
 pub enum PstVariant {
     Unicode,
     Ansi,
+    Ost2013,
     Unknown,
 }
 

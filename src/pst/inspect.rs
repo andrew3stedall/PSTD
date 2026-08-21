@@ -2,7 +2,9 @@ use std::path::Path;
 
 use crate::error::PstdResult;
 use crate::pst::bbt::{BbtIndex, BbtPageDiagnostic};
+use crate::pst::capability::{InputCapability, InputCapabilityStatus};
 use crate::pst::header::PstHeader;
+use crate::pst::limits::InputLimits;
 use crate::pst::nbt::{NbtIndex, NbtPageDiagnostic};
 use crate::pst::reader::PstByteReader;
 
@@ -10,6 +12,7 @@ use crate::pst::reader::PstByteReader;
 pub struct InspectSummary {
     pub input_path: String,
     pub file_size: u64,
+    pub capability: InputCapability,
     pub header: crate::pst::header::PstHeaderSummary,
     pub root_diagnostic_condition: String,
     pub bbt_status: String,
@@ -23,13 +26,18 @@ pub struct InspectSummary {
 impl InspectSummary {
     pub fn to_human_text(&self) -> String {
         format!(
-            "PSTD inspect\ninput: {}\nfile_size: {}\nformat: {}\nvariant: {}\nversion: {:?}\nheader_status: {}\nroot_diagnostic_condition: {}\nroot_selected_source: {:?}\nroot_candidate_count: {}\nbbt_status: {}\nbbt_entries: {}\nbbt_pages_diagnosed: {}\nnbt_status: {}\nnbt_entries: {}\nnbt_pages_diagnosed: {}",
+            "PSTD inspect\ninput: {}\nfile_size: {}\nformat: {}\nvariant: {}\nversion: {:?}\nheader_status: {}\ninput_capability_family: {}\ninput_capability_status: {:?}\ninput_capability_allows_extraction: {}\ncrypt_method: {:?}\ndefault_charset: {}\nroot_diagnostic_condition: {}\nroot_selected_source: {:?}\nroot_candidate_count: {}\nbbt_status: {}\nbbt_entries: {}\nbbt_pages_diagnosed: {}\nnbt_status: {}\nnbt_entries: {}\nnbt_pages_diagnosed: {}",
             self.input_path,
             self.file_size,
             self.header.format,
             self.header.variant,
             self.header.version,
             self.header.parser_status,
+            self.capability.family_name(),
+            self.capability.status,
+            self.capability.allows_extraction,
+            self.capability.crypt_method,
+            self.capability.default_charset,
             self.root_diagnostic_condition,
             self.header.root_diagnostics.selected_source,
             self.header.root_diagnostics.candidate_count,
@@ -44,8 +52,11 @@ impl InspectSummary {
 }
 
 pub fn inspect_pst(input: impl AsRef<Path>) -> PstdResult<InspectSummary> {
-    let reader = PstByteReader::open(input.as_ref())?;
+    let limits = InputLimits::default();
+    let reader = PstByteReader::open_with_limits(input.as_ref(), &limits)?;
     let header = PstHeader::parse(&reader)?;
+    let mut capability =
+        InputCapability::from_header(input.as_ref().display().to_string(), &header, limits);
     let root_diagnostic_condition = header.summary.root_diagnostics.condition.clone();
 
     let (bbt_status, bbt_entries, bbt_page_diagnostics) =
@@ -59,9 +70,21 @@ pub fn inspect_pst(input: impl AsRef<Path>) -> PstdResult<InspectSummary> {
             Err(err) => (format!("unavailable: {err}"), 0, Vec::new()),
         };
 
+    capability.record_index_status(bbt_status.clone(), nbt_status.clone());
+    capability.record_extended_attributes_status("not_loaded_by_inspect");
+
+    if capability.status == InputCapabilityStatus::Ready && (bbt_entries == 0 || nbt_entries == 0) {
+        capability.status = InputCapabilityStatus::Partial;
+        capability.allows_extraction = false;
+        capability
+            .diagnostics
+            .push("index_probe_returned_no_entries".to_string());
+    }
+
     Ok(InspectSummary {
         input_path: reader.input_path().display().to_string(),
         file_size: reader.file_size(),
+        capability,
         header: header.summary,
         root_diagnostic_condition,
         bbt_status,
