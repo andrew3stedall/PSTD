@@ -793,7 +793,7 @@ jobs:
               'messages_jsonl_bytes': 28727,
               'bodies_jsonl_bytes': 2922,
               'recipients_jsonl_bytes': 2708,
-              'attachments_jsonl_bytes': 1240,
+              'attachments_jsonl_bytes': 1390,
               'headers_jsonl_bytes': 4596,
               'tar_bytes': 530944,
               'output_total_bytes': 575992,
