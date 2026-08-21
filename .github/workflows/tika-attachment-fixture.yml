@@ -61,6 +61,43 @@ jobs:
           archive = evidence / 'archive'
           data = archive / 'data'
           output = Path('/tmp/pstd-tika-attachment-output')
+          capability_path = data / 'input_capability.json'
+          capability = json.loads(capability_path.read_text(encoding='utf-8'))
+          required_capability_fields = {
+              'input_path',
+              'file_size',
+              'family',
+              'version',
+              'index_type',
+              'crypt_method',
+              'header_status',
+              'index_status',
+              'extended_attributes_status',
+              'default_charset',
+              'root_condition',
+              'budget_status',
+              'status',
+              'allows_extraction',
+              'limits',
+              'diagnostics',
+          }
+          if not required_capability_fields.issubset(capability):
+              raise SystemExit(
+                  f'input capability fields missing: '
+                  f'{sorted(required_capability_fields - set(capability))}'
+              )
+          if capability['family'] != 'unicode_pst':
+              raise SystemExit(f'unexpected input family: {capability["family"]!r}')
+          if capability['status'] != 'ready' or capability['allows_extraction'] is not True:
+              raise SystemExit(f'input capability is not ready: {capability!r}')
+          if capability['crypt_method'] != 1:
+              raise SystemExit(
+                  f'unexpected fixture crypt method: {capability["crypt_method"]!r}'
+              )
+          if capability['default_charset'] != 'iso-8859-1':
+              raise SystemExit(
+                  f'unexpected default charset: {capability["default_charset"]!r}'
+              )
 
           def records(name):
               path = data / name
@@ -643,8 +680,8 @@ jobs:
               'bodies_jsonl_bytes': 2922,
               'recipients_jsonl_bytes': 2708,
               'attachments_jsonl_bytes': 1240,
-              'tar_bytes': 234496,
-              'output_total_bytes': 279543,
+              'tar_bytes': 236032,
+              'output_total_bytes': 281079,
           }
           if metrics != expected_metrics:
               raise SystemExit(f'fixture metrics mismatch: {metrics!r}')
