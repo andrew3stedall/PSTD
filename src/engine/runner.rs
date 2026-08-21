@@ -334,11 +334,8 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
             adapter_manifest.write_record(&artifact.summary)?;
         }
         if config.readpst.output_profile == crate::config::OutputProfile::Thunderbird {
-            let (typed_status, typed_artifacts) = render_typed_outputs(
-                &metadata.contacts,
-                &metadata.calendars,
-                &metadata.non_mail,
-            );
+            let (typed_status, typed_artifacts) =
+                render_typed_outputs(&metadata.contacts, &metadata.calendars, &metadata.non_mail);
             tar.append_bytes(
                 &["outputs", "thunderbird-typed-profile-status.json"],
                 &serde_json::to_vec_pretty(&typed_status)?,

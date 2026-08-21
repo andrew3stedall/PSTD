@@ -211,10 +211,7 @@ pub fn render_profile(
 
     for (folder, group) in &groups {
         match mode {
-            MailMode::Mbox
-            | MailMode::RecursiveMbox
-            | MailMode::Kmail
-            | MailMode::Thunderbird => {
+            MailMode::Mbox | MailMode::RecursiveMbox | MailMode::Kmail | MailMode::Thunderbird => {
                 let mut output = Vec::new();
                 for message in group {
                     match serialize_message_eml(
@@ -270,12 +267,7 @@ pub fn render_profile(
                         "mailbox_stream_emitted",
                     ));
                     if mode == MailMode::Thunderbird {
-                        append_thunderbird_sidecars(
-                            folder,
-                            group,
-                            folders,
-                            &mut artifacts,
-                        );
+                        append_thunderbird_sidecars(folder, group, folders, &mut artifacts);
                     }
                 }
             }
