@@ -22,6 +22,7 @@ _Last reviewed: 21 August 2026._
 
 ### Parser and extraction
 
+- Typed input capability envelopes for Unicode/ANSI/OST/unknown family classification, crypt/root readiness, explicit unsupported/malformed/budget statuses, bounded reader limits, inspect visibility, and canonical extraction publication.
 - Safe PST header/root selection, bounded byte reads, checked arithmetic, BBT/NBT traversal, block and subnode access, depth/cycle guards, Heap-on-Node, BTH, Property Context, and Table Context parsing.
 - Public PST progress workflow and deterministic bounded artifacts.
 - Table Context descriptor evidence, bitmap mapping, row-payload candidate resolution, direct/ordinal addressing, validated row transport, fixed-width scalar decoding, and production diagnostics through PQ74.
