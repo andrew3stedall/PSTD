@@ -95,6 +95,10 @@ PSTD should preserve this observable compatibility map while fixing the upstream
 
 PSTD’s replacement must make these implicit assumptions explicit: fixture manifests replace positional filenames; cleanup is scoped to a temporary run root; semantic comparison replaces grep/file deletion; valgrind becomes Rust sanitizer/resource-budget coverage; and `jobs=0` becomes a documented bounded worker policy. Utility functions `dodii` and `doldif` are recorded for source-boundary awareness but are not readpst parity requirements.
 
+## RP-M0-03 implementation
+
+The source-review contract is implemented in `tests/readpst_diff/source_manifest.rs` and exported through `tests/readpst_diff/mod.rs`. It records all 22 direct source/script/release-note paths in this ledger, their selected symbols or stable behaviour anchors, the 28 work-unit mappings, and the eight regression profile categories. Every generated source URL is pinned to `cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89`; a revision mismatch, missing/duplicate path, unresolved work-unit symbol, or changed repository/license boundary produces an actionable failure. The check is deterministic and has no network or private-fixture dependency. Sibling utilities (`lspst`, `pst2ldif`, `nick2ldif`, and `pst2dii`) remain explicitly out of scope for readpst parity.
+
 ## Planned implementation — `RP-12`
 
 1. Keep this ledger pinned to `cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89` and add a new review row whenever upstream changes the readpst dependency boundary.
