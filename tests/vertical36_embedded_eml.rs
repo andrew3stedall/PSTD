@@ -88,6 +88,8 @@ fn method5_attachment(
         is_inline: false,
         content_id: None,
         attachment_method: Some(ATTACH_METHOD_EMBEDDED_MESSAGE),
+        source_ref: "mapi:PR_ATTACH_DATA_OBJ/embedded_message".to_string(),
+        rendering_position: Some(1),
         embedded_message_key: child_key.map(str::to_string),
         ordinal: 1,
         archive_path: format!("attachments/{owner_key}/{attachment_key}_attachment_1"),

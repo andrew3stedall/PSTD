@@ -138,10 +138,21 @@ fn attachment_record(
         is_inline: metadata.is_inline,
         content_id: metadata.content_id,
         attachment_method: metadata.attachment_method,
+        source_ref: attachment_source_ref(metadata.attachment_method),
+        rendering_position: Some(ordinal as u64),
         embedded_message_key: None,
         ordinal: ordinal as u64,
         archive_path,
         extraction_status: status.to_string(),
+    }
+}
+
+fn attachment_source_ref(attachment_method: Option<i32>) -> String {
+    match attachment_method {
+        Some(1) => "mapi:PR_ATTACH_DATA_BIN/by_value".to_string(),
+        Some(5) => "mapi:PR_ATTACH_DATA_OBJ/embedded_message".to_string(),
+        Some(method) => format!("mapi:PR_ATTACH_METHOD={method}"),
+        None => "attachment_table_or_property_context:method_absent".to_string(),
     }
 }
 
@@ -279,6 +290,11 @@ mod tests {
         assert_eq!(payload.record.declared_size_bytes, Some(9));
         assert_eq!(payload.record.size_status, "size_matched");
         assert_eq!(payload.record.attachment_method, Some(1));
+        assert_eq!(
+            payload.record.source_ref,
+            "mapi:PR_ATTACH_DATA_BIN/by_value"
+        );
+        assert_eq!(payload.record.rendering_position, Some(0));
         assert_eq!(payload.record.extraction_status, "extracted");
         assert_eq!(payload.bytes, b"pdf bytes");
     }
@@ -356,6 +372,11 @@ mod tests {
         assert_eq!(payload.record.declared_size_bytes, Some(11));
         assert_eq!(payload.record.size_status, "size_matched");
         assert_eq!(payload.record.attachment_method, Some(1));
+        assert_eq!(
+            payload.record.source_ref,
+            "mapi:PR_ATTACH_DATA_BIN/by_value"
+        );
+        assert_eq!(payload.record.rendering_position, Some(0));
         assert_eq!(payload.bytes, b"image-bytes");
     }
 
