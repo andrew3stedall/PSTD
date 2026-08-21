@@ -1,12 +1,13 @@
 # Unreleased
 
-_Last reviewed: 19 July 2026._
+_Last reviewed: 21 August 2026._
 
 ## Added
 
 ### Compatibility analysis
 
 - A pinned `libpst`/`readpst` parity gap register under `docs/readpst-gaps/`, covering CLI modes, PST/OST and encryption inputs, item classes, metadata, MIME and RTF bodies, attachment methods, contacts, calendar/journal outputs, storage formats, and acceptance fixtures.
+- Issue-ready `RP-00`–`RP-13` implementation plans, a complete direct-source review ledger, and a semantic differential harness contract for translating every reviewed `readpst` capability into Rust-native PSTD work.
 
 ### Product foundation
 
