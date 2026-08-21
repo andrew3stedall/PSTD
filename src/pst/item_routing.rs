@@ -5,9 +5,7 @@ use crate::output::metadata::{ItemKind, ItemVisibility};
 /// The CLI translation belongs to RP-M3-03. Keeping the policy here lets the
 /// canonical item stream record the same decisions before an adapter filters
 /// anything, so filtered and unsupported content remains auditable.
-#[derive(
-    Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize,
-)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ItemTypeFilter {
     #[default]
