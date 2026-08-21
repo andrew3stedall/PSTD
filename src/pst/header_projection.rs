@@ -15,10 +15,7 @@ pub fn project(message_key: &str, properties: &PropertyContext) -> HeaderProject
             "stored_unicode",
             "unicode_utf16; readpst_item_charset_precedence",
         )
-    } else if properties
-        .value(PR_TRANSPORT_MESSAGE_HEADERS_A)
-        .is_some()
-    {
+    } else if properties.value(PR_TRANSPORT_MESSAGE_HEADERS_A).is_some() {
         (
             PR_TRANSPORT_MESSAGE_HEADERS_A,
             "stored_string8",
@@ -28,12 +25,15 @@ pub fn project(message_key: &str, properties: &PropertyContext) -> HeaderProject
         return absent(message_key);
     };
 
-    let property = properties.value(tag).expect("header property selected above");
+    let property = properties
+        .value(tag)
+        .expect("header property selected above");
     let raw_evidence_key = Some(ids::stable_id(
         "evidence",
         &[message_key, "property", &format!("{tag:08x}")],
     ));
-    let (raw_header_size_bytes, raw_header_sha256, raw_header_bytes_hex) = raw_fields(&property.raw);
+    let (raw_header_size_bytes, raw_header_sha256, raw_header_bytes_hex) =
+        raw_fields(&property.raw);
     let header_key = ids::stable_id("header", &[message_key, source, &format!("{tag:08x}")]);
 
     let Some(decoded) = property.decoded.as_ref() else {
@@ -75,9 +75,7 @@ pub fn project(message_key: &str, properties: &PropertyContext) -> HeaderProject
         && std::str::from_utf8(trim_nul(&property.raw)).is_err()
     {
         Some("stored_string8_invalid_utf8_lossy")
-    } else if tag == PR_TRANSPORT_MESSAGE_HEADERS
-        && !unicode_raw_is_well_formed(&property.raw)
-    {
+    } else if tag == PR_TRANSPORT_MESSAGE_HEADERS && !unicode_raw_is_well_formed(&property.raw) {
         Some("stored_unicode_invalid_utf16_lossy")
     } else {
         None
@@ -226,7 +224,10 @@ fn validate_and_normalize(input: &str) -> Result<(String, bool), &'static str> {
             if !previous_was_field {
                 return Err("orphan_continuation");
             }
-            if line.chars().any(|character| character.is_control() && character != '\t') {
+            if line
+                .chars()
+                .any(|character| character.is_control() && character != '\t')
+            {
                 return Err("control_character");
             }
             normalized.push(line.to_string());
@@ -238,9 +239,9 @@ fn validate_and_normalize(input: &str) -> Result<(String, bool), &'static str> {
         };
         let name = &line[..colon];
         if name.is_empty()
-            || !name.chars().all(|character| {
-                character.is_ascii_alphanumeric() || character == '-'
-            })
+            || !name
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric() || character == '-')
         {
             return Err("invalid_field_name");
         }
@@ -291,7 +292,9 @@ mod tests {
     use std::collections::HashMap;
 
     use super::project;
-    use crate::pst::mapi::{MapiValue, PR_TRANSPORT_MESSAGE_HEADERS, PR_TRANSPORT_MESSAGE_HEADERS_A};
+    use crate::pst::mapi::{
+        MapiValue, PR_TRANSPORT_MESSAGE_HEADERS, PR_TRANSPORT_MESSAGE_HEADERS_A,
+    };
     use crate::pst::property_context::{PropertyContext, PropertyValue};
 
     fn context(tag: u32, raw: Vec<u8>, value: Option<&str>) -> PropertyContext {
@@ -334,7 +337,11 @@ mod tests {
         let value = "body fragment\r\n";
         let record = project(
             "msg-invalid",
-            &context(PR_TRANSPORT_MESSAGE_HEADERS, value.as_bytes().to_vec(), Some(value)),
+            &context(
+                PR_TRANSPORT_MESSAGE_HEADERS,
+                value.as_bytes().to_vec(),
+                Some(value),
+            ),
         );
         assert!(!record.authoritative);
         assert!(record.validation_status.contains("missing_colon"));
@@ -351,9 +358,7 @@ mod tests {
         );
         let record = project("msg-string8", &invalid_utf8);
         assert!(record.authoritative);
-        assert!(record
-            .status
-            .contains("stored_string8_invalid_utf8_lossy"));
+        assert!(record.status.contains("stored_string8_invalid_utf8_lossy"));
         assert!(record.charset_policy.contains("iso-8859-1"));
 
         let failed = project(
