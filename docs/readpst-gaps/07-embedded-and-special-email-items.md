@@ -76,3 +76,48 @@ The special-item path must test:
 - report child.
 
 Each case needs a deterministic item graph and scoped diagnostics. Parent extraction must not be reported complete if a required child was silently lost.
+
+## Planned implementation — `RP-07`
+
+### Readpst logic reviewed
+
+`write_embedded_message` resolves `attach->i_id`, obtains the descriptor/ID2 context, calls `pst_parse_item` on `attach->id2_head`, skips null or non-email children with diagnostics, forces `message/rfc822`, and recursively invokes `write_normal_email`. `write_normal_email` adds schedule parts for `PST_TYPE_SCHEDULE`, report MIME for `PST_TYPE_REPORT`, synthetic RTF/encrypted-body attachments, and recursively handles other embedded attachments. The upstream path has no general cycle/depth guard and can lose non-email embedded objects by design. `pst_process` recognizes DSN/MDN report properties and `pst_convert_recurrence` supplies appointment recurrence data.
+
+### Planned PSTD graph
+
+Add an explicit child graph to the typed envelope:
+
+```text
+EmbeddedGraph {
+  nodes: ItemKey -> EmbeddedNode { class, source, status },
+  edges: (parent_item, attachment_key, child_item, relation, ordinal),
+  diagnostics: cycle | depth_limit | ambiguous_reference | non_email |
+               missing_child | duplicate_owner | parse_failure,
+}
+```
+
+`AttachmentRecord.embedded_message_key` and the `MetadataExtractionOutput` child payload maps are the compatibility starting points. Add `ScheduleRecord`, `ReportRecord`, and `OpaqueBodyRecord` rather than hiding them inside `MessageRecord`. `src/output/mime.rs` and typed calendar/report adapters consume graph edges; canonical JSONL/TAR stores every node and edge.
+
+### Implementation flow
+
+1. During `RP-06` resolution, register a child reference without recursing. Key it by parent item, attachment ordinal, source node, and resolved child identity.
+2. Run a bounded graph expansion with a visited set, maximum depth, maximum nodes, and maximum payload budget. Detect cycles before parsing a child.
+3. Parse and classify each child through `RP-03`. An email child can produce a `message/rfc822` MIME node; a contact/calendar/other child remains a typed child with explicit readpst-equivalent skip or stronger PSTD output.
+4. Propagate parent header context only as a derived MIME field; never overwrite the child’s canonical metadata.
+5. Build report and schedule records from typed properties and raw bytes. Validate report-type and calendar-method parameters before emitting MIME.
+6. Move encrypted text/HTML and compressed RTF into opaque/synthetic artefacts with source tags, hashes, and profile-controlled output.
+7. If a child fails, retain the edge, child source evidence, and reason. Mark the parent MIME/output projection partial or unavailable according to whether the child was required for the selected profile.
+8. Emit standalone child records exactly once, then project the nested MIME relationship. Compare both parent and child semantic trees.
+
+### Improvements over readpst
+
+- Replace recursive function calls with a bounded graph plan and cycle detection.
+- Preserve non-email embedded items instead of only warning and dropping them.
+- Keep child canonical metadata independent from outer header context and avoid call-order mutation.
+- Separate cleartext, encrypted, compressed RTF, report, schedule, and embedded-message statuses.
+- Make partial parent output explicit when a required nested part cannot be materialized.
+- Retain raw child bytes/properties and graph edges even when no legacy readpst output exists.
+
+### Issue-ready acceptance
+
+`RP-07A` covers embedded graph/reference expansion, `RP-07B` nested MIME, `RP-07C` schedule/meeting email, `RP-07D` report/disposition, and `RP-07E` encrypted/RTF synthetic artefacts. Acceptance fixtures must include valid nested mail, nested attachments, non-email child, cycle, duplicate reference, depth overflow, missing ID2, malformed child, schedule methods, report types, encrypted body, and compressed RTF. Assert parent/child ownership, graph termination, raw preservation, MIME part types, partial statuses, and deterministic output; fan out to [bodies](05-body-mime-and-rtf.md), [attachments](06-attachments.md), [non-mail outputs](08-contacts-calendar-journal.md), [storage](09-storage-and-interoperability.md), and the matrix.

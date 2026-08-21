@@ -1,6 +1,6 @@
 # PSTD Documentation
 
-_Last reviewed: 20 August 2026._
+_Last reviewed: 21 August 2026._
 
 This documentation tree contains both current operating guidance and historical delivery evidence. Use the current-state pages below for present capability and next work. Milestone, PQ, vertical, issue-plan, and implementation-plan files record what was known at the time they were written.
 

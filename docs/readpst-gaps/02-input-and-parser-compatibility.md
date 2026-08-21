@@ -56,3 +56,57 @@ libpst tracks whether each string is Unicode and chooses a fallback from item ch
 readpst can fork work across folders or individual messages in separate mode and reopens the PST in child processes. PSTD should prefer bounded worker concurrency that is safe for a Rust reader, but parity requires equivalent throughput controls and deterministic aggregation rather than a particular process model.
 
 Every input-parity implementation must report file size, header family, crypt method, selected roots, index/traversal counts, parser limits, and scoped failures in the existing inspect/summary contract.
+
+## Planned implementation — `RP-02`
+
+### Readpst/libpst logic reviewed
+
+`pst_open` validates the file magic, selects 32-bit, Unicode 64-bit, or the 4 KiB/OST 2013 layout, reads the encryption method and root pointers, and records the file size and charset. `pst_load_index` builds the ID and descriptor indexes; `pst_load_extended_attributes` reads named-property metadata; `pst_getTopOfFolders` resolves the personal-folder root or the OST fallback. `pst_reopen` is used by readpst’s forked children. `pst_parse_item` loads the ID2 tree, processes the property context, recognizes DSN/MDN and attachment tables, resolves attachment data in a second pass, and deep-copies the child ID2 context. `pst_attach_to_file` and its base64 variant read either in-memory or ID-backed data. The conversion path uses `pst_default_charset`, `pst_convert_utf8*`, and iconv; `lzfu.c` handles compressed RTF separately.
+
+The current PSTD path already has `PstByteReader`, `PstHeader`, `BbtIndex`, `NbtIndex`, `LogicalNodeStore`, `data_tree`, `subnodes`, `PropertyContext`, `TableContext`, parser limits, and explicit crypt diagnostics. `RP-02` fills the breadth and turns diagnostics into validated input capabilities rather than copying libpst internals.
+
+### Planned PSTD modules and records
+
+Extend the parser boundary with:
+
+```text
+src/pst/format.rs       PstFamily { Ansi32, Unicode64, Ost2013 }
+src/pst/crypto.rs       CryptMethod and bounded byte transforms
+src/pst/charset.rs      code page/CPID/fallback resolution and provenance
+src/pst/input.rs        validated open/index/root contract
+src/pst/limits.rs       decompression, recursion, payload, and page budgets
+src/pst/evidence.rs     source offsets, raw bytes, and rejection reasons
+```
+
+`PstHeaderSummary` should expose family, crypt method, code page/charset evidence, root pointers, and file size. A parser error must carry stage, node/block/property identity, byte range, and a stable reason code. The reader must never return a successful typed item when a required index or ownership edge is only guessed.
+
+### Implementation flow
+
+1. Parse the header using an explicit family decoder. Validate all size/offset arithmetic against file length and `ParserLimits` before reading.
+2. Select the BBT/NBT entry width and page format; load parent pages recursively with visited-page sets and count every rejected or unreachable page.
+3. Decode the message-store and folder roots, including the OST 2013 fallback only when the family and node evidence justify it.
+4. Apply the crypt method at the byte-reader layer. Implement compressible and strong transformations as isolated, table-driven modules with known-vector tests; do not let output code know about encryption.
+5. Resolve descriptor children, heaps, BTH/property/table contexts, subnodes, XBLOCK/XXBLOCK chains, and ID2 references through bounded plans. Preserve raw blocks when a typed interpretation fails.
+6. Load extended/named attributes before projecting property names. Track `(property tag, value type, source encoding, raw bytes, conversion status)` per value.
+7. Resolve charset in readpst’s order—body/item charset, message code page, internet CPID, file charset, ISO-8859-1 fallback—but expose the selected source and allow `RP-01`’s explicit run override.
+8. Emit a parser report containing counts and scoped failures. Only then hand nodes to the folder/item envelope.
+
+### Improvements over readpst
+
+- Keep transformations pure and per-reader instead of relying on mutable library/global conversion state.
+- Check compressed RTF declared size, input bounds, and output budget before allocation. The upstream LZFU routine trusts the declared raw size and has no CRC validation.
+- Make crypt, family, and charset decisions explicit in evidence; do not infer success from a readable header alone.
+- Preserve raw String8/Unicode bytes and conversion failures, including embedded NUL and malformed UTF-16 cases, rather than only retaining converted strings.
+- Use checked arithmetic and visited sets for all page, node, subnode, and block chains.
+- Keep OST and ANSI support behind capability gates with fixtures, so partial support cannot masquerade as general PST support.
+
+### Issue-ready acceptance
+
+Split the work into `RP-02A` (family/header/index), `RP-02B` (crypt), `RP-02C` (properties/subnodes/references), `RP-02D` (charset), and `RP-02E` (limits/fuzz hardening). Each issue must include:
+
+- a qualifying positive fixture and SHA-256/provenance record;
+- an equivalent libpst/readpst invocation or source-level expected result;
+- corrupt/truncated/overflow derivatives for the touched stage;
+- inspect/summary assertions for family, crypt, roots, counts, and reason codes;
+- repeat-run equality and bounded-memory/size assertions;
+- updates to [folders and item types](03-folders-and-item-types.md), [metadata](04-message-metadata-and-headers.md), [bodies](05-body-mime-and-rtf.md), [attachments](06-attachments.md), and the matrix.

@@ -1,6 +1,6 @@
 # PSTD/readpst parity gap register
 
-_Baseline reviewed: 20 August 2026._
+_Baseline reviewed: 21 August 2026._
 
 This folder is the compatibility register for making PSTD capable of everything that the `readpst` program in `pst-format/libpst` can do. It is deliberately broader than the current PSTD email-to-EML milestone: `readpst` is a mature command-line extractor with multiple input variants, output modes, MIME behaviours, attachments, contacts, appointments, journals, and operational controls.
 
@@ -27,6 +27,46 @@ This is a behaviour comparison, not a proposal to link PSTD to libpst. PSTD rema
 | See one authoritative checklist of all identified capabilities | [Parity matrix](10-parity-matrix.md) |
 | Turn the gaps into implementation and fixture work | [Parity roadmap and acceptance](11-roadmap-and-acceptance.md) |
 | Locate the exact upstream code used for each observation | [Upstream source notes](12-upstream-source-notes.md) |
+| Create implementation issues and run semantic differentials | [Issue template and differential harness](13-issue-template-and-differential-harness.md) |
+
+## Planned implementation architecture
+
+The register is also an issue-ready implementation blueprint. The stable plan IDs below are the IDs to carry into GitHub issues, pull requests, fixture manifests, and matrix rows. They are deliberately stable even if a later issue is split into smaller pull requests.
+
+| Plan ID | Work package | Primary document | Depends on |
+|---|---|---|---|
+| `RP-00` | Evidence, status, provenance, and differential guardrails | [Method and parity guardrails](00-method-and-guardrails.md) | — |
+| `RP-01` | CLI translation, output profiles, scheduling, and diagnostics | [CLI and output-mode parity](01-cli-and-output-parity.md) | `RP-00`, `RP-03` |
+| `RP-02` | Input families, encryption, indexes, charset, and parser limits | [Input and parser compatibility](02-input-and-parser-compatibility.md) | `RP-00` |
+| `RP-03` | Folder walker, visibility, typed item envelope, and classification | [Folders and item types](03-folders-and-item-types.md) | `RP-02` |
+| `RP-04` | MAPI projection, headers, identities, flags, and dates | [Message metadata and headers](04-message-metadata-and-headers.md) | `RP-02`, `RP-03` |
+| `RP-05` | Body selection, MIME tree construction, charset, transfer encoding, and RTF | [Bodies, MIME, and RTF](05-body-mime-and-rtf.md) | `RP-04`, `RP-06` |
+| `RP-06` | Attachment methods, references, filenames, CID, and payload evidence | [Attachment parity](06-attachments.md) | `RP-02`, `RP-03` |
+| `RP-07` | Embedded-object graph, schedules, reports, encrypted bodies, and synthetic parts | [Embedded and special email items](07-embedded-and-special-email-items.md) | `RP-03`, `RP-05`, `RP-06` |
+| `RP-08` | Contact, appointment, journal, task, sticky-note, and other typed outputs | [Non-mail item outputs](08-contacts-calendar-journal.md) | `RP-03`, `RP-04` |
+| `RP-09` | mbox, recursive, MH, EML, KMail, Thunderbird, vCard/iCalendar, and MSG adapters | [Storage and interoperability outputs](09-storage-and-interoperability.md) | `RP-04`–`RP-08` |
+| `RP-10` | Matrix maintenance and status promotion gates | [Parity matrix](10-parity-matrix.md) | all applicable plans |
+| `RP-11` | Phased rollout, fixtures, acceptance, and release gate | [Parity roadmap and acceptance](11-roadmap-and-acceptance.md) | `RP-00`–`RP-10` |
+| `RP-12` | Upstream source-review ledger and drift checks | [Upstream source notes](12-upstream-source-notes.md) | `RP-00` |
+| `RP-13` | Issue body template and semantic differential harness | [Issue template and differential harness](13-issue-template-and-differential-harness.md) | `RP-00` |
+
+The intended data flow is one bounded parse followed by typed projections:
+
+```text
+PST/OST bytes
+  -> input/header/crypto reader
+  -> indexes, folders, properties, subnodes, payload references
+  -> ItemEnvelope { identity, visibility, type, provenance, status }
+  -> typed message/contact/calendar/journal/report records
+  -> canonical JSONL/TAR evidence and raw payloads
+  -> independent output adapters (mbox, MH, EML, KMail, Thunderbird, vCard, iCalendar, MSG)
+```
+
+Every adapter consumes the envelope and evidence graph; none reparses the PST. Canonical records retain source values and statuses even when an output profile filters or cannot render them. This is the central mechanism for satisfying the readpst surface while improving on its global state, `chdir`-based traversal, unbounded embedded recursion, weak filename sanitation, and silent loss paths.
+
+## Issue slicing rules
+
+Each implementation issue should name one plan ID, one observable capability, one source-review anchor, one affected PSTD module, one fixture or synthetic corpus, and one semantic acceptance command. A plan issue is not done when a struct or parser helper exists: it is done only when the canonical record, output projection where applicable, negative status, deterministic repeat run, and matrix update are all present. Cross-cutting changes must update every tangential document listed in the issue’s “Documentation fan-out” field.
 
 ## Status vocabulary
 
@@ -76,3 +116,13 @@ When a gap is implemented, update the matrix, the relevant topic document, the c
 - the fail-closed behaviour for malformed or ambiguous input.
 
 Do not promote a row from Partial to Implemented because it passes one PST. The project’s existing fixture and Purview admission rules remain binding.
+
+## Planned implementation
+
+1. Land `RP-00` and `RP-13` first so every later change has a shared status vocabulary, provenance shape, issue body, and semantic comparator.
+2. Build `RP-02` and `RP-03` as the parser-to-envelope boundary. This is where ANSI/Unicode/OST/encryption evidence, folder ownership, deletion visibility, and item classification become reusable inputs to all output profiles.
+3. Complete `RP-04`, `RP-05`, and `RP-06` as typed projections over that envelope. Their outputs must retain raw bytes and per-field status, so a failed header or body projection cannot erase a usable attachment or non-mail item.
+4. Add `RP-07` and `RP-08` for graphs and non-mail item classes, then use `RP-09` to project the same records into each readpst mode. `.msg` is a separate gate because `msg.cpp` writes an OLE compound document rather than a text format.
+5. Use `RP-10` and `RP-11` as the recursive documentation and release gate: every implementation or fixture change updates the matrix, source ledger, affected topic pages, current-state docs, and changelog before promotion.
+
+The first implementation slice should therefore be an issue cluster, not an output-only patch: `RP-00` → `RP-02`/`RP-03` → `RP-04`/`RP-06` → `RP-05`/`RP-07`/`RP-08` → `RP-09`, with `RP-10`/`RP-11`/`RP-13` enforced throughout.

@@ -90,3 +90,48 @@ The `-t` filter and the upstream change history explicitly support folders conta
 - folder totals remain reconciled;
 - output filters do not alter canonical discovery counts;
 - duplicate display names remain distinct by source identity.
+
+## Planned implementation — `RP-08`
+
+### Readpst logic reviewed
+
+`write_vcard` converts contact fields to UTF-8, emits RFC 2426 `VERSION:3.0`, names, three emails, birthday, home/business/other addresses, labels, phone variants, organization/role, assistant, notes, and categories. `-cv` selects that writer; `-cl` emits a simple name/address list. `write_journal` emits vJournal fields and uses current time as a DTSTAMP fallback. `write_appointment` emits a VCALENDAR/VEVENT with UID, timestamps, summary, description, location, status/transparency, labels/categories, recurrence, and a bounded VALARM. `pst_convert_recurrence` decodes daily/weekly/monthly/yearly raw recurrence bytes but is intentionally limited. `process` sends schedule emails through the email writer and ordinary appointments/journals/contacts through typed writers; tasks/sticky notes/unknowns are not fully emitted.
+
+### Planned PSTD records and serializers
+
+Add typed records in `src/output/metadata.rs` or a dedicated `src/output/items.rs`:
+
+```text
+ContactRecord      -> VCardProfile | ContactListProfile
+AppointmentRecord  -> ICalendarProfile
+JournalRecord      -> VJournalProfile
+ScheduleRecord     -> email MIME + linked VEVENT
+ReportRecord       -> multipart/report MIME
+UnsupportedItem    -> typed metadata + explicit status
+```
+
+Each field should be a `FieldEvidence<T>` with raw property reference, decoded value, and representability status. Keep recurrence bytes, exception/deleted-occurrence data, timezone evidence, and categories as raw/typed parallel fields. Use standards-aware serializers rather than string concatenation; output-specific lossy projections must be reported.
+
+### Implementation flow
+
+1. Classify contacts, appointments, journals, schedule emails, reports, tasks, sticky notes, and other classes through `RP-03`.
+2. Project all known MAPI fields into typed records, retaining repeated values and unknown properties. Normalize contact email/address/phone types without collapsing native address types.
+3. Implement RFC 2426-compatible vCard output and `-cl` list output from the same `ContactRecord`; escape delimiters, newlines, backslashes, and non-ASCII values deterministically.
+4. Decode recurrence into a normalized rule with raw bytes and an exact/partial flag. Preserve exceptions and deleted occurrences before emitting RFC 5545 `RRULE`/`EXDATE` data.
+5. Serialize appointment/timezone/alarm/status/transparency/categories to iCalendar. Use source UID where validated; otherwise use a stable synthetic UID marked as such.
+6. Serialize journals to vJournal with source timestamps. If a DTSTAMP fallback is required for compatibility, mark it synthetic and keep the canonical record unchanged.
+7. Link schedule email and calendar component through the embedded/special graph. Do not count one as a replacement for the other.
+8. Emit unsupported readpst classes as `skipped_unsupported_type` only when no equivalent readpst output exists; retain stronger typed metadata when available.
+
+### Improvements over readpst
+
+- Preserve the full typed contact and calendar model even when vCard/iCalendar cannot represent a property.
+- Retain raw recurrence and exception evidence; never flatten an unrepresentable recurrence into one event without a partial status.
+- Use stable source UIDs and synthetic markers rather than current-time or display-name identity.
+- Bound and validate alarm/recurrence values while preserving out-of-range raw properties.
+- Distinguish an output skip from a parser failure and from an item class that readpst itself does not emit.
+- Use standards-compliant line folding/escaping and round-trip parsers rather than unchecked `fprintf` output.
+
+### Issue-ready acceptance
+
+`RP-08A` is contact projection/vCard/list, `RP-08B` recurrence/timezone, `RP-08C` appointment/iCalendar, `RP-08D` journal/vJournal, and `RP-08E` unsupported/task/sticky/other classification. Fixtures must cover every contact field group, distribution list, Unicode/ANSI names, repeated phones/emails, recurring daily/weekly/monthly/yearly events, exceptions, alarms, all-day/timezone values, journals, schedule email methods, and unsupported classes. Validate with independent vCard/iCalendar/vJournal parsers, raw-field retention, exact/partial statuses, mixed-folder counts, and updates to [special email items](07-embedded-and-special-email-items.md), [storage](09-storage-and-interoperability.md), [the matrix](10-parity-matrix.md), and the source ledger.

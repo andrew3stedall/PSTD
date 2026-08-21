@@ -122,3 +122,66 @@ A parity row can move to Implemented only when:
 - No child message or attachment is assigned to a parent from an ambiguous reference.
 - No raw body or attachment bytes are discarded because one higher-level projection failed.
 - No private PST is committed as a fixture; controlled evidence must meet the repository’s provenance and redistribution rules.
+
+## Planned implementation — `RP-11`
+
+### Issue dependency graph
+
+The phases above become issue clusters with a strict dependency order:
+
+```text
+RP-00 evidence/status
+   ├─ RP-02 input/parser ── RP-03 typed envelope ── RP-04 metadata
+   │                                      ├─ RP-06 attachments
+   │                                      └─ RP-08 non-mail types
+   ├─ RP-13 differential harness
+   └─ RP-01 profiles/scheduler
+                 RP-04 + RP-05 + RP-06 + RP-07 + RP-08
+                                   -> RP-09 output adapters
+                                   -> RP-10 matrix promotion
+                                   -> parity release gate
+```
+
+The graph prevents a common failure mode: implementing an adapter against an incomplete `MessageRecord`, then discovering that contacts, encrypted bodies, reference attachments, or skipped classes have nowhere to go. An issue may be split for review, but it may not bypass the typed evidence and negative-status prerequisites.
+
+### Readpst logic-to-issue mapping
+
+| Issue cluster | Upstream functions/helpers reviewed | PSTD implementation result |
+|---|---|---|
+| `RP-01` | `main`, `process`, `create_enter_dir`, `mk_*_dir`, `mk_*_file`, `close_*`, regression `dopst` | typed profile, deterministic scheduling, output adapters, diagnostics |
+| `RP-02` | `pst_open`, `pst_reopen`, `pst_load_index`, `pst_load_extended_attributes`, `pst_getTopOfFolders`, `pst_parse_item`, `pst_attach_to_file`, `pst_default_charset`, `vbuf.c`, `timeconv.c` | family/crypto/index/property/charset evidence |
+| `RP-03` | `process`, `pst_process`, descriptor-tree and item-type constants | folder graph and `ItemEnvelope` |
+| `RP-04` | `valid_headers`, header helpers, `write_normal_email`, email fields in `libpst.h`, `msg.cpp` properties | provenance-aware metadata/header model |
+| `RP-05` | `write_body_part`, `write_normal_email`, `write_schedule_part_data`, `pst_lzfu_decompress`, `libstrfunc.c` | body set and semantic MIME tree |
+| `RP-06` | `acceptable_ext`, `write_separate_attachment`, `write_inline_attachment`, attachment table/ID2 logic | attachment resolver and evidence graph |
+| `RP-07` | `write_embedded_message`, report/schedule branches, encrypted/RTF branches, `pst_convert_recurrence` | bounded child graph and special MIME records |
+| `RP-08` | `write_vcard`, `write_journal`, `write_appointment`, `write_extra_categories` | typed non-mail records and serializers |
+| `RP-09` | `msg.cpp`, output directory/stream functions, regression profiles | interoperable output adapters |
+| `RP-10`/`RP-13` | `regression-tests.bash`, `NEWS`, `ChangeLog`, all observable writers | semantic comparator, issue/matrix promotion |
+
+### Per-issue implementation checklist
+
+Every issue created from this register should follow this sequence:
+
+1. Copy the issue template from [RP-13](13-issue-template-and-differential-harness.md).
+2. Name the exact readpst function/helper, line anchor, and pinned revision.
+3. Identify the canonical record, parser/output module, and documentation fan-out.
+4. Add a positive fixture manifest and a malformed, ambiguous, or unsupported fixture.
+5. Implement the smallest Rust-native vertical slice, retaining raw evidence and status.
+6. Run unit, fixture, semantic differential, determinism, and resource-limit tests.
+7. Update the matrix status and evidence level only after all gates pass.
+8. Review every linked topic page recursively for changed assumptions, names, dependencies, and acceptance criteria.
+
+### Release promotion gates
+
+Before declaring “readpst parity” complete, the release issue must show:
+
+- no applicable `Gap` or `Partial` matrix rows;
+- an explicit `PSTD equivalent` or `unsupported-by-readpst` result for every capability;
+- E4 semantic differential evidence for every output family and all supported input families;
+- an approved corpus covering the upstream regression categories plus ANSI, OST, encrypted, malformed, mixed-folder, reference-attachment, nested, and large-file cases;
+- identical canonical output across repeat runs and supported worker counts;
+- no unbounded recursion, allocation, path escape, or diagnostic amplification in adversarial fixtures;
+- synchronized README, topic pages, matrix, source ledger, current-state docs, and changelog.
+
+The project may ship intermediate milestones, but their release notes must name the remaining plan IDs and must not claim full readpst capability coverage while the matrix contains unresolved rows.

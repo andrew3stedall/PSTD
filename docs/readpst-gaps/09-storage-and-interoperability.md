@@ -71,3 +71,49 @@ An EML file with a `.msg` extension is not an acceptable substitute.
 ## Structured output remains authoritative
 
 Legacy adapters must be projections. They must never change the canonical counts or suppress source metadata. A run that emits no EML because a required header/body is unavailable can still be a successful structured extraction with `eml_status=unavailable`; it must not be reported as a complete readpst-equivalent export.
+
+## Planned implementation — `RP-09`
+
+### Readpst logic reviewed
+
+`create_enter_dir` maps appointment/contact/journal to separate streams and reduces other types to the note/mbox stream; it creates unique names from `item->file_as`. `mk_recurse_dir` and `mk_separate_dir` build folder trees; `mk_separate_file` numbers items from one per folder and chooses `.eml`, `.vcf`, or `.ics`; `close_enter_dir` removes empty streams and reports counts. `mk_kmail_dir` writes `.folder.directory` and removes the parent KMail index. `write_normal_email` supplies mbox separators, MH differences, MIME output, separate attachments, and `.msg` dispatch. `msg.cpp::write_msg_email` creates an OLE compound document with `__properties_version1.0`, top-level MAPI properties, recipient storages, attachment storages, and `__nameid_version1.0`; it writes strings as ANSI properties after a hard-coded transliteration charset, emits selected flags/dates/body/header properties, and explicitly does not implement embedded attachments. The regression script exercises recursive, contact, charset/filter, separate, and MSG combinations.
+
+### Planned adapter architecture
+
+Define a common adapter trait over canonical records:
+
+```text
+OutputAdapter::begin(run, folder) -> AdapterContext
+OutputAdapter::write(item_envelope, evidence_graph) -> AdapterResult
+OutputAdapter::finish(folder) -> FolderOutputSummary
+```
+
+Implement adapters in dependency order: `mbox`, `recursive_mbox`, `mh`, `eml`, `separate_attachments`, `kmail`, `thunderbird`, `vcard/list`, `icalendar/vjournal`, then `msg`. Reuse `src/output/paths.rs`, JSONL/TAR IDs, metadata records, MIME serialization, and atomic write helpers. Every adapter writes a manifest entry with source key, path, hash, status, and warnings.
+
+### Implementation flow
+
+1. Construct the adapter from `RP-01`’s profile and validate that every selected item kind has a compatible projection.
+2. Walk canonical folder/item order; never re-open or reparse the PST. Use a folder-local ordinal for readpst-compatible separate filenames and a source-ID component for collision safety.
+3. For mbox, emit one stream per folder/reduced type, mboxrd-escape body lines beginning with `From `, and record message offsets/hashes. For MH/EML, omit separators and write one complete message per file.
+4. For recursive/KMail/Thunderbird, map canonical folder segments to safe paths and emit sidecars/counts from the same `FolderOutputSummary`.
+5. For vCard/list/calendar/journal, dispatch typed records and choose `.vcf`/`.ics`/documented vJournal extensions without placing different classes in an email stream.
+6. For separate attachment profiles, emit payload files only when their `AttachmentRecord` status is available and not filtered; record all other decisions.
+7. Implement MSG in a dedicated Rust OLE compound-document module. Generate a property table with explicit MAPI types, top-level flags/dates/subject/body/header fields, recipient rows, attachment storages, and NameID entries. Do not use an EML body with a `.msg` suffix.
+8. Round-trip every output through a semantic reader before marking the adapter result complete. Atomic publish happens only after validation.
+
+### `.msg` implementation boundary
+
+`msg.cpp` is a useful compatibility map, not a complete MSG implementation. The first MSG issue must define the supported property matrix and OLE writer contract. It must cover Unicode and ANSI strings, FILETIME, boolean/integer flags, recipients with To/Cc/Bcc types, by-value attachments, MIME tags, long/short names, record keys, body/HTML/header/message IDs, and deterministic stream names. Embedded messages, named properties, OLE attachments, and full recipient-row semantics require separate issues or explicit `unsupported` statuses. A trusted MSG parser must verify the resulting compound file.
+
+### Improvements over readpst
+
+- Keep adapters pure projections over canonical evidence and remove `chdir`/global stream state.
+- Preserve empty, filtered, skipped, unavailable, and failed results rather than deleting empty files without explanation.
+- Use stable source IDs plus sanitized paths, atomic publication, and collision policies that are explicit across platforms.
+- Generate MIME/ICS/vCard/MSG with standards-aware serializers and independent round-trip validation.
+- Keep a stronger canonical record even when a legacy profile is intentionally lossy.
+- Make `.msg` capability honest: partial property coverage is a scoped status, never a mislabeled text file.
+
+### Issue-ready acceptance
+
+`RP-09A` is mbox/recursive, `RP-09B` MH/EML/separate, `RP-09C` KMail/Thunderbird, `RP-09D` contact/calendar/journal file profiles, and `RP-09E` MSG/OLE. For every profile, compare folder/item counts, decoded fields, body/attachment hashes, typed output, paths, and statuses; test reruns, collisions, overwrite modes, malformed evidence, worker counts, and path traversal. MSG additionally requires an OLE reader round trip and property/recipient/attachment matrix. Update [CLI policy](01-cli-and-output-parity.md), [metadata](04-message-metadata-and-headers.md), [bodies](05-body-mime-and-rtf.md), [attachments](06-attachments.md), [non-mail outputs](08-contacts-calendar-journal.md), and the matrix.

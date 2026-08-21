@@ -110,3 +110,41 @@ Status is assessed against PSTD `main` at the time of this review, not against a
 ## Matrix rule
 
 The overall project cannot claim readpst parity while any applicable row is Gap or Partial. Rows that readpst itself skips still require an explicit PSTD classification and status so the skipped content is visible and auditable.
+
+## Planned implementation — `RP-10`
+
+The matrix is the release ledger, so each capability row must map to an implementation plan, concrete PSTD boundary, and fixture family. The following mapping is the minimum issue index; sub-issues may split a plan without changing the row ID.
+
+| Matrix area | Plan IDs | PSTD boundary to implement | Required acceptance family |
+|---|---|---|---|
+| `CLI-*` | `RP-01` | `ReadpstProfile` translation, bounded scheduler, adapters, diagnostics, overwrite policy | CLI golden tests; same fixture at `jobs=1`/`jobs=N`; reruns/collision cases |
+| `IN-*` | `RP-02` | family/crypt/charset/input evidence and parser limits | ANSI, Unicode, OST 2013, encrypted, sparse/large, corrupt derivatives |
+| `ITEM-*` | `RP-03`, `RP-08` | `ItemEnvelope`, folder graph, visibility, typed classes | mixed-folder, deleted/associated, duplicate-name, unknown-class corpus |
+| `MSG-*` | `RP-04` | metadata/header/address/date/flag evidence | folded/invalid headers; native/SMTP recipients; flags and FILETIME cases |
+| `BODY-*` | `RP-05`, `RP-07` | `BodySet`, MIME tree, charset/RTF/report/schedule/encrypted projections | text/HTML/RTF/report/schedule/embedded MIME semantic corpus |
+| `ATT-*` | `RP-06`, `RP-07` | `AttachmentResolver`, payload graph, CID/order, child edges | all methods, references, OLE, CID, filters, size/cycle failures |
+| `OUT-*` | `RP-09` | mbox/MH/EML/KMail/Thunderbird/contact/calendar/MSG adapters | independent readers, hashes, paths, sidecars, OLE round trip |
+
+### Promotion procedure
+
+For every row, the issue and pull request must update the status only after these checks succeed:
+
+1. The source function/constant and pinned libpst revision are cited in `12-upstream-source-notes.md`.
+2. The canonical record can represent success, absence, filtering, unsupported, ambiguity, corruption, and failure.
+3. The applicable output profile is implemented as a projection, not a renamed or reparsed substitute.
+4. A positive fixture reaches the stated evidence level and a malformed/ambiguous fixture fails closed.
+5. Semantic differential output matches readpst for the common boundary; stronger PSTD behaviour is documented as an intentional improvement.
+6. Repeated runs and bounded worker counts produce equal canonical ordering, IDs, hashes, statuses, and path decisions.
+7. Tangential documents—topic page, README, roadmap, source ledger, current-state docs, and changelog—agree with the new status.
+
+### Implementation issue shape
+
+The matrix should be maintained by a small generated or checked table rather than hand-editing status prose in isolation. Each row’s issue metadata should contain:
+
+```text
+matrix_id, plan_id, status, source_anchor, pstd_modules,
+fixture_ids, differential_command, negative_fixture_ids,
+output_profiles, evidence_level, documentation_fanout
+```
+
+When a parser change affects three or more areas, update this matrix first, then recursively inspect every linked plan page for stale status, module names, or acceptance boundaries. The issue template and comparator rules are in [RP-13](13-issue-template-and-differential-harness.md); the release sequencing is in [RP-11](11-roadmap-and-acceptance.md).
