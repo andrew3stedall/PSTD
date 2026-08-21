@@ -186,8 +186,11 @@ fn recover_fromhtml(input: &[u8]) -> Option<String> {
                     "tab" if !state.skip => output.push('\t'),
                     "hex" if !state.skip => output.push(cp1252_char(number? as u8)?),
                     "{" | "}" | "\\" if !state.skip => output.push_str(&word),
-                    destination if ["fonttbl", "colortbl", "stylesheet", "info"]
-                        .contains(&destination) => state.skip = true,
+                    destination
+                        if ["fonttbl", "colortbl", "stylesheet", "info"].contains(&destination) =>
+                    {
+                        state.skip = true
+                    }
                     _ if state.ignorable && !state.htmltag => state.skip = true,
                     _ => {}
                 }
@@ -229,7 +232,9 @@ fn read_control(input: &[u8], start: usize) -> Option<(String, Option<i32>, usiz
     while input.get(index).is_some_and(u8::is_ascii_alphabetic) {
         index += 1;
     }
-    let word = std::str::from_utf8(input.get(word_start..index)?).ok()?.to_string();
+    let word = std::str::from_utf8(input.get(word_start..index)?)
+        .ok()?
+        .to_string();
     let mut sign = 1i32;
     if input.get(index) == Some(&b'-') {
         sign = -1;
@@ -335,7 +340,10 @@ mod tests {
         let mut bad_crc = wrap_uncompressed(raw);
         bad_crc[12] = 1;
         assert_eq!(validate(&bad_crc).decoded, None);
-        assert_eq!(validate(b"{\\rtf1 broken").status, "rtf_invalid_unbalanced_groups");
+        assert_eq!(
+            validate(b"{\\rtf1 broken").status,
+            "rtf_invalid_unbalanced_groups"
+        );
     }
 
     #[test]

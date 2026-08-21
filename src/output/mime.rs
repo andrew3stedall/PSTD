@@ -3,9 +3,7 @@ use std::collections::BTreeMap;
 use sha2::{Digest, Sha256};
 
 use crate::output::ids;
-use crate::output::metadata::{
-    AttachmentRecord, BodyRecord, MessageRecord, MimePartRecord,
-};
+use crate::output::metadata::{AttachmentRecord, BodyRecord, MessageRecord, MimePartRecord};
 use crate::pst::attachments::AttachmentPayload;
 use crate::pst::messages::BodyPayload;
 use crate::pst::rtf;
@@ -55,7 +53,10 @@ pub fn build_mime_parts(
             .iter()
             .map(|body| body_spec(body, body_payloads.get(body.body_key.as_str()).copied()))
             .collect::<Vec<_>>();
-        if !body_specs.iter().any(|spec| spec.record.body_type == "html") {
+        if !body_specs
+            .iter()
+            .any(|spec| spec.record.body_type == "html")
+        {
             if let Some(rtf_spec) = body_specs
                 .iter()
                 .find(|spec| spec.record.body_type == "rtf")
@@ -82,7 +83,11 @@ pub fn build_mime_parts(
             )
         });
 
-        let message_class = message.message_class.as_deref().unwrap_or_default().to_ascii_lowercase();
+        let message_class = message
+            .message_class
+            .as_deref()
+            .unwrap_or_default()
+            .to_ascii_lowercase();
         let is_report = message_class.starts_with("report.") || message_class.contains("ndr");
         let is_schedule = message_class.starts_with("ipm.schedule.")
             || message_class.contains("calendar")
@@ -97,9 +102,14 @@ pub fn build_mime_parts(
                 spec.authoritative = false;
             }
         }
-        let needs_mixed_root = !attachment_records.is_empty() || is_report || is_schedule || is_encrypted;
-        let has_text_and_html = body_specs.iter().any(|spec| spec.record.body_type == "text")
-            && body_specs.iter().any(|spec| spec.record.body_type == "html");
+        let needs_mixed_root =
+            !attachment_records.is_empty() || is_report || is_schedule || is_encrypted;
+        let has_text_and_html = body_specs
+            .iter()
+            .any(|spec| spec.record.body_type == "text")
+            && body_specs
+                .iter()
+                .any(|spec| spec.record.body_type == "html");
         let needs_alternative_root = has_text_and_html && !needs_mixed_root;
         let needs_root = needs_mixed_root || needs_alternative_root || body_specs.len() != 1;
 
@@ -140,7 +150,8 @@ pub fn build_mime_parts(
         } else {
             "mime_projection_complete"
         };
-        let root_authoritative = !is_report && !is_schedule && !is_encrypted && !body_specs.is_empty();
+        let root_authoritative =
+            !is_report && !is_schedule && !is_encrypted && !body_specs.is_empty();
         if needs_root {
             parts.push(part(
                 &message.message_key,
@@ -166,7 +177,11 @@ pub fn build_mime_parts(
             ));
         }
 
-        let container_key = if needs_root { Some(root_key.as_str()) } else { None };
+        let container_key = if needs_root {
+            Some(root_key.as_str())
+        } else {
+            None
+        };
         let mut next_ordinal = 0u64;
         if needs_mixed_root && has_text_and_html {
             let alternative_key = ids::stable_id("mime", &[&message.message_key, "alternative"]);
@@ -221,16 +236,32 @@ pub fn build_mime_parts(
             }
         } else {
             if !needs_root && body_specs.len() == 1 {
-                push_body_part(&mut parts, &message.message_key, None, next_ordinal, &body_specs[0]);
+                push_body_part(
+                    &mut parts,
+                    &message.message_key,
+                    None,
+                    next_ordinal,
+                    &body_specs[0],
+                );
             } else {
                 for spec in &body_specs {
-                    push_body_part(&mut parts, &message.message_key, container_key, next_ordinal, spec);
+                    push_body_part(
+                        &mut parts,
+                        &message.message_key,
+                        container_key,
+                        next_ordinal,
+                        spec,
+                    );
                     next_ordinal += 1;
                 }
             }
         }
 
-        if is_report && !body_specs.iter().any(|spec| spec.record.body_type == "report") {
+        if is_report
+            && !body_specs
+                .iter()
+                .any(|spec| spec.record.body_type == "report")
+        {
             parts.push(part(
                 &message.message_key,
                 &ids::stable_id("mime", &[&message.message_key, "report-body"]),
@@ -282,16 +313,23 @@ pub fn build_mime_parts(
         }
 
         for attachment in &attachment_records {
-            let payload = attachment_payloads.get(attachment.attachment_key.as_str()).copied();
+            let payload = attachment_payloads
+                .get(attachment.attachment_key.as_str())
+                .copied();
             let is_embedded = attachment.attachment_method == Some(5);
-            let part_type = if is_embedded { "embedded_message" } else { "attachment" };
+            let part_type = if is_embedded {
+                "embedded_message"
+            } else {
+                "attachment"
+            };
             let media_type = attachment
                 .content_type
                 .clone()
                 .or_else(|| is_embedded.then(|| "message/rfc822".to_string()))
                 .or_else(|| Some("application/octet-stream".to_string()));
             let authoritative = payload.is_some()
-                && payload.is_some_and(|value| value.record.extraction_status.starts_with("extracted"));
+                && payload
+                    .is_some_and(|value| value.record.extraction_status.starts_with("extracted"));
             let status = if authoritative {
                 "mime_attachment_payload_linked"
             } else if is_embedded {
@@ -304,7 +342,11 @@ pub fn build_mime_parts(
                 .unwrap_or((attachment.size_bytes, Some(attachment.sha256.clone())));
             let part_key = ids::stable_id(
                 "mime",
-                &[&message.message_key, "attachment", &attachment.attachment_key],
+                &[
+                    &message.message_key,
+                    "attachment",
+                    &attachment.attachment_key,
+                ],
             );
             parts.push(part(
                 &message.message_key,
@@ -315,7 +357,14 @@ pub fn build_mime_parts(
                 media_type,
                 None,
                 Some("base64".to_string()),
-                Some(if attachment.is_inline { "inline" } else { "attachment" }.to_string()),
+                Some(
+                    if attachment.is_inline {
+                        "inline"
+                    } else {
+                        "attachment"
+                    }
+                    .to_string(),
+                ),
                 attachment.content_id.clone(),
                 None,
                 Some(attachment.attachment_key.clone()),
@@ -330,7 +379,6 @@ pub fn build_mime_parts(
             ));
             next_ordinal += 1;
         }
-
     }
     parts
 }
@@ -444,10 +492,11 @@ fn push_body_part(
         spec.transfer_encoding.clone(),
         Some("inline".to_string()),
         None,
-        Some(spec
-            .source_body_key
-            .clone()
-            .unwrap_or_else(|| spec.record.body_key.clone())),
+        Some(
+            spec.source_body_key
+                .clone()
+                .unwrap_or_else(|| spec.record.body_key.clone()),
+        ),
         None,
         None,
         spec.raw_size_bytes,
@@ -595,29 +644,28 @@ mod tests {
         let plain = text_body_payload("msg", "plain");
         let html = body_payload("msg", "html", b"<b>rich</b>".to_vec(), Some("utf-8"));
         let bodies = vec![plain.record.clone(), html.record.clone()];
-        let parts = build_mime_parts(
-            &[message(None)],
-            &bodies,
-            &[plain, html],
-            &[],
-            &[],
-        );
+        let parts = build_mime_parts(&[message(None)], &bodies, &[plain, html], &[], &[]);
         assert_eq!(parts[0].part_type, "multipart_alternative");
-        assert_eq!(parts[0].media_type.as_deref(), Some("multipart/alternative"));
-        assert_eq!(parts[1].source_body_key.as_deref(), Some(plain.record.body_key.as_str()));
-        assert_eq!(parts[2].source_body_key.as_deref(), Some(html.record.body_key.as_str()));
-        assert!(parts.iter().all(|part| part.status != "mime_duplicate_header"));
+        assert_eq!(
+            parts[0].media_type.as_deref(),
+            Some("multipart/alternative")
+        );
+        assert_eq!(
+            parts[1].source_body_key.as_deref(),
+            Some(plain.record.body_key.as_str())
+        );
+        assert_eq!(
+            parts[2].source_body_key.as_deref(),
+            Some(html.record.body_key.as_str())
+        );
+        assert!(parts
+            .iter()
+            .all(|part| part.status != "mime_duplicate_header"));
     }
 
     #[test]
     fn keeps_unavailable_report_and_schedule_explicit() {
-        let parts = build_mime_parts(
-            &[message(Some("REPORT.IPM.Note"))],
-            &[],
-            &[],
-            &[],
-            &[],
-        );
+        let parts = build_mime_parts(&[message(Some("REPORT.IPM.Note"))], &[], &[], &[], &[]);
         assert_eq!(parts[0].media_type.as_deref(), Some("multipart/report"));
         assert!(!parts[1].authoritative);
         assert_eq!(parts[1].part_type, "report_body");

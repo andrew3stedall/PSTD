@@ -164,10 +164,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         &message_references.into_bytes(),
     )?;
     tar.append_bytes(&["data", "bodies.jsonl"], &bodies.into_bytes())?;
-    tar.append_bytes(
-        &["data", "mime_parts.jsonl"],
-        &mime_parts.into_bytes(),
-    )?;
+    tar.append_bytes(&["data", "mime_parts.jsonl"], &mime_parts.into_bytes())?;
     tar.append_bytes(&["data", "attachments.jsonl"], &attachments.into_bytes())?;
     tar.append_bytes(
         &["data", "compatibility_triage.jsonl"],
