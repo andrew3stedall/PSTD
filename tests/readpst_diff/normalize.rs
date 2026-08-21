@@ -325,7 +325,7 @@ fn split_headers_body(bytes: &[u8]) -> (&[u8], &[u8]) {
 
 fn parse_headers(bytes: &[u8]) -> BTreeMap<String, String> {
     let text = String::from_utf8_lossy(bytes);
-    let mut fields = BTreeMap::new();
+    let mut fields: BTreeMap<String, String> = BTreeMap::new();
     let mut current_name = None::<String>;
     for line in text.lines() {
         if line.chars().next().is_some_and(char::is_whitespace) {
