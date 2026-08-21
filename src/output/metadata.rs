@@ -104,6 +104,64 @@ pub struct FolderRecord {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EnvelopeRecordKind {
+    Folder,
+    Item,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ItemVisibility {
+    Visible,
+    Deleted,
+    Associated,
+    Hidden,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ItemKind {
+    Note,
+    Schedule,
+    Appointment,
+    Contact,
+    Journal,
+    StickyNote,
+    Task,
+    Report,
+    Other,
+    Store,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ItemEnvelopeSource {
+    pub pst_id: String,
+    pub descriptor_id: Option<String>,
+    pub node_id: Option<String>,
+    pub folder_id: Option<String>,
+    pub ordinal: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ItemEnvelope {
+    pub envelope_key: String,
+    pub record_kind: EnvelopeRecordKind,
+    pub source: ItemEnvelopeSource,
+    pub parent_envelope_key: Option<String>,
+    pub child_envelope_keys: Vec<String>,
+    pub folder_path: String,
+    pub visibility: ItemVisibility,
+    pub item_kind: Option<ItemKind>,
+    pub message_class: Option<String>,
+    pub classification_confidence: String,
+    pub provenance_status: String,
+    pub extraction_status: String,
+    pub raw_evidence_refs: Vec<String>,
+}
+
 pub struct ManifestRecord {
     pub run_id: String,
     pub pst_id: String,
