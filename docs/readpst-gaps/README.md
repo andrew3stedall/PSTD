@@ -79,6 +79,11 @@ payload observations, evidence links, and explicit non-authoritative cycle, budg
 missing, ambiguous, and non-email outcomes; it does not promote special-item or
 output-adapter parity.
 
+RP-M3-02 adds typed `data/special_items.jsonl` records and special MIME projections
+for reports, schedules/meetings, encrypted bodies, and synthetic RTF. Source raw
+evidence remains separate from normalized or generated values, and encrypted or
+unavailable content cannot be promoted to decoded authoritative output.
+
 The execution control plane for implementing this architecture is [the readpst parity agent orchestrator](14-agent-orchestrator.md). It defines eight delivery milestones, 28 stable work-unit keys, dependency gates, specialist sub-agent roles, branch/PR rules, and recursive documentation fan-out. GitHub issues should use those keys verbatim so implementation, fixtures, matrix rows, and agent handoffs remain traceable.
 
 ## Issue slicing rules

@@ -84,6 +84,17 @@ and budget outcomes are explicit non-authoritative records. ATT-05 and ATT-11 re
 Partial because broader input methods, special-item semantics, and adapter parity are
 still downstream work.
 
+## RP-M3-02 delivery
+
+The production path now publishes deterministic `data/special_items.jsonl` records
+for report, schedule/meeting, encrypted, and synthetic RTF branches. Raw readable
+special-body hashes survive missing or malformed semantic properties; encrypted
+records never expose decoded hashes; validated RTF emits a synthetic non-authoritative
+`application/rtf` MIME part without replacing raw evidence. Synthetic unit and
+repeat-run evidence uses the repository `sample.pst` RTF fixture and the existing
+body/MIME fixtures, while broad report-type, recurrence, and calendar-property
+coverage remains Partial.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |

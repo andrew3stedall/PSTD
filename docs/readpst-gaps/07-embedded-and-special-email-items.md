@@ -143,6 +143,25 @@ budget rejection remain records rather than silent drops. The approved Tika atta
 fixture verifies parent/child identity, payload hash, child MIME ownership, and
 repeat-run byte determinism. Schedule/report/encrypted semantics and `.msg`
 materialization remain downstream work.
+
+## RP-M3-02 special-item delivery
+
+The canonical path now emits `data/special_items.jsonl` for report, schedule/meeting,
+encrypted-body, and synthetic RTF projections. Report and calendar records preserve
+readable source body bytes when present but leave report type, calendar method, and
+recurrence fields unset until those source properties are decoded; unavailable or
+malformed payloads are non-authoritative. Encrypted bodies retain raw hashes and
+cannot carry decoded hashes. Validated RTF can produce a synthetic `application/rtf`
+MIME attachment and record it as synthetic/non-authoritative without replacing the
+raw body evidence.
+
+The special-item workflow repeats extraction, checks evidence linkage and the
+encrypted decoding prohibition, and reconciles synthetic RTF records with MIME parts.
+Its RTF gate uses the repository's existing `tests/fixtures/pst/sample.pst` fixture
+(SHA-256 `ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe`),
+whose readable RTF path is independently exercised by the RTF fixture workflow.
+Synthetic unit evidence covers unavailable reports/schedules, opaque encrypted bytes,
+and valid RTF; broad recurrence/report-property producer coverage remains open.
 # RP-M2-03 delivery
 
 Attachment method-5 records now carry an explicit embedded-message source reference

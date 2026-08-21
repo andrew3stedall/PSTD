@@ -795,8 +795,8 @@ jobs:
               'recipients_jsonl_bytes': 2708,
               'attachments_jsonl_bytes': 1390,
               'headers_jsonl_bytes': 4596,
-              'tar_bytes': 546816,
-              'output_total_bytes': 591864,
+              'tar_bytes': 547840,
+              'output_total_bytes': 592888,
           }
           if metrics != expected_metrics:
               raise SystemExit(f'fixture metrics mismatch: {metrics!r}')

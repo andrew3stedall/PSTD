@@ -40,7 +40,10 @@ _Last reviewed: 21 August 2026._
   determinism with explicit unresolved/special-body statuses.
 - RP-M3-01 bounded method-5 embedded-message graph projection with deterministic
   parent/child ownership, child evidence links, depth/node/byte limits, cycle
-  detection, and explicit unavailable/ambiguous/non-email statuses.
+detection, and explicit unavailable/ambiguous/non-email statuses.
+- RP-M3-02 typed report, schedule/meeting, encrypted-body, and synthetic RTF records
+  with raw-evidence preservation, no encrypted decoded hashes, and deterministic
+  special MIME projections.
 - Typed input capability envelopes for Unicode/ANSI/OST/unknown family classification, crypt/root readiness, explicit unsupported/malformed/budget statuses, bounded reader limits, inspect visibility, and canonical extraction publication.
 - Typed folder/item envelopes with source-ID ownership, visibility, item-kind confidence, parent/child links, explicit ambiguity/duplicate/path-collision statuses, and canonical `data/items.jsonl` output.
 - Class-aware canonical routing statuses for ordinary, schedule, appointment, contact, journal, report, task, sticky-note, unknown, associated, deleted, filtered, and unavailable items, with immutable policy tests and no silent ordinary-message fallback.
