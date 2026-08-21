@@ -121,7 +121,7 @@ jobs:
                       for recipient_path in recipient_paths:
                           assert properties(ole, recipient_path, 8)
                           role = properties(ole, recipient_path, 8).get((0x0C15, 0x0003))
-                          assert role and role[2] in {1, 2, 3}
+                          assert role and role[1] in {1, 2, 3}
                   attachment_paths = [
                       tuple(item) for item in ole.listdir(streams=False, storages=True)
                       if item and item[0].startswith('__attach_version1.0_')
