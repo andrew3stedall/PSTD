@@ -257,7 +257,7 @@ fn normalize_json_record(kind: &str, value: Value) -> Result<NormalizedRecord, S
     }
     payload_hashes.sort();
     children.sort();
-    let identity = identity_from_fields(&fields)
+    let identity = identity_from_fields(kind, &fields)
         .unwrap_or_else(|| sha256_hex(canonical_json(&value).as_bytes()));
     let status = status_from_fields(&fields);
     Ok(NormalizedRecord {
@@ -365,8 +365,8 @@ fn parse_headers(bytes: &[u8]) -> BTreeMap<String, String> {
     fields
 }
 
-fn identity_from_fields(fields: &BTreeMap<String, String>) -> Option<String> {
-    [
+fn identity_from_fields(kind: &str, fields: &BTreeMap<String, String>) -> Option<String> {
+    if let Some(identity) = [
         "source_id",
         "message_key",
         "folder_key",
@@ -379,6 +379,23 @@ fn identity_from_fields(fields: &BTreeMap<String, String>) -> Option<String> {
     ]
     .iter()
     .find_map(|key| fields.get(*key).cloned())
+    {
+        return Some(identity);
+    }
+
+    match kind {
+        "decoder_candidate_selection" => fields
+            .get("selection_rank")
+            .map(|value| format!("{kind}:{value}")),
+        "decoder_issue_candidates" => fields
+            .get("decoder_candidate_key")
+            .map(|value| format!("{kind}:{value}")),
+        "decoder_backlog_review" => fields
+            .get("top_candidate_key")
+            .or_else(|| fields.get("review_status"))
+            .map(|value| format!("{kind}:{value}")),
+        _ => None,
+    }
 }
 
 fn status_from_fields(fields: &BTreeMap<String, String>) -> EvidenceStatus {
@@ -585,6 +602,33 @@ mod tests {
         );
         assert_eq!(first, second);
         assert_eq!(String::from_utf8(first).unwrap(), r#"{"messages":1}"#);
+    }
+
+    #[test]
+    fn uses_stable_diagnostic_keys_for_identity() {
+        let first = normalize_json_record(
+            "decoder_candidate_selection",
+            serde_json::json!({
+                "run_id": "run-a",
+                "selection_rank": 1,
+                "decoder_candidate_key": "body-utf8",
+                "checklist": ["decode", "verify"],
+            }),
+        )
+        .expect("first record");
+        let second = normalize_json_record(
+            "decoder_candidate_selection",
+            serde_json::json!({
+                "run_id": "run-b",
+                "selection_rank": 1,
+                "decoder_candidate_key": "body-utf8",
+                "checklist": ["verify", "decode"],
+            }),
+        )
+        .expect("second record");
+
+        assert_eq!(first.identity, "decoder_candidate_selection:1");
+        assert_eq!(first.identity, second.identity);
     }
 
     #[test]
