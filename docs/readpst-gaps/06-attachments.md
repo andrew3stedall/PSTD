@@ -86,3 +86,54 @@ The fixture corpus must include, at minimum:
 8. OLE bytes;
 9. zero-length and declared-size-mismatch payloads;
 10. filtered extensions and unnamed attachments.
+
+## Planned implementation — `RP-06`
+
+### Readpst logic reviewed
+
+`acceptable_ext` chooses `filename2` then `filename1`, accepts an absent filename or extension, and compares the extension case-insensitively against the NUL-separated `-a` list. `write_separate_attachment` chooses long/short/generated names, adds collision suffixes, resolves an ID-backed payload with `pst_getID`/`pst_attach_to_file`, and writes raw bytes. `write_inline_attachment` selects the MIME tag or `application/octet-stream`, emits base64 and Content-ID, applies RFC 2231 filename parameters, and reads memory or ID-backed data. `write_embedded_message` uses `attach->id2_head` to parse a child. `pst_parse_item` performs a second pass over attachment rows to connect ID2 values, child objects, and final data blocks. `msg.cpp` writes non-embedded attachments into OLE attachment storages with method-by-value metadata; embedded attachments are explicitly not implemented there.
+
+### Planned PSTD model
+
+Turn the current `AttachmentRecord`, `AttachmentMetadata`, `AttachmentPayload`, `attachment_table`, `attachment_property_context`, and `data_tree` paths into an `AttachmentEvidence` plus resolver:
+
+```text
+AttachmentEvidence {
+  key, parent_item, ordinal, sequence, rendering_position,
+  method, hidden, filename_original, filename_safe,
+  mime_tag, content_id, declared_size,
+  reference: Option<ReferenceEvidence>,
+  payload: PayloadStatus + hash + archive_ref,
+  embedded_item: Option<ItemKey>,
+}
+
+AttachmentResolver::resolve(method, property_context, id2, limits)
+  -> ResolvedPayload | ScopedStatus
+```
+
+Implement method-specific resolvers for none/unknown, by-value, by-reference, by-reference-resolve, by-reference-only, embedded, and OLE. Keep a generic lossless byte path for OLE; do not make OLE decoding a prerequisite for extraction. Add an attachment graph index so `RP-07` can link embedded children without reparsing.
+
+### Implementation flow
+
+1. Parse attachment rows and property contexts into stable ordinals. Preserve row alignment, method, sequence, rendering position, flags, name candidates, MIME tag, CID, declared size, and source IDs.
+2. Resolve long then short filename for compatibility, but retain every candidate and the reason for the selected name. Apply platform-independent sanitization only to output paths.
+3. Resolve payloads by method through bounded data-tree/reference plans. Verify declared size when possible and hash bytes as they stream into canonical storage.
+4. For by-reference methods, retain the reference node/block chain and distinguish absent, unresolved, ambiguous, corrupt, and empty payloads.
+5. For embedded method 5, emit an edge to `RP-07`; do not inline child bytes until child classification and cycle checks succeed.
+6. For OLE method 6, preserve exact bytes and metadata. A typed OLE projection can be added later without changing the raw contract.
+7. Apply `-a` only in output projection. Normalize the extension once, record `filtered_by_extension`, and preserve the attachment count and metadata.
+8. Correlate CIDs with HTML references using exact normalized IDs and unique matches. Record unmatched/duplicate matches rather than selecting heuristically.
+9. Publish attachment files atomically and record path/hash/status in the manifest. Keep source order independent of filesystem enumeration.
+
+### Improvements over readpst
+
+- Never treat an unresolved reference as a zero-byte attachment or silently skip it.
+- Preserve all name candidates and source identity; use stronger collision/path safety than `check_filename` and `f_name-name-N`.
+- Use streaming hashes and size limits instead of loading every payload into memory.
+- Detect duplicate attachment rows, ambiguous ID2 targets, cycles, and child ownership conflicts.
+- Retain filtered payload metadata in canonical output; readpst’s `-a` only affects separate files.
+- Keep Content-ID, hidden, disposition, sequence, and rendering position as independent facts; do not conflate inline semantics.
+
+### Issue-ready acceptance
+
+`RP-06A` covers row/property projection, `RP-06B` payload methods, `RP-06C` filename/path/filter policy, `RP-06D` CID/order, and `RP-06E` OLE/lossless evidence. Every issue needs positive and negative fixtures for direct, split, subnode, reference, embedded, OLE, zero-length, size-mismatch, duplicate-name, unsafe-name, non-ASCII, and unresolved cases. Verify payload hashes, source order, MIME projection, filtered statuses, and parent ownership; update [bodies](05-body-mime-and-rtf.md), [special items](07-embedded-and-special-email-items.md), [storage](09-storage-and-interoperability.md), and the matrix.
