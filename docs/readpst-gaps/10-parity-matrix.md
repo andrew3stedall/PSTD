@@ -15,6 +15,10 @@ The RP-M0-02 runner now provides the executable comparison contract: isolated bo
 ## RP-M1-01 input-capability delivery
 
 The parser boundary now emits a typed capability projection before traversal. It classifies Unicode/ANSI/OST/unknown families and crypt method, records root/index/attribute readiness, applies the ISO-8859-1 fallback policy, serializes budgets, and fails closed for unsupported, malformed, partial, or over-budget input. This closes only the capability/evidence boundary; IN-01 through IN-10 remain at their existing statuses until their traversal and corpus gates pass.
+## RP-M1-02 typed folder/item envelope delivery
+
+The canonical extraction path now publishes `data/items.jsonl` with deterministic folder and item envelopes. Source node identity, folder ownership, canonical paths, associated visibility, item-kind confidence, raw evidence references, and unresolved/ambiguous/duplicate/path-collision statuses are explicit. This improves the ITEM-01/ITEM-02 evidence boundary but does not promote mixed non-mail routing, deleted filtering, or typed schedule/contact/calendar/journal/report output; those rows remain at their existing statuses until their own corpus gates pass.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |
