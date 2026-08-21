@@ -435,7 +435,9 @@ fn serialize_message_eml(
     if let Some(header_record) = header_record.filter(|header| header.authoritative) {
         if let Some(normalized) = header_record.normalized_headers.as_deref() {
             for line in filtered_header_lines(normalized) {
-                if let Some(name) = line.split_once(':').map(|(name, _)| name.to_ascii_lowercase())
+                if let Some(name) = line
+                    .split_once(':')
+                    .map(|(name, _)| name.to_ascii_lowercase())
                 {
                     present.insert(name);
                 }
@@ -485,7 +487,11 @@ fn serialize_message_eml(
         }
     }
     if !present.contains("message-id") {
-        if let Some(message_id) = message.internet_message_id.as_deref().and_then(clean_header) {
+        if let Some(message_id) = message
+            .internet_message_id
+            .as_deref()
+            .and_then(clean_header)
+        {
             push_header(&mut output, "Message-ID", &message_id);
         }
     }
@@ -643,7 +649,11 @@ fn append_binary_part(
     push_header(
         output,
         "Content-Disposition",
-        &format!("{}; filename=\"{}\"", if inline { "inline" } else { "attachment" }, quote_token(filename)),
+        &format!(
+            "{}; filename=\"{}\"",
+            if inline { "inline" } else { "attachment" },
+            quote_token(filename)
+        ),
     );
     if let Some(content_id) = content_id.and_then(clean_header) {
         push_header(output, "Content-ID", &format!("<{}>", content_id));
@@ -669,17 +679,16 @@ fn recipient_header(
 ) -> Option<String> {
     let values = recipients
         .iter()
-        .filter(|recipient| recipient.message_key == message_key && recipient.recipient_type == role)
+        .filter(|recipient| {
+            recipient.message_key == message_key && recipient.recipient_type == role
+        })
         .filter_map(|recipient| {
             let address = recipient
                 .smtp_address
                 .as_deref()
                 .or(recipient.raw_address.as_deref())
                 .and_then(clean_header)?;
-            Some(format_address(
-                recipient.display_name.as_deref(),
-                &address,
-            ))
+            Some(format_address(recipient.display_name.as_deref(), &address))
         })
         .collect::<Vec<_>>();
     (!values.is_empty()).then(|| values.join(", "))
@@ -773,8 +782,7 @@ fn normalize_crlf_bytes(bytes: &[u8]) -> String {
 }
 
 fn base64_encode(bytes: &[u8]) -> String {
-    const TABLE: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut output = String::new();
     let mut line_length = 0usize;
     for chunk in bytes.chunks(3) {
@@ -840,11 +848,7 @@ fn quote_token(value: &str) -> String {
 
 fn safe_media_type(value: &str) -> String {
     let value = value.trim();
-    if value.contains(';')
-        || value.contains('\r')
-        || value.contains('\n')
-        || !value.contains('/')
-    {
+    if value.contains(';') || value.contains('\r') || value.contains('\n') || !value.contains('/') {
         "application/octet-stream".to_string()
     } else {
         value.to_string()
@@ -937,7 +941,8 @@ mod tests {
             raw_header_sha256: None,
             raw_header_bytes_hex: None,
             stored_headers: Some(
-                "From: stored@example.test\r\nContent-Type: text/plain\r\nX-Test: yes\r\n".to_string(),
+                "From: stored@example.test\r\nContent-Type: text/plain\r\nX-Test: yes\r\n"
+                    .to_string(),
             ),
             normalized_headers: Some(
                 "From: stored@example.test\nContent-Type: text/plain\nX-Test: yes".to_string(),
@@ -1022,7 +1027,10 @@ mod tests {
 
     #[test]
     fn mboxrd_escapes_only_separator_like_lines() {
-        assert_eq!(mboxrd_escape(b"From one\r\n>From two\r\nplain\r\n"), b">From one\n>>From two\nplain\n");
+        assert_eq!(
+            mboxrd_escape(b"From one\r\n>From two\r\nplain\r\n"),
+            b">From one\n>>From two\nplain\n"
+        );
     }
 
     #[test]
