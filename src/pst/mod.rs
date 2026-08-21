@@ -8,6 +8,7 @@ pub mod bth;
 pub mod capability;
 #[path = "compatibility_m21.rs"]
 pub mod compatibility;
+pub mod crypto;
 pub mod data_tree;
 pub mod embedded_graph;
 pub mod evidence;

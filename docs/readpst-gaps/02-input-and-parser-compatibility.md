@@ -45,9 +45,11 @@ ANSI `55b2a5ec86c3b4df896e8aebd8f1098b02d860244ae398f5df134740832d8ac9`, truncat
 OST `2849147f44eae7169efa85cf027aeb04ed1eb69513ac50c32d37ca144f33c7d3`, and
 malformed-short `44a1460f6df89ff23b880552ed878044b97d26074ea1d63d3b79a18091d81e4d`.
 The positive fixtures prove canonical family/root/index identity and repeated inspect
-JSON equality. Strong crypt is explicit `unsupported`, truncation is explicit
-`partial`, and a short malformed file exits non-zero. This is structural input breadth,
-not a claim that every ANSI/OST message, property, or output mode is complete.
+JSON equality. Strong crypt is now `ready` at the capability boundary; the production
+payload loader decodes the pinned method-2 transform. Unknown methods remain explicit
+`unsupported`, truncation is explicit `partial`, and a short malformed file exits
+non-zero. This is still structural input breadth, not a claim that every ANSI/OST
+message, property, or output mode is complete.
 
 ## Encryption
 
@@ -57,9 +59,14 @@ The libpst header exposes three states:
 |---|---|---|
 | no encryption | Read bytes normally. | **Implemented** for validated Unicode evidence. |
 | compressible encryption | Apply libpst’s fixed substitution table before interpreting data. | **Partial**: bounded permute decoding is implemented for validated Unicode payload paths. |
-| “strong” encryption | Apply the fixed three-rotor transformation used by libpst. | **Gap** |
+| “strong” encryption | Apply the fixed three-rotor transformation used by libpst. | **Partial**: production payload decoding and a pinned known vector are covered; broad encrypted item/output corpus remains. |
 
-PSTD applies the bounded permute table for crypt method 1 in the payload reader; strong crypt and unknown methods remain explicit unsupported statuses. A file must not be labelled successfully extracted merely because the header can be classified.
+PSTD applies the bounded permute table for crypt method 1 and the block-ID salted
+three-table transform for method 2 in the canonical payload reader. Method 2 is not a
+password scheme in the pinned libpst branch, so PSTD does not invent a password result;
+corrupt or semantically undecodable encrypted payloads retain bounded raw evidence and
+fail explicitly downstream. Unknown methods remain unsupported. A file must not be
+labelled successfully extracted merely because the header can be classified.
 
 ## Index, node, and property behaviours
 

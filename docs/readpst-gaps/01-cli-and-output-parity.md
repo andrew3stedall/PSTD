@@ -6,6 +6,14 @@
 
 The canonical item stream now has an immutable routing policy that distinguishes visible, deleted, associated, unknown, filtered, and readpst-skipped classes. It is intentionally below the command-line layer: `-D`, `-t`, output-profile selection, and adapter scheduling remain RP-M3-03 work. No CLI option is implied by the presence of a routing status in `data/items.jsonl`.
 
+### RP-M6-02 crypt credential boundary
+
+The pinned libpst NDB crypt methods do not accept a user password: method 1 is a fixed
+substitution permutation and method 2 derives its salt from the data-block ID. PSTD
+therefore exposes crypt method and decode status in capability/payload evidence without
+adding a misleading password flag or wrong-password result. Unknown methods and
+semantically undecodable encrypted payloads remain explicit unsupported/failed evidence.
+
 ## Command surface
 
 | readpst option | Upstream behaviour | PSTD status | Required closure |

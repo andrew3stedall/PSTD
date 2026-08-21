@@ -21,8 +21,10 @@ gate. Named properties, embedded-message breadth, and input/release gates remain
 RP-M6-01 adds Partial ANSI v14/v15 and OST 2013 structural input coverage through the
 canonical header/index path. Controlled positive fixtures prove family-specific roots,
 page widths, BBT/NBT identities, explicit negative statuses, and repeat-run equality;
-full semantic item/output corpora, encryption, hardening, and release promotion remain
-open.
+full semantic item/output corpora and hardening remain open. RP-M6-02 adds production
+payload decoding for libpst crypt methods 1 and 2, method-2 capability readiness, and
+explicit unknown-method failures; password validation is not applicable because these
+pinned NDB methods derive their transform from the block ID.
 
 ## Baseline
 

@@ -78,10 +78,16 @@ impl InputCapability {
                     "unavailable_until_index_ready".to_string(),
                     false,
                 ),
+                Some(2) if roots_ready => (
+                    InputCapabilityStatus::Ready,
+                    "ready_to_attempt".to_string(),
+                    "not_loaded".to_string(),
+                    true,
+                ),
                 Some(2) => (
-                    InputCapabilityStatus::Unsupported,
-                    "unsupported_strong_crypt_method".to_string(),
-                    "unavailable_until_decryption".to_string(),
+                    InputCapabilityStatus::Partial,
+                    format!("not_ready:{root_condition}"),
+                    "unavailable_until_index_ready".to_string(),
                     false,
                 ),
                 Some(method) => (
@@ -110,10 +116,16 @@ impl InputCapability {
                     "unavailable_until_index_ready".to_string(),
                     false,
                 ),
+                Some(2) if roots_ready => (
+                    InputCapabilityStatus::Ready,
+                    "ready_to_attempt".to_string(),
+                    "not_loaded".to_string(),
+                    true,
+                ),
                 Some(2) => (
-                    InputCapabilityStatus::Unsupported,
-                    "unsupported_strong_crypt_method".to_string(),
-                    "unavailable_until_decryption".to_string(),
+                    InputCapabilityStatus::Partial,
+                    format!("not_ready:{root_condition}"),
+                    "unavailable_until_index_ready".to_string(),
                     false,
                 ),
                 Some(method) => (
@@ -216,8 +228,8 @@ impl InputCapability {
     ) {
         let bbt_status = bbt_status.into();
         let nbt_status = nbt_status.into();
-        let crypt_unsupported = self.status == InputCapabilityStatus::Unsupported
-            && matches!(self.crypt_method, Some(2));
+        let crypt_unsupported =
+            self.status == InputCapabilityStatus::Unsupported && self.crypt_method.is_some();
         if !crypt_unsupported {
             self.index_status = format!("bbt={bbt_status}; nbt={nbt_status}");
         }

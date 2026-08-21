@@ -158,9 +158,9 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | ID | Capability | Status | Closure evidence |
 |---|---|---|---|
 | IN-01 | Unicode PST traversal | Partial | Multiple producer fixtures with folder/message/body/attachment completeness. |
-| IN-02 | ANSI version 14/15 traversal | Partial | Controlled v14/v15 header/root/BBT/NBT traversal, explicit strong-crypt/malformed negatives, and repeat-run evidence; full item/output corpus remains. |
+| IN-02 | ANSI version 14/15 traversal | Partial | Controlled v14/v15 header/root/BBT/NBT traversal, method-2 readiness/unknown-method negatives, malformed derivatives, and repeat-run evidence; full item/output corpus remains. |
 | IN-03 | OST 2013 input | Partial | Controlled 4 KiB OST 2013 header/root/BBT/NBT traversal, explicit truncation/malformed negatives, and repeat-run evidence; full item/output corpus remains. |
-| IN-04 | No/compressible/strong encryption | Partial / Gap | End-to-end encrypted fixtures; header classification alone is insufficient. |
+| IN-04 | No/compressible/strong encryption | Partial | Method 0/1/2 production payload statuses, pinned method-1/method-2 vectors, method-2 capability readiness, unknown-method fail-closed evidence, and bounded decode limits; broad encrypted item/output differential corpus remains. |
 | IN-05 | Large-file offsets and streaming | Partial | Sparse/large and real large-file runs without overflow or whole-file loading. |
 | IN-06 | BBT/NBT and descriptor traversal breadth | Partial | 32/64-bit page variants, mixed roots, malformed pages, and count reconciliation. |
 | IN-07 | Heap/BTH/Property/Table Context breadth | Partial | Selected paths exist; full property and table layout corpus remains. |
