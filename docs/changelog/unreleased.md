@@ -11,6 +11,7 @@ _Last reviewed: 21 August 2026._
 - A dependency-aware readpst parity agent orchestrator with eight milestone definitions, 28 stable work-unit slices, specialist-agent roles, merge gates, and recursive documentation fan-out.
 - Deterministic RP-M0-01 parity contracts and tests for matrix/evidence statuses, fixture provenance, SHA-256/size/family/crypt admission, negative outcomes, pinned source drift, and E2 Unicode baseline evidence.
 - RP-M0-03 source manifest and deterministic drift report covering all direct readpst/libpst ledger paths, work-unit anchors, regression profiles, and the no-copy GPL boundary.
+- RP-M0-02 bounded semantic differential runner with isolated readpst/PSTD execution, normalized comparison findings, explicit negative outcomes, deterministic reports, and a pinned CLI-oracle workflow.
 
 ### Product foundation
 
