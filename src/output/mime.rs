@@ -114,7 +114,6 @@ pub fn build_mime_parts(
         let needs_root = needs_mixed_root || needs_alternative_root || body_specs.len() != 1;
 
         let root_key = ids::stable_id("mime", &[&message.message_key, "root"]);
-        let root_parent = if needs_root { None } else { None };
         let root_kind = if is_report {
             "multipart_report"
         } else if needs_mixed_root {
@@ -156,7 +155,7 @@ pub fn build_mime_parts(
             parts.push(part(
                 &message.message_key,
                 &root_key,
-                root_parent,
+                None,
                 0,
                 root_kind,
                 Some(root_media_type.to_string()),

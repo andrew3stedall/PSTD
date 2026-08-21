@@ -120,7 +120,6 @@ pub fn extract_metadata(
     let message_references: Vec<MessageReferenceRecord> = Vec::new();
     let mut bodies: Vec<BodyRecord> = Vec::new();
     let mut body_payloads: Vec<BodyPayload> = Vec::new();
-    let mut mime_parts: Vec<MimePartRecord> = Vec::new();
     let mut attachments: Vec<AttachmentRecord> = Vec::new();
     let mut attachment_payloads: Vec<AttachmentPayload> = Vec::new();
     let mut embedded_message_outputs: Vec<EmbeddedMessageExtractionOutput> = Vec::new();
@@ -659,7 +658,7 @@ pub fn extract_metadata(
             format!("Materialised {embedded_message_payload_count} method-5 child EML payload(s)."),
         ));
     }
-    mime_parts = build_mime_parts(
+    let mime_parts = build_mime_parts(
         &messages,
         &bodies,
         &body_payloads,
