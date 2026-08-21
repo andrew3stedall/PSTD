@@ -594,8 +594,8 @@ jobs:
               'attachment_count': 0,
               'metadata_status': (
                   'embedded_property_context_loaded; data_bid=0x670; '
-                  'property_count=58; selected_properties=17; '
-                  'unknown_properties=41; decode_errors=0'
+                  'property_count=58; selected_properties=22; '
+                  'unknown_properties=36; decode_errors=0'
               ),
               'body_status': (
                   'body_payload_extracted; payloads=1; '
