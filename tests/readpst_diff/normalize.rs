@@ -450,9 +450,9 @@ fn strip_volatile_json(value: Value) -> Value {
                 .map(|(key, value)| (key, strip_volatile_json(value)))
                 .collect(),
         ),
-        Value::Array(values) => {
-            Value::Array(values.into_iter().map(strip_volatile_json).collect())
-        }
+        Value::Array(values) => Value::Array(
+            values.into_iter().map(strip_volatile_json).collect(),
+        )
         other => other,
     }
 }
