@@ -28,6 +28,9 @@ The upstream-audit slice is implemented in `tests/readpst_diff/source_manifest.r
 
 The semantic differential slice is implemented in `tests/readpst_diff/{runner,normalize,compare,report}.rs` with the approved Tika fixture contract and a pinned readpst workflow. It records bounded execution, normalized records, explicit negative outcomes, artifact provenance, and repeat-run determinism; the CLI oracle is built with its optional Python interface disabled. This is E2/Partial control-plane evidence only, so feature rows remain unchanged until their own implementation and corpus gates pass.
 
+### RP-M1-01 delivery
+
+The first typed-core slice is implemented across `src/pst/capability.rs`, the header/index-family decoder, bounded reader/limits policy, inspect projection, and canonical extraction archive. Positive Unicode capability evidence and controlled ANSI/OST/unknown/crypt/short-header/budget negatives are covered by deterministic tests. The slice is deliberately a prerequisite contract; it does not promote broad Unicode traversal or any output-mode row.
 ## Phase 1 — Unicode message breadth
 
 Broaden the existing strongest path before adding legacy formats:
