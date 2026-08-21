@@ -228,8 +228,8 @@ impl InputCapability {
     ) {
         let bbt_status = bbt_status.into();
         let nbt_status = nbt_status.into();
-        let crypt_unsupported = self.status == InputCapabilityStatus::Unsupported
-            && self.crypt_method.is_some();
+        let crypt_unsupported =
+            self.status == InputCapabilityStatus::Unsupported && self.crypt_method.is_some();
         if !crypt_unsupported {
             self.index_status = format!("bbt={bbt_status}; nbt={nbt_status}");
         }
