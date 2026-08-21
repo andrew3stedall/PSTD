@@ -180,11 +180,16 @@ fn configured_readpst_approved_fixture_differential() {
         deterministic_repeat,
     )
     .expect("build repeated differential report");
-    assert!(reports_are_deterministic(&report, &report_b).expect("compare repeated reports"));
     let evidence_root = env::var_os("PSTD_DIFFERENTIAL_EVIDENCE")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| sandbox.path().join("evidence"));
     let report_path = write_report(&evidence_root, "comparison.json", &report)
         .expect("write configured differential report");
     assert!(report_path.is_file());
+    assert!(
+        deterministic_repeat,
+        "repeated normalized outputs are not deterministic; evidence was written to {}",
+        report_path.display()
+    );
+    assert!(reports_are_deterministic(&report, &report_b).expect("compare repeated reports"));
 }
