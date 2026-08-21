@@ -6,6 +6,13 @@ This document is the execution control plane for the `RP-00`–`RP-13` readpst p
 
 The authoritative technical baseline remains the pinned `pst-format/libpst` revision [`cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89`](https://github.com/pst-format/libpst/tree/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89), with the source-to-behaviour ledger in [upstream source notes](12-upstream-source-notes.md). The orchestrator may split or resequence implementation issues, but it may not weaken the parity rule, evidence boundary, or fail-closed requirements in [method and parity guardrails](00-method-and-guardrails.md).
 
+## RP-M1-04 delivery note
+
+RP-M1-04 adds the canonical data/evidence.jsonl provenance stream. Its evidence gate
+is limited to stable source identity, bounded raw retention, payload linkage, and
+explicit unavailable/failed statuses; it does not close later Unicode, output,
+relationship, or input-breadth work.
+
 ## Operating contract
 
 The program is complete only when every capability that readpst exposes has a PSTD equivalent, a stronger equivalent that preserves the same information, or a machine-readable unsupported result when readpst itself skips the case. A parser helper, property constant, or output filename is not completion evidence.

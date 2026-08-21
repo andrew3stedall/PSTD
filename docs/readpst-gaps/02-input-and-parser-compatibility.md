@@ -15,6 +15,15 @@
 ## RP-M1-01 delivery
 
 PSTD now projects a bounded `InputCapability` at the parser boundary. It classifies the libpst index types for Unicode, ANSI, and OST 2013, records crypt method and root-pointer readiness, preserves the ISO-8859-1 default charset policy, and exposes file/read/candidate/property/diagnostic/depth budgets. Unsupported families and unsupported crypt methods, short headers, invalid roots, and budget violations are explicit statuses; they do not become an empty folder tree. Inspect JSON and canonical extraction archives carry the capability record.
+## RP-M1-04 provenance boundary
+
+The canonical extraction archive now emits data/evidence.jsonl. Each record keeps a
+stable owner and source reference for decoded MAPI properties, subnode references,
+body payloads, and attachment payloads, together with a SHA-256 digest and bounded
+raw-byte retention. Property-load and unavailable-payload failures remain explicit
+evidence statuses; the bounded raw field is not a claim that an oversized value was
+fully retained.
+
 ## Encryption
 
 The libpst header exposes three states:

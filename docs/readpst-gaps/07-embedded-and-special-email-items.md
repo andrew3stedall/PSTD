@@ -1,5 +1,12 @@
 # Embedded and special email items
 
+## RP-M1-04 provenance boundary
+
+The canonical archive now exposes subnode references and embedded/body/attachment
+payload provenance through data/evidence.jsonl. Evidence records preserve stable
+owner keys, source references, bounded raw bytes, and explicit unavailable/failed
+statuses; they do not imply that an unsupported embedded item has been decoded.
+
 ## Embedded RFC 822 messages
 
 The readpst writer detects attachment method `PST_ATTACH_EMBEDDED`, changes its MIME type to `message/rfc822`, parses the referenced child item, and writes the child through the ordinary email writer. It carries selected header context from the outer message and skips/logs children that are not email items.

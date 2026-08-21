@@ -22,6 +22,9 @@ _Last reviewed: 21 August 2026._
 
 ### Parser and extraction
 
+- RP-M1-04 canonical evidence stream with stable property, subnode, body-payload,
+  and attachment-payload provenance, bounded raw retention, hashes, and explicit
+  unavailable/failed statuses.
 - Typed input capability envelopes for Unicode/ANSI/OST/unknown family classification, crypt/root readiness, explicit unsupported/malformed/budget statuses, bounded reader limits, inspect visibility, and canonical extraction publication.
 - Typed folder/item envelopes with source-ID ownership, visibility, item-kind confidence, parent/child links, explicit ambiguity/duplicate/path-collision statuses, and canonical `data/items.jsonl` output.
 - Class-aware canonical routing statuses for ordinary, schedule, appointment, contact, journal, report, task, sticky-note, unknown, associated, deleted, filtered, and unavailable items, with immutable policy tests and no silent ordinary-message fallback.

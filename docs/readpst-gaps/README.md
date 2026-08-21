@@ -65,6 +65,10 @@ PST/OST bytes
 
 Every adapter consumes the envelope and evidence graph; none reparses the PST. Canonical records retain source values and statuses even when an output profile filters or cannot render them. This is the central mechanism for satisfying the readpst surface while improving on its global state, `chdir`-based traversal, unbounded embedded recursion, weak filename sanitation, and silent loss paths.
 
+RP-M1-04 adds data/evidence.jsonl to the canonical evidence graph. It links decoded
+properties, subnode references, body payloads, and attachment payloads to stable
+owners with bounded raw bytes, hashes, and explicit unavailable/failed statuses.
+
 The execution control plane for implementing this architecture is [the readpst parity agent orchestrator](14-agent-orchestrator.md). It defines eight delivery milestones, 28 stable work-unit keys, dependency gates, specialist sub-agent roles, branch/PR rules, and recursive documentation fan-out. GitHub issues should use those keys verbatim so implementation, fixtures, matrix rows, and agent handoffs remain traceable.
 
 ## Issue slicing rules
