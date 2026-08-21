@@ -15,7 +15,7 @@ pub struct Cli {
 }
 
 #[derive(Debug, Clone, Args)]
-struct ReadpstArgs {
+pub struct ReadpstArgs {
     /// Named output family; non-canonical families fail explicitly until their adapter lands.
     #[arg(long, default_value = "canonical")]
     output_profile: String,
