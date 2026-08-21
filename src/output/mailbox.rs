@@ -240,11 +240,7 @@ pub fn render_profile(
                         attachment_payloads,
                     ) {
                         Ok(eml) => {
-                            let bytes = if mode == MailMode::Mh || mode == MailMode::Separate {
-                                eml
-                            } else {
-                                eml
-                            };
+                            let bytes = eml;
                             let filename = match mode {
                                 MailMode::Mh | MailMode::Separate => {
                                     format!("{}", ordinal + 1)
@@ -406,7 +402,12 @@ fn serialize_message_eml(
 ) -> Result<Vec<u8>, RenderError> {
     let payloads = body_payloads
         .iter()
-        .filter(|payload| payload.record.message_key == message.message_key)
+        .filter(|payload| {
+            payload.record.message_key == message.message_key
+                && bodies
+                    .iter()
+                    .any(|body| body.body_key == payload.record.body_key)
+        })
         .collect::<Vec<_>>();
     let text = payloads
         .iter()
@@ -521,9 +522,7 @@ fn serialize_message_eml(
         append_text_part(&mut output, &alternative, "text/html", &html.bytes);
         append_boundary(&mut output, &alternative, true);
     } else if let Some(body) = report.or(text).or(html) {
-        let media_type = if report.is_some() {
-            "text/plain"
-        } else if text.is_some() {
+        let media_type = if report.is_some() || text.is_some() {
             "text/plain"
         } else {
             "text/html"
@@ -777,6 +776,7 @@ fn base64_encode(bytes: &[u8]) -> String {
     const TABLE: &[u8; 64] =
         b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut output = String::new();
+    let mut line_length = 0usize;
     for chunk in bytes.chunks(3) {
         let a = chunk[0];
         let b = *chunk.get(1).unwrap_or(&0);
@@ -793,8 +793,10 @@ fn base64_encode(bytes: &[u8]) -> String {
         } else {
             '='
         });
-        if output.len() % 76 == 0 {
+        line_length += 4;
+        if line_length == 76 {
             output.push_str("\r\n");
+            line_length = 0;
         }
     }
     output.trim_end_matches("\r\n").to_string()

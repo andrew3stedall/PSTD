@@ -82,7 +82,7 @@ jobs:
                       not (archive / artifact['path']).read_bytes().startswith(b'From ')
                       for artifact in status['artifacts']
                   )
-              Path('/tmp/pstd-mailbox') .joinpath(f'{profile}-report.json').write_text(
+              Path('/tmp/pstd-mailbox').joinpath(f'{profile}-report.json').write_text(
                   json.dumps({
                       'fixture': str(Path('tests/fixtures/pst/sample.pst')),
                       'fixture_sha256': 'ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe',
