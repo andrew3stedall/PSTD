@@ -580,7 +580,7 @@ jobs:
                   'Luis Filipe da Cruz N'
               ),
               'sender_address_type': 'EX',
-              'sent_at': None,
+              'sent_at': 'filetime:132509026807730000',
               'received_at': 'filetime:132509026800000000',
               'internet_message_id': (
                   '<3148510c2360443396a78d35e0888de9@pf.gov.br>'
