@@ -89,7 +89,7 @@ pstd batch --input <pst-file-or-directory> --output <output-dir>
 python -m pstd --help
 ```
 
-Implemented capabilities include bounded parsing of PST headers, typed Unicode/ANSI/OST/unknown input capability classification, crypt/root readiness diagnostics, file/read/resource budgets, BBT/NBT pages, blocks, subnodes, Heap-on-Node allocations, BTH structures, Property Contexts, Table Contexts, row storage, selected MAPI values, folder/message candidates, bodies, recipient evidence, structured outputs, batch state, and public-fixture diagnostics. ANSI header values are diagnostic-only; ANSI traversal and extraction remain backlog-only.
+Implemented capabilities include bounded parsing of PST headers, typed Unicode/ANSI/OST/unknown input capability classification, crypt/root readiness diagnostics, file/read/resource budgets, BBT/NBT pages, blocks, subnodes, Heap-on-Node allocations, BTH structures, Property Contexts, Table Contexts, row storage, selected MAPI values, folder/message candidates, bodies, recipient evidence, structured folder/item envelope outputs, batch state, and public-fixture diagnostics. ANSI header values are diagnostic-only; ANSI traversal and extraction remain backlog-only.
 
 ## Microsoft Purview corpus target
 
