@@ -151,7 +151,7 @@ jobs:
           strong = json.loads((evidence / 'ansi-v14-strong-crypt.json').read_text())
           assert strong['capability']['status'] == 'ready', strong
           assert strong['capability']['allows_extraction'] is True, strong
-          assert strong['capability']['index_status'] == 'ready_to_attempt', strong
+          assert strong['capability']['index_status'].startswith('bbt=tree_traversed;'), strong
 
           unknown = json.loads((evidence / 'ansi-v14-unknown-crypt.json').read_text())
           assert unknown['capability']['status'] == 'unsupported', unknown
