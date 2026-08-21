@@ -160,3 +160,10 @@ while the approved Tika body fixture verifies that an unresolved HTML locator re
 non-authoritative and that a valid text body retains decoded evidence. Full report,
 schedule, encrypted-body, and adapter-specific output semantics remain downstream
 typed work in RP-M3/RP-M5.
+
+## RP-M3-01 embedded ownership
+
+The MIME projection remains a consumer of canonical embedded-child records. The new
+embedded graph links a resolved method-5 edge to the child message and its MIME parts,
+while cycle, budget, non-email, and unavailable-child edges remain non-authoritative.
+No child metadata or MIME payload is guessed from a broken graph reference.

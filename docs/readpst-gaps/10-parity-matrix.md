@@ -73,6 +73,17 @@ invalid RTF, encrypted bodies, reports, and schedules remain explicit
 non-authoritative statuses; typed special-item and adapter parity rows are not yet
 promoted.
 
+## RP-M3-01 delivery
+
+The production path now publishes deterministic `data/embedded_graph.jsonl` edges
+for method-5 embedded-message references. The approved Tika fixture verifies exact
+parent/attachment/child identity, source method, child payload hash, child MIME
+ownership, evidence linkage, and repeat-run byte equality. Unit coverage exercises
+cycle detection and depth-budget propagation; unavailable, non-email, duplicate-owner,
+and budget outcomes are explicit non-authoritative records. ATT-05 and ATT-11 remain
+Partial because broader input methods, special-item semantics, and adapter parity are
+still downstream work.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |

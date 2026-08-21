@@ -144,6 +144,14 @@ Implement method-specific resolvers for none/unknown, by-value, by-reference, by
 ### Issue-ready acceptance
 
 `RP-06A` covers row/property projection, `RP-06B` payload methods, `RP-06C` filename/path/filter policy, `RP-06D` CID/order, and `RP-06E` OLE/lossless evidence. Every issue needs positive and negative fixtures for direct, split, subnode, reference, embedded, OLE, zero-length, size-mismatch, duplicate-name, unsafe-name, non-ASCII, and unresolved cases. Verify payload hashes, source order, MIME projection, filtered statuses, and parent ownership; update [bodies](05-body-mime-and-rtf.md), [special items](07-embedded-and-special-email-items.md), [storage](09-storage-and-interoperability.md), and the matrix.
+
+## RP-M3-01 graph consumption
+
+Method-5 attachment rows now also feed the bounded `data/embedded_graph.jsonl`
+projection. The graph retains source order, attachment ownership, child evidence,
+observed bytes, and explicit missing/non-email/ambiguous/cycle/budget statuses. It
+does not replace the attachment payload record or infer a child when the source ID2
+reference is unavailable.
 # RP-M2-03 delivery
 
 The canonical `AttachmentRecord` now exposes a deterministic `source_ref` and

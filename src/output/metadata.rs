@@ -125,6 +125,25 @@ pub struct MimePartRecord {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EmbeddedGraphRecord {
+    pub edge_key: String,
+    pub parent_message_key: String,
+    pub attachment_key: String,
+    pub child_message_key: Option<String>,
+    pub relation: String,
+    pub ordinal: u64,
+    pub depth: u64,
+    pub source_ref: String,
+    pub child_evidence_key: Option<String>,
+    pub raw_bytes_observed: u64,
+    pub budget_status: String,
+    pub cycle_status: String,
+    pub resolution_status: String,
+    pub status: String,
+    pub authoritative: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AttachmentRecord {
     pub message_key: String,
     pub attachment_key: String,

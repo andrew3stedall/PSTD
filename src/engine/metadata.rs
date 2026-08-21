@@ -7,7 +7,7 @@ use crate::output::ids;
 use crate::output::metadata::{
     AttachmentRecord, BodyRecord, EvidenceRecord, FolderRecord, HeaderProjectionRecord,
     ItemEnvelope, ItemRoutingCountRecord, ManifestRecord, MessageRecord, MessageReferenceRecord,
-    MimePartRecord, RecipientRecord,
+    EmbeddedGraphRecord, MimePartRecord, RecipientRecord,
 };
 use crate::output::mime::build_mime_parts;
 use crate::pst::attachment_property_context::{
@@ -26,6 +26,7 @@ use crate::pst::compatibility::{
 use crate::pst::folder_tree::{
     folder_from_nbt_candidate, is_folder_candidate, root_folder_from_header, FolderInventoryRecord,
 };
+use crate::pst::embedded_graph::build_embedded_graph;
 use crate::pst::header::PstHeader;
 use crate::pst::header_projection;
 use crate::pst::item_envelope::{build_item_envelopes, build_item_routing_counts};
@@ -64,6 +65,7 @@ pub struct MetadataExtractionOutput {
     pub message_references: Vec<MessageReferenceRecord>,
     pub bodies: Vec<BodyRecord>,
     pub body_payloads: Vec<BodyPayload>,
+    pub embedded_graph: Vec<EmbeddedGraphRecord>,
     pub mime_parts: Vec<MimePartRecord>,
     pub attachments: Vec<AttachmentRecord>,
     pub attachment_payloads: Vec<AttachmentPayload>,
@@ -665,6 +667,12 @@ pub fn extract_metadata(
         &attachments,
         &attachment_payloads,
     );
+    let embedded_graph = build_embedded_graph(
+        &messages,
+        &attachments,
+        &body_payloads,
+        &attachment_payloads,
+    );
 
     let items = build_item_envelopes(
         pst_id,
@@ -709,6 +717,16 @@ pub fn extract_metadata(
             "data/mime_parts.jsonl",
             None,
             &mime_part.status,
+        ));
+    }
+    for edge in &embedded_graph {
+        evidence.push(crate::pst::evidence::payload_record(
+            &edge.parent_message_key,
+            "embedded_graph_edge",
+            format!("edge:{}", edge.edge_key),
+            "data/embedded_graph.jsonl",
+            None,
+            &edge.status,
         ));
     }
 
@@ -838,6 +856,7 @@ pub fn extract_metadata(
         message_references,
         bodies,
         body_payloads,
+        embedded_graph,
         mime_parts,
         attachments,
         attachment_payloads,
@@ -1200,6 +1219,18 @@ fn base_manifest(
             pst_id: pst_id.to_string(),
             message_key: None,
             folder_key: None,
+            artefact_type: "embedded_graph".to_string(),
+            archive_path: "data/embedded_graph.jsonl".to_string(),
+            sha256: None,
+            size_bytes: None,
+            status: "rp_m3_01_bounded_embedded_graph".to_string(),
+            issue_count: 0,
+        },
+        ManifestRecord {
+            run_id: run_id.to_string(),
+            pst_id: pst_id.to_string(),
+            message_key: None,
+            folder_key: None,
             artefact_type: "attachments".to_string(),
             archive_path: "data/attachments.jsonl".to_string(),
             sha256: None,
@@ -1324,6 +1355,7 @@ pub fn fallback_metadata(
         message_references: Vec::new(),
         bodies: Vec::new(),
         body_payloads: Vec::new(),
+        embedded_graph: Vec::new(),
         mime_parts: Vec::new(),
         attachments: Vec::new(),
         attachment_payloads: Vec::new(),

@@ -1,0 +1,133 @@
+name: Readpst embedded graph
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  embedded-graph:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test embedded_graph
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Verify embedded ownership, budgets, and determinism
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/upstream/tika-testPST.pst"
+          evidence="/tmp/pstd-embedded-graph"
+          first="/tmp/pstd-embedded-graph-first"
+          second="/tmp/pstd-embedded-graph-second"
+          mkdir -p "$evidence" "$first" "$second"
+          (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
+
+          cargo run -- extract --input "$fixture" --output "$first" --overwrite \
+            > "$evidence/first.stdout" 2> "$evidence/first.stderr"
+          cargo run -- extract --input "$fixture" --output "$second" --overwrite \
+            > "$evidence/second.stdout" 2> "$evidence/second.stderr"
+
+          for output in "$first" "$second"; do
+            tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+            destination="$evidence/$(basename "$output")"
+            mkdir -p "$destination"
+            tar -xf "$tar_file" -C "$destination"
+            test -s "$destination/data/embedded_graph.jsonl"
+          done
+
+          cmp "$evidence/pstd-embedded-graph-first/data/embedded_graph.jsonl" \
+            "$evidence/pstd-embedded-graph-second/data/embedded_graph.jsonl"
+
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          archive = Path('/tmp/pstd-embedded-graph/pstd-embedded-graph-first')
+
+          def records(name):
+              return [
+                  json.loads(line)
+                  for line in (archive / 'data' / name).read_text(encoding='utf-8').splitlines()
+                  if line.strip()
+              ]
+
+          messages = records('messages.jsonl')
+          attachments = records('attachments.jsonl')
+          edges = records('embedded_graph.jsonl')
+          mime_parts = records('mime_parts.jsonl')
+          evidence = records('evidence.jsonl')
+          if len(edges) != 1:
+              raise SystemExit(f'unexpected embedded graph edge count: {len(edges)}')
+          edge = edges[0]
+          expected = {
+              'parent_message_key': 'msg_c6163b9157944cc9',
+              'attachment_key': 'att_a9c94a13d70f1cb3',
+              'child_message_key': 'msg_0ff529af59d373d5',
+              'relation': 'embedded_message',
+              'ordinal': 1,
+              'depth': 1,
+              'source_ref': 'mapi:PR_ATTACH_DATA_OBJ/embedded_message',
+              'budget_status': 'within_limits',
+              'cycle_status': 'acyclic',
+              'resolution_status': 'child_message_resolved',
+              'status': 'embedded_child_resolved',
+              'authoritative': True,
+          }
+          for name, value in expected.items():
+              if edge.get(name) != value:
+                  raise SystemExit(f'edge {name} mismatch: {edge.get(name)!r} != {value!r}')
+          if edge['raw_bytes_observed'] <= 0:
+              raise SystemExit('embedded child raw-byte observation is empty')
+          if edge['child_evidence_key'] != 'message:msg_0ff529af59d373d5':
+              raise SystemExit('embedded child evidence link is not source-keyed')
+          message_keys = {message['message_key'] for message in messages}
+          if edge['child_message_key'] not in message_keys:
+              raise SystemExit('embedded graph child is not present in messages')
+          attachment = next(
+              item for item in attachments
+              if item['attachment_key'] == edge['attachment_key']
+          )
+          payload = archive / attachment['archive_path']
+          if not payload.is_file():
+              raise SystemExit('embedded payload path is absent')
+          if hashlib.sha256(payload.read_bytes()).hexdigest() != attachment['sha256']:
+              raise SystemExit('embedded payload hash does not match attachment evidence')
+          child_parts = [
+              part for part in mime_parts
+              if part['message_key'] == edge['child_message_key']
+          ]
+          if not child_parts or not any(part['authoritative'] for part in child_parts):
+              raise SystemExit('embedded child MIME evidence is absent or non-authoritative')
+          edge_evidence = [
+              item for item in evidence
+              if item['evidence_key'] == 'edge:' + edge['edge_key']
+          ]
+          if len(edge_evidence) != 1 or edge_evidence[0]['status'] != edge['status']:
+              raise SystemExit('embedded graph evidence link is absent or inconsistent')
+          if len({item['edge_key'] for item in edges}) != len(edges):
+              raise SystemExit('duplicate embedded graph edge key')
+          Path('/tmp/pstd-embedded-graph/embedded-graph-report.json').write_text(
+              json.dumps({
+                  'fixture': 'tests/fixtures/upstream/tika-testPST.pst',
+                  'fixture_sha256': 'f2a6b1d2cad00f574e3d1c1211c4b1c854d6526caea77213adc3da92b7813ae3',
+                  'edge_count': len(edges),
+                  'child_message_key': edge['child_message_key'],
+                  'child_payload_sha256': attachment['sha256'],
+                  'deterministic_graph_jsonl': True,
+                  'cycle_and_budget_statuses_are_explicit': True,
+              }, indent=2) + '\n', encoding='utf-8'
+          )
+          PY
+      - name: Upload embedded graph evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-embedded-graph-evidence
+          path: /tmp/pstd-embedded-graph
+          if-no-files-found: error

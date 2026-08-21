@@ -128,6 +128,21 @@ EmbeddedGraph {
 ### Issue-ready acceptance
 
 `RP-07A` covers embedded graph/reference expansion, `RP-07B` nested MIME, `RP-07C` schedule/meeting email, `RP-07D` report/disposition, and `RP-07E` encrypted/RTF synthetic artefacts. Acceptance fixtures must include valid nested mail, nested attachments, non-email child, cycle, duplicate reference, depth overflow, missing ID2, malformed child, schedule methods, report types, encrypted body, and compressed RTF. Assert parent/child ownership, graph termination, raw preservation, MIME part types, partial statuses, and deterministic output; fan out to [bodies](05-body-mime-and-rtf.md), [attachments](06-attachments.md), [non-mail outputs](08-contacts-calendar-journal.md), [storage](09-storage-and-interoperability.md), and the matrix.
+
+## RP-M3-01 bounded graph delivery
+
+The canonical extraction path now emits `data/embedded_graph.jsonl` for every
+method-5 attachment reference. Each edge preserves parent and attachment source
+keys, child message key, source reference, rendering ordinal, bounded depth, observed
+child bytes, evidence link, and explicit cycle, resolution, and budget status. Valid
+child messages are authoritative only when present, uniquely owned, email-like,
+acyclic, and within the depth/node/byte limits.
+
+Missing references, unavailable or non-email children, duplicate owners, cycles, and
+budget rejection remain records rather than silent drops. The approved Tika attachment
+fixture verifies parent/child identity, payload hash, child MIME ownership, and
+repeat-run byte determinism. Schedule/report/encrypted semantics and `.msg`
+materialization remain downstream work.
 # RP-M2-03 delivery
 
 Attachment method-5 records now carry an explicit embedded-message source reference
