@@ -112,6 +112,16 @@ stable part keys, ownership, raw/decoded hash linkage, and unresolved HTML safet
 Report, schedule, encrypted-body, recursive child, and output-adapter semantics stay
 serialized behind RP-M3/RP-M5 rather than being silently inferred here.
 
+### RP-M3-01 delivery note
+
+RP-M3-01 is implemented as the bounded graph slice on the production canonical path.
+`data/embedded_graph.jsonl` records method-5 parent/attachment/child edges with stable
+IDs, source order, child evidence links, observed bytes, depth, and explicit
+resolution/cycle/budget statuses. The Tika attachment workflow repeats extraction and
+checks exact child ownership, payload/hash linkage, child MIME evidence, and graph
+JSONL determinism. Special-item semantics, CLI policy, and `.msg` output remain
+serialized behind RP-M3-02/RP-M3-03 and RP-M5-04.
+
 
 ### `RP-M1 — Typed extraction core`
 

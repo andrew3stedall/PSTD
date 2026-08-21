@@ -73,6 +73,12 @@ RP-M2-04 adds `data/mime_parts.jsonl` as the canonical semantic MIME projection 
 those evidence records. It is a production evidence boundary, not a claim that the
 readpst output-adapter family or typed special-item exports are complete.
 
+RP-M3-01 adds `data/embedded_graph.jsonl` as a bounded, source-keyed relationship
+projection over method-5 embedded-message references. It preserves child ownership,
+payload observations, evidence links, and explicit non-authoritative cycle, budget,
+missing, ambiguous, and non-email outcomes; it does not promote special-item or
+output-adapter parity.
+
 The execution control plane for implementing this architecture is [the readpst parity agent orchestrator](14-agent-orchestrator.md). It defines eight delivery milestones, 28 stable work-unit keys, dependency gates, specialist sub-agent roles, branch/PR rules, and recursive documentation fan-out. GitHub issues should use those keys verbatim so implementation, fixtures, matrix rows, and agent handoffs remain traceable.
 
 ## Issue slicing rules
