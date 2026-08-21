@@ -53,7 +53,7 @@ jobs:
 
           archive = Path('/tmp/pstd-calendar/pstd-calendar-first')
           status = json.loads((archive / 'outputs/calendar-profile-status.json').read_text())
-          ics = (archive / 'outputs/appointments.ics').read_text()
+          ics = (archive / 'outputs/appointments.ics').read_bytes().decode('utf-8')
           assert status['profile'] == 'icalendar'
           assert status['status'] in {'calendar_projection_available', 'calendar_records_unavailable'}
           assert ics.startswith('BEGIN:VCALENDAR\r\n')
