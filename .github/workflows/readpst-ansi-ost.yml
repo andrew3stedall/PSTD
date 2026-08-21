@@ -127,7 +127,7 @@ jobs:
 
           evidence = Path('/tmp/pstd-ansi-ost/evidence')
           admitted = []
-          for name, family in [('ansi-v14.pst', 'ansi-pst'), ('ost2013-4k.pst', 'ost2013')]:
+          for name, family in [('ansi-v14.pst', 'ansi_pst'), ('ost2013-4k.pst', 'ost2013')]:
               value = json.loads((evidence / f'{name}.json').read_text())
               assert value['capability']['family'] == family, value
               assert value['capability']['status'] == 'Ready', value

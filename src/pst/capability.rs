@@ -218,10 +218,7 @@ impl InputCapability {
         let nbt_status = nbt_status.into();
         self.index_status = format!("bbt={bbt_status}; nbt={nbt_status}");
         if self.status == InputCapabilityStatus::Ready
-            && (bbt_status.starts_with("unavailable")
-                || nbt_status.starts_with("unavailable")
-                || bbt_status.contains("error")
-                || nbt_status.contains("error"))
+            && (index_status_is_partial(&bbt_status) || index_status_is_partial(&nbt_status))
         {
             self.status = InputCapabilityStatus::Partial;
             self.allows_extraction = false;
@@ -271,6 +268,20 @@ impl InputCapability {
             diagnostics: vec![detail],
         }
     }
+}
+
+fn index_status_is_partial(status: &str) -> bool {
+    if status.starts_with("unavailable") || status.starts_with("error") {
+        return true;
+    }
+    for field in ["traversal_errors=", "truncated_entries="] {
+        if let Some(value) = status.split(field).nth(1).and_then(|value| value.split(';').next()) {
+            if value != "0" {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 impl InputFamily {
