@@ -6,8 +6,8 @@ use sha2::{Digest, Sha256};
 use crate::config::OutputProfile;
 use crate::error::PstdResult;
 use crate::output::mailbox::{
-    folder_path_map, ordered_mail_messages, safe_folder_path, serialize_message_eml,
-    MailboxArtifact, MailboxArtifactSummary,
+    attachment_extension_allowed, folder_path_map, ordered_mail_messages, safe_folder_path,
+    serialize_message_eml, MailboxArtifact, MailboxArtifactSummary,
 };
 use crate::output::metadata::{
     AttachmentRecord, BodyRecord, FolderRecord, HeaderProjectionRecord, MessageRecord,
@@ -51,6 +51,7 @@ pub struct MsgProfileStatus {
     pub unavailable_count: usize,
     pub attachment_count: usize,
     pub emitted_attachment_count: usize,
+    pub filtered_attachment_count: usize,
     pub unsupported_attachment_count: usize,
     pub path_policy: String,
     pub publication_policy: String,
@@ -74,6 +75,7 @@ pub fn render_profile(
     body_payloads: &[BodyPayload],
     attachments: &[AttachmentRecord],
     attachment_payloads: &[AttachmentPayload],
+    attachment_extensions: &[String],
 ) -> Option<MsgRender> {
     if profile != OutputProfile::Msg {
         return None;
@@ -133,6 +135,7 @@ pub fn render_profile(
     let mut eml_artifact_count = 0usize;
     let mut attachment_count = 0usize;
     let mut emitted_attachment_count = 0usize;
+    let mut filtered_attachment_count = 0usize;
     let mut unsupported_attachment_count = 0usize;
 
     for (folder, group) in groups {
@@ -140,6 +143,13 @@ pub fn render_profile(
             let base = format!("outputs/msg/{folder}/{}", ordinal + 1);
             let msg_path = format!("{base}.msg");
             let eml_path = format!("{base}.eml");
+            filtered_attachment_count += attachments
+                .iter()
+                .filter(|attachment| {
+                    attachment.message_key == message.message_key
+                        && !attachment_extension_allowed(attachment, attachment_extensions)
+                })
+                .count();
             let built = build_msg(
                 message,
                 headers,
@@ -148,6 +158,7 @@ pub fn render_profile(
                 body_payloads,
                 attachments,
                 attachment_payloads,
+                attachment_extensions,
             );
             let (msg_bytes, evidence) = match built {
                 Ok(value) => value,
@@ -189,6 +200,7 @@ pub fn render_profile(
                 body_payloads,
                 attachments,
                 attachment_payloads,
+                attachment_extensions,
                 false,
             );
             let mut status = if evidence.unsupported.is_empty() {
@@ -251,7 +263,11 @@ pub fn render_profile(
     decisions.sort_by(|left, right| left.message_key.cmp(&right.message_key));
     let status = if message_count == 0 || emitted_message_count == 0 {
         "msg_records_unavailable"
-    } else if unavailable_count > 0 || skipped_count > 0 || unsupported_attachment_count > 0 {
+    } else if unavailable_count > 0
+        || skipped_count > 0
+        || filtered_attachment_count > 0
+        || unsupported_attachment_count > 0
+    {
         "msg_projection_partial"
     } else {
         "msg_projection_available"
@@ -273,6 +289,7 @@ pub fn render_profile(
             unavailable_count,
             attachment_count,
             emitted_attachment_count,
+            filtered_attachment_count,
             unsupported_attachment_count,
             path_policy: "sanitized relative folder paths; deterministic ordinal filenames".to_string(),
             publication_policy: "complete OLE and compatibility EML bytes are built in memory before TAR publication".to_string(),
@@ -302,6 +319,7 @@ fn build_msg(
     body_payloads: &[BodyPayload],
     attachments: &[AttachmentRecord],
     attachment_payloads: &[AttachmentPayload],
+    attachment_extensions: &[String],
 ) -> PstdResult<(Vec<u8>, MsgEvidence)> {
     let mut document = OleDocument::new();
     let root = 0usize;
@@ -497,7 +515,10 @@ fn build_msg(
         .collect::<BTreeMap<_, _>>();
     let message_attachments = attachments
         .iter()
-        .filter(|attachment| attachment.message_key == message.message_key)
+        .filter(|attachment| {
+            attachment.message_key == message.message_key
+                && attachment_extension_allowed(attachment, attachment_extensions)
+        })
         .collect::<Vec<_>>();
     evidence.attachment_count = message_attachments.len();
     for (ordinal, attachment) in message_attachments.iter().enumerate() {

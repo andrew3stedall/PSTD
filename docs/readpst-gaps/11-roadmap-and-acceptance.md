@@ -173,6 +173,19 @@ and 19 Gap rows; [`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md) en
 all of them, records the green executable gates, names the admissibility blockers, and
 documents stronger-equivalent safety/determinism improvements without overclaiming.
 
+## Post-RP-M7 output parity expansion
+
+The first post-decision delivery closes the missing projection boundary for typed item
+filters and extends attachment/header output behavior without changing canonical source
+evidence. Routed item identities now drive all named typed/mail projections, normalized
+attachment allow-lists apply to generated MIME and MSG/EML output, and generated
+non-ASCII values use RFC 2047/RFC 2231 serialization. Focused regression tests prove
+ASCII stability, deterministic selection, extension filtering, encoded-word output, and
+long-parameter continuation. These five rows are Partial until broad mixed-folder and
+independent readpst/import evidence is admitted.
+
+The maintained matrix after this slice is **2 Implemented, 59 Partial, and 14 Gap**.
+
 ## Fixture and differential strategy
 
 Each capability needs a fixture record containing:

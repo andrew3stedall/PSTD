@@ -22,7 +22,7 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Microsoft Purview Unicode exports | Active corpus target | No approved Purview export fixture is yet committed. Compatibility must be established capability-by-capability on controlled synthetic Purview exports rather than inferred from the existing fixtures. |
 | External PST implementations | Comparison-only tooling | Pinned external tools may generate or independently inventory controlled fixtures, but PSTD acceptance must come from its own Rust implementation and exact deterministic output. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
-| Readpst parity release gate | RP-M7-03 decision published | Main `83fdd051911410a8483e734d5890247d9b56bd65` has 2 Implemented, 54 Partial, and 19 Gap rows. Final decision: NOT PARITY-COMPLETE. |
+| Readpst parity release gate | Post-RP-M7 output parity expansion | RP-M7-03 remains NOT PARITY-COMPLETE for its reviewed baseline; the maintained ledger is now 2 Implemented, 59 Partial, and 14 Gap after end-to-end typed filtering, cross-profile attachment filtering, and RFC-aware generated MIME projection. |
 | Pinned semantic differential | RP-M7-02 evidence collected | Run `32512518536` passed the 18-test readpst/PSTD harness for the approved Unicode fixture; release-wide E4 remains not proven because admissible profile/input corpus coverage is incomplete. |
 
 ## Exact Tika baseline

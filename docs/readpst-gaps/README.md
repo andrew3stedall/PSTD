@@ -170,16 +170,15 @@ result is E2/Partial differential evidence with explicit profile/input admissibi
 blockers in [`rp-m7-02-e4-report.md`](rp-m7-02-e4-report.md), not a release-wide E4 pass.
 
 RP-M7-03 has published the final decision in
-[`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md): PSTD is **not
-parity-complete** at the reviewed baseline. The matrix remains 2 Implemented, 54
-Partial, and 19 Gap rows, all named in the decision; future work must add admissible
-corpora and semantic differentials before making a full-parity claim.
+[`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md): PSTD was **not
+parity-complete** at the reviewed baseline. The post-decision output expansion has
+since moved five rows to Partial; the maintained ledger is now 2 Implemented, 59
+Partial, and 14 Gap rows. Future work must still add admissible corpora and semantic
+differentials before making a full-parity claim.
 
-RP-M7-03 has published the final decision in
-[`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md): PSTD is **not
-parity-complete** at the reviewed baseline. The matrix remains 2 Implemented, 54
-Partial, and 19 Gap rows, all named in the decision; future work must add admissible
-corpora and semantic differentials before making a full-parity claim.
+RP-M7-03 remains the historical release decision for its reviewed baseline. The
+current matrix is maintained by subsequent parity deliveries and must not be read as a
+full-parity claim merely because a row moved from Gap to Partial.
 
 ## Maintenance rule
 

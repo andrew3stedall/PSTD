@@ -6,6 +6,9 @@ use std::path::PathBuf;
 use chrono::{DateTime, FixedOffset, Utc};
 use pstd::eml::build_plain_text_eml;
 use pstd::engine::metadata::extract_metadata;
+use pstd::output::headers::{
+    encode_display_name, encode_mime_parameter, encode_unstructured_value,
+};
 use pstd::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
 use pstd::pst::attachments::AttachmentPayload;
 use pstd::pst::messages::BodyPayload;
@@ -216,7 +219,7 @@ fn build_eml_with_plain_text_policy(
     if let Some(cc) = cc {
         push_header(&mut eml, "Cc", &cc);
     }
-    push_header(&mut eml, "Subject", &subject);
+    push_header(&mut eml, "Subject", &encode_unstructured_value(&subject));
     push_header(&mut eml, "Date", &date);
     if let Some(message_id) = message
         .internet_message_id
@@ -306,7 +309,6 @@ fn attachments_are_valid(attachments: &[AttachmentPayload]) -> bool {
 
 fn push_attachment_part(output: &mut String, attachment: &AttachmentPayload) -> Option<()> {
     let filename = clean_header(&attachment.record.filename_safe)?;
-    let filename = escape_mime_parameter(&filename);
     let content_type = attachment_content_type(attachment);
     let disposition = if attachment.record.is_inline {
         "inline"
@@ -320,13 +322,19 @@ fn push_attachment_part(output: &mut String, attachment: &AttachmentPayload) -> 
     push_header(
         output,
         "Content-Type",
-        &format!("{content_type}; name=\"{filename}\""),
+        &format!(
+            "{content_type}; {}",
+            encode_mime_parameter("name", &filename)
+        ),
     );
     push_header(output, "Content-Transfer-Encoding", "base64");
     push_header(
         output,
         "Content-Disposition",
-        &format!("{disposition}; filename=\"{filename}\""),
+        &format!(
+            "{disposition}; {}",
+            encode_mime_parameter("filename", &filename)
+        ),
     );
     if let Some(content_id) = attachment
         .record
@@ -355,10 +363,6 @@ fn attachment_content_type(attachment: &AttachmentPayload) -> String {
             _ => None,
         })
         .unwrap_or_else(|| "application/octet-stream".to_string())
-}
-
-fn escape_mime_parameter(value: &str) -> String {
-    value.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 fn base64_lines(bytes: &[u8]) -> String {
@@ -722,19 +726,8 @@ fn recipient_header(records: &[RecipientRecord], role: &str) -> Option<String> {
 
 fn format_address(name: Option<&str>, address: &str) -> String {
     match name.filter(|name| !name.is_empty()) {
-        Some(name) => format!("{} <{}>", quote_display_name(name), address),
+        Some(name) => format!("{} <{}>", encode_display_name(name), address),
         None => address.to_string(),
-    }
-}
-
-fn quote_display_name(value: &str) -> String {
-    if value
-        .chars()
-        .all(|character| character.is_ascii_alphanumeric() || " ._-".contains(character))
-    {
-        value.to_string()
-    } else {
-        format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
     }
 }
 

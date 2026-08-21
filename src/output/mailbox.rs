@@ -3,6 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use sha2::{Digest, Sha256};
 
 use crate::config::OutputProfile;
+use crate::output::headers::{
+    clean_header_value, encode_display_name, encode_mime_parameter, encode_unstructured_value,
+};
 use crate::output::ids;
 use crate::output::metadata::{
     AttachmentRecord, HeaderProjectionRecord, MessageRecord, RecipientRecord,
@@ -196,6 +199,25 @@ pub fn render_profile(
     let mut attachment_decisions = Vec::new();
     let mut attachment_paths = UniquePathTracker::default();
 
+    if mode != MailMode::Separate {
+        for attachment in attachments.iter().filter(|attachment| {
+            eligible_messages_contain(attachment.message_key.as_str(), &eligible)
+        }) {
+            attachment_count += 1;
+            if !attachment_extension_allowed(attachment, attachment_extensions) {
+                filtered_attachment_count += 1;
+                attachment_decisions.push(MailboxAttachmentDecision {
+                    attachment_key: attachment.attachment_key.clone(),
+                    message_key: attachment.message_key.clone(),
+                    filename: sanitize_segment(&attachment.filename_safe),
+                    path: None,
+                    status: "filtered_attachment_extension".to_string(),
+                    extension: attachment.extension.clone(),
+                });
+            }
+        }
+    }
+
     let mut groups = BTreeMap::<String, Vec<&MessageRecord>>::new();
     for message in eligible {
         let output_folder = folder_paths
@@ -222,6 +244,7 @@ pub fn render_profile(
                         body_payloads,
                         attachments,
                         attachment_payloads,
+                        attachment_extensions,
                         false,
                     ) {
                         Ok(eml) => {
@@ -281,6 +304,7 @@ pub fn render_profile(
                         body_payloads,
                         attachments,
                         attachment_payloads,
+                        attachment_extensions,
                         mode == MailMode::Separate,
                     ) {
                         Ok(eml) => {
@@ -560,11 +584,7 @@ fn append_separate_attachments(
     for attachment in selected {
         *attachment_count += 1;
         let filename = sanitize_segment(&attachment.filename_safe);
-        let extension_allowed = attachment_extensions.is_empty()
-            || attachment.extension.as_ref().is_none_or(|extension| {
-                attachment_extensions.contains(&extension.to_ascii_lowercase())
-            });
-        if !extension_allowed {
+        if !attachment_extension_allowed(attachment, attachment_extensions) {
             *filtered_attachment_count += 1;
             decisions.push(MailboxAttachmentDecision {
                 attachment_key: attachment.attachment_key.clone(),
@@ -649,6 +669,7 @@ pub(crate) fn serialize_message_eml(
     body_payloads: &[BodyPayload],
     attachments: &[AttachmentRecord],
     attachment_payloads: &[AttachmentPayload],
+    attachment_extensions: &[String],
     separate_attachments: bool,
 ) -> Result<Vec<u8>, RenderError> {
     let payloads = body_payloads
@@ -722,15 +743,13 @@ pub(crate) fn serialize_message_eml(
         }
     }
     if !present.contains("subject") {
-        push_header(
-            &mut output,
-            "Subject",
-            &message
-                .subject
-                .as_deref()
-                .and_then(clean_header)
-                .unwrap_or_default(),
-        );
+        let subject = message
+            .subject
+            .as_deref()
+            .and_then(clean_header)
+            .map(|value| encode_unstructured_value(&value))
+            .unwrap_or_default();
+        push_header(&mut output, "Subject", &subject);
     }
     if !present.contains("date") {
         if let Some(date) = message_date(message, header_record) {
@@ -801,7 +820,10 @@ pub(crate) fn serialize_message_eml(
 
     for attachment in attachments
         .iter()
-        .filter(|attachment| attachment.message_key == message.message_key)
+        .filter(|attachment| {
+            attachment.message_key == message.message_key
+                && attachment_extension_allowed(attachment, attachment_extensions)
+        })
         .collect::<Vec<_>>()
     {
         if separate_attachments {
@@ -897,16 +919,20 @@ fn append_binary_part(
     push_header(
         output,
         "Content-Type",
-        &format!("{}; name=\"{}\"", safe_media_type, quote_token(filename)),
+        &format!(
+            "{}; {}",
+            safe_media_type,
+            encode_mime_parameter("name", filename)
+        ),
     );
     push_header(output, "Content-Transfer-Encoding", "base64");
     push_header(
         output,
         "Content-Disposition",
         &format!(
-            "{}; filename=\"{}\"",
+            "{}; {}",
             if inline { "inline" } else { "attachment" },
-            quote_token(filename)
+            encode_mime_parameter("filename", filename)
         ),
     );
     if let Some(content_id) = content_id.and_then(clean_header) {
@@ -915,6 +941,23 @@ fn append_binary_part(
     output.extend_from_slice(b"\r\n");
     output.extend_from_slice(base64_encode(bytes).as_bytes());
     output.extend_from_slice(b"\r\n");
+}
+
+fn eligible_messages_contain(message_key: &str, eligible: &[&MessageRecord]) -> bool {
+    eligible
+        .iter()
+        .any(|message| message.message_key == message_key)
+}
+
+pub(crate) fn attachment_extension_allowed(
+    attachment: &AttachmentRecord,
+    attachment_extensions: &[String],
+) -> bool {
+    attachment_extensions.is_empty()
+        || attachment
+            .extension
+            .as_ref()
+            .is_none_or(|extension| attachment_extensions.contains(&extension.to_ascii_lowercase()))
 }
 
 fn append_boundary(output: &mut Vec<u8>, boundary: &str, closing: bool) {
@@ -1065,39 +1108,14 @@ fn base64_encode(bytes: &[u8]) -> String {
 }
 
 fn clean_header(value: &str) -> Option<String> {
-    if value.contains('\r') || value.contains('\n') {
-        return None;
-    }
-    let cleaned = value
-        .chars()
-        .filter(|character| !character.is_control() || *character == '\t')
-        .collect::<String>();
-    let cleaned = cleaned.trim();
-    (!cleaned.is_empty()).then(|| cleaned.to_string())
+    clean_header_value(value)
 }
 
 fn format_address(name: Option<&str>, address: &str) -> String {
     match name.and_then(clean_header) {
-        Some(name) => format!("{} <{}>", quote_display_name(&name), address),
+        Some(name) => format!("{} <{}>", encode_display_name(&name), address),
         None => address.to_string(),
     }
-}
-
-fn quote_display_name(value: &str) -> String {
-    if value
-        .chars()
-        .all(|character| character.is_ascii_alphanumeric() || " ._-".contains(character))
-    {
-        value.to_string()
-    } else {
-        format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""))
-    }
-}
-
-fn quote_token(value: &str) -> String {
-    sanitize_segment(value)
-        .replace('\\', "\\\\")
-        .replace('"', "\\\"")
 }
 
 fn safe_media_type(value: &str) -> String {
@@ -1380,6 +1398,87 @@ mod tests {
             decision.status == "unavailable_attachment_payload"
                 && decision.filename == "missing.pdf"
         }));
+    }
+
+    #[test]
+    fn all_mail_profiles_apply_attachment_extension_filters() {
+        let msg = message("msg-filtered-eml", "/Inbox", Some("IPM.Note"));
+        let body = text_body_payload("msg-filtered-eml", "body");
+        let pdf = attachment_payload(
+            "msg-filtered-eml",
+            1,
+            AttachmentMetadata {
+                filename_original: Some("report.pdf".to_string()),
+                content_type: Some("application/pdf".to_string()),
+                ..AttachmentMetadata::default()
+            },
+            b"pdf-bytes".to_vec(),
+        );
+        let image = attachment_payload(
+            "msg-filtered-eml",
+            2,
+            AttachmentMetadata {
+                filename_original: Some("image.png".to_string()),
+                content_type: Some("image/png".to_string()),
+                ..AttachmentMetadata::default()
+            },
+            b"png-bytes".to_vec(),
+        );
+        let output = render_profile(
+            OutputProfile::Eml,
+            &[],
+            &[msg],
+            &[],
+            &[],
+            std::slice::from_ref(&body.record),
+            std::slice::from_ref(&body),
+            &[pdf.record.clone(), image.record.clone()],
+            &[pdf, image],
+            &["PDF".to_ascii_lowercase()],
+        )
+        .expect("eml profile");
+        let eml = String::from_utf8(output.artifacts[0].bytes.clone()).expect("utf8 eml");
+        assert!(eml.contains("filename=\"report.pdf\""));
+        assert!(!eml.contains("filename=\"image.png\""));
+        assert_eq!(output.status.filtered_attachment_count, 1);
+        assert!(output.status.attachment_decisions.iter().any(|decision| {
+            decision.filename == "image.png" && decision.status == "filtered_attachment_extension"
+        }));
+    }
+
+    #[test]
+    fn generated_eml_uses_rfc2047_and_rfc2231_for_non_ascii_values() {
+        let mut msg = message("msg-encoded-headers", "/Inbox", Some("IPM.Note"));
+        msg.subject = Some("Résumé — réunion".to_string());
+        msg.sender_name = Some("Zoë Example".to_string());
+        let body = text_body_payload("msg-encoded-headers", "body");
+        let attachment = attachment_payload(
+            "msg-encoded-headers",
+            1,
+            AttachmentMetadata {
+                filename_original: Some("résumé final.pdf".to_string()),
+                content_type: Some("application/pdf".to_string()),
+                ..AttachmentMetadata::default()
+            },
+            b"pdf-bytes".to_vec(),
+        );
+        let output = render_profile(
+            OutputProfile::Eml,
+            &[],
+            &[msg],
+            &[],
+            &[],
+            std::slice::from_ref(&body.record),
+            std::slice::from_ref(&body),
+            std::slice::from_ref(&attachment.record),
+            std::slice::from_ref(&attachment),
+            &[],
+        )
+        .expect("eml profile");
+        let eml = String::from_utf8(output.artifacts[0].bytes.clone()).expect("utf8 eml");
+        assert!(eml.contains("Subject: =?UTF-8?B?UsOpc3Vtw6kg4oCUIHLDqXVuaW9u?=\r\n"));
+        assert!(eml.contains("From: =?UTF-8?B?Wm/DqyBFeGFtcGxl?= <sender@example.test>\r\n"));
+        assert!(eml.contains("filename*=UTF-8''r%C3%A9sum%C3%A9_final.pdf"));
     }
 
     #[test]

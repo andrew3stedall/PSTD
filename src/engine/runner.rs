@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::time::Instant;
 
@@ -19,7 +20,10 @@ use crate::output::tar_writer::TarShardWriter;
 use crate::output::thunderbird::render_typed_outputs;
 use crate::progress::{ProgressEvent, ProgressEventType};
 use crate::pst::capability::{InputCapability, InputCapabilityStatus};
-use crate::pst::item_envelope::{apply_item_routing_policy, build_item_routing_counts};
+use crate::pst::item_envelope::{
+    apply_item_routing_policy, build_item_routing_counts, routed_message_keys,
+};
+use crate::pst::item_routing::ItemTypeFilter;
 use crate::pst::limits::InputLimits;
 
 pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
@@ -65,6 +69,44 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     );
     apply_item_routing_policy(&mut metadata.items, config.readpst.routing_policy());
     metadata.item_routing_counts = build_item_routing_counts(&metadata.folders, &metadata.items);
+    let output_message_keys = match config.readpst.item_type_filter {
+        ItemTypeFilter::All => None,
+        _ => Some(routed_message_keys(&metadata.items)),
+    };
+    let output_messages = select_output_messages(&metadata.messages, output_message_keys.as_ref());
+    let output_contacts = output_message_keys.as_ref().map_or_else(
+        || metadata.contacts.clone(),
+        |keys| {
+            metadata
+                .contacts
+                .iter()
+                .filter(|record| keys.contains(&record.message_key))
+                .cloned()
+                .collect()
+        },
+    );
+    let output_calendars = output_message_keys.as_ref().map_or_else(
+        || metadata.calendars.clone(),
+        |keys| {
+            metadata
+                .calendars
+                .iter()
+                .filter(|record| keys.contains(&record.message_key))
+                .cloned()
+                .collect()
+        },
+    );
+    let output_non_mail = output_message_keys.as_ref().map_or_else(
+        || metadata.non_mail.clone(),
+        |keys| {
+            metadata
+                .non_mail
+                .iter()
+                .filter(|record| keys.contains(&record.message_key))
+                .cloned()
+                .collect()
+        },
+    );
     let metadata_status = status_with_property_diagnostics(&metadata.status, &metadata.messages);
 
     let mut folders = JsonlBuffer::new();
@@ -218,12 +260,12 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         crate::config::OutputProfile::Vcard => Some((
             "vcard",
             "outputs/contacts.vcf",
-            serialize_vcards(&metadata.contacts),
+            serialize_vcards(&output_contacts),
         )),
         crate::config::OutputProfile::ContactList => Some((
             "contact_list",
             "outputs/contacts.txt",
-            serialize_contact_list(&metadata.contacts),
+            serialize_contact_list(&output_contacts),
         )),
         _ => None,
     };
@@ -232,8 +274,8 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
             &["outputs", "contact-profile-status.json"],
             &serde_json::to_vec_pretty(&serde_json::json!({
                 "profile": profile,
-                "record_count": metadata.contacts.len(),
-                "status": if metadata.contacts.is_empty() {
+                "record_count": output_contacts.len(),
+                "status": if output_contacts.is_empty() {
                     "contact_records_unavailable"
                 } else {
                     "contact_projection_available"
@@ -256,13 +298,13 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
             &["outputs", "calendar-profile-status.json"],
             &serde_json::to_vec_pretty(&serde_json::json!({
                 "profile": "icalendar",
-                "record_count": metadata.calendars.len(),
-                "status": if metadata.calendars.is_empty() {
+                "record_count": output_calendars.len(),
+                "status": if output_calendars.is_empty() {
                     "calendar_records_unavailable"
                 } else {
                     "calendar_projection_available"
                 },
-                "recurrence_status": if metadata.calendars.is_empty() {
+                "recurrence_status": if output_calendars.is_empty() {
                     "not_applicable"
                 } else {
                     "recurrence_unavailable_source_properties_not_decoded"
@@ -271,12 +313,11 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         )?;
         tar.append_bytes(
             &["outputs", "appointments.ics"],
-            serialize_icalendar(&metadata.calendars).as_bytes(),
+            serialize_icalendar(&output_calendars).as_bytes(),
         )?;
     }
     if config.readpst.output_profile == crate::config::OutputProfile::Vjournal {
-        let journals = metadata
-            .non_mail
+        let journals = output_non_mail
             .iter()
             .filter(|record| record.item_kind == "journal")
             .count();
@@ -299,13 +340,13 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         )?;
         tar.append_bytes(
             &["outputs", "journals.vjournal"],
-            serialize_vjournals(&metadata.non_mail).as_bytes(),
+            serialize_vjournals(&output_non_mail).as_bytes(),
         )?;
     }
     if let Some(mailbox) = render_profile(
         config.readpst.output_profile,
         &metadata.folders,
-        &metadata.messages,
+        &output_messages,
         &metadata.headers,
         &metadata.recipients,
         &metadata.bodies,
@@ -341,7 +382,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         }
         if config.readpst.output_profile == crate::config::OutputProfile::Thunderbird {
             let (typed_status, typed_artifacts) =
-                render_typed_outputs(&metadata.contacts, &metadata.calendars, &metadata.non_mail);
+                render_typed_outputs(&output_contacts, &output_calendars, &output_non_mail);
             tar.append_bytes(
                 &["outputs", "thunderbird-typed-profile-status.json"],
                 &serde_json::to_vec_pretty(&typed_status)?,
@@ -372,13 +413,14 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     if let Some(msg) = render_msg_profile(
         config.readpst.output_profile,
         &metadata.folders,
-        &metadata.messages,
+        &output_messages,
         &metadata.headers,
         &metadata.recipients,
         &metadata.bodies,
         &metadata.body_payloads,
         &metadata.attachments,
         &metadata.attachment_payloads,
+        &config.readpst.attachment_extensions,
     ) {
         tar.append_bytes(
             &["outputs", "msg-profile-status.json"],
@@ -488,6 +530,17 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         ),
     )?;
     Ok(summary)
+}
+
+fn select_output_messages(
+    messages: &[MessageRecord],
+    selected_keys: Option<&BTreeSet<String>>,
+) -> Vec<MessageRecord> {
+    messages
+        .iter()
+        .filter(|message| selected_keys.is_none_or(|keys| keys.contains(&message.message_key)))
+        .cloned()
+        .collect()
 }
 
 fn cap_diagnostics(issues: &mut Vec<StatusRecord>, limit: usize, run_id: &str) {

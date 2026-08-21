@@ -11,9 +11,9 @@ _Last reviewed: 21 August 2026._
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI v14/v15 and OST 2013 structural page/index traversal is now integrated with explicit evidence boundaries. |
-| Current milestone | Readpst parity decision published | RP-M7-03 records NOT PARITY-COMPLETE at main `83fdd05`: 2 Implemented, 54 Partial, and 19 Gap rows remain explicit; future work must close them before a full-parity claim. |
+| Current milestone | Post-RP-M7 output parity expansion | The release decision remains NOT PARITY-COMPLETE; the maintained ledger is now 2 Implemented, 59 Partial, and 14 Gap rows after adding end-to-end typed filtering, cross-profile attachment filtering, and standards-aware generated MIME headers. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
-| Readpst parity workboard | RP-M7-03 final decision published | Canonical typed records feed deterministic output projections; RP-M6 controls and RP-M7 evidence are recorded, but the final decision is NOT PARITY-COMPLETE with 54 Partial and 19 Gap rows remaining. |
+| Readpst parity workboard | Post-RP-M7 output parity expansion | Canonical typed records feed deterministic output projections; the release decision is still NOT PARITY-COMPLETE with 59 Partial and 14 Gap rows remaining, and broad differential/import evidence is still required. |
 
 ### RP-M4-03
 
@@ -93,6 +93,17 @@ table in `docs/readpst-gaps/rp-m7-02-e4-report.md` records admissibility blocker
 
 The final release decision is [documented here](docs/readpst-gaps/rp-m7-03-parity-decision.md): PSTD is **not parity-complete** at the reviewed baseline. It names all 54 Partial and 19 Gap rows, records the green executable gates, and preserves stronger-equivalent safety and determinism improvements without overclaiming feature parity.
 
+### Post-RP-M7 output parity expansion
+
+The output path now applies an explicit `-t[eajc]` selection to mailbox, MSG/EML,
+vCard, iCalendar, vJournal, and Thunderbird typed projections while retaining all
+source records and routing decisions in canonical JSONL. Extension allow-lists apply
+to generated mailbox/MSG MIME attachments as well as separate files, with filtered
+decisions retained. Generated non-ASCII subjects and display names use RFC 2047 UTF-8
+encoded words, and MIME filename/name parameters use RFC 2231 UTF-8 encoding with
+ASCII fallbacks and long-value continuations. These rows are Partial until broad
+mixed-folder corpora and independent readpst/import differentials pass.
+
 ## Intent
 
 PSTD is intended to become a dependable PST-to-email extraction engine that:
@@ -168,7 +179,7 @@ pstd batch --input <pst-file-or-directory> --output <output-dir>
 python -m pstd --help
 ```
 
-Implemented capabilities include bounded parsing of PST headers, typed Unicode/ANSI/OST/unknown input capability classification, crypt/root readiness diagnostics, file/read/resource budgets, BBT/NBT pages, blocks, subnodes, Heap-on-Node allocations, BTH structures, Property Contexts, Table Contexts, row storage, selected MAPI values, folder/message candidates, class-aware item routing statuses, bodies, recipient evidence, structured folder/item envelope outputs, batch state, and public-fixture diagnostics. ANSI header values are diagnostic-only; ANSI traversal and extraction remain backlog-only. Class routing and canonical filter evidence do not yet constitute full readpst CLI or output-adapter parity.
+Implemented capabilities include bounded parsing of PST headers, typed Unicode/ANSI/OST/unknown input capability classification, crypt/root readiness diagnostics, file/read/resource budgets, BBT/NBT pages, blocks, subnodes, Heap-on-Node allocations, BTH structures, Property Contexts, Table Contexts, row storage, selected MAPI values, folder/message candidates, class-aware item routing statuses, bodies, recipient evidence, structured folder/item envelope outputs, batch state, deterministic output adapters, end-to-end typed output filtering, attachment allow-lists, and standards-aware generated MIME headers. ANSI header values are diagnostic-only; ANSI traversal and extraction remain backlog-only. The new filter and MIME capabilities remain Partial until broad differential/import evidence passes.
 
 ## Microsoft Purview corpus target
 
