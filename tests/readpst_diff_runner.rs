@@ -45,7 +45,7 @@ fn approved_unicode_fixture_runs_through_isolated_comparison_contract() {
             vec![
                 "sh".to_string(),
                 "-c".to_string(),
-                "mkdir -p data; printf '%s\\n' '{"message_key":"m1","subject":"Hello","status":"present"}' > data/messages.jsonl; tar -cf canonical.tar data/messages.jsonl".to_string(),
+                r#"mkdir -p data; printf '%s\\n' '{"message_key":"m1","subject":"Hello","status":"present"}' > data/messages.jsonl; tar -cf canonical.tar data/messages.jsonl"#.to_string(),
             ],
             &pstd_sandbox,
             &pstd_output,
