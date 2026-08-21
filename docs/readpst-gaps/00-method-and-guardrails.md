@@ -92,6 +92,10 @@ struct EvidenceEnvelope<T> {
 
 The envelope is consumed by the current `src/engine/metadata.rs` and `src/output/metadata.rs` path, while specialized modules are added under `src/pst/` and `src/output/` only when a boundary is proven. `MessageRecord` remains compatible, but becomes one typed projection among `ContactRecord`, `AppointmentRecord`, `JournalRecord`, `ReportRecord`, and `ItemEnvelope`. `AttachmentRecord` remains the canonical attachment index; raw payloads remain content-addressed evidence.
 
+### RP-M0-01 evidence-contract implementation
+
+The shared parity contract is implemented in the test/support boundary at `tests/readpst_diff/manifest.rs` and exercised by `tests/readpst_diff_contract.rs`. It separates matrix `ParityStatus` (`implemented`, `partial`, `gap`, `unsupported_by_readpst`, `filtered`, `unavailable`, `failed`) from observed evidence statuses (`present`, `empty`, `skipped`, `filtered`, `unavailable`, `unsupported`, `ambiguous`, `malformed`, `corrupt`, `failed`). `FixtureManifest` records provenance/license, source revision/path, a safe local path, SHA-256, byte size, input family, crypt method, expected category/status, and admission state. `ComparisonRun` and `EvidenceReport` retain the pinned readpst revision, tool commands/versions, output profile, worker count, outcomes, inventory, artifacts, and deterministic-repeat evidence. The approved Tika Unicode fixture is represented as E2/Partial evidence; this does not promote any matrix row or claim readpst parity.
+
 ### Implementation algorithm
 
 1. Pin the upstream revision and record the source function, line anchor, and observable behaviour in a plan issue.
