@@ -236,7 +236,7 @@ fn normalize_json_record(kind: &str, value: Value) -> Result<NormalizedRecord, S
                 children.push(canonical_value(value));
             }
         }
-        fields.insert(key.clone(), canonical_value(value));
+        fields.insert(key.clone(), field_value(value));
     }
     payload_hashes.sort();
     children.sort();
@@ -403,6 +403,13 @@ fn is_volatile_field(key: &str) -> bool {
         key,
         "run_id" | "timestamp_utc" | "started_at" | "finished_at" | "duration_seconds"
     )
+}
+
+fn field_value(value: &Value) -> String {
+    match value {
+        Value::String(value) => value.clone(),
+        _ => canonical_json(value),
+    }
 }
 
 fn canonical_value(value: &Value) -> String {
