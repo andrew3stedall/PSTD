@@ -233,15 +233,17 @@ decisions, deterministic manifests, and an independent `olefile` reader gate. Fu
 named-property and embedded-message breadth remains Partial and is not silently
 promoted.
 
-### RP-M6-01 delivery note
+### RP-M6-01 and RP-M6-02 delivery note
 
 RP-M6-01 is integrated on the production path after the ANSI/OST branch passed its
 dedicated evidence workflow and the full CI matrix. `PstHeader`, `PstLayout`, BBT, NBT,
 inspect, and metadata extraction now select ANSI v14/v15 and OST 2013 widths from the
-parsed family. The evidence is controlled structural coverage: positive canonical
-root/index identity, strong-crypt `unsupported`, truncation `partial`, malformed-short
-non-zero failure, and repeated inspect equality. Full semantic ANSI/OST item/output
-promotion remains downstream; RP-M6-02 is the next serialized shared-crypto slice.
+parsed family. RP-M6-02 adds `src/pst/crypto.rs` and routes external blocks through it,
+preserving libpst's internal-block skip rule. The evidence is controlled structural/
+crypto coverage: positive canonical root/index identity, method-2 `ready`, unknown-
+method `unsupported`, truncation `partial`, malformed-short non-zero failure, pinned
+method vectors, and repeated inspect/decode equality. Full semantic ANSI/OST item/output
+promotion remains downstream; RP-M6-03 is the next serialized hardening slice.
 
 ### `RP-M6 — Input breadth and hardening`
 

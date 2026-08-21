@@ -6,6 +6,7 @@ pub mod binary;
 pub mod block;
 pub mod bth;
 pub mod capability;
+pub mod crypto;
 #[path = "compatibility_m21.rs"]
 pub mod compatibility;
 pub mod data_tree;

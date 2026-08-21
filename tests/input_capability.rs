@@ -96,20 +96,27 @@ fn supported_legacy_families_and_unknown_inputs_are_explicit() {
     assert_eq!(supported_capability.status, InputCapabilityStatus::Ready);
     assert!(supported_capability.allows_extraction);
 
-    for crypt_method in [2, 7] {
-        let bytes = synthetic_header(0x17, Some(crypt_method), true);
-        let header = PstHeader::parse_bytes(&bytes, 4096).expect("header");
-        let capability =
-            InputCapability::from_header("encrypted.pst", &header, InputLimits::default());
-        assert_eq!(capability.status, InputCapabilityStatus::Unsupported);
-        let expected_index_status = if crypt_method == 2 {
-            "unsupported_strong_crypt_method".to_string()
-        } else {
-            format!("unsupported_crypt_method:{crypt_method}")
-        };
-        assert_eq!(capability.index_status, expected_index_status);
-        assert!(!capability.allows_extraction);
-    }
+    let strong = synthetic_header(0x17, Some(2), true);
+    let strong_header = PstHeader::parse_bytes(&strong, 4096).expect("header");
+    let strong_capability = InputCapability::from_header(
+        "strong-encrypted.pst",
+        &strong_header,
+        InputLimits::default(),
+    );
+    assert_eq!(strong_capability.status, InputCapabilityStatus::Ready);
+    assert_eq!(strong_capability.index_status, "ready_to_attempt");
+    assert!(strong_capability.allows_extraction);
+
+    let unknown = synthetic_header(0x17, Some(7), true);
+    let unknown_header = PstHeader::parse_bytes(&unknown, 4096).expect("header");
+    let unknown_capability = InputCapability::from_header(
+        "unknown-encrypted.pst",
+        &unknown_header,
+        InputLimits::default(),
+    );
+    assert_eq!(unknown_capability.status, InputCapabilityStatus::Unsupported);
+    assert_eq!(unknown_capability.index_status, "unsupported_crypt_method:7");
+    assert!(!unknown_capability.allows_extraction);
 }
 
 #[test]

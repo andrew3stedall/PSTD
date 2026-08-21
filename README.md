@@ -13,7 +13,7 @@ _Last reviewed: 21 August 2026._
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI v14/v15 and OST 2013 structural page/index traversal is now integrated with explicit evidence boundaries. |
 | Current milestone | Readpst parity RP-M6 input breadth | Complete the serialized encryption and hardening slices after the controlled ANSI/OST structural admission, then run the RP-M7 matrix, differential, and release gates. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
-| Readpst parity workboard | RP-M6-01 complete; RP-M6-02 next | Canonical typed records feed deterministic output projections, and the production input path now admits controlled ANSI/OST layouts with explicit negative and determinism evidence; semantic family breadth and release gates remain open. |
+| Readpst parity workboard | RP-M6-01 and RP-M6-02 complete; RP-M6-03 next | Canonical typed records feed deterministic output projections, the production input path admits controlled ANSI/OST layouts, and libpst method-1/method-2 payload decoding has explicit negative and determinism evidence; semantic family breadth, hardening, and release gates remain open. |
 
 ### RP-M4-03
 
@@ -64,14 +64,16 @@ attachment storages, explicit method-5/method-6 decisions, and an independent
 `olefile` round-trip workflow keep unsupported values visible without using an EML
 file disguised as MSG.
 
-### RP-M6-01
+### RP-M6-01 and RP-M6-02
 
 The production parser now selects variant-correct ANSI v14/v15 and OST 2013 layouts for
 headers, roots, BBT/NBT pages, inspect, and canonical metadata loading. The dedicated
-workflow proves controlled positive traversal, strong-crypt `unsupported`, truncation
-`partial`, malformed-short failure, fixture hashes, and repeat-run equality. This is a
-Partial structural input contract; broader family-specific item/output corpus coverage,
-encryption, hardening, and final parity promotion remain open.
+workflow proves controlled positive traversal, method-2 `ready`, unknown-method
+`unsupported`, truncation and malformed-short failure, fixture hashes, pinned method-1/
+method-2 vectors, and repeat-run equality. This is a Partial structural/crypto input
+contract; broader family-specific item/output corpus coverage, hardening, and final
+parity promotion remain open. The pinned NDB transforms do not use passwords, so no
+wrong-password result is fabricated.
 
 ## Intent
 

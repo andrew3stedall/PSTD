@@ -116,8 +116,9 @@ Exit criterion: a semantic differential harness can run the same fixture through
 
 Add the remaining input breadth and semantic promotion:
 
-- compressible encryption;
-- strong encryption;
+- encrypted payload decoding for the pinned compressible and strong methods is now
+  integrated; broaden the encrypted semantic corpus and retain unknown/corrupt
+  derivatives as explicit negatives;
 - broader ANSI NDB v14/v15 item and output corpus;
 - broader OST 2013 item and output corpus;
 - large-file and sparse-file handling;
@@ -126,11 +127,12 @@ Add the remaining input breadth and semantic promotion:
 
 Exit criterion: each supported input family has a real or controlled fixture, exact hashes, independent inventory, repeat-run equality, and no silent loss under malformed derivatives.
 
-RP-M6-01 has met the controlled structural-input slice: ANSI v14/v15 and OST 2013
-header/root/page layouts are selected by the production path, with positive, strong-crypt,
-truncated, malformed, hash, and repeat-run evidence in the dedicated workflow. The
-matrix remains Partial until semantic item and output coverage is demonstrated for those
-families; #520 owns encryption and #521 owns broader adversarial/resource evidence.
+RP-M6-01 and RP-M6-02 have met the controlled input/crypto slices: ANSI v14/v15 and OST
+2013 header/root/page layouts are selected by the production path, and libpst crypt
+methods 0/1/2 are decoded through the bounded payload loader. Positive known vectors,
+method-2 capability readiness, unknown-method, truncated, malformed, hash, and repeat-run
+evidence are recorded. The matrix remains Partial until semantic item/output coverage is
+demonstrated for those families; #521 owns broader adversarial/resource evidence.
 
 ## Fixture and differential strategy
 

@@ -1,4 +1,4 @@
-name: Readpst ANSI and OST 2013 traversal
+name: Readpst ANSI, OST 2013, and crypt traversal
 
 on:
   pull_request:
@@ -82,6 +82,7 @@ jobs:
           fixtures = {
               'ansi-v14.pst': make_ansi(),
               'ansi-v14-strong-crypt.pst': make_ansi(2),
+              'ansi-v14-unknown-crypt.pst': make_ansi(7),
               'ost2013-4k.pst': make_ost(),
               'ost2013-truncated.pst': make_ost()[:-1],
               'malformed-short.pst': b'!BDN' + bytes(16),
@@ -112,6 +113,9 @@ jobs:
           cargo run --quiet -- inspect \
             --input /tmp/pstd-ansi-ost/fixtures/ansi-v14-strong-crypt.pst --json \
             > "$evidence/ansi-v14-strong-crypt.json"
+          cargo run --quiet -- inspect \
+            --input /tmp/pstd-ansi-ost/fixtures/ansi-v14-unknown-crypt.pst --json \
+            > "$evidence/ansi-v14-unknown-crypt.json"
           cargo run --quiet -- inspect \
             --input /tmp/pstd-ansi-ost/fixtures/ost2013-truncated.pst --json \
             > "$evidence/ost2013-truncated.json"
@@ -145,17 +149,22 @@ jobs:
               })
 
           strong = json.loads((evidence / 'ansi-v14-strong-crypt.json').read_text())
-          assert strong['capability']['status'] == 'unsupported', strong
-          assert strong['capability']['allows_extraction'] is False, strong
-          assert strong['capability']['index_status'] == 'unsupported_strong_crypt_method', strong
+          assert strong['capability']['status'] == 'ready', strong
+          assert strong['capability']['allows_extraction'] is True, strong
+          assert strong['capability']['index_status'] == 'ready_to_attempt', strong
+
+          unknown = json.loads((evidence / 'ansi-v14-unknown-crypt.json').read_text())
+          assert unknown['capability']['status'] == 'unsupported', unknown
+          assert unknown['capability']['allows_extraction'] is False, unknown
+          assert unknown['capability']['index_status'] == 'unsupported_crypt_method:7', unknown
 
           truncated = json.loads((evidence / 'ost2013-truncated.json').read_text())
           assert truncated['capability']['status'] == 'partial', truncated
           assert truncated['capability']['allows_extraction'] is False, truncated
 
           report = {
-              'work_unit': 'RP-M6-01',
-              'issue': 519,
+              'work_unit': 'RP-M6-01/RP-M6-02',
+              'issue': 520,
               'source_revision': 'cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89',
               'fixture_provenance': 'controlled byte-level fixtures generated in this workflow; no external PST bytes',
               'admitted_variants': admitted,
@@ -167,7 +176,8 @@ jobs:
                   'verified_by': 'tests/readpst_rp_m6_01.rs',
               },
               'negative_cases': [
-                  {'fixture': 'ansi-v14-strong-crypt.pst', 'observed': 'explicit unsupported strong crypt status'},
+                  {'fixture': 'ansi-v14-unknown-crypt.pst', 'observed': 'explicit unsupported crypt-method status'},
+                  {'fixture': 'ansi-v14-strong-crypt.pst', 'observed': 'ready strong-crypt capability; payload transform is covered by production loader tests'},
                   {'fixture': 'ost2013-truncated.pst', 'observed': 'explicit partial/truncated status'},
                   {'fixture': 'malformed-short.pst', 'observed': 'inspect exits non-zero with parse error'},
               ],
