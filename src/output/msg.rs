@@ -230,7 +230,7 @@ pub fn render_profile(
                     });
                     continue;
                 }
-            }
+            };
             decisions.push(MsgArtifactDecision {
                 message_key: message.message_key.clone(),
                 msg_path: Some(msg_path),
