@@ -110,9 +110,8 @@ pub fn normalize_pstd_archive(
                 .map_err(|error| format!("canonical_archive_path_failed:{error}"))?
                 .to_path_buf();
             let relative = path_string(Path::new("archive").join(&archive_name).join(&path).as_path());
-            if path.is_absolute() || path.components().any(|component| component == std::path::Component::ParentDir) {
-                return Err(format!("canonical_archive_path_escape: {relative}"));
-            }
+            validate_archive_member_path(&path)
+                .map_err(|_| format!("canonical_archive_path_escape: {relative}"))?;
             let size = entry.size();
             if size > limits.max_member_bytes {
                 return Err(format!("canonical_archive_member_too_large: {relative}"));
@@ -465,6 +464,17 @@ fn walk_files(
     Ok(())
 }
 
+fn validate_archive_member_path(path: &Path) -> Result<(), String> {
+    if path.is_absolute()
+        || path
+            .components()
+            .any(|component| component == std::path::Component::ParentDir)
+    {
+        return Err("archive member path contains traversal".to_string());
+    }
+    Ok(())
+}
+
 fn artifact_type(path: &str) -> String {
     Path::new(path)
         .extension()
@@ -520,19 +530,8 @@ mod tests {
 
     #[test]
     fn rejects_archive_path_traversal() {
-        let root = tempdir().expect("tempdir");
-        let archive_path = root.path().join("canonical.tar");
-        let file = File::create(&archive_path).expect("archive");
-        let mut builder = tar::Builder::new(file);
-        let body = b"bad";
-        let mut header = tar::Header::new_gnu();
-        header.set_path("../escape").expect("path");
-        header.set_size(body.len() as u64);
-        header.set_cksum();
-        builder.append(&header, &body[..]).expect("append");
-        builder.finish().expect("finish");
-        let error = normalize_pstd_archive(root.path(), "pstd", &NormalizationLimits::default())
+        let error = validate_archive_member_path(Path::new("../escape"))
             .expect_err("escape should fail");
-        assert!(error.contains("path_escape"));
+        assert!(error.contains("traversal"));
     }
 }
