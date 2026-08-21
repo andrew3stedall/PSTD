@@ -228,7 +228,10 @@ mod tests {
         for (raw, expected_kind, expected_confidence) in cases {
             let classification = classify_message_class(raw);
             assert_eq!(classification.kind, expected_kind, "class={raw:?}");
-            assert_eq!(classification.confidence, expected_confidence, "class={raw:?}");
+            assert_eq!(
+                classification.confidence, expected_confidence,
+                "class={raw:?}"
+            );
         }
     }
 

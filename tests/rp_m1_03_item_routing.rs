@@ -13,15 +13,15 @@ fn mixed_folder_fixture_routes_every_observable_class_explicitly() {
             ItemKind::Schedule,
             "routed_schedule_email",
         ),
-        ("IPM.Appointment", ItemKind::Appointment, "routed_appointment"),
+        (
+            "IPM.Appointment",
+            ItemKind::Appointment,
+            "routed_appointment",
+        ),
         ("IPM.Contact", ItemKind::Contact, "routed_contact"),
         ("IPM.Activity", ItemKind::Journal, "routed_journal"),
         ("REPORT.IPM.Note.NDR", ItemKind::Report, "routed_report"),
-        (
-            "IPM.Task",
-            ItemKind::Task,
-            "skipped_unsupported_by_readpst",
-        ),
+        ("IPM.Task", ItemKind::Task, "skipped_unsupported_by_readpst"),
         (
             "IPM.StickyNote",
             ItemKind::StickyNote,
@@ -41,7 +41,12 @@ fn mixed_folder_fixture_routes_every_observable_class_explicitly() {
             assert_eq!(classification.kind, Some(*expected_kind), "class={class}");
             let decision = route_item(ItemVisibility::Visible, &classification, policy);
             assert_eq!(decision.status, *expected_status, "class={class}");
-            (class, classification.confidence, decision.selected, decision.status)
+            (
+                class,
+                classification.confidence,
+                decision.selected,
+                decision.status,
+            )
         })
         .collect();
 
