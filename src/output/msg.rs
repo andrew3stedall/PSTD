@@ -157,12 +157,12 @@ pub fn render_profile(
                         message_key: message.message_key.clone(),
                         msg_path: None,
                         eml_path: None,
-                        status: format!("msg_unavailable: {}", error.status),
+                        status: format!("msg_unavailable: {error}"),
                         subject: message.subject.clone(),
                         recipient_count: 0,
                         body_sha256: None,
                         attachment_sha256s: Vec::new(),
-                        unsupported: vec![format!("msg_build_error: {}", error.status)],
+                        unsupported: vec![format!("msg_build_error: {error}")],
                     });
                     continue;
                 }
