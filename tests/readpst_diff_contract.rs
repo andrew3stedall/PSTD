@@ -6,7 +6,7 @@ use std::path::Path;
 use readpst_diff::manifest::{
     approved_unicode_baseline_report, sha256_hex, stable_json, ComparisonRun, CryptMethod,
     EvidenceLevel, EvidenceStatus, FixtureManifest, InputFamily, OutcomeRecord, ParityStatus,
-    READPST_SOURCE_REVISION, ToolExecution,
+    ToolExecution, READPST_SOURCE_REVISION,
 };
 
 #[test]
@@ -61,7 +61,10 @@ fn parity_status_and_negative_evidence_are_explicit() {
         "unsupported",
         "failed",
     ] {
-        assert!(encoded.contains(expected), "missing evidence status {expected}");
+        assert!(
+            encoded.contains(expected),
+            "missing evidence status {expected}"
+        );
     }
 }
 
