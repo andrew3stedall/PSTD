@@ -114,6 +114,7 @@ jobs:
           attachments = records('attachments.jsonl')
           items = records('items.jsonl')
           routing_counts = records('item_routing_counts.jsonl')
+          evidence_records = records('evidence.jsonl')
           if len(messages) != 8:
               raise SystemExit(f'unexpected message count: {len(messages)}')
           folder_fields = (
@@ -393,6 +394,16 @@ jobs:
               raise SystemExit('item envelope routing status is missing')
           if any('message_class' not in message for message in messages):
               raise SystemExit('message class evidence field is missing')
+          if not evidence_records:
+              raise SystemExit('canonical evidence graph is empty')
+          if len({row['evidence_key'] for row in evidence_records}) != len(evidence_records):
+              raise SystemExit('canonical evidence keys are not unique')
+          if not any(row['evidence_kind'] == 'property' for row in evidence_records):
+              raise SystemExit('property provenance evidence is missing')
+          if not any(row['evidence_kind'] == 'attachment_payload' for row in evidence_records):
+              raise SystemExit('attachment provenance evidence is missing')
+          if any(row['raw_size_bytes'] > 65536 for row in evidence_records):
+              raise SystemExit('raw evidence exceeded its bounded retention limit')
           item_rows = [item for item in items if item['record_kind'] == 'item']
           if sum(count['item_count'] for count in routing_counts) != len(item_rows):
               raise SystemExit('routing counts do not reconcile item envelopes')
@@ -732,8 +743,8 @@ jobs:
               'bodies_jsonl_bytes': 2922,
               'recipients_jsonl_bytes': 2708,
               'attachments_jsonl_bytes': 1240,
-              'tar_bytes': 266752,
-              'output_total_bytes': 311799,
+              'tar_bytes': 521728,
+              'output_total_bytes': 566775,
           }
           if metrics != expected_metrics:
               raise SystemExit(f'fixture metrics mismatch: {metrics!r}')

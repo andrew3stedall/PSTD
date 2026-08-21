@@ -1,5 +1,12 @@
 # Attachment parity
 
+## RP-M1-04 provenance boundary
+
+Attachment payloads in the canonical archive are now linked to their owning message
+and archive path in data/evidence.jsonl, with size, SHA-256, bounded raw bytes, and
+an explicit extraction status. This preserves the source trail needed by later
+attachment parity work without changing the existing attachment output contract.
+
 ## Attachment metadata
 
 The libpst attachment model exposes more than a filename and payload. PSTD already has a useful `AttachmentRecord`, but parity requires the complete metadata and method behaviour below.

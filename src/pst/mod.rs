@@ -9,6 +9,7 @@ pub mod capability;
 #[path = "compatibility_m21.rs"]
 pub mod compatibility;
 pub mod data_tree;
+pub mod evidence;
 pub mod folder_tree;
 pub mod folders;
 pub mod header;

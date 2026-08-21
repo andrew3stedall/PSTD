@@ -5,8 +5,8 @@ use crate::engine::message_folder_ownership::resolve_folder_ownership;
 use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::ids;
 use crate::output::metadata::{
-    AttachmentRecord, BodyRecord, FolderRecord, ItemEnvelope, ItemRoutingCountRecord,
-    ManifestRecord, MessageRecord, MessageReferenceRecord, RecipientRecord,
+    AttachmentRecord, BodyRecord, EvidenceRecord, FolderRecord, ItemEnvelope,
+    ItemRoutingCountRecord, ManifestRecord, MessageRecord, MessageReferenceRecord, RecipientRecord,
 };
 use crate::pst::attachment_property_context::{
     attachment_payloads_from_property_context_subnodes,
@@ -54,6 +54,7 @@ pub struct MetadataExtractionOutput {
     pub folder_inventory: Vec<FolderInventoryRecord>,
     pub items: Vec<ItemEnvelope>,
     pub item_routing_counts: Vec<ItemRoutingCountRecord>,
+    pub evidence: Vec<EvidenceRecord>,
     pub messages: Vec<MessageRecord>,
     pub recipients: Vec<RecipientRecord>,
     pub message_references: Vec<MessageReferenceRecord>,
@@ -144,6 +145,11 @@ pub fn extract_metadata(
 
     let subnode_report = subnode_references_from_index(&nbt);
     let subnode_plans = subnode_decode_plans(&subnode_report.references, limits);
+    let mut evidence = subnode_report
+        .references
+        .iter()
+        .map(crate::pst::evidence::subnode_record)
+        .collect::<Vec<_>>();
 
     let metadata_status = if nbt.entries.is_empty() {
         "metadata_root_only".to_string()
@@ -275,6 +281,12 @@ pub fn extract_metadata(
                         entry.node_id,
                         &loaded.properties,
                     );
+                    evidence.extend(crate::pst::evidence::property_records(
+                        &message.message_key,
+                        entry.node_id,
+                        entry.data_block_id,
+                        &loaded.properties,
+                    ));
                     let loaded_body_payloads =
                         body_payloads_from_properties(&message.message_key, &loaded.properties);
                     let body_report =
@@ -585,6 +597,12 @@ pub fn extract_metadata(
                         entry,
                         &candidate_status,
                     ));
+                    evidence.push(crate::pst::evidence::property_failure_record(
+                        &message_key,
+                        entry.node_id,
+                        entry.data_block_id,
+                        &format!("property_context_unavailable; {reason}"),
+                    ));
                     bodies.push(unavailable_body_record(
                         &message_key,
                         "text",
@@ -634,6 +652,32 @@ pub fn extract_metadata(
         &messages,
     );
     let item_routing_counts = build_item_routing_counts(&folders, &items);
+    for body in &bodies {
+        let payload = body_payloads
+            .iter()
+            .find(|payload| payload.record.body_key == body.body_key);
+        evidence.push(crate::pst::evidence::payload_record(
+            &body.message_key,
+            "body_payload",
+            format!("body:{}", body.body_key),
+            &body.archive_path,
+            payload.map(|value| value.bytes.as_slice()),
+            &body.status,
+        ));
+    }
+    for attachment in &attachments {
+        let payload = attachment_payloads
+            .iter()
+            .find(|payload| payload.record.attachment_key == attachment.attachment_key);
+        evidence.push(crate::pst::evidence::payload_record(
+            &attachment.message_key,
+            "attachment_payload",
+            format!("attachment:{}", attachment.attachment_key),
+            &attachment.archive_path,
+            payload.map(|value| value.bytes.as_slice()),
+            &attachment.extraction_status,
+        ));
+    }
 
     let table_probe_summary = finalize_table_probe_collection(run_id, table_probe_collector);
     if let Some(issue) = table_probe_summary.issue.clone() {
@@ -754,6 +798,7 @@ pub fn extract_metadata(
         folder_inventory,
         items,
         item_routing_counts,
+        evidence,
         messages,
         recipients,
         message_references,
@@ -1200,6 +1245,7 @@ pub fn fallback_metadata(
             unavailable_count: 0,
             failed_count: 0,
         }],
+        evidence: Vec::new(),
         messages: vec![status_row(
             run_id,
             pst_id,

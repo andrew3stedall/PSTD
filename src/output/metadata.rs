@@ -175,6 +175,19 @@ pub struct ItemRoutingCountRecord {
     pub failed_count: u64,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct EvidenceRecord {
+    pub evidence_key: String,
+    pub owner_key: String,
+    pub evidence_kind: String,
+    pub source_ref: String,
+    pub property_tag: Option<u32>,
+    pub raw_size_bytes: u64,
+    pub raw_sha256: Option<String>,
+    pub raw_bytes_hex: Option<String>,
+    pub status: String,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ManifestRecord {
     pub run_id: String,
