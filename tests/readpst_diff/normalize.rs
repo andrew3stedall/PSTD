@@ -438,7 +438,8 @@ fn stable_artifact_bytes(path: &Path, bytes: &[u8]) -> Vec<u8> {
     let Ok(value) = serde_json::from_slice::<Value>(bytes) else {
         return bytes.to_vec();
     };
-    canonical_json(&strip_volatile_json(value)).into_bytes()
+    serde_json::to_vec(&canonical_json_value(&strip_volatile_json(value)))
+        .unwrap_or_else(|_| bytes.to_vec())
 }
 
 fn strip_volatile_json(value: Value) -> Value {
@@ -454,6 +455,22 @@ fn strip_volatile_json(value: Value) -> Value {
             values.into_iter().map(strip_volatile_json).collect(),
         ),
         other => other,
+    }
+}
+
+fn canonical_json_value(value: &Value) -> Value {
+    match value {
+        Value::Object(object) => {
+            let sorted = object
+                .iter()
+                .map(|(key, value)| (key.clone(), canonical_json_value(value)))
+                .collect::<BTreeMap<_, _>>();
+            Value::Object(sorted.into_iter().collect())
+        }
+        Value::Array(values) => {
+            Value::Array(values.iter().map(canonical_json_value).collect())
+        }
+        other => other.clone(),
     }
 }
 
