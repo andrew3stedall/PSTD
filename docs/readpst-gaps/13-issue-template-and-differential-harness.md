@@ -74,6 +74,10 @@ Copy the following body into an issue and replace every bracketed value:
 
 Do not close an issue with “tests pass” alone. The issue must identify the evidence level and the semantic boundary that the tests prove.
 
+## Shared contract implementation
+
+RP-M0-01 establishes the manifest and report types used by later differential work in `tests/readpst_diff/manifest.rs`, with the module exported from `tests/readpst_diff/mod.rs`. The contract captures source provenance, fixture admission, input family, crypt method, pinned upstream revision, tool executions, output profile, worker count, normalized outcomes, inventory counts, artifact digests, evidence level, parity status, and deterministic-repeat results. It also rejects unsafe fixture paths, malformed hashes, missing provenance, source-revision drift, and an Implemented claim below E4. The executable process runner and semantic comparator remain the bounded scope of RP-M0-02.
+
 ## Comparator contract
 
 The harness should run a pinned readpst binary and PSTD against the same approved fixture, then normalize both results into a comparison document. Byte-for-byte output is useful for debugging but is not the primary contract because mbox boundaries, generated filenames, and MIME boundary tokens are implementation details.
