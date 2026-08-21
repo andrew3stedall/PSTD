@@ -156,7 +156,9 @@ impl InputCapability {
     pub fn probe(input_path: impl AsRef<Path>, limits: InputLimits) -> Self {
         let path = input_path.as_ref();
         let display = path.display().to_string();
-        let file_size = fs::metadata(path).map(|metadata| metadata.len()).unwrap_or(0);
+        let file_size = fs::metadata(path)
+            .map(|metadata| metadata.len())
+            .unwrap_or(0);
         match PstByteReader::open_with_limits(path, &limits) {
             Ok(reader) => match PstHeader::parse(&reader) {
                 Ok(header) => Self::from_header(display, &header, limits),

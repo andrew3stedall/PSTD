@@ -318,7 +318,9 @@ impl PstHeader {
             parser_status: match variant {
                 PstVariant::Unicode => "supported_unicode_header".to_string(),
                 PstVariant::Ansi => "detected_ansi_header_unsupported_for_extraction".to_string(),
-                PstVariant::Ost2013 => "detected_ost2013_header_unsupported_for_extraction".to_string(),
+                PstVariant::Ost2013 => {
+                    "detected_ost2013_header_unsupported_for_extraction".to_string()
+                }
                 PstVariant::Unknown => "detected_unknown_version".to_string(),
             },
             file_size,

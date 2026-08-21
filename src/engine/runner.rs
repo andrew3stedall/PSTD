@@ -40,9 +40,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     let metadata = if capability.allows_extraction {
         match extract_metadata(&input_display, &run_id, &pst_id) {
             Ok(value) => value,
-            Err(reason) if config.continue_on_error => {
-                fallback_metadata(&run_id, &pst_id, &reason)
-            }
+            Err(reason) if config.continue_on_error => fallback_metadata(&run_id, &pst_id, &reason),
             Err(reason) => return Err(reason),
         }
     } else {
@@ -232,13 +230,12 @@ fn capability_error(capability: &InputCapability) -> PstdError {
             Some(0),
             "input capability budget exceeded before extraction",
         ),
-        InputCapabilityStatus::Malformed => PstdError::pst_parse(
-            Some(0),
-            "input capability header is malformed or truncated",
-        ),
-        InputCapabilityStatus::Unavailable => PstdError::SourceOpen(
-            "input capability could not be established".to_string(),
-        ),
+        InputCapabilityStatus::Malformed => {
+            PstdError::pst_parse(Some(0), "input capability header is malformed or truncated")
+        }
+        InputCapabilityStatus::Unavailable => {
+            PstdError::SourceOpen("input capability could not be established".to_string())
+        }
         InputCapabilityStatus::Partial | InputCapabilityStatus::Ready => {
             PstdError::UnsupportedPstFeature(format!(
                 "input capability is not extraction-ready: {:?}",

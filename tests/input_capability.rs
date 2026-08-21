@@ -24,11 +24,7 @@ fn synthetic_header(index_type: u8, crypt_method: Option<u8>, roots: bool) -> Ve
 fn unicode_capability_is_ready_only_with_safe_roots_and_no_crypt() {
     let bytes = synthetic_header(0x17, Some(0), true);
     let header = PstHeader::parse_bytes(&bytes, 4096).expect("header");
-    let capability = InputCapability::from_header(
-        "unicode.pst",
-        &header,
-        InputLimits::default(),
-    );
+    let capability = InputCapability::from_header("unicode.pst", &header, InputLimits::default());
 
     assert_eq!(capability.family, InputFamily::UnicodePst);
     assert_eq!(capability.status, InputCapabilityStatus::Ready);
@@ -73,8 +69,7 @@ fn unsupported_families_and_crypt_are_not_empty_success() {
 fn missing_roots_and_short_headers_are_explicit() {
     let bytes = synthetic_header(0x17, Some(0), false);
     let header = PstHeader::parse_bytes(&bytes, 514).expect("header");
-    let capability =
-        InputCapability::from_header("partial.pst", &header, InputLimits::default());
+    let capability = InputCapability::from_header("partial.pst", &header, InputLimits::default());
     assert_eq!(capability.status, InputCapabilityStatus::Partial);
     assert!(!capability.allows_extraction);
 
@@ -105,8 +100,7 @@ fn reader_enforces_file_and_single_read_budgets() {
         max_single_read_bytes: 2,
         ..InputLimits::default()
     };
-    let reader =
-        PstByteReader::open_with_limits(&path, &read_limited).expect("reader");
+    let reader = PstByteReader::open_with_limits(&path, &read_limited).expect("reader");
     assert!(reader.read_at(0, 3).is_err());
     assert_eq!(reader.read_prefix(8).expect("bounded prefix").len(), 2);
 }

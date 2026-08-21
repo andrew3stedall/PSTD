@@ -55,7 +55,8 @@ pub fn inspect_pst(input: impl AsRef<Path>) -> PstdResult<InspectSummary> {
     let limits = InputLimits::default();
     let reader = PstByteReader::open_with_limits(input.as_ref(), &limits)?;
     let header = PstHeader::parse(&reader)?;
-    let mut capability = InputCapability::from_header(input.as_ref().display().to_string(), &header, limits);
+    let mut capability =
+        InputCapability::from_header(input.as_ref().display().to_string(), &header, limits);
     let root_diagnostic_condition = header.summary.root_diagnostics.condition.clone();
 
     let (bbt_status, bbt_entries, bbt_page_diagnostics) =
