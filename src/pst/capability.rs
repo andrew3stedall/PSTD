@@ -216,7 +216,11 @@ impl InputCapability {
     ) {
         let bbt_status = bbt_status.into();
         let nbt_status = nbt_status.into();
-        self.index_status = format!("bbt={bbt_status}; nbt={nbt_status}");
+        let crypt_unsupported = self.status == InputCapabilityStatus::Unsupported
+            && matches!(self.crypt_method, Some(2));
+        if !crypt_unsupported {
+            self.index_status = format!("bbt={bbt_status}; nbt={nbt_status}");
+        }
         if self.status == InputCapabilityStatus::Ready
             && (index_status_is_partial(&bbt_status) || index_status_is_partial(&nbt_status))
         {
@@ -275,7 +279,11 @@ fn index_status_is_partial(status: &str) -> bool {
         return true;
     }
     for field in ["traversal_errors=", "truncated_entries="] {
-        if let Some(value) = status.split(field).nth(1).and_then(|value| value.split(';').next()) {
+        if let Some(value) = status
+            .split(field)
+            .nth(1)
+            .and_then(|value| value.split(';').next())
+        {
             if value != "0" {
                 return true;
             }

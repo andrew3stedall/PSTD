@@ -396,9 +396,7 @@ impl PstHeader {
             parser_status: match variant {
                 PstVariant::Unicode => "supported_unicode_header".to_string(),
                 PstVariant::Ansi => "supported_ansi_header".to_string(),
-                PstVariant::Ost2013 => {
-                    "supported_ost2013_header".to_string()
-                }
+                PstVariant::Ost2013 => "supported_ost2013_header".to_string(),
                 PstVariant::Unknown => "detected_unknown_version".to_string(),
             },
             file_size,
@@ -542,32 +540,26 @@ mod tests {
     }
 
     #[test]
-    fn ansi_versions_decode_32_bit_roots_but_do_not_enable_traversal() {
+    fn ansi_versions_decode_32_bit_roots_and_enable_traversal() {
         for version in [14, 15] {
             let header = synthetic_ansi_header(version);
             let parsed = PstHeader::parse_bytes(&header, 0x20_000).unwrap();
 
             assert_eq!(parsed.variant, PstVariant::Ansi);
-            assert_eq!(
-                parsed.summary.parser_status,
-                "detected_ansi_header_unsupported_for_extraction"
-            );
+            assert_eq!(parsed.summary.parser_status, "supported_ansi_header");
             assert_eq!(parsed.summary.magic_client.as_deref(), Some("SM"));
             assert_eq!(parsed.summary.crypt_method, Some(1));
-            assert!(parsed.roots.bbt_root.is_none());
-            assert!(parsed.roots.nbt_root.is_none());
-            assert_eq!(parsed.summary.bbt_root_offset, None);
-            assert_eq!(parsed.summary.nbt_root_offset, None);
+            assert_eq!(parsed.roots.bbt_root.unwrap().offset.0, 0x800);
+            assert_eq!(parsed.roots.nbt_root.unwrap().offset.0, 0x400);
+            assert_eq!(parsed.summary.bbt_root_offset, Some(0x800));
+            assert_eq!(parsed.summary.nbt_root_offset, Some(0x400));
 
             let candidate = &parsed.summary.root_diagnostics.candidates[0];
             assert_eq!(candidate.source, "ansi_root_bref_offsets");
             assert_eq!(candidate.nbt_root.offset, Some(0x400));
             assert_eq!(candidate.bbt_root.offset, Some(0x800));
-            assert!(!candidate.selectable_for_traversal);
-            assert_eq!(
-                candidate.condition,
-                "ansi_root_pages_detected_traversal_disabled"
-            );
+            assert!(candidate.selectable_for_traversal);
+            assert_eq!(candidate.condition, "root_pages_in_bounds");
         }
     }
 

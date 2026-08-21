@@ -2,8 +2,8 @@ use std::collections::{HashSet, VecDeque};
 
 use crate::error::{PstdError, PstdResult};
 use crate::pst::binary::{u32_le_at, u64_le_at};
-use crate::pst::limits::ParserLimits;
 use crate::pst::layout::PstLayout;
+use crate::pst::limits::ParserLimits;
 use crate::pst::primitives::{BlockId, ByteOffset, NodeId, PageRef, PstVariant};
 use crate::pst::reader::PstByteReader;
 use crate::pst::trailer::PageTrailer;
@@ -79,21 +79,12 @@ impl NbtPage {
 
         let metadata = layout.metadata_offset;
         let entry_count = layout.read_count(page, metadata, source_offset)?;
-        let entry_capacity = layout.read_count(
-            page,
-            metadata + layout.count_width,
-            source_offset,
-        )?;
-        let entry_size = layout.read_count(
-            page,
-            metadata + layout.count_width * 2,
-            source_offset,
-        )?;
-        let page_level = layout.read_level(
-            page,
-            metadata + layout.count_width * 3,
-            source_offset,
-        )?;
+        let entry_capacity =
+            layout.read_count(page, metadata + layout.count_width, source_offset)?;
+        let entry_size =
+            layout.read_count(page, metadata + layout.count_width * 2, source_offset)?;
+        let page_level =
+            layout.read_level(page, metadata + layout.count_width * 3, source_offset)?;
         let trailer = if layout.has_unicode_page_trailer() {
             PageTrailer::parse_from_page(page, source_offset).ok()
         } else {
@@ -280,12 +271,7 @@ impl NbtIndex {
         root: Option<PageRef>,
         limits: ParserLimits,
     ) -> PstdResult<Self> {
-        Self::load_root_with_limits_for_variant(
-            reader,
-            root,
-            limits,
-            PstVariant::Unicode,
-        )
+        Self::load_root_with_limits_for_variant(reader, root, limits, PstVariant::Unicode)
     }
 
     pub fn load_root_with_limits_for_variant(
@@ -337,7 +323,8 @@ impl NbtIndex {
                 continue;
             }
 
-            let page_size = (reader.file_size() - page_ref.offset.0).min(layout.page_size as u64) as usize;
+            let page_size =
+                (reader.file_size() - page_ref.offset.0).min(layout.page_size as u64) as usize;
             let page = reader.read_at(page_ref.offset.0, page_size)?;
             let parsed = match NbtPage::parse_with_layout(&page, page_ref.offset.0, layout) {
                 Ok(parsed) => parsed,

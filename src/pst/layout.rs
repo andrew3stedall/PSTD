@@ -1,6 +1,6 @@
+use crate::error::PstdResult;
 use crate::pst::binary::{u16_le_at, u8_at};
 use crate::pst::primitives::PstVariant;
-use crate::error::PstdResult;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PstLayout {

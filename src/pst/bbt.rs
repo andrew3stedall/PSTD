@@ -2,8 +2,8 @@ use std::collections::{HashSet, VecDeque};
 
 use crate::error::{PstdError, PstdResult};
 use crate::pst::binary::{u16_le_at, u32_le_at, u64_le_at};
-use crate::pst::limits::ParserLimits;
 use crate::pst::layout::PstLayout;
+use crate::pst::limits::ParserLimits;
 use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, PageRef, PstVariant};
 use crate::pst::reader::PstByteReader;
 use crate::pst::trailer::PageTrailer;
@@ -62,7 +62,11 @@ pub struct BbtPage {
 
 impl BbtPage {
     pub fn parse(page: &[u8], source_offset: u64) -> PstdResult<Self> {
-        Self::parse_with_layout(page, source_offset, PstLayout::for_variant(PstVariant::Unicode))
+        Self::parse_with_layout(
+            page,
+            source_offset,
+            PstLayout::for_variant(PstVariant::Unicode),
+        )
     }
 
     pub fn parse_with_layout(
@@ -85,21 +89,12 @@ impl BbtPage {
 
         let metadata = layout.metadata_offset;
         let entry_count = layout.read_count(page, metadata, source_offset)?;
-        let entry_capacity = layout.read_count(
-            page,
-            metadata + layout.count_width,
-            source_offset,
-        )?;
-        let entry_size = layout.read_count(
-            page,
-            metadata + layout.count_width * 2,
-            source_offset,
-        )?;
-        let page_level = layout.read_level(
-            page,
-            metadata + layout.count_width * 3,
-            source_offset,
-        )?;
+        let entry_capacity =
+            layout.read_count(page, metadata + layout.count_width, source_offset)?;
+        let entry_size =
+            layout.read_count(page, metadata + layout.count_width * 2, source_offset)?;
+        let page_level =
+            layout.read_level(page, metadata + layout.count_width * 3, source_offset)?;
         let trailer = if layout.has_unicode_page_trailer() {
             PageTrailer::parse_from_page(page, source_offset).ok()
         } else {
@@ -143,7 +138,12 @@ impl BbtPage {
                         "unsupported_internal_entry_size",
                     ));
                 }
-                let block_id = BlockId(read_uint(page, start + layout.id_width, layout.id_width, source_offset)?);
+                let block_id = BlockId(read_uint(
+                    page,
+                    start + layout.id_width,
+                    layout.id_width,
+                    source_offset,
+                )?);
                 let offset = ByteOffset(read_uint(
                     page,
                     start + layout.id_width * 2,
