@@ -24,6 +24,10 @@ The initial evidence/control slice is implemented in `tests/readpst_diff/manifes
 
 The upstream-audit slice is implemented in `tests/readpst_diff/source_manifest.rs`. It validates the pinned `libpst/readpst` revision, all 22 direct ledger paths, all 28 work-unit source mappings, and the eight regression profiles; it emits a deterministic drift report and rejects revision/source-boundary changes until reviewed. It does not import GPL implementation code or require private fixtures/network access.
 
+### RP-M0-02 delivery
+
+The semantic differential slice is implemented in `tests/readpst_diff/{runner,normalize,compare,report}.rs` with the approved Tika fixture contract and a pinned readpst workflow. It records bounded execution, normalized records, explicit negative outcomes, artifact provenance, and repeat-run determinism; the CLI oracle is built with its optional Python interface disabled. This is E2/Partial control-plane evidence only, so feature rows remain unchanged until their own implementation and corpus gates pass.
+
 ## Phase 1 — Unicode message breadth
 
 Broaden the existing strongest path before adding legacy formats:
