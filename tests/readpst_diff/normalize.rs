@@ -1,6 +1,6 @@
 use super::manifest::{sha256_hex, ArtifactDigest, EvidenceStatus};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::collections::BTreeMap;
 use std::fs::{self, File};
 use std::io::Read;
@@ -109,7 +109,7 @@ pub fn normalize_pstd_archive(
                 .path()
                 .map_err(|error| format!("canonical_archive_path_failed:{error}"))?
                 .to_path_buf();
-            let relative = path_string(Path::new("archive").join(archive_name).join(&path).as_path());
+            let relative = path_string(Path::new("archive").join(&archive_name).join(&path).as_path());
             if path.is_absolute() || path.components().any(|component| component == std::path::Component::ParentDir) {
                 return Err(format!("canonical_archive_path_escape: {relative}"));
             }
@@ -217,7 +217,7 @@ fn normalize_json_record(kind: &str, value: Value) -> Result<NormalizedRecord, S
     let object = value
         .as_object()
         .ok_or_else(|| format!("normalized_record_not_object:{kind}"))?;
-    let mut fields = BTreeMap::new();
+    let mut fields: BTreeMap<String, String> = BTreeMap::new();
     let mut payload_hashes = Vec::new();
     let mut children = Vec::new();
     for (key, value) in object {
