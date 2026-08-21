@@ -3,10 +3,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use sha2::{Digest, Sha256};
 
 use crate::config::OutputProfile;
-use crate::output::ids;
 use crate::output::headers::{
     clean_header_value, encode_display_name, encode_mime_parameter, encode_unstructured_value,
 };
+use crate::output::ids;
 use crate::output::metadata::{
     AttachmentRecord, HeaderProjectionRecord, MessageRecord, RecipientRecord,
 };
