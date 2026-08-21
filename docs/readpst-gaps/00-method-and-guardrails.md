@@ -64,3 +64,68 @@ These rules are a required part of parity. A converter that emits more files by 
 ## Licensing and implementation boundary
 
 The libpst project is GPL-licensed. PSTD must not add libpst as a required dependency or copy its implementation. The comparison should inform Rust-native code, tests, and fixture design. Any external run used as an oracle must be pinned, isolated, and reported as supporting evidence; PSTD’s own parser and exact output remain authoritative for the project.
+
+## Planned implementation — `RP-00`
+
+### Readpst logic reviewed
+
+The implementation baseline is the complete `readpst` execution path, not only its visible command-line options. `main` opens and indexes the file before changing directory, loads extended attributes, resolves the message-store root, and then calls `process`. `process` mixes folder recursion, item classification, output stream selection, attachment extraction, and diagnostics. The email writer reconstructs MIME from mutable `pst_item` fields; contact, journal, and appointment writers project the same item into vCard/iCalendar/vJournal. `libpst.c` supplies the parser, attachment ID2 resolution, charset conversion, and recurrence decoding. `msg.cpp` is a separate OLE writer used by `-m`. The helper path also includes LZFU RTF decompression, iconv-backed conversions, FILETIME conversion, and base64 encoding.
+
+The source ledger in [Upstream source notes](12-upstream-source-notes.md) is the review record. No parity issue may cite “readpst supports X” without naming the function or helper that produces the observation.
+
+### Rust-native design
+
+Add a shared evidence contract rather than reproducing readpst’s global mutable state:
+
+```rust
+struct EvidenceEnvelope<T> {
+    source: SourceIdentity,
+    item: ItemIdentity,
+    visibility: ItemVisibility,
+    kind: ItemKind,
+    value: Option<T>,
+    raw: Vec<RawEvidenceRef>,
+    status: ExtractionStatus,
+    warnings: Vec<DiagnosticRef>,
+}
+```
+
+The envelope is consumed by the current `src/engine/metadata.rs` and `src/output/metadata.rs` path, while specialized modules are added under `src/pst/` and `src/output/` only when a boundary is proven. `MessageRecord` remains compatible, but becomes one typed projection among `ContactRecord`, `AppointmentRecord`, `JournalRecord`, `ReportRecord`, and `ItemEnvelope`. `AttachmentRecord` remains the canonical attachment index; raw payloads remain content-addressed evidence.
+
+### Implementation algorithm
+
+1. Pin the upstream revision and record the source function, line anchor, and observable behaviour in a plan issue.
+2. Define the canonical record and status before writing a decoder or adapter. Required statuses include `present`, `empty`, `unavailable`, `unsupported`, `filtered`, `ambiguous`, `corrupt`, and `failed`.
+3. Parse once with bounded `ParserLimits`; assign stable source identities and provenance to every folder, item, property, body, attachment, and child edge.
+4. Build typed projections only from validated evidence. Keep undecodable raw bytes and the reason for refusing a higher-level interpretation.
+5. Project into output profiles through pure adapters. An adapter may omit content only when its policy says so and the manifest records the omission.
+6. Run the semantic comparator against a pinned readpst invocation and a parser-validating reader. Compare decoded values, item classes, ownership, payload hashes, MIME trees, and status reasons rather than filenames or boundary strings.
+7. Reconcile source, canonical, and adapter counts. Update the matrix and all tangential pages before the issue is closed.
+
+### Improvements over readpst
+
+- Replace process-wide globals and `chdir` with immutable run configuration and explicit output roots.
+- Replace `fprintf`-only diagnostics and empty-file deletion with machine-readable per-item status and retained raw evidence.
+- Replace `check_filename`’s `/\\:` replacement with platform-independent path confinement, reserved-name handling, and collision-proof stable paths.
+- Bound embedded-message depth, graph expansion, attachment size, decompression output, and diagnostics; detect cycles before recursion.
+- Keep native Exchange addresses and original encodings instead of flattening them prematurely into display strings.
+- Make worker scheduling deterministic and safe for shared Rust readers; readpst’s fork/reopen strategy is a throughput reference, not a memory-safety requirement.
+- Implement standards-correct MIME and calendar output with explicit loss reporting instead of relying on legacy formatting quirks.
+
+### Issue and acceptance contract
+
+Every `RP-*` issue must contain:
+
+```text
+Capability and user-visible replacement behaviour
+Readpst source functions and pinned revision
+PSTD modules/records to change
+Positive fixture and malformed/ambiguous fixture
+Canonical record and output-adapter assertions
+Determinism and worker-count assertions
+Documentation fan-out: README, topic page, matrix, roadmap, source ledger, changelog
+```
+
+`RP-00` is complete only when the status enum, provenance shape, source ledger format, differential comparison schema, fixture manifest fields, and documentation fan-out checklist are accepted by the repository. It is a prerequisite for promoting any other row.
+
+See [Issue template and differential harness](13-issue-template-and-differential-harness.md) for the concrete issue body and comparator contract.
