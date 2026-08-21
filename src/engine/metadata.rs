@@ -7,9 +7,10 @@ use crate::output::ids;
 use crate::output::metadata::{
     AttachmentRecord, BodyRecord, EmbeddedGraphRecord, EvidenceRecord, FolderRecord,
     HeaderProjectionRecord, ItemEnvelope, ItemRoutingCountRecord, ManifestRecord, MessageRecord,
-    MessageReferenceRecord, MimePartRecord, RecipientRecord,
+    MessageReferenceRecord, MimePartRecord, RecipientRecord, SpecialItemRecord,
 };
 use crate::output::mime::build_mime_parts;
+use crate::output::special::build_special_items;
 use crate::pst::attachment_property_context::{
     attachment_payloads_from_property_context_subnodes,
     attachment_records_from_property_context_subnodes, EmbeddedMessageCandidate,
@@ -67,6 +68,7 @@ pub struct MetadataExtractionOutput {
     pub body_payloads: Vec<BodyPayload>,
     pub embedded_graph: Vec<EmbeddedGraphRecord>,
     pub mime_parts: Vec<MimePartRecord>,
+    pub special_items: Vec<SpecialItemRecord>,
     pub attachments: Vec<AttachmentRecord>,
     pub attachment_payloads: Vec<AttachmentPayload>,
     pub compatibility_triage: Vec<CompatibilityTriageRecord>,
@@ -673,6 +675,7 @@ pub fn extract_metadata(
         &body_payloads,
         &attachment_payloads,
     );
+    let special_items = build_special_items(&messages, &bodies, &body_payloads);
 
     let items = build_item_envelopes(
         pst_id,
@@ -727,6 +730,16 @@ pub fn extract_metadata(
             "data/embedded_graph.jsonl",
             None,
             &edge.status,
+        ));
+    }
+    for special in &special_items {
+        evidence.push(crate::pst::evidence::payload_record(
+            &special.message_key,
+            "special_item",
+            format!("special:{}", special.special_key),
+            "data/special_items.jsonl",
+            None,
+            &special.status,
         ));
     }
 
@@ -858,6 +871,7 @@ pub fn extract_metadata(
         body_payloads,
         embedded_graph,
         mime_parts,
+        special_items,
         attachments,
         attachment_payloads,
         compatibility_triage,
@@ -1231,6 +1245,18 @@ fn base_manifest(
             pst_id: pst_id.to_string(),
             message_key: None,
             folder_key: None,
+            artefact_type: "special_items".to_string(),
+            archive_path: "data/special_items.jsonl".to_string(),
+            sha256: None,
+            size_bytes: None,
+            status: "rp_m3_02_typed_special_items".to_string(),
+            issue_count: 0,
+        },
+        ManifestRecord {
+            run_id: run_id.to_string(),
+            pst_id: pst_id.to_string(),
+            message_key: None,
+            folder_key: None,
             artefact_type: "attachments".to_string(),
             archive_path: "data/attachments.jsonl".to_string(),
             sha256: None,
@@ -1357,6 +1383,7 @@ pub fn fallback_metadata(
         body_payloads: Vec::new(),
         embedded_graph: Vec::new(),
         mime_parts: Vec::new(),
+        special_items: Vec::new(),
         attachments: Vec::new(),
         attachment_payloads: Vec::new(),
         compatibility_triage: Vec::new(),

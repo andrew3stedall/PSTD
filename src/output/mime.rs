@@ -98,6 +98,8 @@ pub fn build_mime_parts(
                 spec.media_type = "application/octet-stream".to_string();
                 spec.parameters = None;
                 spec.transfer_encoding = Some("base64".to_string());
+                spec.decoded_size_bytes = None;
+                spec.decoded_sha256 = None;
                 spec.status = format!("encrypted_body_opaque; source_status={}", spec.status);
                 spec.authoritative = false;
             }
@@ -133,7 +135,7 @@ pub fn build_mime_parts(
                 .unwrap_or("application/octet-stream"),
         };
         let root_parameters = match root_kind {
-            "multipart_report" => Some("report-type=delivery-status".to_string()),
+            "multipart_report" => None,
             "multipart_mixed" => Some("boundary=pstd-mixed".to_string()),
             "multipart_alternative" => Some("boundary=pstd-alternative".to_string()),
             _ => body_specs.first().and_then(|spec| spec.parameters.clone()),
@@ -309,6 +311,42 @@ pub fn build_mime_parts(
                 true,
             ));
             next_ordinal += 1;
+        }
+
+        if !is_encrypted {
+            for spec in body_specs.iter().filter(|spec| spec.record.body_type == "rtf") {
+                let status = if spec.authoritative {
+                    "synthetic_rtf_attachment_available"
+                } else {
+                    "synthetic_rtf_attachment_unavailable"
+                };
+                parts.push(part(
+                    &message.message_key,
+                    &ids::stable_id(
+                        "mime",
+                        &[&message.message_key, "synthetic-rtf", &spec.record.body_key],
+                    ),
+                    Some(container_key.unwrap_or(&root_key)),
+                    next_ordinal,
+                    "synthetic_rtf_attachment",
+                    Some("application/rtf".to_string()),
+                    None,
+                    Some("base64".to_string()),
+                    Some("attachment".to_string()),
+                    None,
+                    Some(spec.record.body_key.clone()),
+                    None,
+                    None,
+                    spec.raw_size_bytes,
+                    spec.raw_sha256.clone(),
+                    spec.decoded_size_bytes,
+                    spec.decoded_sha256.clone(),
+                    status,
+                    false,
+                    true,
+                ));
+                next_ordinal += 1;
+            }
         }
 
         for attachment in &attachment_records {

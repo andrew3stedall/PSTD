@@ -122,6 +122,15 @@ checks exact child ownership, payload/hash linkage, child MIME evidence, and gra
 JSONL determinism. Special-item semantics, CLI policy, and `.msg` output remain
 serialized behind RP-M3-02/RP-M3-03 and RP-M5-04.
 
+### RP-M3-02 dispatch note
+
+RP-M3-02 owns typed special-item projection over canonical body/header evidence.
+Reports and schedules preserve raw readable payloads while refusing to guess absent
+report-type, calendar-method, or recurrence properties; encrypted candidates are
+opaque; validated RTF receives a synthetic non-authoritative MIME attachment. Its
+repeat-run workflow is the gate for `data/special_items.jsonl`; CLI flag translation
+and adapter wire policy remain downstream.
+
 
 ### `RP-M1 — Typed extraction core`
 

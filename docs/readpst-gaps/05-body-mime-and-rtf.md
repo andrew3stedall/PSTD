@@ -167,3 +167,12 @@ The MIME projection remains a consumer of canonical embedded-child records. The 
 embedded graph links a resolved method-5 edge to the child message and its MIME parts,
 while cycle, budget, non-email, and unavailable-child edges remain non-authoritative.
 No child metadata or MIME payload is guessed from a broken graph reference.
+
+## RP-M3-02 special MIME delivery
+
+Report and schedule roots remain explicit `multipart/report` and `text/calendar`
+projections, but absent report-type/calendar-method source properties are not guessed
+into canonical special records. Encrypted body candidates are emitted as opaque
+`application/octet-stream` parts with raw evidence and no decoded hash. A validated
+RTF body additionally produces a synthetic `application/rtf` attachment projection;
+the raw RTF body remains independently available.

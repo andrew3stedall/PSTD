@@ -157,3 +157,10 @@ The canonical MIME projection consumes the validated `HeaderProjectionRecord` an
 does not reparse PST header bytes. Generated MIME ownership is represented by
 semantic part records, leaving malformed, lossy, or unavailable stored headers
 non-authoritative for downstream adapters.
+
+## RP-M3-02 special-item header boundary
+
+Special report, schedule, encrypted, and synthetic RTF records link to the same
+message/header ownership graph. They do not overwrite source headers or invent report
+type, calendar method, recurrence, or decoded encrypted values when the relevant MAPI
+properties are unavailable.

@@ -144,6 +144,26 @@ pub struct EmbeddedGraphRecord {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SpecialItemRecord {
+    pub message_key: String,
+    pub special_key: String,
+    pub kind: String,
+    pub message_class: Option<String>,
+    pub media_type: String,
+    pub parameters: Option<String>,
+    pub method: Option<String>,
+    pub report_type: Option<String>,
+    pub source_body_key: Option<String>,
+    pub raw_size_bytes: u64,
+    pub raw_sha256: Option<String>,
+    pub decoded_size_bytes: Option<u64>,
+    pub decoded_sha256: Option<String>,
+    pub status: String,
+    pub authoritative: bool,
+    pub synthetic: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AttachmentRecord {
     pub message_key: String,
     pub attachment_key: String,

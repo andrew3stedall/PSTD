@@ -1,0 +1,106 @@
+name: Readpst special items
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  special-items:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test special
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Verify typed special items and deterministic MIME projections
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/upstream/tika-various-body-types.pst"
+          evidence="/tmp/pstd-special-items"
+          first="/tmp/pstd-special-items-first"
+          second="/tmp/pstd-special-items-second"
+          mkdir -p "$evidence" "$first" "$second"
+          (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
+
+          cargo run -- extract --input "$fixture" --output "$first" --overwrite \
+            > "$evidence/first.stdout" 2> "$evidence/first.stderr"
+          cargo run -- extract --input "$fixture" --output "$second" --overwrite \
+            > "$evidence/second.stdout" 2> "$evidence/second.stderr"
+
+          for output in "$first" "$second"; do
+            tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+            destination="$evidence/$(basename "$output")"
+            mkdir -p "$destination"
+            tar -xf "$tar_file" -C "$destination"
+            test -s "$destination/data/special_items.jsonl"
+          done
+
+          cmp "$evidence/pstd-special-items-first/data/special_items.jsonl" \
+            "$evidence/pstd-special-items-second/data/special_items.jsonl"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          archive = Path('/tmp/pstd-special-items/pstd-special-items-first')
+
+          def records(name):
+              return [
+                  json.loads(line)
+                  for line in (archive / 'data' / name).read_text(encoding='utf-8').splitlines()
+                  if line.strip()
+              ]
+
+          specials = records('special_items.jsonl')
+          mime_parts = records('mime_parts.jsonl')
+          evidence = records('evidence.jsonl')
+          if len({item['special_key'] for item in specials}) != len(specials):
+              raise SystemExit('duplicate special item key')
+          if not any(item['kind'] == 'rtf_synthetic' for item in specials):
+              raise SystemExit('approved body fixture did not produce RTF special evidence')
+          for item in specials:
+              if item['synthetic'] and item['authoritative']:
+                  raise SystemExit('synthetic special item was marked authoritative')
+              if item['kind'] == 'encrypted' and item['decoded_sha256'] is not None:
+                  raise SystemExit('encrypted body was reported as decoded')
+              if not item['authoritative'] and item['status'].endswith('source_body_unavailable'):
+                  if item['raw_sha256'] is not None or item['decoded_sha256'] is not None:
+                      raise SystemExit('unavailable special body retained guessed hashes')
+              links = [
+                  record for record in evidence
+                  if record['source_ref'].startswith('special:' + item['special_key'] + ';')
+              ]
+              if len(links) != 1 or links[0]['evidence_kind'] != 'special_item':
+                  raise SystemExit('special item evidence link is absent or inconsistent')
+          rtf_specials = [item for item in specials if item['kind'] == 'rtf_synthetic']
+          synthetic_rtf_parts = [
+              part for part in mime_parts if part['part_type'] == 'synthetic_rtf_attachment'
+          ]
+          if len(synthetic_rtf_parts) != len(rtf_specials):
+              raise SystemExit('RTF special records and MIME parts do not reconcile')
+          if any(part['authoritative'] for part in synthetic_rtf_parts):
+              raise SystemExit('synthetic RTF MIME part was marked authoritative')
+          Path('/tmp/pstd-special-items/special-items-report.json').write_text(
+              json.dumps({
+                  'fixture': 'tests/fixtures/upstream/tika-various-body-types.pst',
+                  'fixture_sha256': '24c5e6bbb8bf26a817c977283e40e7b69d2661fec0845abbe177f97efcb05fb0',
+                  'special_item_count': len(specials),
+                  'rtf_synthetic_count': len(rtf_specials),
+                  'synthetic_mime_count': len(synthetic_rtf_parts),
+                  'deterministic_special_jsonl': True,
+                  'encrypted_decoding_forbidden': True,
+              }, indent=2) + '\n', encoding='utf-8'
+          )
+          PY
+      - name: Upload special-item evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-special-item-evidence
+          path: /tmp/pstd-special-items
+          if-no-files-found: error

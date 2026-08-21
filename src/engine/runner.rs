@@ -101,6 +101,10 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     for record in &metadata.embedded_graph {
         embedded_graph.write_record(record)?;
     }
+    let mut special_items = JsonlBuffer::new();
+    for record in &metadata.special_items {
+        special_items.write_record(record)?;
+    }
     let mut attachments = JsonlBuffer::new();
     for record in &metadata.attachments {
         attachments.write_record(record)?;
@@ -172,6 +176,10 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     tar.append_bytes(
         &["data", "embedded_graph.jsonl"],
         &embedded_graph.into_bytes(),
+    )?;
+    tar.append_bytes(
+        &["data", "special_items.jsonl"],
+        &special_items.into_bytes(),
     )?;
     tar.append_bytes(&["data", "attachments.jsonl"], &attachments.into_bytes())?;
     tar.append_bytes(
