@@ -12,6 +12,9 @@ The RP-M0-03 source manifest pins every reviewed direct path and work-unit ancho
 
 The RP-M0-02 runner now provides the executable comparison contract: isolated bounded tool runs, semantic normalization, explicit parity/extension/unsupported/failure outcomes, negative path/resource checks, and repeated-report determinism. The approved Tika fixture remains E2/Partial evidence, and no capability row changes status from this control-plane work.
 
+## RP-M1-01 input-capability delivery
+
+The parser boundary now emits a typed capability projection before traversal. It classifies Unicode/ANSI/OST/unknown families and crypt method, records root/index/attribute readiness, applies the ISO-8859-1 fallback policy, serializes budgets, and fails closed for unsupported, malformed, partial, or over-budget input. This closes only the capability/evidence boundary; IN-01 through IN-10 remain at their existing statuses until their traversal and corpus gates pass.
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |
