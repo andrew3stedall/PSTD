@@ -388,6 +388,10 @@ jobs:
                   f'item envelope stream is incomplete: {len(items)} '
                   f'for {len(folders)} folders and {len(messages)} messages'
               )
+          if any('routing_status' not in item for item in items):
+              raise SystemExit('item envelope routing status is missing')
+          if any('message_class' not in message for message in messages):
+              raise SystemExit('message class evidence field is missing')
           envelope_by_key = {item['envelope_key']: item for item in items}
           for folder in folders:
               envelope = envelope_by_key.get(folder['folder_key'])
@@ -707,12 +711,12 @@ jobs:
               'attachment_payload_bytes': 12315,
               'eml_files': 2,
               'eml_bytes': 17488,
-              'messages_jsonl_bytes': 23865,
+              'messages_jsonl_bytes': 24069,
               'bodies_jsonl_bytes': 2922,
               'recipients_jsonl_bytes': 2708,
               'attachments_jsonl_bytes': 1240,
-              'tar_bytes': 261120,
-              'output_total_bytes': 306167,
+              'tar_bytes': 264192,
+              'output_total_bytes': 309239,
           }
           if metrics != expected_metrics:
               raise SystemExit(f'fixture metrics mismatch: {metrics!r}')
