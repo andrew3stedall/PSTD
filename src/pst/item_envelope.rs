@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::output::ids;
 use crate::output::metadata::{
-    EnvelopeRecordKind, FolderRecord, ItemEnvelope, ItemEnvelopeSource, ItemKind, ItemVisibility,
-    MessageRecord,
+    EnvelopeRecordKind, FolderRecord, ItemEnvelope, ItemEnvelopeSource, ItemKind,
+    ItemRoutingCountRecord, ItemVisibility, MessageRecord,
 };
 use crate::pst::item_routing::{classify_message_class, route_item, ItemRoutingPolicy};
 use crate::pst::message_ownership::MessageOwnershipResolution;
@@ -254,6 +254,75 @@ pub fn build_item_envelopes_with_policy(
     envelopes
 }
 
+pub fn build_item_routing_counts(
+    folders: &[FolderRecord],
+    items: &[ItemEnvelope],
+) -> Vec<ItemRoutingCountRecord> {
+    let mut counts = Vec::new();
+    let mut indexes = HashMap::new();
+    for folder in folders {
+        let index = counts.len();
+        indexes.insert(Some(folder.folder_key.clone()), index);
+        counts.push(ItemRoutingCountRecord {
+            folder_key: Some(folder.folder_key.clone()),
+            folder_path: folder.folder_path.clone(),
+            item_count: 0,
+            emitted_count: 0,
+            filtered_count: 0,
+            skipped_count: 0,
+            unavailable_count: 0,
+            failed_count: 0,
+        });
+    }
+
+    for item in items {
+        if item.record_kind != EnvelopeRecordKind::Item {
+            continue;
+        }
+        let key = item.parent_envelope_key.clone();
+        let index = match indexes.get(&key).copied() {
+            Some(index) => index,
+            None => {
+                let index = counts.len();
+                indexes.insert(key.clone(), index);
+                counts.push(ItemRoutingCountRecord {
+                    folder_key: key,
+                    folder_path: item.folder_path.clone(),
+                    item_count: 0,
+                    emitted_count: 0,
+                    filtered_count: 0,
+                    skipped_count: 0,
+                    unavailable_count: 0,
+                    failed_count: 0,
+                });
+                index
+            }
+        };
+        let count = &mut counts[index];
+        count.item_count += 1;
+        if item.routing_status.starts_with("routed_") {
+            count.emitted_count += 1;
+        } else if item.routing_status.starts_with("filtered_") {
+            count.filtered_count += 1;
+        } else if item.routing_status.starts_with("skipped_") {
+            count.skipped_count += 1;
+        } else if item.routing_status.starts_with("unavailable_") {
+            count.unavailable_count += 1;
+        } else if item.routing_status.starts_with("failed_") {
+            count.failed_count += 1;
+        }
+    }
+
+    counts.sort_by(|left, right| {
+        left.folder_key
+            .as_deref()
+            .unwrap_or("")
+            .cmp(right.folder_key.as_deref().unwrap_or(""))
+            .then_with(|| left.folder_path.cmp(&right.folder_path))
+    });
+    counts
+}
+
 fn insert_envelope(
     envelopes: &mut Vec<ItemEnvelope>,
     seen_keys: &mut HashSet<String>,
@@ -341,8 +410,11 @@ fn reconcile_folder_relationships(envelopes: &mut [ItemEnvelope]) {
 mod tests {
     use std::collections::HashMap;
 
-    use super::build_item_envelopes;
-    use crate::output::metadata::{EnvelopeRecordKind, FolderRecord, ItemKind, ItemVisibility};
+    use super::{build_item_envelopes, build_item_routing_counts};
+    use crate::output::metadata::{
+        EnvelopeRecordKind, FolderRecord, ItemEnvelopeSource, ItemKind, ItemRoutingCountRecord,
+        ItemVisibility,
+    };
     use crate::pst::message_ownership::MessageOwnershipResolution;
     use crate::pst::nbt::NbtEntry;
     use crate::pst::primitives::{BlockId, NodeId};
@@ -444,6 +516,55 @@ mod tests {
         assert_eq!(
             envelope.routing_status,
             "unavailable_unclassified_source_entry"
+        );
+    }
+
+    #[test]
+    fn reconciles_routing_statuses_into_deterministic_folder_counts() {
+        let folders = vec![folder("inbox", "folder-a", None)];
+        let mut items = Vec::new();
+        for (status, ordinal) in [
+            ("routed_email", 0),
+            ("filtered_associated", 1),
+            ("skipped_unknown_item_class", 2),
+            ("unavailable_missing_item_class", 3),
+            ("failed_duplicate_source_identity", 4),
+        ] {
+            items.push(ItemEnvelope {
+                envelope_key: format!("item-{ordinal}"),
+                record_kind: EnvelopeRecordKind::Item,
+                source: ItemEnvelopeSource {
+                    pst_id: "pst-test".to_string(),
+                    descriptor_id: Some(format!("node-{ordinal}")),
+                    node_id: Some(format!("node-{ordinal}")),
+                    folder_id: Some("folder-a".to_string()),
+                    ordinal,
+                },
+                parent_envelope_key: Some("folder-a".to_string()),
+                child_envelope_keys: Vec::new(),
+                folder_path: "/inbox".to_string(),
+                visibility: ItemVisibility::Visible,
+                item_kind: Some(ItemKind::Other),
+                message_class: None,
+                classification_confidence: "test".to_string(),
+                provenance_status: "test".to_string(),
+                extraction_status: "test".to_string(),
+                routing_status: status.to_string(),
+                raw_evidence_refs: Vec::new(),
+            });
+        }
+        assert_eq!(
+            build_item_routing_counts(&folders, &items),
+            vec![ItemRoutingCountRecord {
+                folder_key: Some("folder-a".to_string()),
+                folder_path: "/inbox".to_string(),
+                item_count: 5,
+                emitted_count: 1,
+                filtered_count: 1,
+                skipped_count: 1,
+                unavailable_count: 1,
+                failed_count: 1,
+            }]
         );
     }
 }

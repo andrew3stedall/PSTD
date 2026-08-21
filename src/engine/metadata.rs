@@ -5,8 +5,8 @@ use crate::engine::message_folder_ownership::resolve_folder_ownership;
 use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::ids;
 use crate::output::metadata::{
-    AttachmentRecord, BodyRecord, FolderRecord, ItemEnvelope, ManifestRecord, MessageRecord,
-    MessageReferenceRecord, RecipientRecord,
+    AttachmentRecord, BodyRecord, FolderRecord, ItemEnvelope, ItemRoutingCountRecord,
+    ManifestRecord, MessageRecord, MessageReferenceRecord, RecipientRecord,
 };
 use crate::pst::attachment_property_context::{
     attachment_payloads_from_property_context_subnodes,
@@ -25,7 +25,7 @@ use crate::pst::folder_tree::{
     folder_from_nbt_candidate, is_folder_candidate, root_folder_from_header, FolderInventoryRecord,
 };
 use crate::pst::header::PstHeader;
-use crate::pst::item_envelope::build_item_envelopes;
+use crate::pst::item_envelope::{build_item_envelopes, build_item_routing_counts};
 use crate::pst::limits::ParserLimits;
 use crate::pst::message_metadata::{message_from_properties, status_row};
 use crate::pst::message_ownership::MessageOwnershipResolution;
@@ -53,6 +53,7 @@ pub struct MetadataExtractionOutput {
     pub folders: Vec<FolderRecord>,
     pub folder_inventory: Vec<FolderInventoryRecord>,
     pub items: Vec<ItemEnvelope>,
+    pub item_routing_counts: Vec<ItemRoutingCountRecord>,
     pub messages: Vec<MessageRecord>,
     pub recipients: Vec<RecipientRecord>,
     pub message_references: Vec<MessageReferenceRecord>,
@@ -632,6 +633,7 @@ pub fn extract_metadata(
         &ownership_report.resolutions,
         &messages,
     );
+    let item_routing_counts = build_item_routing_counts(&folders, &items);
 
     let table_probe_summary = finalize_table_probe_collection(run_id, table_probe_collector);
     if let Some(issue) = table_probe_summary.issue.clone() {
@@ -751,6 +753,7 @@ pub fn extract_metadata(
         folders,
         folder_inventory,
         items,
+        item_routing_counts,
         messages,
         recipients,
         message_references,
@@ -1187,6 +1190,16 @@ pub fn fallback_metadata(
         folders: vec![folder],
         folder_inventory: vec![inventory],
         items: Vec::new(),
+        item_routing_counts: vec![ItemRoutingCountRecord {
+            folder_key: Some(folder_key.clone()),
+            folder_path: "/".to_string(),
+            item_count: 0,
+            emitted_count: 0,
+            filtered_count: 0,
+            skipped_count: 0,
+            unavailable_count: 0,
+            failed_count: 0,
+        }],
         messages: vec![status_row(
             run_id,
             pst_id,
