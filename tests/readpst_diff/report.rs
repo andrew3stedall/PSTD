@@ -1,7 +1,7 @@
 use super::compare::{findings_to_outcomes, ComparisonClass, ComparisonSummary};
 use super::manifest::{
     stable_json, ArtifactDigest, ComparisonRun, EvidenceLevel, EvidenceReport, FixtureManifest,
-    InputFamily, OutcomeRecord, ParityStatus, READPST_SOURCE_REVISION,
+    OutcomeRecord, ParityStatus, READPST_SOURCE_REVISION,
 };
 use super::normalize::NormalizedOutput;
 use super::runner::RunResult;
@@ -30,6 +30,8 @@ pub fn build_differential_report(
     output_profile: impl Into<String>,
     deterministic_repeat: bool,
 ) -> Result<DifferentialReport, String> {
+    let charset_policy = charset_policy.into();
+    let output_profile = output_profile.into();
     fixture.validate()?;
     readpst.execution.validate()?;
     pstd.execution.validate()?;
@@ -188,9 +190,7 @@ fn validate_relative_path(value: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::readpst_diff::manifest::{
-        CryptMethod, EvidenceStatus, FixtureAdmission, SourceProvenance, ToolExecution,
-    };
+    use crate::readpst_diff::manifest::{EvidenceStatus, ToolExecution};
     use std::collections::BTreeMap;
     use tempfile::tempdir;
 
