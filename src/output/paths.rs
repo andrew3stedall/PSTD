@@ -72,14 +72,12 @@ impl UniquePathTracker {
 
 pub fn validate_archive_path(path: &Path) -> PstdResult<()> {
     if path.is_absolute()
-        || path
-            .components()
-            .any(|component| {
-                matches!(
-                    component,
-                    Component::ParentDir | Component::RootDir | Component::Prefix(_)
-                )
-            })
+        || path.components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
     {
         return Err(PstdError::OutputWrite(format!(
             "archive path is not confined to the output root: {}",

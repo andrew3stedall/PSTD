@@ -5,8 +5,10 @@ use pstd::config::ReadpstPolicy;
 use pstd::engine::batch::{discover_pst_files, run_batch, BatchConfig};
 
 fn batch_config(input: &Path, output: &Path, jobs: u16) -> BatchConfig {
-    let mut readpst = ReadpstPolicy::default();
-    readpst.jobs = jobs;
+    let readpst = ReadpstPolicy {
+        jobs,
+        ..ReadpstPolicy::default()
+    };
     BatchConfig {
         input: input.to_path_buf(),
         output: output.to_path_buf(),
