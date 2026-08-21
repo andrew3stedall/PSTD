@@ -267,8 +267,9 @@ fn trim_nul(raw: &[u8]) -> &[u8] {
     &raw[..end]
 }
 
+#[allow(clippy::chunks_exact_to_as_chunks)]
 fn unicode_raw_is_well_formed(raw: &[u8]) -> bool {
-    if raw.len() % 2 != 0 {
+    if !raw.len().is_multiple_of(2) {
         return false;
     }
     let units = raw
