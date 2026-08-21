@@ -130,8 +130,8 @@ mod tests {
         let mut file_bytes = vec![0u8; 600];
         file_bytes[PST_HEADER_CRYPT_METHOD_OFFSET] = NDB_CRYPT_STRONG;
         file_bytes[520..537].copy_from_slice(&[
-            0x6f, 0xab, 0x36, 0xbf, 0xbe, 0x12, 0x8e, 0x2b, 0xa8, 0xc4, 0xa6, 0x33, 0xd9,
-            0x09, 0x61, 0xbe, 0x75,
+            0x6f, 0xab, 0x36, 0xbf, 0xbe, 0x12, 0x8e, 0x2b, 0xa8, 0xc4, 0xa6, 0x33, 0xd9, 0x09,
+            0x61, 0xbe, 0x75,
         ]);
         let file = NamedTempFile::new().unwrap();
         fs::write(file.path(), file_bytes).unwrap();
@@ -156,9 +156,11 @@ mod tests {
         let reader = PstByteReader::open(file.path()).unwrap();
         let bbt = index_with_entry(BlockId(0x7c), 520, 4);
 
-        let error = load_payload_block(&reader, &bbt, BlockId(0x7c), ParserLimits::default())
-            .unwrap_err();
-        assert!(error.to_string().contains("unsupported PST data block crypt method"));
+        let error =
+            load_payload_block(&reader, &bbt, BlockId(0x7c), ParserLimits::default()).unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("unsupported PST data block crypt method"));
     }
 
     #[test]

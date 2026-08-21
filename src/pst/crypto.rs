@@ -81,8 +81,8 @@ pub fn decode_in_place(i_id: u64, bytes: &mut [u8], method: u8) -> PstdResult<&'
             Ok("payload_loaded_permute_decoded")
         }
         NDB_CRYPT_STRONG => {
-            let mut salt = ((((i_id & 0x0000_0000_ffff_0000) >> 16)
-                ^ (i_id & 0x0000_0000_0000_ffff)) as u16);
+            let mut salt =
+                ((((i_id & 0x0000_0000_ffff_0000) >> 16) ^ (i_id & 0x0000_0000_0000_ffff)) as u16);
             for byte in bytes {
                 let losalt = (salt & 0x00ff) as u8;
                 let hisalt = (salt >> 8) as u8;
@@ -127,7 +127,10 @@ mod tests {
 
     #[test]
     fn strong_crypt_known_vector_matches_pinned_libpst() {
-        let mut encrypted = vec![0x6f, 0xab, 0x36, 0xbf, 0xbe, 0x12, 0x8e, 0x2b, 0xa8, 0xc4, 0xa6, 0x33, 0xd9, 0x09, 0x61, 0xbe, 0x75];
+        let mut encrypted = vec![
+            0x6f, 0xab, 0x36, 0xbf, 0xbe, 0x12, 0x8e, 0x2b, 0xa8, 0xc4, 0xa6, 0x33, 0xd9, 0x09,
+            0x61, 0xbe, 0x75,
+        ];
         decode_in_place(0x12345678, &mut encrypted, NDB_CRYPT_STRONG).unwrap();
         assert_eq!(encrypted, b"strong-crypt-test");
     }
@@ -135,6 +138,8 @@ mod tests {
     #[test]
     fn unknown_method_fails_closed() {
         let error = decode_in_place(0, &mut [0u8; 1], 7).unwrap_err();
-        assert!(error.to_string().contains("unsupported PST data block crypt method"));
+        assert!(error
+            .to_string()
+            .contains("unsupported PST data block crypt method"));
     }
 }

@@ -114,8 +114,14 @@ fn supported_legacy_families_and_unknown_inputs_are_explicit() {
         &unknown_header,
         InputLimits::default(),
     );
-    assert_eq!(unknown_capability.status, InputCapabilityStatus::Unsupported);
-    assert_eq!(unknown_capability.index_status, "unsupported_crypt_method:7");
+    assert_eq!(
+        unknown_capability.status,
+        InputCapabilityStatus::Unsupported
+    );
+    assert_eq!(
+        unknown_capability.index_status,
+        "unsupported_crypt_method:7"
+    );
     assert!(!unknown_capability.allows_extraction);
 }
 
