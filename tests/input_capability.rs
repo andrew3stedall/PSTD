@@ -51,8 +51,11 @@ fn unsupported_families_and_crypt_are_not_empty_success() {
 
     let supported_crypt = synthetic_header(0x17, Some(1), true);
     let supported_header = PstHeader::parse_bytes(&supported_crypt, 4096).expect("header");
-    let supported_capability =
-        InputCapability::from_header("permute-encrypted.pst", &supported_header, InputLimits::default());
+    let supported_capability = InputCapability::from_header(
+        "permute-encrypted.pst",
+        &supported_header,
+        InputLimits::default(),
+    );
     assert_eq!(supported_capability.status, InputCapabilityStatus::Ready);
     assert!(supported_capability.allows_extraction);
 
