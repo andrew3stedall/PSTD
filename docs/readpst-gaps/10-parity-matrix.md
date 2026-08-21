@@ -4,6 +4,10 @@ This is the single checklist for the gap register. The topic documents explain t
 
 Status is assessed against PSTD `main` at the time of this review, not against an intended record shape.
 
+## RP-M0-01 evidence contract
+
+The matrix uses the shared status, provenance, fixture, and evidence types in `tests/readpst_diff/manifest.rs`. A row may be promoted only when its evidence level supports the claim; the approved Tika Unicode fixture remains E2/Partial baseline evidence and does not change any matrix row. Comparison reports retain the pinned readpst revision, input family, crypt method, output profile, worker count, observed outcomes, artifact digests, inventory counts, and repeat-run determinism result. Malformed, ambiguous, unsupported, unavailable, corrupt, and failed outcomes remain explicit rather than being collapsed into a successful extraction.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |

@@ -221,6 +221,7 @@ The agent must record “no change required” for each tangential page it inspe
 - [x] all eight GitHub milestones exist with the exact names in this document;
 - [x] all 28 work-unit issues exist, use their stable keys, and link dependencies;
 - [x] every issue is assigned to one milestone and one specialist role;
+- [x] RP-M0-01 status/provenance/fixture/evidence schema and E2 Unicode baseline contract are implemented and CI-validated;
 - [ ] `RP-M0` evidence and differential contracts are merged before feature dispatch;
 - [ ] no active issue bypasses the typed envelope or raw-evidence boundary;
 - [ ] every output adapter consumes canonical records rather than reparsing PST bytes;

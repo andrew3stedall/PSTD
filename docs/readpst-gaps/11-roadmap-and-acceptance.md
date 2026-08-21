@@ -16,6 +16,10 @@ Create the shared foundation before adding many output formats:
 
 Exit criterion: a mixed synthetic folder can be inspected without any item being silently labelled as an ordinary message.
 
+### RP-M0-01 delivery
+
+The initial evidence/control slice is implemented in `tests/readpst_diff/manifest.rs` and `tests/readpst_diff_contract.rs`. It validates the approved Apache Tika Unicode fixture (8 folders, 8 messages, 10 bodies, 9 recipients, 2 attachment records, and 12,315 payload bytes), pins readpst revision `cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89`, retains negative and ambiguous outcomes, and proves repeated serialization is deterministic. This is E2/Partial fixture evidence only; RP-M0-02 and RP-M0-03 remain required before feature rows can be promoted.
+
 ## Phase 1 — Unicode message breadth
 
 Broaden the existing strongest path before adding legacy formats:
