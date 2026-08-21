@@ -1,0 +1,117 @@
+name: Readpst Thunderbird and typed adapters
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  thunderbird-typed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test mailbox
+      - run: cargo test thunderbird
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Verify Thunderbird sidecars and typed projections
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/pst/sample.pst"
+          fixture_sha256="ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe"
+          evidence="/tmp/pstd-thunderbird"
+          first="/tmp/pstd-thunderbird-first"
+          second="/tmp/pstd-thunderbird-second"
+          mkdir -p "$evidence" "$first" "$second"
+          printf '%s  %s\n' "$fixture_sha256" "$fixture" | sha256sum --check -
+
+          for output in "$first" "$second"; do
+            cargo run -- extract \
+              --input "$fixture" \
+              --output "$output" \
+              --output-profile thunderbird \
+              --overwrite > "$evidence/$(basename "$output").stdout" \
+              2> "$evidence/$(basename "$output").stderr"
+            tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+            destination="$evidence/$(basename "$output")"
+            mkdir -p "$destination"
+            tar -xf "$tar_file" -C "$destination"
+            test -f "$destination/outputs/thunderbird-profile-status.json"
+            test -f "$destination/outputs/thunderbird-typed-profile-status.json"
+            test -f "$destination/data/mailbox_adapter_manifest.jsonl"
+          done
+
+          diff -ru "$evidence/pstd-thunderbird-first/outputs" \
+            "$evidence/pstd-thunderbird-second/outputs"
+          cmp "$evidence/pstd-thunderbird-first/data/mailbox_adapter_manifest.jsonl" \
+            "$evidence/pstd-thunderbird-second/data/mailbox_adapter_manifest.jsonl"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('/tmp/pstd-thunderbird/pstd-thunderbird-first')
+          status = json.loads((root / 'outputs/thunderbird-profile-status.json').read_text())
+          typed = json.loads((root / 'outputs/thunderbird-typed-profile-status.json').read_text())
+          assert status['profile'] == 'thunderbird'
+          assert typed['profile'] == 'thunderbird_typed'
+          assert typed['status'] in {'typed_outputs_available', 'typed_outputs_partial', 'typed_outputs_unavailable'}
+          assert any(artifact['path'].endswith('/.type') for artifact in status['artifacts'])
+          assert any(artifact['path'].endswith('/.size') for artifact in status['artifacts'])
+
+          for artifact in status['artifacts'] + typed['artifacts']:
+              path = artifact['path']
+              assert not path.startswith('/')
+              assert '..' not in Path(path).parts
+              assert (root / path).is_file(), path
+
+          type_paths = list((root / 'outputs/thunderbird').rglob('.type'))
+          size_paths = list((root / 'outputs/thunderbird').rglob('.size'))
+          assert type_paths and size_paths
+          for path in type_paths:
+              value = json.loads(path.read_text())
+              assert value['status'] == 'folder_item_type_unavailable_no_guess'
+              assert value['folder_key']
+              assert value['folder_path']
+          for path in size_paths:
+              emitted, stored = path.read_text().split()
+              assert int(emitted) >= 0
+              assert int(stored) >= int(emitted)
+
+          for path in (root / 'outputs/thunderbird/typed').glob('*') if (root / 'outputs/thunderbird/typed').exists() else []:
+              if path.suffix in {'.vcf', '.ics', '.vjournal'}:
+                  text = path.read_text()
+                  assert text.startswith('BEGIN:')
+              if path.name == 'non-mail.jsonl':
+                  for line in path.read_text().splitlines():
+                      record = json.loads(line)
+                      assert record['non_mail_key']
+                      assert record['item_kind'] != 'note'
+
+          Path('/tmp/pstd-thunderbird').joinpath('report.json').write_text(
+              json.dumps({
+                  'fixture': str(Path('tests/fixtures/pst/sample.pst')),
+                  'fixture_sha256': 'ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe',
+                  'profile': 'thunderbird',
+                  'status': status['status'],
+                  'typed_status': typed['status'],
+                  'sidecar_count': sum(artifact['path'].endswith(('.type', '.size')) for artifact in status['artifacts']),
+                  'typed_artifact_count': typed['artifact_count'],
+                  'deterministic_repeat': True,
+                  'path_safety_checked': True,
+                  'positive_unit_provenance': 'Thunderbird sidecar and typed artifact tests in src/output/mailbox.rs and src/output/thunderbird.rs',
+                  'negative_unit_provenance': 'explicit unavailable folder type and preserved unsupported non-mail records',
+              }, indent=2) + '\n'
+          )
+          PY
+      - name: Upload Thunderbird evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-thunderbird-evidence
+          path: /tmp/pstd-thunderbird
+          if-no-files-found: error

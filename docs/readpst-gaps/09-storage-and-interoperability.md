@@ -12,7 +12,7 @@ PSTD’s TAR/JSONL archive is the correct canonical evidence boundary for the pr
 | separate with extensions (`-e`) | Numbered `.eml`, `.vcf`, and `.ics` files. | **Partial** | `eml` emits numbered `.eml`; contact/calendar/journal extensions are covered by their named profiles and broader combination tests remain. |
 | separate with MSG (`-m`) | Extended separate output plus `.msg`. | **Gap** | Provide a tested MSG writer or clearly scoped equivalent; do not generate a mislabeled EML. |
 | KMail (`-k`) | `.folder.directory` layout and mbox files suitable for KMail. | **Partial** | `kmail` emits safe `.<folder>.directory/<folder>.mbox` entries and an explicit index-invalidation policy; import/read compatibility remains. |
-| Thunderbird (`-u`) | Recursive output plus `.type` and `.size` files per folder. | **Gap** | Emit the two sidecars from canonical counts and preserve skipped/unavailable counts separately. |
+| Thunderbird (`-u`) | Recursive output plus `.type` and `.size` files per folder. | **Partial** | `thunderbird` emits recursive mbox, canonical-identity `.type`/`.size` sidecars, and independent typed non-mail files; exact import compatibility remains. |
 
 ## EML and MIME compatibility
 
@@ -155,6 +155,13 @@ embedded, unavailable, unsafe, and zero-length decisions without publishing empt
 guessed payloads. KMail emits `.<folder>.directory/<folder>.mbox` paths and records that
 the mutable parent index is logically invalidated; it does not emit an index file. The
 attachment/KMail workflow proves repeated output equality and archive path safety.
+
+RP-M5-03 adds Thunderbird sidecars and typed non-mail files over canonical records.
+`.size` retains the readpst two-count form; `.type` is a deterministic JSON
+stronger-equivalent with an explicit null type when the canonical folder schema does not
+expose the numeric source type. Contacts, appointments, journals, and preserved
+unsupported non-mail records are serialized independently of ordinary email, with source
+identity and unsupported-field decisions retained.
 # RP-M2-03 delivery
 
 Canonical attachment output now records method/source, order, CID, original and safe

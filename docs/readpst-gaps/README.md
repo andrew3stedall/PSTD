@@ -9,6 +9,10 @@ files and the KMail directory projection consume canonical records, with explici
 payload, path, index-policy, and determinism evidence. Remaining output and input gaps
 stay visible in the matrix rather than being promoted by profile recognition alone.
 
+RP-M5-03 adds the Partial Thunderbird/typed-file capability: recursive mbox output,
+canonical-identity `.type`/`.size` sidecars, and independent typed projections for
+non-mail records. An unavailable folder type remains explicit rather than guessed.
+
 ## Baseline
 
 The comparison is against the `pst-format/libpst` `master` source at commit [`cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89`](https://github.com/pst-format/libpst/tree/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89). The principal implementation is [`src/readpst.c`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/readpst.c); the exposed item model and parser behaviour are in [`src/libpst.h`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/libpst.h) and [`src/libpst.c`](https://github.com/pst-format/libpst/blob/cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89/src/libpst.c).
