@@ -68,6 +68,12 @@ corrupt or semantically undecodable encrypted payloads retain bounded raw eviden
 fail explicitly downstream. Unknown methods remain unsupported. A file must not be
 labelled successfully extracted merely because the header can be classified.
 
+The hardening boundary also rejects symlink input paths, does not traverse symlinked
+directories during batch discovery, caps recursive discovery depth and admitted PST
+file count, enforces checked reader offsets and single-read limits, and caps emitted
+diagnostic records. These are explicit PSTD safety improvements over libpst's
+allocation/exit-oriented helper behavior and do not change the default crypt semantics.
+
 ## Index, node, and property behaviours
 
 Parity requires the Rust parser to cover the structures that readpst uses to obtain an item:

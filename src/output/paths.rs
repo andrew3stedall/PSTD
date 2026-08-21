@@ -1,5 +1,7 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
+
+use crate::error::{PstdError, PstdResult};
 
 const MAX_SEGMENT_CHARS: usize = 120;
 
@@ -65,5 +67,43 @@ impl UniquePathTracker {
             Some(ext) if !ext.is_empty() => format!("{stem}_{:04}.{ext}", *count),
             _ => format!("{stem}_{:04}", *count),
         }
+    }
+}
+
+pub fn validate_archive_path(path: &Path) -> PstdResult<()> {
+    if path.is_absolute()
+        || path
+            .components()
+            .any(|component| matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_)))
+    {
+        return Err(PstdError::OutputWrite(format!(
+            "archive path is not confined to the output root: {}",
+            path.display()
+        )));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::{archive_path, sanitize_segment, validate_archive_path, UniquePathTracker};
+
+    #[test]
+    fn sanitization_and_collision_policy_are_bounded() {
+        assert_eq!(sanitize_segment("../secret"), "_secret");
+        assert_eq!(archive_path(&["folder", "../secret"]), Path::new("folder/_secret"));
+
+        let mut tracker = UniquePathTracker::default();
+        assert_eq!(tracker.unique_file_name("same.eml"), "same.eml");
+        assert_eq!(tracker.unique_file_name("same.eml"), "same_0002.eml");
+    }
+
+    #[test]
+    fn archive_path_rejects_escape_components() {
+        assert!(validate_archive_path(Path::new("../escape")).is_err());
+        assert!(validate_archive_path(Path::new("/absolute")).is_err());
+        assert!(validate_archive_path(Path::new("safe/file.txt")).is_ok());
     }
 }

@@ -159,6 +159,10 @@ The production equivalent should expose a stable machine-readable inspection/exp
 - compare all output profiles and canonical records, not just whether files exist;
 - preserve unavailable/skipped/filtered reasons instead of treating absent files as success;
 - make readpst version/source drift visible before comparisons run.
+- run the production batch boundary with one and the maximum allowed bounded worker
+  count, normalize timestamps/run IDs, and compare sorted item status/output inventories;
+  symlink, traversal, archive-confinement, and diagnostic-budget failures are separate
+  negative outcomes rather than empty successes.
 
 ### Acceptance and maintenance
 

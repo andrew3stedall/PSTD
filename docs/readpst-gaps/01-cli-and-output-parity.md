@@ -2,6 +2,12 @@
 
 `readpst` exposes a single command with a compact flag set. PSTD exposes `inspect`, `extract`, `batch`, and `version`, with structured TAR/JSONL output plus named adapter profiles. The mailbox, attachment/KMail, Thunderbird, and MSG/OLE slices are now integrated; input breadth and release promotion remain explicitly partial until their dedicated work units land.
 
+RP-M6-03 hardens the operational boundary: batch jobs are bounded to the validated
+`1..=64` policy and parallel results are reassembled in sorted input order; recursive
+input discovery does not follow symlinks; archive paths are confined to relative
+sanitized components; and incomplete TAR shards remain `.part` files until close and
+rename succeeds.
+
 ### RP-M1-03 classification boundary
 
 The canonical item stream now has an immutable routing policy that distinguishes visible, deleted, associated, unknown, filtered, and readpst-skipped classes. It is intentionally below the command-line layer: `-D`, `-t`, output-profile selection, and adapter scheduling remain RP-M3-03 work. No CLI option is implied by the presence of a routing status in `data/items.jsonl`.

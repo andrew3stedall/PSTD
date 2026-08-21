@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 
 use crate::config::ExtractConfig;
 use crate::engine::metadata::{extract_metadata, fallback_metadata};
-use crate::error::{PstdError, PstdResult};
+use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::calendar::serialize_icalendar;
 use crate::output::contact::{serialize_contact_list, serialize_vcards};
 use crate::output::ids;
@@ -58,6 +58,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
             return Err(reason);
         }
     };
+    cap_diagnostics(&mut metadata.issues, InputLimits::default().max_diagnostics, &run_id);
     apply_item_routing_policy(&mut metadata.items, config.readpst.routing_policy());
     metadata.item_routing_counts = build_item_routing_counts(&metadata.folders, &metadata.items);
     let metadata_status = status_with_property_diagnostics(&metadata.status, &metadata.messages);
@@ -483,6 +484,22 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         ),
     )?;
     Ok(summary)
+}
+
+fn cap_diagnostics(issues: &mut Vec<StatusRecord>, limit: usize, run_id: &str) {
+    if issues.len() <= limit {
+        return;
+    }
+
+    let omitted = issues.len() - limit;
+    issues.truncate(limit.saturating_sub(1));
+    if limit > 0 {
+        issues.push(StatusRecord::info(
+            run_id,
+            "diagnostics_truncated",
+            format!("diagnostic budget exhausted; omitted {omitted} additional records"),
+        ));
+    }
 }
 
 fn capability_error(capability: &InputCapability) -> PstdError {

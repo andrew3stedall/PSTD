@@ -1,5 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
 use std::time::Instant;
 
 use crate::config::{ExtractConfig, ReadpstPolicy};
@@ -114,8 +116,6 @@ pub fn run_batch(config: BatchConfig) -> PstdResult<BatchSummary> {
     let pst_discovered = pst_paths.len() as u64;
     let checkpoint_path = config.output.join("batch_checkpoint.jsonl");
     let progress_path = config.output.join("batch_progress.jsonl");
-    let mut items = Vec::new();
-
     write_batch_progress(
         &progress_path,
         &BatchProgressEvent::new(
@@ -133,7 +133,9 @@ pub fn run_batch(config: BatchConfig) -> PstdResult<BatchSummary> {
         ),
     )?;
 
-    for pst_path in pst_paths {
+    let completed_items = execute_batch_items(&config, &pst_paths);
+    let mut items = Vec::new();
+    for (pst_path, checkpoint) in pst_paths.into_iter().zip(completed_items) {
         let item_output = config.output.join(batch_output_dir_name(&pst_path));
         write_batch_progress(
             &progress_path,
@@ -148,7 +150,6 @@ pub fn run_batch(config: BatchConfig) -> PstdResult<BatchSummary> {
             ),
         )?;
 
-        let checkpoint = run_batch_item(&config, &pst_path, &item_output);
         append_checkpoint(&checkpoint_path, &checkpoint)?;
 
         let failed = checkpoint.status == "failed";
@@ -221,6 +222,70 @@ pub fn run_batch(config: BatchConfig) -> PstdResult<BatchSummary> {
     )?;
 
     Ok(summary)
+}
+
+fn execute_batch_items(config: &BatchConfig, pst_paths: &[PathBuf]) -> Vec<BatchItemSummary> {
+    if pst_paths.is_empty() {
+        return Vec::new();
+    }
+
+    if config.readpst.jobs <= 1 || !config.continue_on_error {
+        let mut results = Vec::with_capacity(pst_paths.len());
+        for pst_path in pst_paths {
+            let item_output = config.output.join(batch_output_dir_name(pst_path));
+            let result = run_batch_item(config, pst_path, &item_output);
+            let failed = result.status == "failed";
+            results.push(result);
+            if failed {
+                break;
+            }
+        }
+        return results;
+    }
+
+    let worker_count = usize::from(config.readpst.jobs).min(pst_paths.len());
+    let (task_tx, task_rx) = mpsc::channel();
+    let (result_tx, result_rx) = mpsc::channel();
+    for (index, pst_path) in pst_paths.iter().cloned().enumerate() {
+        let item_output = config.output.join(batch_output_dir_name(&pst_path));
+        task_tx
+            .send((index, pst_path, item_output))
+            .expect("batch task receiver is alive");
+    }
+    drop(task_tx);
+
+    let shared_tasks = Arc::new(Mutex::new(task_rx));
+    let mut results = (0..pst_paths.len()).map(|_| None).collect::<Vec<_>>();
+    thread::scope(|scope| {
+        for _ in 0..worker_count {
+            let shared_tasks = Arc::clone(&shared_tasks);
+            let result_tx = result_tx.clone();
+            let config = config.clone();
+            scope.spawn(move || loop {
+                let task = shared_tasks
+                    .lock()
+                    .expect("batch task mutex is not poisoned")
+                    .recv()
+                    .ok();
+                let Some((index, pst_path, item_output)) = task else {
+                    break;
+                };
+                let result = run_batch_item(&config, &pst_path, &item_output);
+                result_tx
+                    .send((index, result))
+                    .expect("batch result receiver is alive");
+            });
+        }
+        drop(result_tx);
+        for (index, result) in result_rx {
+            results[index] = Some(result);
+        }
+    });
+
+    results
+        .into_iter()
+        .map(|result| result.expect("every batch task returns a result"))
+        .collect()
 }
 
 fn run_batch_item(config: &BatchConfig, pst_path: &Path, item_output: &Path) -> BatchItemSummary {
@@ -472,11 +537,18 @@ impl BatchProgressEvent {
 
 pub fn discover_pst_files(input: &Path, recursive: bool) -> PstdResult<Vec<PathBuf>> {
     let mut paths = Vec::new();
-    if input.is_file() {
+    let input_metadata = fs::symlink_metadata(input)?;
+    if input_metadata.file_type().is_symlink() {
+        return Err(crate::error::PstdError::pst_read(
+            None,
+            format!("symlink input is not admitted: {}", input.display()),
+        ));
+    }
+    if input_metadata.is_file() {
         if is_pst_file(input) {
             paths.push(input.to_path_buf());
         }
-    } else if input.is_dir() {
+    } else if input_metadata.is_dir() {
         collect_pst_files(input, recursive, &mut paths)?;
     }
     paths.sort();
@@ -484,13 +556,42 @@ pub fn discover_pst_files(input: &Path, recursive: bool) -> PstdResult<Vec<PathB
 }
 
 fn collect_pst_files(dir: &Path, recursive: bool, paths: &mut Vec<PathBuf>) -> PstdResult<()> {
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_dir() && recursive {
-            collect_pst_files(&path, recursive, paths)?;
-        } else if path.is_file() && is_pst_file(&path) {
-            paths.push(path);
+    const MAX_DISCOVERY_DEPTH: usize = 64;
+    const MAX_DISCOVERED_FILES: usize = 100_000;
+    let mut pending = vec![(dir.to_path_buf(), 0usize)];
+
+    while let Some((current, depth)) = pending.pop() {
+        for entry in fs::read_dir(&current)? {
+            let entry = entry?;
+            let file_type = entry.file_type()?;
+            if file_type.is_symlink() {
+                continue;
+            }
+            let path = entry.path();
+            if file_type.is_dir() && recursive {
+                if depth >= MAX_DISCOVERY_DEPTH {
+                    return Err(crate::error::PstdError::pst_read(
+                        None,
+                        format!(
+                            "PST directory discovery exceeds max depth {} at {}",
+                            MAX_DISCOVERY_DEPTH,
+                            path.display()
+                        ),
+                    ));
+                }
+                pending.push((path, depth + 1));
+            } else if file_type.is_file() && is_pst_file(&path) {
+                paths.push(path);
+                if paths.len() > MAX_DISCOVERED_FILES {
+                    return Err(crate::error::PstdError::pst_read(
+                        None,
+                        format!(
+                            "PST directory discovery exceeds max files {}",
+                            MAX_DISCOVERED_FILES
+                        ),
+                    ));
+                }
+            }
         }
     }
     Ok(())

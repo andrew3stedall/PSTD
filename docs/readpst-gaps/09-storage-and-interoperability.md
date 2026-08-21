@@ -122,6 +122,9 @@ Implement adapters in dependency order: `mbox`, `recursive_mbox`, `mh`, `eml`, `
 - Generate MIME/ICS/vCard/MSG with standards-aware serializers and independent round-trip validation.
 - Keep a stronger canonical record even when a legacy profile is intentionally lossy.
 - Make `.msg` capability honest: partial property coverage is a scoped status, never a mislabeled text file.
+- Validate every archive path as relative and confined, and publish TAR shards through a
+  close-then-rename `.part` boundary so failed runs cannot expose a final incomplete
+  archive.
 
 ### Issue-ready acceptance
 

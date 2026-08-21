@@ -242,8 +242,22 @@ parsed family. RP-M6-02 adds `src/pst/crypto.rs` and routes external blocks thro
 preserving libpst's internal-block skip rule. The evidence is controlled structural/
 crypto coverage: positive canonical root/index identity, method-2 `ready`, unknown-
 method `unsupported`, truncation `partial`, malformed-short non-zero failure, pinned
-method vectors, and repeated inspect/decode equality. Full semantic ANSI/OST item/output
-promotion remains downstream; RP-M6-03 is the next serialized hardening slice.
+method vectors, and repeated inspect/decode equality. RP-M6-03 then added bounded batch
+workers, symlink-safe discovery, relative archive confinement, atomic TAR shard
+publication, and diagnostic-budget truncation evidence. Full semantic ANSI/OST
+item/output promotion remains downstream; RP-M7 is the next serialized release gate.
+
+### RP-M6-03 delivery note
+
+The security/performance slice is integrated on the production batch and archive paths.
+Jobs above one use a bounded worker pool only when continue-on-error semantics allow
+independent work; results are collected by source index. Recursive discovery rejects a
+symlink input, skips symlink directories, and fails at depth/file-count bounds. Archive
+entries are validated as relative confined paths, final TAR names appear only after a
+`.part` archive closes and renames, and issue records are capped by the input diagnostic
+budget with an explicit truncation status. Controlled malformed PSTs, symlink/cycle
+derivatives, one-worker/four-worker batch runs, path negatives, and the full CI matrix
+are the evidence boundary; broad fuzz corpus coverage remains a release-gate concern.
 
 ### `RP-M6 — Input breadth and hardening`
 
