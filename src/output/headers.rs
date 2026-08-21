@@ -38,10 +38,7 @@ pub fn encode_display_name(value: &str) -> String {
         return value;
     }
     if value.is_ascii() {
-        return format!(
-            "\"{}\"",
-            value.replace('\\', "\\\\").replace('"', "\\\"")
-        );
+        return format!("\"{}\"", value.replace('\\', "\\\\").replace('"', "\\\""));
     }
     encode_utf8_words(&value)
 }
@@ -60,10 +57,7 @@ pub fn encode_mime_parameter(name: &str, value: &str) -> String {
     let fallback = ascii_fallback(&value);
     let segments = split_percent_encoded(&encoded, 60);
     if segments.len() == 1 {
-        return format!(
-            "{name}=\"{fallback}\"; {name}*=UTF-8''{}",
-            segments[0]
-        );
+        return format!("{name}=\"{fallback}\"; {name}*=UTF-8''{}", segments[0]);
     }
 
     let mut result = format!("{name}=\"{fallback}\"");
@@ -109,9 +103,7 @@ fn quote_parameter_value(value: &str) -> String {
 fn ascii_fallback(value: &str) -> String {
     let mut fallback = String::with_capacity(value.len());
     for character in value.chars() {
-        if character.is_ascii()
-            && !character.is_ascii_control()
-            && !matches!(character, '"' | '\\')
+        if character.is_ascii() && !character.is_ascii_control() && !matches!(character, '"' | '\\')
         {
             fallback.push(character);
         } else {
@@ -128,7 +120,10 @@ fn ascii_fallback(value: &str) -> String {
 fn percent_encode_utf8(bytes: &[u8]) -> String {
     fn is_attr_char(byte: u8) -> bool {
         byte.is_ascii_alphanumeric()
-            || matches!(byte, b'!' | b'#' | b'$' | b'&' | b'+' | b'-' | b'.' | b'^' | b'_' | b'`' | b'|' | b'~')
+            || matches!(
+                byte,
+                b'!' | b'#' | b'$' | b'&' | b'+' | b'-' | b'.' | b'^' | b'_' | b'`' | b'|' | b'~'
+            )
     }
 
     let mut encoded = String::with_capacity(bytes.len());
@@ -149,7 +144,11 @@ fn split_percent_encoded(value: &str, max_len: usize) -> Vec<String> {
     let mut current = String::new();
     let mut index = 0usize;
     while index < value.len() {
-        let width = if value.as_bytes()[index] == b'%' { 3 } else { 1 };
+        let width = if value.as_bytes()[index] == b'%' {
+            3
+        } else {
+            1
+        };
         if !current.is_empty() && current.len() + width > max_len {
             segments.push(std::mem::take(&mut current));
         }
@@ -175,8 +174,7 @@ fn hex_digit(value: u8) -> char {
 }
 
 fn base64_encode(bytes: &[u8]) -> String {
-    const TABLE: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const TABLE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut output = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let first = chunk[0];

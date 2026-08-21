@@ -6,10 +6,10 @@ use std::path::PathBuf;
 use chrono::{DateTime, FixedOffset, Utc};
 use pstd::eml::build_plain_text_eml;
 use pstd::engine::metadata::extract_metadata;
-use pstd::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
 use pstd::output::headers::{
     encode_display_name, encode_mime_parameter, encode_unstructured_value,
 };
+use pstd::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
 use pstd::pst::attachments::AttachmentPayload;
 use pstd::pst::messages::BodyPayload;
 use sha2::{Digest, Sha256};
@@ -219,11 +219,7 @@ fn build_eml_with_plain_text_policy(
     if let Some(cc) = cc {
         push_header(&mut eml, "Cc", &cc);
     }
-    push_header(
-        &mut eml,
-        "Subject",
-        &encode_unstructured_value(&subject),
-    );
+    push_header(&mut eml, "Subject", &encode_unstructured_value(&subject));
     push_header(&mut eml, "Date", &date);
     if let Some(message_id) = message
         .internet_message_id

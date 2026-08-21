@@ -1,8 +1,8 @@
 pub mod calendar;
 pub mod contact;
+pub mod headers;
 pub mod ids;
 pub mod jsonl_writer;
-pub mod headers;
 pub mod mailbox;
 pub mod metadata;
 pub mod mime;

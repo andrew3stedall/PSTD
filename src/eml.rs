@@ -3,10 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::{DateTime, FixedOffset, Utc};
 use sha2::{Digest, Sha256};
 
+use crate::output::headers::{clean_header_value, encode_display_name, encode_unstructured_value};
 use crate::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
-use crate::output::headers::{
-    clean_header_value, encode_display_name, encode_unstructured_value,
-};
 use crate::pst::attachments::{AttachmentPayload, ATTACH_METHOD_EMBEDDED_MESSAGE};
 use crate::pst::messages::BodyPayload;
 

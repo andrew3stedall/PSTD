@@ -73,8 +73,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         ItemTypeFilter::All => None,
         _ => Some(routed_message_keys(&metadata.items)),
     };
-    let output_messages =
-        select_output_messages(&metadata.messages, output_message_keys.as_ref());
+    let output_messages = select_output_messages(&metadata.messages, output_message_keys.as_ref());
     let output_contacts = output_message_keys.as_ref().map_or_else(
         || metadata.contacts.clone(),
         |keys| {
@@ -539,9 +538,7 @@ fn select_output_messages(
 ) -> Vec<MessageRecord> {
     messages
         .iter()
-        .filter(|message| {
-            selected_keys.is_none_or(|keys| keys.contains(&message.message_key))
-        })
+        .filter(|message| selected_keys.is_none_or(|keys| keys.contains(&message.message_key)))
         .cloned()
         .collect()
 }

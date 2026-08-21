@@ -919,7 +919,11 @@ fn append_binary_part(
     push_header(
         output,
         "Content-Type",
-        &format!("{}; {}", safe_media_type, encode_mime_parameter("name", filename)),
+        &format!(
+            "{}; {}",
+            safe_media_type,
+            encode_mime_parameter("name", filename)
+        ),
     );
     push_header(output, "Content-Transfer-Encoding", "base64");
     push_header(
@@ -950,9 +954,10 @@ pub(crate) fn attachment_extension_allowed(
     attachment_extensions: &[String],
 ) -> bool {
     attachment_extensions.is_empty()
-        || attachment.extension.as_ref().is_none_or(|extension| {
-            attachment_extensions.contains(&extension.to_ascii_lowercase())
-        })
+        || attachment
+            .extension
+            .as_ref()
+            .is_none_or(|extension| attachment_extensions.contains(&extension.to_ascii_lowercase()))
 }
 
 fn append_boundary(output: &mut Vec<u8>, boundary: &str, closing: bool) {
