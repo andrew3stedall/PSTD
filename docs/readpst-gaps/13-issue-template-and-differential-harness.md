@@ -78,6 +78,10 @@ Do not close an issue with “tests pass” alone. The issue must identify the e
 
 RP-M0-01 establishes the manifest and report types used by later differential work in `tests/readpst_diff/manifest.rs`, with the module exported from `tests/readpst_diff/mod.rs`. The contract captures source provenance, fixture admission, input family, crypt method, pinned upstream revision, tool executions, output profile, worker count, normalized outcomes, inventory counts, artifact digests, evidence level, parity status, and deterministic-repeat results. It also rejects unsafe fixture paths, malformed hashes, missing provenance, source-revision drift, and an Implemented claim below E4. The executable process runner and semantic comparator remain the bounded scope of RP-M0-02.
 
+### RP-M0-02 delivery
+
+The isolated differential slice is implemented in `tests/readpst_diff/{runner,normalize,compare,report}.rs` and exercised by `tests/readpst_diff_runner.rs`. It validates the approved Apache Tika Unicode fixture, runs bounded readpst/PSTD processes in separate roots, normalizes canonical TAR/JSONL and readpst output semantics, records explicit parity/extension/unsupported/failure findings, rejects unsafe paths and resource-limit violations, and compares repeated reports for determinism. The dedicated `readpst-differential.yml` workflow builds the pinned CLI revision with `--enable-python=no` (the optional binding is outside the oracle surface) and runs the configured differential test. Current evidence is E2/Partial; this harness does not promote a parity row without the downstream feature and corpus gates.
+
 ## Comparator contract
 
 The harness should run a pinned readpst binary and PSTD against the same approved fixture, then normalize both results into a comparison document. Byte-for-byte output is useful for debugging but is not the primary contract because mbox boundaries, generated filenames, and MIME boundary tokens are implementation details.
