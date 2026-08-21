@@ -168,3 +168,7 @@ source observations do not become capability claims, and E1/E2 fixtures do not b
 broad parity. On main `57fbcaf1a83e2ddc79fff300be812a23cc66bb53`, the matrix has 2
 Implemented, 54 Partial, and 19 Gap rows. The final gate therefore requires independent
 semantic differential evidence and an explicit remaining-gap decision.
+
+RP-M7-03 has made that decision: the release is **not parity-complete**. The guardrails
+remain binding for future work; stronger safety/determinism behavior is an explicit
+improvement, not a waiver for the unresolved capability rows.

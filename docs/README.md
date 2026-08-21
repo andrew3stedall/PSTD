@@ -34,7 +34,7 @@ This documentation tree contains both current operating guidance and historical 
 | Readable message verticals | One deterministic 956-byte EML is emitted with sender, recipients, subject, Date, Message-ID, plain text, and recovered HTML. |
 | Upstream fixture corpus | Three pinned public PSTs cover attachments, multiple folders/messages, body forms, appointments, recurrence, contacts, distribution lists, and legacy Exchange addresses. Non-mail objects remain outside the active email-to-EML milestone. |
 | Tika attachment fixture | Eight messages include seven top-level messages assigned by exact contents-table rows, one linked method-`5` child, nine directly owned recipients, ten body records, two exact attachment payloads, the unchanged 17,035-byte parent EML, and one exact 453-byte child EML. |
-| Current milestone | RP-M7 readpst parity release gate | RP-M6 ANSI/OST/crypto and hardening slices are merged; the matrix review records 2 Implemented, 54 Partial, and 19 Gap rows, with E4 differential and final decision still open. |
+| Current milestone | RP-M7 readpst parity decision | RP-M6 is merged; RP-M7-03 records NOT PARITY-COMPLETE with 2 Implemented, 54 Partial, and 19 Gap rows. See `readpst-gaps/rp-m7-03-parity-decision.md`. |
 
 The current roadmap, compatibility matrix, and approved-fixture gap record define the active evidence-led sequence. Historical milestone and PQ documents remain useful for implementation context but do not define the next task.
 

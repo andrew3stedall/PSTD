@@ -56,10 +56,9 @@ PR #491 records the java-libpst fixture's deterministic fail-closed result: 25 f
 ### Readpst parity release gate
 
 RP-M6-01 through RP-M6-03 are merged with controlled input, crypto, hardening, and
-determinism evidence. RP-M7-01 has reviewed the live matrix on main and retained 2
-Implemented, 54 Partial, and 19 Gap rows. RP-M7-02 is the next serialized boundary for
-independent semantic differential evidence; RP-M7-03 will publish the final decision.
-The project is not yet parity-complete.
+determinism evidence. RP-M7-01 reviewed the live matrix, RP-M7-02 recorded the pinned
+oracle and E4 admissibility blockers, and RP-M7-03 published the final decision:
+NOT PARITY-COMPLETE. The matrix retains 2 Implemented, 54 Partial, and 19 Gap rows.
 
 ### First controlled Microsoft Purview Unicode export
 

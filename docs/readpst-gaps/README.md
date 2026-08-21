@@ -169,6 +169,18 @@ Run `32512518536` passed the 18-test harness and uploaded artifact `9457584897`;
 result is E2/Partial differential evidence with explicit profile/input admissibility
 blockers in [`rp-m7-02-e4-report.md`](rp-m7-02-e4-report.md), not a release-wide E4 pass.
 
+RP-M7-03 has published the final decision in
+[`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md): PSTD is **not
+parity-complete** at the reviewed baseline. The matrix remains 2 Implemented, 54
+Partial, and 19 Gap rows, all named in the decision; future work must add admissible
+corpora and semantic differentials before making a full-parity claim.
+
+RP-M7-03 has published the final decision in
+[`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md): PSTD is **not
+parity-complete** at the reviewed baseline. The matrix remains 2 Implemented, 54
+Partial, and 19 Gap rows, all named in the decision; future work must add admissible
+corpora and semantic differentials before making a full-parity claim.
+
 ## Maintenance rule
 
 When a gap is implemented, update the matrix, the relevant topic document, the current-state project documentation, and the fixture evidence. Every row must retain:

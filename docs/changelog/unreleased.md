@@ -244,3 +244,5 @@ All seven top-level messages belong to `/Début du fichier de données Outlook` 
 - Preserved the distinction between readpst-exposed gaps and cases readpst itself skips; no row was promoted from a helper, field, fixture-only probe, or process exit.
 - The unresolved Gap set is now the fixed input to the RP-M7-02 differential report and RP-M7-03 final decision.
 - Added the RP-M7-02 E4 report and release workflow: the pinned oracle run is green for the approved Unicode fixture, while missing admissible corpus coverage remains explicitly not-proven rather than inferred.
+- RP-M7-03 final decision: PSTD is not parity-complete at the reviewed baseline; 2 rows are Implemented, 54 Partial, and 19 Gap, with every remaining row and admissibility blocker named in the release decision.
+- RP-M7-03 final decision: PSTD is not parity-complete at the reviewed baseline; 2 rows are Implemented, 54 Partial, and 19 Gap, with every remaining row and admissibility blocker named in the release decision.

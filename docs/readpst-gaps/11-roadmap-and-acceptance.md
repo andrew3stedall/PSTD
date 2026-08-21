@@ -159,6 +159,20 @@ and the admissibility blockers. Because only one approved fixture currently supp
 full pinned semantic pair, the report is E2/Partial evidence and the release-wide E4
 claim remains not proven.
 
+## RP-M7-03 final decision delivery
+
+The release decision is **not parity-complete**. Main retains 2 Implemented, 54 Partial,
+and 19 Gap rows; [`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md) enumerates
+all of them, records the green executable gates, names the admissibility blockers, and
+documents stronger-equivalent safety/determinism improvements without overclaiming.
+
+## RP-M7-03 final decision delivery
+
+The release decision is **not parity-complete**. Main retains 2 Implemented, 54 Partial,
+and 19 Gap rows; [`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md) enumerates
+all of them, records the green executable gates, names the admissibility blockers, and
+documents stronger-equivalent safety/determinism improvements without overclaiming.
+
 ## Fixture and differential strategy
 
 Each capability needs a fixture record containing:
