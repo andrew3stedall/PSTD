@@ -264,7 +264,7 @@ impl ComparisonRun {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ArtifactDigest {
     pub artifact_type: String,
     pub path: String,
