@@ -96,6 +96,10 @@ The envelope is consumed by the current `src/engine/metadata.rs` and `src/output
 
 The shared parity contract is implemented in the test/support boundary at `tests/readpst_diff/manifest.rs` and exercised by `tests/readpst_diff_contract.rs`. It separates matrix `ParityStatus` (`implemented`, `partial`, `gap`, `unsupported_by_readpst`, `filtered`, `unavailable`, `failed`) from observed evidence statuses (`present`, `empty`, `skipped`, `filtered`, `unavailable`, `unsupported`, `ambiguous`, `malformed`, `corrupt`, `failed`). `FixtureManifest` records provenance/license, source revision/path, a safe local path, SHA-256, byte size, input family, crypt method, expected category/status, and admission state. `ComparisonRun` and `EvidenceReport` retain the pinned readpst revision, tool commands/versions, output profile, worker count, outcomes, inventory, artifacts, and deterministic-repeat evidence. The approved Tika Unicode fixture is represented as E2/Partial evidence; this does not promote any matrix row or claim readpst parity.
 
+### RP-M0-03 source-drift implementation
+
+`tests/readpst_diff/source_manifest.rs` is the pinned upstream-audit boundary. It covers the complete direct ledger, selected function/helper anchors, all 28 work-unit mappings, and the regression profile categories without importing or copying GPL implementation code. The check fails closed on revision drift, missing or duplicate source paths, unresolved symbols, changed repository/license boundary, and out-of-range work-unit mappings. Its report is stable JSON and is independent of private PST payloads or network access.
+
 ### Implementation algorithm
 
 1. Pin the upstream revision and record the source function, line anchor, and observable behaviour in a plan issue.
