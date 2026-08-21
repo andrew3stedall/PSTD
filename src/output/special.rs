@@ -83,6 +83,7 @@ pub fn build_special_items(
                         "encrypted_body_opaque",
                         false,
                         false,
+                        false,
                     ));
                 }
             }
@@ -142,6 +143,7 @@ fn append_body_kind(
             payload,
             status,
             true,
+            true,
             false,
         ));
     }
@@ -154,19 +156,30 @@ fn body_record(
     body: &BodyRecord,
     payload: Option<&BodyPayload>,
     status: &str,
+    decoded: bool,
     authoritative: bool,
     synthetic: bool,
 ) -> SpecialItemRecord {
-    let (raw_size_bytes, raw_sha256, decoded_size_bytes, decoded_sha256) = payload
+    let (raw_size_bytes, raw_sha256) = payload
         .map(|payload| {
             (
                 payload.bytes.len() as u64,
                 Some(payload.record.sha256.clone()),
-                Some(payload.bytes.len() as u64),
-                Some(payload.record.sha256.clone()),
             )
         })
-        .unwrap_or((0, None, None, None));
+        .unwrap_or((0, None));
+    let (decoded_size_bytes, decoded_sha256) = if decoded {
+        payload
+            .map(|payload| {
+                (
+                    Some(payload.bytes.len() as u64),
+                    Some(payload.record.sha256.clone()),
+                )
+            })
+            .unwrap_or((None, None))
+    } else {
+        (None, None)
+    };
     SpecialItemRecord {
         message_key: message.message_key.clone(),
         special_key: ids::stable_id("special", &[&message.message_key, kind, &body.body_key]),
