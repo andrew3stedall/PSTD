@@ -12,6 +12,8 @@ use crate::output::metadata::MessageRecord;
 use crate::output::summary::ExtractionSummary;
 use crate::output::tar_writer::TarShardWriter;
 use crate::progress::{ProgressEvent, ProgressEventType};
+use crate::pst::capability::{InputCapability, InputCapabilityStatus};
+use crate::pst::limits::InputLimits;
 
 pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     validate_config(&config)?;
@@ -34,10 +36,22 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         ),
     )?;
 
-    let metadata = match extract_metadata(&input_display, &run_id, &pst_id) {
-        Ok(value) => value,
-        Err(reason) if config.continue_on_error => fallback_metadata(&run_id, &pst_id, &reason),
-        Err(reason) => return Err(reason),
+    let capability = InputCapability::probe(&config.input, InputLimits::default());
+    let metadata = if capability.allows_extraction {
+        match extract_metadata(&input_display, &run_id, &pst_id) {
+            Ok(value) => value,
+            Err(reason) if config.continue_on_error => {
+                fallback_metadata(&run_id, &pst_id, &reason)
+            }
+            Err(reason) => return Err(reason),
+        }
+    } else {
+        let reason = capability_error(&capability);
+        if config.continue_on_error {
+            fallback_metadata(&run_id, &pst_id, &reason)
+        } else {
+            return Err(reason);
+        }
     };
     let metadata_status = status_with_property_diagnostics(&metadata.status, &metadata.messages);
 
@@ -105,11 +119,18 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         "manifest_only": config.manifest_only,
         "profile": config.profile,
         "metadata_status": metadata_status.clone(),
+        "input_capability_status": capability.status,
+        "input_capability_family": capability.family,
+        "input_capability_allows_extraction": capability.allows_extraction,
     }))?;
 
     let archives_dir = config.output.join("archives");
     let mut tar = TarShardWriter::new(&archives_dir, &pst_id, config.tar_shard_size_bytes())?;
     tar.append_bytes(&["_pstfast", "run_config.json"], &run_config_json)?;
+    tar.append_bytes(
+        &["data", "input_capability.json"],
+        &serde_json::to_vec_pretty(&capability)?,
+    )?;
     tar.append_bytes(&["data", "folders.jsonl"], &folders.into_bytes())?;
     tar.append_bytes(&["data", "messages.jsonl"], &messages.into_bytes())?;
     tar.append_bytes(&["data", "recipients.jsonl"], &recipients.into_bytes())?;
@@ -199,6 +220,32 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         ),
     )?;
     Ok(summary)
+}
+
+fn capability_error(capability: &InputCapability) -> PstdError {
+    match capability.status {
+        InputCapabilityStatus::Unsupported => PstdError::UnsupportedPstFeature(format!(
+            "input capability rejected extraction: {}",
+            capability.index_status
+        )),
+        InputCapabilityStatus::BudgetExceeded => PstdError::pst_read(
+            Some(0),
+            "input capability budget exceeded before extraction",
+        ),
+        InputCapabilityStatus::Malformed => PstdError::pst_parse(
+            Some(0),
+            "input capability header is malformed or truncated",
+        ),
+        InputCapabilityStatus::Unavailable => PstdError::SourceOpen(
+            "input capability could not be established".to_string(),
+        ),
+        InputCapabilityStatus::Partial | InputCapabilityStatus::Ready => {
+            PstdError::UnsupportedPstFeature(format!(
+                "input capability is not extraction-ready: {:?}",
+                capability.status
+            ))
+        }
+    }
 }
 
 fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord]) -> String {
