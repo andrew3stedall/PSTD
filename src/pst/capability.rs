@@ -66,21 +66,21 @@ impl InputCapability {
 
         let (status, index_status, extended_attributes_status, allows_extraction) = match family {
             InputFamily::UnicodePst => match crypt_method {
-                Some(0) if roots_ready => (
+                Some(0 | 1) if roots_ready => (
                     InputCapabilityStatus::Ready,
                     "ready_to_attempt".to_string(),
                     "not_loaded".to_string(),
                     true,
                 ),
-                Some(0) => (
+                Some(0 | 1) => (
                     InputCapabilityStatus::Partial,
                     format!("not_ready:{root_condition}"),
                     "unavailable_until_index_ready".to_string(),
                     false,
                 ),
-                Some(1 | 2) => (
+                Some(2) => (
                     InputCapabilityStatus::Unsupported,
-                    "blocked_by_crypt_method".to_string(),
+                    "unsupported_strong_crypt_method".to_string(),
                     "unavailable_until_decryption".to_string(),
                     false,
                 ),
