@@ -218,15 +218,16 @@ pub fn run_isolated(spec: &CommandSpec, limits: &RunLimits) -> Result<RunResult,
     } else {
         EvidenceStatus::Failed
     };
-    let output_root = path_string(output_relative);
+    let execution_output_root = path_string(output_relative);
+    let stable_command = stable_command(&spec.command, &sandbox, &output_root);
     let execution = ToolExecution {
         tool: spec.tool.clone(),
         version: spec.version.clone(),
-        command: stable_command(&spec.command, &sandbox, &output_root),
+        command: stable_command,
         exit_status,
         stdout_sha256: Some(sha256_hex(&stdout.bytes)),
         stderr_sha256: Some(sha256_hex(&stderr.bytes)),
-        output_root,
+        output_root: execution_output_root,
         status,
     };
     execution.validate()?;
