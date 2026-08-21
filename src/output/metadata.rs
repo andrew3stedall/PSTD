@@ -7,6 +7,7 @@ pub struct MessageRecord {
     pub message_node_id: Option<String>,
     pub folder_path: String,
     pub item_type: String,
+    pub message_class: Option<String>,
     pub subject: Option<String>,
     pub sender_name: Option<String>,
     pub sender_email: Option<String>,

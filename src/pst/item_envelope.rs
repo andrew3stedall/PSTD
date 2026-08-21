@@ -123,7 +123,12 @@ pub fn build_item_envelopes_with_policy(
         };
         let message_class = messages_by_node
             .get(source_node_id.as_str())
-            .and_then(|message| message_class_from_item_type(&message.item_type));
+            .and_then(|message| {
+                message
+                    .message_class
+                    .clone()
+                    .or_else(|| message_class_from_item_type(&message.item_type))
+            });
         let classification = classify_message_class(message_class.as_deref());
         let item_kind = classification.kind.unwrap_or(ItemKind::Other);
         let routing = route_item(visibility, &classification, policy);
@@ -206,7 +211,10 @@ pub fn build_item_envelopes_with_policy(
         if seen_keys.contains(&envelope_key) {
             continue;
         }
-        let class = message_class_from_item_type(&message.item_type);
+        let class = message
+            .message_class
+            .clone()
+            .or_else(|| message_class_from_item_type(&message.item_type));
         let classification = classify_message_class(class.as_deref());
         let item_kind = classification.kind.unwrap_or(ItemKind::Other);
         let visibility = ItemVisibility::Visible;
