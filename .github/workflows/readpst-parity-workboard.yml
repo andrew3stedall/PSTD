@@ -1,0 +1,101 @@
+name: Provision readpst parity workboard
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/readpst-parity-workboard.yml
+      - docs/readpst-gaps/14-agent-orchestrator.md
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  provision:
+    name: Create milestones and assign work units
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconcile the readpst parity workboard
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const milestoneDefinitions = [
+              ["RP-M0", "RP-M0 — Control plane and parity evidence", "Status, provenance, differential evidence, source drift, and agent protocol."],
+              ["RP-M1", "RP-M1 — Typed extraction core", "Input capability, bounded parser policy, folders, ownership, visibility, and item routing."],
+              ["RP-M2", "RP-M2 — Unicode message fidelity", "Message metadata, headers, charset, bodies, MIME/RTF, and attachment evidence."],
+              ["RP-M3", "RP-M3 — Relationships and special items", "Embedded graph, bounded recursion, reports, schedules, encryption status, and CLI policy."],
+              ["RP-M4", "RP-M4 — Non-mail item outputs", "Contacts, appointments, recurrence, journals, tasks, notes, and explicit unsupported routing."],
+              ["RP-M5", "RP-M5 — Readpst output adapters", "mbox, recursive, MH, EML, KMail, Thunderbird, typed files, attachments, and MSG."],
+              ["RP-M6", "RP-M6 — Input breadth and hardening", "ANSI, OST, encryption, malformed/large inputs, fuzzing, and bounded parallelism."],
+              ["RP-M7", "RP-M7 — Readpst parity release gate", "Matrix promotion, E4 differentials, release decision, and documentation synchronization."]
+            ];
+
+            const { owner, repo } = context.repo;
+            const existingMilestones = await github.paginate(
+              github.rest.issues.listMilestones,
+              { owner, repo, state: "all", per_page: 100 }
+            );
+            const milestoneByKey = new Map();
+            const milestoneByTitle = new Map(existingMilestones.map((m) => [m.title, m]));
+
+            for (const [key, title, description] of milestoneDefinitions) {
+              let milestone = milestoneByTitle.get(title);
+              if (!milestone) {
+                const created = await github.rest.issues.createMilestone({
+                  owner,
+                  repo,
+                  title,
+                  state: "open",
+                  description
+                });
+                milestone = created.data;
+                core.info(`Created ${title} (#${milestone.number})`);
+              } else if (milestone.description !== description || milestone.state !== "open") {
+                const updated = await github.rest.issues.updateMilestone({
+                  owner,
+                  repo,
+                  milestone_number: milestone.number,
+                  state: "open",
+                  description
+                });
+                milestone = updated.data;
+                core.info(`Updated ${title} (#${milestone.number})`);
+              } else {
+                core.info(`Reused ${title} (#${milestone.number})`);
+              }
+              milestoneByKey.set(key, milestone);
+            }
+
+            const issues = await github.paginate(
+              github.rest.issues.listForRepo,
+              { owner, repo, state: "all", per_page: 100 }
+            );
+            let assigned = 0;
+            for (const issue of issues) {
+              if (issue.pull_request) continue;
+              const match = issue.title.match(/^\[(RP-M[0-7]-\d{2})\]/);
+              if (!match) continue;
+              const milestoneKey = match[1].match(/^RP-M[0-7]/)[0];
+              const target = milestoneByKey.get(milestoneKey);
+              if (!target || issue.milestone?.number === target.number) continue;
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issue.number,
+                milestone: target.number
+              });
+              assigned += 1;
+              core.info(`Assigned #${issue.number} to ${target.title}`);
+            }
+
+            await core.summary
+              .addHeading("Readpst parity workboard")
+              .addTable([
+                [{ data: "Result", header: true }, { data: "Count", header: true }],
+                ["Milestones reconciled", String(milestoneDefinitions.length)],
+                ["Issues assigned", String(assigned)]
+              ])
+              .write();

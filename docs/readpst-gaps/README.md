@@ -28,6 +28,7 @@ This is a behaviour comparison, not a proposal to link PSTD to libpst. PSTD rema
 | Turn the gaps into implementation and fixture work | [Parity roadmap and acceptance](11-roadmap-and-acceptance.md) |
 | Locate the exact upstream code used for each observation | [Upstream source notes](12-upstream-source-notes.md) |
 | Create implementation issues and run semantic differentials | [Issue template and differential harness](13-issue-template-and-differential-harness.md) |
+| Run the dependency-aware multi-agent implementation program | [Readpst parity agent orchestrator](14-agent-orchestrator.md) |
 
 ## Planned implementation architecture
 
@@ -63,6 +64,8 @@ PST/OST bytes
 ```
 
 Every adapter consumes the envelope and evidence graph; none reparses the PST. Canonical records retain source values and statuses even when an output profile filters or cannot render them. This is the central mechanism for satisfying the readpst surface while improving on its global state, `chdir`-based traversal, unbounded embedded recursion, weak filename sanitation, and silent loss paths.
+
+The execution control plane for implementing this architecture is [the readpst parity agent orchestrator](14-agent-orchestrator.md). It defines eight delivery milestones, 28 stable work-unit keys, dependency gates, specialist sub-agent roles, branch/PR rules, and recursive documentation fan-out. GitHub issues should use those keys verbatim so implementation, fixtures, matrix rows, and agent handoffs remain traceable.
 
 ## Issue slicing rules
 
@@ -123,6 +126,6 @@ Do not promote a row from Partial to Implemented because it passes one PST. The 
 2. Build `RP-02` and `RP-03` as the parser-to-envelope boundary. This is where ANSI/Unicode/OST/encryption evidence, folder ownership, deletion visibility, and item classification become reusable inputs to all output profiles.
 3. Complete `RP-04`, `RP-05`, and `RP-06` as typed projections over that envelope. Their outputs must retain raw bytes and per-field status, so a failed header or body projection cannot erase a usable attachment or non-mail item.
 4. Add `RP-07` and `RP-08` for graphs and non-mail item classes, then use `RP-09` to project the same records into each readpst mode. `.msg` is a separate gate because `msg.cpp` writes an OLE compound document rather than a text format.
-5. Use `RP-10` and `RP-11` as the recursive documentation and release gate: every implementation or fixture change updates the matrix, source ledger, affected topic pages, current-state docs, and changelog before promotion.
+5. Use `RP-10` and `RP-11` as the recursive documentation and release gate: every implementation or fixture change updates the matrix, source ledger, affected topic pages, current-state docs, and changelog before promotion. Use [the agent orchestrator](14-agent-orchestrator.md) to dispatch the resulting work units and re-evaluate dependencies after every merge.
 
 The first implementation slice should therefore be an issue cluster, not an output-only patch: `RP-00` → `RP-02`/`RP-03` → `RP-04`/`RP-06` → `RP-05`/`RP-07`/`RP-08` → `RP-09`, with `RP-10`/`RP-11`/`RP-13` enforced throughout.

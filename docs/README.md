@@ -16,7 +16,7 @@ This documentation tree contains both current operating guidance and historical 
 | Controlled ANSI fixture generation and admission | [ANSI PST Fixture Generation](fixtures/ansi-pst-generation.md) |
 | Current extraction roadmap | [PSTD Roadmap](product/pstd-v1-roadmap.md) |
 | Documentation freshness and history policy | [Documentation Status](DOCUMENTATION_STATUS.md) |
-| readpst compatibility gaps and closure plan | [readpst parity gap register](readpst-gaps/README.md) |
+| readpst compatibility gaps, closure plan, and agent workboard | [readpst parity gap register](readpst-gaps/README.md) |
 | Architecture | [System Overview](architecture/system-overview.md) |
 | Code navigation | [Codebase Map](engineering/codebase-map.md) |
 | Developer workflow | [Developer Guide](engineering/developer-guide.md) |
