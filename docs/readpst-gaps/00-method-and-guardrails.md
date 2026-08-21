@@ -150,3 +150,13 @@ validated before parsing, and recorded with the canonical run. Unsupported outpu
 families, ambiguous type filters, unsafe attachment extensions, invalid charset names,
 and out-of-range jobs fail with explicit `RPCLI_*` statuses; filters change routing
 status without deleting source envelopes or raw evidence references.
+
+### RP-M6-03 hardening delivery
+
+The batch boundary now uses a bounded worker pool when `readpst.jobs > 1` and
+`continue_on_error` is enabled, collecting results by sorted input index so worker
+scheduling cannot reorder checkpoint or summary records. Recursive discovery rejects a
+symlink input, skips symlink directories, and fails at explicit depth/file-count bounds.
+TAR entries are validated as relative confined paths, shards are written to `.part`
+files and renamed only after the archive closes, and the canonical issue stream is
+capped by `InputLimits.max_diagnostics` with a machine-readable truncation record.

@@ -25,6 +25,9 @@ full semantic item/output corpora and hardening remain open. RP-M6-02 adds produ
 payload decoding for libpst crypt methods 1 and 2, method-2 capability readiness, and
 explicit unknown-method failures; password validation is not applicable because these
 pinned NDB methods derive their transform from the block ID.
+RP-M6-03 adds bounded batch workers, symlink-safe recursive discovery, archive path
+confinement, atomic TAR shard publication, and a diagnostic budget cap; malformed,
+resource-heavy, and unsafe filesystem cases remain explicit failures.
 
 ## Baseline
 

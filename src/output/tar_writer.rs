@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use tar::{Builder, Header};
 
 use crate::error::{PstdError, PstdResult};
-use crate::output::paths::{archive_path, archive_path_preserve_hidden};
+use crate::output::paths::{archive_path, archive_path_preserve_hidden, validate_archive_path};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ShardInfo {
@@ -21,7 +21,8 @@ pub struct TarShardWriter {
     current_index: u64,
     current_size: u64,
     current_path: PathBuf,
-    builder: Builder<File>,
+    current_temp_path: PathBuf,
+    builder: Option<Builder<File>>,
     shards: Vec<ShardInfo>,
 }
 
@@ -36,7 +37,8 @@ impl TarShardWriter {
         let prefix = prefix.into();
         let current_index = 1;
         let current_path = output_dir.join(format!("{prefix}_{current_index:06}.tar"));
-        let file = File::create(&current_path)?;
+        let current_temp_path = output_dir.join(format!("{prefix}_{current_index:06}.tar.part"));
+        let file = File::create(&current_temp_path)?;
 
         Ok(Self {
             output_dir,
@@ -45,7 +47,8 @@ impl TarShardWriter {
             current_index,
             current_size: 0,
             current_path,
-            builder: Builder::new(file),
+            current_temp_path,
+            builder: Some(Builder::new(file)),
             shards: Vec::new(),
         })
     }
@@ -63,6 +66,7 @@ impl TarShardWriter {
     }
 
     fn append_path(&mut self, path: PathBuf, bytes: &[u8]) -> PstdResult<()> {
+        validate_archive_path(&path)?;
         if self.current_size > 0
             && self.current_size.saturating_add(bytes.len() as u64) > self.target_size_bytes
         {
@@ -74,6 +78,8 @@ impl TarShardWriter {
         header.set_mode(0o644);
         header.set_cksum();
         self.builder
+            .as_mut()
+            .expect("tar builder is active")
             .append_data(&mut header, path, Cursor::new(bytes))
             .map_err(|err| PstdError::OutputWrite(err.to_string()))?;
         self.current_size = self.current_size.saturating_add(bytes.len() as u64);
@@ -82,7 +88,7 @@ impl TarShardWriter {
 
     pub fn finish(mut self) -> PstdResult<Vec<ShardInfo>> {
         self.finish_current()?;
-        Ok(self.shards)
+        Ok(std::mem::take(&mut self.shards))
     }
 
     fn rotate(&mut self) -> PstdResult<()> {
@@ -92,13 +98,22 @@ impl TarShardWriter {
         self.current_path = self
             .output_dir
             .join(format!("{}_{:06}.tar", self.prefix, self.current_index));
-        let file = File::create(&self.current_path)?;
-        self.builder = Builder::new(file);
+        self.current_temp_path = self.output_dir.join(format!(
+            "{}_{:06}.tar.part",
+            self.prefix, self.current_index
+        ));
+        let file = File::create(&self.current_temp_path)?;
+        self.builder = Some(Builder::new(file));
         Ok(())
     }
 
     fn finish_current(&mut self) -> PstdResult<()> {
-        self.builder.finish()?;
+        if let Some(mut builder) = self.builder.take() {
+            builder.finish()?;
+            let file = builder.into_inner()?;
+            drop(file);
+            fs::rename(&self.current_temp_path, &self.current_path)?;
+        }
         if !self
             .shards
             .iter()
@@ -111,5 +126,13 @@ impl TarShardWriter {
             });
         }
         Ok(())
+    }
+}
+
+impl Drop for TarShardWriter {
+    fn drop(&mut self) {
+        if self.builder.is_some() {
+            let _ = fs::remove_file(&self.current_temp_path);
+        }
     }
 }

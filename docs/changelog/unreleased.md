@@ -69,6 +69,12 @@ _Last reviewed: 21 August 2026._
 - Added canonical payload-loader integration, machine-readable decode statuses, bounded pre-decode block limits, strong known-vector evidence, repeated decode equality, and explicit unknown-method failures.
 - Promoted method-2 capability classification to `ready` when roots are safe; the controlled ANSI/OST workflow now records method-2 readiness and unknown-method unsupported evidence. The pinned NDB methods do not accept passwords, so password validation is not claimed.
 
+### RP-M6-03
+
+- Added a bounded batch worker pool with sorted result reassembly for independent continue-on-error runs, plus explicit symlink-safe and depth/file-count-bounded PST discovery.
+- Added archive path confinement and close-then-rename TAR shard publication so incomplete shards remain temporary rather than appearing as final output.
+- Enforced the diagnostic budget with an explicit `diagnostics_truncated` status and added malformed, symlink, path-safety, and one-worker/four-worker evidence.
+
 ### Product foundation
 
 - Rust `pstd` CLI with `inspect`, `extract`, `batch`, and `version` commands.

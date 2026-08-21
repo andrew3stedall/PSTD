@@ -134,6 +134,13 @@ method-2 capability readiness, unknown-method, truncated, malformed, hash, and r
 evidence are recorded. The matrix remains Partial until semantic item/output coverage is
 demonstrated for those families; #521 owns broader adversarial/resource evidence.
 
+RP-M6-03 adds the bounded hardening slice: parallel batch workers are limited by the
+validated jobs policy and results are reordered by source index; recursive discovery is
+symlink-safe and bounded; archive publication is confined and close-then-rename; and
+diagnostic amplification is capped. The matrix remains Partial because broad semantic
+family/item/output corpus coverage and final RP-M7 differential/release evidence remain
+open.
+
 ## Fixture and differential strategy
 
 Each capability needs a fixture record containing:

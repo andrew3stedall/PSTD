@@ -1,0 +1,73 @@
+name: Readpst hardening and bounded execution
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  hardening:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Run hardening evidence tests
+        run: |
+          set -euo pipefail
+          cargo fmt --check
+          cargo test --test readpst_rp_m6_03 -- --nocapture
+          cargo test --test output_contract -- --nocapture
+          cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - name: Write hardening evidence report
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pstd-hardening/evidence
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = {
+              'work_unit': 'RP-M6-03',
+              'issue': 521,
+              'source_revision': 'cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89',
+              'fixture_provenance': 'controlled malformed PST bytes, temporary symlink derivatives, and production path-unit fixtures; no private oversized PST committed',
+              'positive_cases': [
+                  'one-worker and four-worker batch runs return the same sorted item status/output inventory',
+                  'final TAR shard is readable after close-then-rename publication',
+                  'sanitized collision-safe archive paths remain relative',
+              ],
+              'negative_cases': [
+                  'symlink input rejected explicitly',
+                  'recursive symlink directory skipped',
+                  'absolute and parent archive paths rejected',
+                  'malformed PST inputs remain bounded non-authoritative results',
+              ],
+              'determinism': 'batch results are stored by source index after bounded workers complete',
+              'resource_controls': [
+                  'jobs policy 1..=64',
+                  'iterative discovery depth and file-count bounds',
+                  'InputLimits.max_diagnostics truncation status',
+                  'checked reader file/read/offset budgets',
+              ],
+              'ci_commands': [
+                  'cargo fmt --check',
+                  'cargo test --test readpst_rp_m6_03 -- --nocapture',
+                  'cargo test --test output_contract -- --nocapture',
+                  'cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments',
+              ],
+          }
+          Path('/tmp/pstd-hardening/evidence/report.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
+      - name: Upload hardening evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-hardening-evidence
+          path: /tmp/pstd-hardening
+          if-no-files-found: error
