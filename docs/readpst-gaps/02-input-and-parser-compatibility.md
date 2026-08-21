@@ -14,7 +14,7 @@
 
 ## RP-M1-01 delivery
 
-PSTD now projects a bounded `InputCapability` at the parser boundary. It classifies the libpst index types for Unicode, ANSI, and OST 2013, records crypt method and root-pointer readiness, preserves the ISO-8859-1 default charset policy, and exposes file/read/candidate/property/diagnostic/depth budgets. Unsupported families and crypt methods, short headers, invalid roots, and budget violations are explicit statuses; they do not become an empty folder tree. Inspect JSON and canonical extraction archives carry the capability record.
+PSTD now projects a bounded `InputCapability` at the parser boundary. It classifies the libpst index types for Unicode, ANSI, and OST 2013, records crypt method and root-pointer readiness, preserves the ISO-8859-1 default charset policy, and exposes file/read/candidate/property/diagnostic/depth budgets. Unsupported families and unsupported crypt methods, short headers, invalid roots, and budget violations are explicit statuses; they do not become an empty folder tree. Inspect JSON and canonical extraction archives carry the capability record.
 ## Encryption
 
 The libpst header exposes three states:
@@ -22,10 +22,10 @@ The libpst header exposes three states:
 | Mode | Upstream behaviour | PSTD status |
 |---|---|---|
 | no encryption | Read bytes normally. | **Implemented** for validated Unicode evidence. |
-| compressible encryption | Apply libpst’s fixed substitution table before interpreting data. | **Gap** |
+| compressible encryption | Apply libpst’s fixed substitution table before interpreting data. | **Partial**: bounded permute decoding is implemented for validated Unicode payload paths. |
 | “strong” encryption | Apply the fixed three-rotor transformation used by libpst. | **Gap** |
 
-PSTD currently reads the crypt-method field for diagnostics in parts of the parser but does not have a proven end-to-end decryption path. A file must not be labelled successfully extracted merely because the header can be classified.
+PSTD applies the bounded permute table for crypt method 1 in the payload reader; strong crypt and unknown methods remain explicit unsupported statuses. A file must not be labelled successfully extracted merely because the header can be classified.
 
 ## Index, node, and property behaviours
 
