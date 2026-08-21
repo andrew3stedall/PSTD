@@ -2,12 +2,11 @@ use crate::output::ids;
 use crate::output::metadata::MessageRecord;
 use crate::pst::mapi::{
     PR_CLIENT_SUBMIT_TIME, PR_CONVERSATION_INDEX, PR_CONVERSATION_TOPIC,
-    PR_CONVERSATION_TOPIC_A, PR_CREATION_TIME, PR_DELETE_AFTER_SUBMIT, PR_HASATTACH, PR_IMPORTANCE,
-    PR_INTERNET_MESSAGE_ID,
-    PR_INTERNET_MESSAGE_ID_A, PR_IN_REPLY_TO_ID, PR_IN_REPLY_TO_ID_A,
-    PR_LAST_MODIFICATION_TIME, PR_MESSAGE_CLASS, PR_MESSAGE_CLASS_A, PR_MESSAGE_DELIVERY_TIME,
-    PR_MESSAGE_FLAGS, PR_ORIGINATOR_DELIVERY_REPORT_REQUESTED, PR_PRIORITY,
-    PR_READ_RECEIPT_REQUESTED, PR_RECEIVED_BY_ADDRTYPE, PR_RECEIVED_BY_ADDRTYPE_A,
+    PR_CONVERSATION_TOPIC_A, PR_CREATION_TIME, PR_DELETE_AFTER_SUBMIT, PR_HASATTACH,
+    PR_IMPORTANCE, PR_INTERNET_MESSAGE_ID, PR_INTERNET_MESSAGE_ID_A, PR_IN_REPLY_TO_ID,
+    PR_IN_REPLY_TO_ID_A, PR_LAST_MODIFICATION_TIME, PR_MESSAGE_CLASS, PR_MESSAGE_CLASS_A,
+    PR_MESSAGE_DELIVERY_TIME, PR_MESSAGE_FLAGS, PR_ORIGINATOR_DELIVERY_REPORT_REQUESTED,
+    PR_PRIORITY, PR_READ_RECEIPT_REQUESTED, PR_RECEIVED_BY_ADDRTYPE, PR_RECEIVED_BY_ADDRTYPE_A,
     PR_RECEIVED_BY_EMAIL_ADDRESS, PR_RECEIVED_BY_EMAIL_ADDRESS_A,
     PR_RECEIVED_REPRESENTING_ADDRTYPE, PR_RECEIVED_REPRESENTING_ADDRTYPE_A,
     PR_RECEIVED_REPRESENTING_EMAIL_ADDRESS, PR_RECEIVED_REPRESENTING_EMAIL_ADDRESS_A,
@@ -55,10 +54,7 @@ pub fn message_from_properties(
     let report_controls = [
         ("read_receipt", PR_READ_RECEIPT_REQUESTED),
         ("reply_requested", PR_REPLY_REQUESTED),
-        (
-            "delivery_report",
-            PR_ORIGINATOR_DELIVERY_REPORT_REQUESTED,
-        ),
+        ("delivery_report", PR_ORIGINATOR_DELIVERY_REPORT_REQUESTED),
         ("delete_after_submit", PR_DELETE_AFTER_SUBMIT),
     ]
     .into_iter()
@@ -92,14 +88,10 @@ pub fn message_from_properties(
             PR_SENT_REPRESENTING_ADDRTYPE,
             PR_SENT_REPRESENTING_ADDRTYPE_A,
         ]),
-        received_by_email: properties.first_string_value(&[
-            PR_RECEIVED_BY_EMAIL_ADDRESS,
-            PR_RECEIVED_BY_EMAIL_ADDRESS_A,
-        ]),
-        received_by_address_type: properties.first_string_value(&[
-            PR_RECEIVED_BY_ADDRTYPE,
-            PR_RECEIVED_BY_ADDRTYPE_A,
-        ]),
+        received_by_email: properties
+            .first_string_value(&[PR_RECEIVED_BY_EMAIL_ADDRESS, PR_RECEIVED_BY_EMAIL_ADDRESS_A]),
+        received_by_address_type: properties
+            .first_string_value(&[PR_RECEIVED_BY_ADDRTYPE, PR_RECEIVED_BY_ADDRTYPE_A]),
         received_representing_email: properties.first_string_value(&[
             PR_RECEIVED_REPRESENTING_EMAIL_ADDRESS,
             PR_RECEIVED_REPRESENTING_EMAIL_ADDRESS_A,
@@ -118,8 +110,7 @@ pub fn message_from_properties(
         sensitivity: properties.string_value(PR_SENSITIVITY),
         read_receipt_requested: properties.string_value(PR_READ_RECEIPT_REQUESTED),
         reply_requested: properties.string_value(PR_REPLY_REQUESTED),
-        delivery_report_requested: properties
-            .string_value(PR_ORIGINATOR_DELIVERY_REPORT_REQUESTED),
+        delivery_report_requested: properties.string_value(PR_ORIGINATOR_DELIVERY_REPORT_REQUESTED),
         delete_after_submit: properties.string_value(PR_DELETE_AFTER_SUBMIT),
         transport_message_headers: properties
             .first_string_value(&[PR_TRANSPORT_MESSAGE_HEADERS, PR_TRANSPORT_MESSAGE_HEADERS_A]),
@@ -135,7 +126,10 @@ pub fn message_from_properties(
         metadata_status: if report_controls.is_empty() {
             "metadata_projected_without_report_controls".to_string()
         } else {
-            format!("metadata_projected; report_controls={}", report_controls.join(","))
+            format!(
+                "metadata_projected; report_controls={}",
+                report_controls.join(",")
+            )
         },
         threading_status,
         body_status: "deferred_to_m5".to_string(),
@@ -345,7 +339,9 @@ mod tests {
                 tag: PR_RECEIVED_BY_EMAIL_ADDRESS,
                 name: "received_by_email_address".to_string(),
                 raw: Vec::new(),
-                decoded: Some(MapiValue::String("/o=Exchange/ou=Example/cn=Recipients/cn=1".into())),
+                decoded: Some(MapiValue::String(
+                    "/o=Exchange/ou=Example/cn=Recipients/cn=1".into(),
+                )),
                 status: "selected".to_string(),
             },
         );
