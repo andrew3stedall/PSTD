@@ -14,6 +14,7 @@ pub mod folders;
 pub mod header;
 pub mod heap;
 pub mod inspect;
+pub mod item_envelope;
 pub mod limits;
 pub mod logical;
 pub mod mapi;
