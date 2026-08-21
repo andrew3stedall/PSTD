@@ -227,10 +227,10 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | ID | Capability | Status | Closure evidence |
 |---|---|---|---|
 | OUT-01 | Canonical structured TAR/JSONL | Implemented | Existing output contract and deterministic fixtures. |
-| OUT-02 | Default per-folder mbox | Gap | Semantic mbox reader comparison and mboxrd tests. |
-| OUT-03 | Recursive folder mbox | Gap | Folder tree and mixed-type output fixture. |
-| OUT-04 | MH/rfc822 separate files | Gap | One-file-per-item output with no mbox separator. |
-| OUT-05 | Extended `.eml` output | Partial | Generalized MIME writer and typed item extensions. |
+| OUT-02 | Default per-folder mbox | Partial | Deterministic canonical-record mbox stream, mboxrd unit evidence, and sample-PST repeat run; full semantic differential remains. |
+| OUT-03 | Recursive folder mbox | Partial | Sanitized folder tree, stable collision suffixes, explicit decisions, and sample-PST repeat run; reduced typed streams remain. |
+| OUT-04 | MH/rfc822 separate files | Partial | Folder-local numbered files with no separator and missing-body negative evidence; full corpus remains. |
+| OUT-05 | Extended `.eml` output | Partial | Header normalization/reconstruction, multipart alternative, attachment projection, and sample-PST repeat run; full MIME differential remains. |
 | OUT-06 | Separate binary attachments | Gap | Exact payload files, collisions, filters, and manifest. |
 | OUT-07 | KMail layout | Gap | KMail import/read test and safe indexes. |
 | OUT-08 | Thunderbird `.type`/`.size` sidecars | Gap | Sidecar count/status tests. |

@@ -1,6 +1,6 @@
 # CLI and output-mode parity
 
-`readpst` exposes a single command with a compact flag set. PSTD currently exposes `inspect`, `extract`, `batch`, and `version`, with structured TAR/JSONL output. The structured interface is a good foundation, but it does not yet provide an equivalent for the legacy output modes.
+`readpst` exposes a single command with a compact flag set. PSTD exposes `inspect`, `extract`, `batch`, and `version`, with structured TAR/JSONL output plus named adapter profiles. The first mailbox adapter slice is now integrated; the remaining legacy families stay explicitly partial or unsupported until their dedicated work units land.
 
 ### RP-M1-03 classification boundary
 
@@ -29,11 +29,11 @@ The mode flags are mutually exclusive in readpst. PSTD should expose equivalent 
 
 | readpst mode | Observable result | PSTD status |
 |---|---|---|
-| default | One mbox-style file per PST folder and reduced item type, with multiple messages separated by mbox `From ` lines. | **Gap** |
-| `-r` | A directory tree matching the PST folder tree; each directory contains an mbox file such as `mbox`, `calendar`, `contacts`, or `journal`. | **Gap** |
-| `-S` | A directory tree with numbered individual message files and separate binary attachment files. | **Gap** |
-| `-M` | MH/rfc822 individual message files without output extensions. | **Gap** |
-| `-e` | MH/rfc822 individual message files with extensions, normally `.eml`/`.vcf`/`.ics`. | **Partial**: EML exists, but not as a general readpst-compatible adapter. |
+| default | One mbox-style file per PST folder and reduced item type, with multiple messages separated by mbox `From ` lines. | **Partial**: `mbox` emits deterministic email streams over canonical mail records; reduced typed streams and full differential corpus remain. |
+| `-r` | A directory tree matching the PST folder tree; each directory contains an mbox file such as `mbox`, `calendar`, `contacts`, or `journal`. | **Partial**: `recursive_mbox` emits safe folder trees and explicit skipped/unavailable decisions; typed side streams remain downstream. |
+| `-S` | A directory tree with numbered individual message files and separate binary attachment files. | **Partial**: `separate` emits numbered RFC 822 files; binary attachment files are RP-M5-02. |
+| `-M` | MH/rfc822 individual message files without output extensions. | **Partial**: `mh` emits numbered files without mbox separators; full readpst corpus remains. |
+| `-e` | MH/rfc822 individual message files with extensions, normally `.eml`/`.vcf`/`.ics`. | **Partial**: `eml` emits numbered `.eml` files; typed non-mail extensions remain downstream. |
 | `-m` | The `-e` result plus `.msg` files. | **Gap** |
 | `-k` | KMail directory layout, including folder mbox names and index invalidation behaviour. | **Gap** |
 | `-u` | Thunderbird recursive mode plus `.type` per folder and `.size` counts. | **Gap** |
@@ -136,8 +136,9 @@ bounded jobs, diagnostics, collision, and overwrite settings. The canonical path
 applies the visibility/type filter to `data/items.jsonl` routing statuses while retaining
 source IDs and raw evidence references; it also records the policy in the run manifest.
 
-Legacy output names are recognized but fail closed with a stable
-`RPCLI_UNSUPPORTED_OUTPUT_PROFILE` result until their dedicated adapters are merged.
+RP-M5-01 now implements `mbox`, `recursive_mbox`, `mh`, `eml`, and `separate` as
+projections over canonical records. KMail, Thunderbird, and MSG remain fail closed with a
+stable `RPCLI_UNSUPPORTED_OUTPUT_PROFILE` result until their dedicated adapters are merged.
 Invalid item-type combinations, attachment extensions, charset names, diagnostic levels,
 collision policies, and job bounds likewise return explicit `RPCLI_*` configuration
 errors. Profile selection therefore cannot silently fall back to canonical output.

@@ -57,6 +57,14 @@ method-specific status, and raw payload hashes in the canonical record before an
 MIME or file adapter runs. Empty, unresolved, size-mismatched, and embedded-message
 payloads remain explicit statuses.
 
+RP-M5-01 now consumes this canonical body/header/attachment evidence to emit
+deterministic RFC 822/EML projections. It preserves authoritative stored headers after
+removing container-owned MIME fields, reconstructs only missing typed fields, emits a
+nested `multipart/alternative` for plain plus HTML, base64-encodes binary body/attachment
+bytes, and records an unavailable decision when no body payload can support an output. The
+profile's mbox wrapper adds mboxrd separators only for mbox modes; MH/EML/separate files
+contain no separator line.
+
 PSTD should separate:
 
 ```text
