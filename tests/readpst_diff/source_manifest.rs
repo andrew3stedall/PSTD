@@ -450,7 +450,7 @@ pub fn stable_drift_report(observed_revision: &str) -> SourceDriftReport {
             .entries
             .iter()
             .find(|entry| entry.path == anchor.path)
-            .map_or(true, |entry| !entry.symbols.contains(&anchor.symbol))
+            .is_none_or(|entry| !entry.symbols.contains(&anchor.symbol))
         {
             unresolved_work_units.push(anchor.key.to_string());
         }
@@ -533,7 +533,7 @@ impl SourceManifest {
             if !work_units.insert(anchor.key) {
                 return Err(format!("duplicate_work_unit_anchor: {}", anchor.key));
             }
-            if self.entries.iter().find(|entry| entry.path == anchor.path).map_or(true, |entry| !entry.symbols.contains(&anchor.symbol)) {
+            if self.entries.iter().find(|entry| entry.path == anchor.path).is_none_or(|entry| !entry.symbols.contains(&anchor.symbol)) {
                 return Err(format!("unresolved_work_unit_anchor: {}", anchor.key));
             }
             if anchor.issue < 497 || anchor.issue > 524 {
