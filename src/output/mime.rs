@@ -265,7 +265,7 @@ pub fn build_mime_parts(
             parts.push(part(
                 &message.message_key,
                 &ids::stable_id("mime", &[&message.message_key, "report-body"]),
-                container_key.unwrap_or(&root_key),
+                Some(container_key.unwrap_or(&root_key)),
                 next_ordinal,
                 "report_body",
                 Some("message/delivery-status".to_string()),
@@ -290,7 +290,7 @@ pub fn build_mime_parts(
             parts.push(part(
                 &message.message_key,
                 &ids::stable_id("mime", &[&message.message_key, "calendar"]),
-                container_key.unwrap_or(&root_key),
+                Some(container_key.unwrap_or(&root_key)),
                 next_ordinal,
                 "calendar",
                 Some("text/calendar".to_string()),
@@ -351,7 +351,7 @@ pub fn build_mime_parts(
             parts.push(part(
                 &message.message_key,
                 &part_key,
-                container_key.unwrap_or(&root_key),
+                Some(container_key.unwrap_or(&root_key)),
                 next_ordinal,
                 part_type,
                 media_type,
@@ -644,7 +644,13 @@ mod tests {
         let plain = text_body_payload("msg", "plain");
         let html = body_payload("msg", "html", b"<b>rich</b>".to_vec(), Some("utf-8"));
         let bodies = vec![plain.record.clone(), html.record.clone()];
-        let parts = build_mime_parts(&[message(None)], &bodies, &[plain, html], &[], &[]);
+        let parts = build_mime_parts(
+            &[message(None)],
+            &bodies,
+            &[plain.clone(), html.clone()],
+            &[],
+            &[],
+        );
         assert_eq!(parts[0].part_type, "multipart_alternative");
         assert_eq!(
             parts[0].media_type.as_deref(),
