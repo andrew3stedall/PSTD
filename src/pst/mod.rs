@@ -4,6 +4,7 @@ pub mod attachments;
 pub mod bbt;
 pub mod binary;
 pub mod block;
+pub mod capability;
 pub mod bth;
 #[path = "compatibility_m21.rs"]
 pub mod compatibility;
