@@ -158,6 +158,7 @@ pub struct ItemEnvelope {
     pub classification_confidence: String,
     pub provenance_status: String,
     pub extraction_status: String,
+    pub routing_status: String,
     pub raw_evidence_refs: Vec<String>,
 }
 
