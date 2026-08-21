@@ -59,7 +59,12 @@ fn unsupported_families_and_crypt_are_not_empty_success() {
         let capability =
             InputCapability::from_header("encrypted.pst", &header, InputLimits::default());
         assert_eq!(capability.status, InputCapabilityStatus::Unsupported);
-        assert_eq!(capability.index_status, format!("unsupported_crypt_method:{crypt_method}"));
+        let expected_index_status = if [1, 2].contains(&crypt_method) {
+            "blocked_by_crypt_method".to_string()
+        } else {
+            format!("unsupported_crypt_method:{crypt_method}")
+        };
+        assert_eq!(capability.index_status, expected_index_status);
         assert!(!capability.allows_extraction);
     }
 }
