@@ -1,3 +1,4 @@
+pub mod calendar;
 pub mod contact;
 pub mod ids;
 pub mod jsonl_writer;

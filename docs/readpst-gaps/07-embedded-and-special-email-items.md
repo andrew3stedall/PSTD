@@ -103,7 +103,7 @@ EmbeddedGraph {
 }
 ```
 
-`AttachmentRecord.embedded_message_key` and the `MetadataExtractionOutput` child payload maps are the compatibility starting points. Add `ScheduleRecord`, `ReportRecord`, and `OpaqueBodyRecord` rather than hiding them inside `MessageRecord`. `src/output/mime.rs` and typed calendar/report adapters consume graph edges; canonical JSONL/TAR stores every node and edge.
+`AttachmentRecord.embedded_message_key` and the `MetadataExtractionOutput` child payload maps are the compatibility starting points. `ScheduleRecord`, `ReportRecord`, and `OpaqueBodyRecord` remain distinct from `MessageRecord`; RP-M4-02 adds `CalendarRecord` for ordinary appointment items without replacing schedule-email `SpecialItemRecord`/MIME evidence. `src/output/mime.rs` and typed calendar/report adapters consume graph edges; canonical JSONL/TAR stores every node and edge.
 
 ### Implementation flow
 

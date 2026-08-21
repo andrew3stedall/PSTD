@@ -76,6 +76,13 @@ The exit criterion is not promoted: the pinned java-libpst corpus remains explic
 negative/partial evidence until contact-class ownership and full MAPI field groups are
 validated by PSTD.
 
+RP-M4-02 now establishes the appointment `CalendarRecord` and deterministic
+`icalendar` adapter boundary. The slice remains Partial: source-backed identity,
+class, subject, and organizer values are preserved, while dates, timezone, recurrence,
+exceptions, alarms, and categories remain explicit unavailable statuses until an
+admitted appointment-property corpus exists. A synthetic `DTSTAMP` is marked in the
+output solely to keep the projected component deterministic and parseable.
+
 ## Phase 3 — output adapters
 
 Add adapters over validated canonical records:

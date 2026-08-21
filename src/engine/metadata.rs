@@ -3,12 +3,14 @@ use std::collections::HashMap;
 use crate::eml::materialize_embedded_message_payloads;
 use crate::engine::message_folder_ownership::resolve_folder_ownership;
 use crate::error::{PstdError, PstdResult, StatusRecord};
+use crate::output::calendar::build_calendar_records;
 use crate::output::contact::build_contact_records;
 use crate::output::ids;
 use crate::output::metadata::{
-    AttachmentRecord, BodyRecord, ContactRecord, EmbeddedGraphRecord, EvidenceRecord, FolderRecord,
-    HeaderProjectionRecord, ItemEnvelope, ItemRoutingCountRecord, ManifestRecord, MessageRecord,
-    MessageReferenceRecord, MimePartRecord, RecipientRecord, SpecialItemRecord,
+    AttachmentRecord, BodyRecord, CalendarRecord, ContactRecord, EmbeddedGraphRecord,
+    EvidenceRecord, FolderRecord, HeaderProjectionRecord, ItemEnvelope, ItemRoutingCountRecord,
+    ManifestRecord, MessageRecord, MessageReferenceRecord, MimePartRecord, RecipientRecord,
+    SpecialItemRecord,
 };
 use crate::output::mime::build_mime_parts;
 use crate::output::special::build_special_items;
@@ -71,6 +73,7 @@ pub struct MetadataExtractionOutput {
     pub mime_parts: Vec<MimePartRecord>,
     pub special_items: Vec<SpecialItemRecord>,
     pub contacts: Vec<ContactRecord>,
+    pub calendars: Vec<CalendarRecord>,
     pub attachments: Vec<AttachmentRecord>,
     pub attachment_payloads: Vec<AttachmentPayload>,
     pub compatibility_triage: Vec<CompatibilityTriageRecord>,
@@ -679,6 +682,7 @@ pub fn extract_metadata(
     );
     let special_items = build_special_items(&messages, &bodies, &body_payloads);
     let contacts = build_contact_records(&messages);
+    let calendars = build_calendar_records(&messages);
 
     let items = build_item_envelopes(
         pst_id,
@@ -723,6 +727,16 @@ pub fn extract_metadata(
             "data/contacts.jsonl",
             None,
             &contact.status,
+        ));
+    }
+    for calendar in &calendars {
+        evidence.push(crate::pst::evidence::payload_record(
+            &calendar.message_key,
+            "calendar_record",
+            format!("calendar:{}", calendar.calendar_key),
+            "data/calendars.jsonl",
+            None,
+            &calendar.status,
         ));
     }
     for mime_part in &mime_parts {
@@ -833,6 +847,20 @@ pub fn extract_metadata(
             issue_count: 0,
         });
     }
+    if !calendars.is_empty() {
+        manifest.push(ManifestRecord {
+            run_id: run_id.to_string(),
+            pst_id: pst_id.to_string(),
+            message_key: None,
+            folder_key: None,
+            artefact_type: "calendars".to_string(),
+            archive_path: "data/calendars.jsonl".to_string(),
+            sha256: None,
+            size_bytes: None,
+            status: "calendar_projection_available".to_string(),
+            issue_count: 0,
+        });
+    }
 
     let folders_discovered = folders.len() as u64;
     let messages_discovered = message_table_discovery.message_candidate_count() as u64;
@@ -900,6 +928,7 @@ pub fn extract_metadata(
         mime_parts,
         special_items,
         contacts,
+        calendars,
         attachments,
         attachment_payloads,
         compatibility_triage,
@@ -1413,6 +1442,7 @@ pub fn fallback_metadata(
         mime_parts: Vec::new(),
         special_items: Vec::new(),
         contacts: Vec::new(),
+        calendars: Vec::new(),
         attachments: Vec::new(),
         attachment_payloads: Vec::new(),
         compatibility_triage: Vec::new(),

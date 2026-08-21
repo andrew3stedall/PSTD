@@ -775,6 +775,13 @@ jobs:
               'attachments_jsonl_bytes': (data / 'attachments.jsonl').stat().st_size,
               'headers_jsonl_bytes': (data / 'headers.jsonl').stat().st_size,
               'tar_bytes': tar_file.stat().st_size,
+              # run_summary.json carries wall-clock timestamps and duration;
+              # compare the stable archive payload separately from that
+              # intentionally volatile runtime metadata.
+              'stable_archive_bytes': sum(
+                  path.stat().st_size
+                  for path in (output / 'archives').glob('*.tar')
+              ),
               'output_total_bytes': sum(
                   path.stat().st_size for path in output.rglob('*') if path.is_file()
               ),
@@ -796,10 +803,16 @@ jobs:
               'attachments_jsonl_bytes': 1390,
               'headers_jsonl_bytes': 4596,
               'tar_bytes': 547840,
-              'output_total_bytes': 592888,
+              'stable_archive_bytes': 547840,
           }
-          if metrics != expected_metrics:
-              raise SystemExit(f'fixture metrics mismatch: {metrics!r}')
+          stable_metrics = {
+              key: value for key, value in metrics.items() if key != 'output_total_bytes'
+          }
+          if stable_metrics != expected_metrics:
+              raise SystemExit(
+                  f'fixture stable metrics mismatch: {stable_metrics!r}; '
+                  f'volatile output_total_bytes={metrics["output_total_bytes"]}'
+              )
           evidence.joinpath('metrics.json').write_text(
               json.dumps(metrics, indent=2, sort_keys=True) + '\n',
               encoding='utf-8',

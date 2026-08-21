@@ -97,10 +97,10 @@ coverage remains Partial.
 
 ## RP-M3-03 delivery
 
-Typed CLI policy translation is integrated into the canonical path. `canonical` is the
-implemented output profile; mbox, recursive mbox, MH, EML, separate, KMail, Thunderbird,
-vCard, contact-list, iCalendar, vJournal, and MSG names are recognized and return
-explicit unsupported results until RP-M4/RP-M5 adapters land. Visibility/type filters
+Typed CLI policy translation is integrated into the canonical path. `canonical`,
+vCard, contact-list, and the source-backed Partial `iCalendar` profile are implemented;
+mbox, recursive mbox, MH, EML, separate, KMail, Thunderbird, vJournal, and MSG names
+are recognized and return explicit unsupported results until RP-M5 adapters land. Visibility/type filters
 are applied to item routing statuses while source provenance remains present, and
 policy JSON plus repeat-run item output are deterministic. Adapter parity remains open.
 
@@ -112,6 +112,16 @@ unvalidated contact properties remain explicit partial/unavailable statuses. The
 java-libpst contact/distribution-list corpus is currently negative/partial because its
 contact classes are not yet authoritative in PSTD; the positive serializer gate is a
 provenance-labelled synthetic unit fixture. Full contact-field parity remains Partial.
+
+## RP-M4-02 delivery
+
+Appointment-class records now have a canonical `CalendarRecord` projection and a
+deterministic `icalendar` profile. Source identity, class, subject, and available
+organizer values retain evidence. Appointment dates, timezone, recurrence, exceptions,
+alarms, and categories remain explicit unavailable statuses because the current
+canonical property decoder does not yet authorize those MAPI groups. The profile uses
+only a marked synthetic `DTSTAMP` for standards-shaped deterministic output; it never
+guesses a source date. Schedule-email MIME remains RP-M3-02.
 
 ## CLI, policy, and operational behaviour
 
@@ -128,7 +138,8 @@ provenance-labelled synthetic unit fixture. Full contact-field parity remains Pa
 | CLI-09 | Item-type filter (`-t`) | Gap | Email/appointment/journal/contact filters over mixed folders. |
 | CLI-10 | Attachment extension allow-list (`-a`) | Gap | Filtered payload status and metadata retention. |
 | CLI-11 | Suppress synthetic RTF attachment (`-b`) | Partial | Adapter policy that does not erase canonical RTF evidence. |
-| CLI-12 | Contact modes (`-cv`, `-cl`) | Gap | vCard and simple contact list outputs. |
+| CLI-12 | Contact modes (`-cv`, `-cl`) | Partial | Source-backed vCard and simple contact-list profiles with explicit partial/empty status. |
+| CLI-13 | Appointment iCalendar profile | Partial | Deterministic `icalendar` profile with explicit unavailable date/recurrence status. |
 
 ## Input and parser families
 
@@ -155,8 +166,8 @@ provenance-labelled synthetic unit fixture. Full contact-field parity remains Pa
 | ITEM-04 | Deleted and associated contents | Gap | Visible/deleted/associated filtering with explicit counts. |
 | ITEM-05 | Ordinary note/email | Partial | Broader message metadata/body/attachment corpus. |
 | ITEM-06 | Schedule/meeting email | Gap | Email plus validated `text/calendar` part. |
-| ITEM-07 | Appointment/event | Gap | Typed appointment plus iCalendar output. |
-| ITEM-08 | Contact | Gap | Typed contact plus vCard/list output. |
+| ITEM-07 | Appointment/event | Partial | Typed appointment record and deterministic iCalendar profile; recurrence/date property corpus remains required. |
+| ITEM-08 | Contact | Partial | Source-backed typed contact plus deterministic vCard/list output; full MAPI contact fields remain required. |
 | ITEM-09 | Journal | Gap | Typed journal plus vJournal output. |
 | ITEM-10 | Sticky note/task/other classification | Partial | Source-class classification and explicit skip/unknown statuses are integrated; typed non-mail preservation remains RP-M4. |
 | ITEM-11 | Delivery/disposition report | Gap | Typed report and `multipart/report` output. |
@@ -212,8 +223,8 @@ provenance-labelled synthetic unit fixture. Full contact-field parity remains Pa
 | OUT-06 | Separate binary attachments | Gap | Exact payload files, collisions, filters, and manifest. |
 | OUT-07 | KMail layout | Gap | KMail import/read test and safe indexes. |
 | OUT-08 | Thunderbird `.type`/`.size` sidecars | Gap | Sidecar count/status tests. |
-| OUT-09 | vCard/list | Gap | Contact output round trips. |
-| OUT-10 | vCalendar/vJournal | Gap | Calendar/journal parser and recurrence tests. |
+| OUT-09 | vCard/list | Partial | Source-backed contact output and explicit partial/empty profile evidence; full field round trips remain required. |
+| OUT-10 | vCalendar/vJournal | Partial | Deterministic appointment iCalendar profile with explicit missing recurrence/date status; vJournal remains open. |
 | OUT-11 | `.msg` writer | Gap | OLE MSG round-trip and property/recipient/attachment tests. |
 
 ## Matrix rule

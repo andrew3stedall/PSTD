@@ -24,6 +24,11 @@ _Last reviewed: 21 August 2026._
 - Added canonical contact records plus deterministic vCard and contact-list projections over source-backed fields.
 - Preserved explicit partial/unavailable contact status and evidence when the admitted corpus cannot authorize contact classes.
 
+### RP-M4-02
+
+- Added canonical appointment `CalendarRecord` values and a deterministic `icalendar` profile.
+- Preserved explicit missing date/timezone/recurrence/exception/alarm statuses and marked the synthetic iCalendar `DTSTAMP`.
+
 ### Product foundation
 
 - Rust `pstd` CLI with `inspect`, `extract`, `batch`, and `version` commands.
