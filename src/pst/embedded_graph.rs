@@ -278,9 +278,11 @@ mod tests {
         for index in 0..=MAX_EMBEDDED_DEPTH + 1 {
             adjacency.insert(
                 format!("m{index}"),
-                (index < MAX_EMBEDDED_DEPTH + 1)
-                    .then(|| vec![format!("m{}", index + 1)])
-                    .unwrap_or_default(),
+                if index < MAX_EMBEDDED_DEPTH + 1 {
+                    vec![format!("m{}", index + 1)]
+                } else {
+                    Vec::new()
+                },
             );
         }
         let keys = (0..=MAX_EMBEDDED_DEPTH + 1)
