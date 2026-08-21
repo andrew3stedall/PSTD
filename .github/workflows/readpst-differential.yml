@@ -30,7 +30,7 @@ jobs:
           git -C /tmp/libpst checkout --detach FETCH_HEAD
           cd /tmp/libpst
           autoreconf -fi
-          ./configure
+          ./configure --enable-python=no
           make -j2
           readpst_bin=$(find /tmp/libpst -type f -name readpst -perm -111 | sort | head -n 1)
           test -n "$readpst_bin"
