@@ -394,6 +394,35 @@ jobs:
               raise SystemExit('item envelope routing status is missing')
           if any('message_class' not in message for message in messages):
               raise SystemExit('message class evidence field is missing')
+          metadata_fields = (
+              'sent_representing_email',
+              'received_by_email',
+              'received_by_address_type',
+              'sent_at',
+              'received_at',
+              'created_at',
+              'modified_at',
+              'importance',
+              'message_flags',
+              'priority',
+              'sensitivity',
+              'read_receipt_requested',
+              'reply_requested',
+              'delivery_report_requested',
+              'delete_after_submit',
+          )
+          if any(
+              field not in message
+              for message in messages
+              for field in metadata_fields
+          ):
+              raise SystemExit('complete metadata projection fields are missing')
+          if any(
+              message['sender_email'] is not None
+              and message['sender_raw_address'] != message['sender_email']
+              for message in messages
+          ):
+              raise SystemExit('native sender address evidence was rewritten')
           if not evidence_records:
               raise SystemExit('canonical evidence graph is empty')
           if len({row['evidence_key'] for row in evidence_records}) != len(evidence_records):

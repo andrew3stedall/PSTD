@@ -31,14 +31,30 @@ pub const PR_SENDER_ADDRTYPE: u32 = 0x0c1e_001f;
 pub const PR_SENDER_ADDRTYPE_A: u32 = 0x0c1e_001e;
 pub const PR_SENT_REPRESENTING_EMAIL_ADDRESS: u32 = 0x0065_001f;
 pub const PR_SENT_REPRESENTING_EMAIL_ADDRESS_A: u32 = 0x0065_001e;
+pub const PR_SENT_REPRESENTING_ADDRTYPE: u32 = 0x0064_001f;
+pub const PR_SENT_REPRESENTING_ADDRTYPE_A: u32 = 0x0064_001e;
+pub const PR_RECEIVED_BY_ADDRTYPE: u32 = 0x0075_001f;
+pub const PR_RECEIVED_BY_ADDRTYPE_A: u32 = 0x0075_001e;
+pub const PR_RECEIVED_BY_EMAIL_ADDRESS: u32 = 0x0076_001f;
+pub const PR_RECEIVED_BY_EMAIL_ADDRESS_A: u32 = 0x0076_001e;
+pub const PR_RECEIVED_REPRESENTING_ADDRTYPE: u32 = 0x0077_001f;
+pub const PR_RECEIVED_REPRESENTING_ADDRTYPE_A: u32 = 0x0077_001e;
+pub const PR_RECEIVED_REPRESENTING_EMAIL_ADDRESS: u32 = 0x0078_001f;
+pub const PR_RECEIVED_REPRESENTING_EMAIL_ADDRESS_A: u32 = 0x0078_001e;
 pub const PR_CLIENT_SUBMIT_TIME: u32 = 0x0039_0040;
 pub const PR_MESSAGE_DELIVERY_TIME: u32 = 0x0e06_0040;
 pub const PR_CREATION_TIME: u32 = 0x3007_0040;
 pub const PR_LAST_MODIFICATION_TIME: u32 = 0x3008_0040;
 pub const PR_IMPORTANCE: u32 = 0x0017_0003;
+pub const PR_PRIORITY: u32 = 0x0026_0003;
+pub const PR_SENSITIVITY: u32 = 0x0036_0003;
 pub const PR_MESSAGE_FLAGS: u32 = 0x0e07_0003;
 pub const PR_MESSAGE_SIZE: u32 = 0x0e08_0003;
 pub const PR_HASATTACH: u32 = 0x0e1b_000b;
+pub const PR_DELETE_AFTER_SUBMIT: u32 = 0x0e01_000b;
+pub const PR_ORIGINATOR_DELIVERY_REPORT_REQUESTED: u32 = 0x0023_000b;
+pub const PR_READ_RECEIPT_REQUESTED: u32 = 0x0029_000b;
+pub const PR_REPLY_REQUESTED: u32 = 0x0c17_000b;
 pub const PR_DISPLAY_NAME: u32 = 0x3001_001f;
 pub const PR_DISPLAY_NAME_A: u32 = 0x3001_001e;
 pub const PR_CONTENT_COUNT: u32 = 0x3602_0003;
@@ -135,6 +151,31 @@ pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
         value_type: MapiValueType::String,
     },
     MapiPropertyDef {
+        tag: PR_SENT_REPRESENTING_ADDRTYPE,
+        name: "sent_representing_address_type",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_RECEIVED_BY_ADDRTYPE,
+        name: "received_by_address_type",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_RECEIVED_BY_EMAIL_ADDRESS,
+        name: "received_by_email_address",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_RECEIVED_REPRESENTING_ADDRTYPE,
+        name: "received_representing_address_type",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_RECEIVED_REPRESENTING_EMAIL_ADDRESS,
+        name: "received_representing_email_address",
+        value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
         tag: PR_CLIENT_SUBMIT_TIME,
         name: "sent_at",
         value_type: MapiValueType::FileTime,
@@ -160,6 +201,16 @@ pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
         value_type: MapiValueType::Integer32,
     },
     MapiPropertyDef {
+        tag: PR_PRIORITY,
+        name: "priority",
+        value_type: MapiValueType::Integer32,
+    },
+    MapiPropertyDef {
+        tag: PR_SENSITIVITY,
+        name: "sensitivity",
+        value_type: MapiValueType::Integer32,
+    },
+    MapiPropertyDef {
         tag: PR_MESSAGE_FLAGS,
         name: "message_flags",
         value_type: MapiValueType::Integer32,
@@ -172,6 +223,26 @@ pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
     MapiPropertyDef {
         tag: PR_HASATTACH,
         name: "has_attachments",
+        value_type: MapiValueType::Boolean,
+    },
+    MapiPropertyDef {
+        tag: PR_DELETE_AFTER_SUBMIT,
+        name: "delete_after_submit",
+        value_type: MapiValueType::Boolean,
+    },
+    MapiPropertyDef {
+        tag: PR_ORIGINATOR_DELIVERY_REPORT_REQUESTED,
+        name: "delivery_report_requested",
+        value_type: MapiValueType::Boolean,
+    },
+    MapiPropertyDef {
+        tag: PR_READ_RECEIPT_REQUESTED,
+        name: "read_receipt_requested",
+        value_type: MapiValueType::Boolean,
+    },
+    MapiPropertyDef {
+        tag: PR_REPLY_REQUESTED,
+        name: "reply_requested",
         value_type: MapiValueType::Boolean,
     },
     MapiPropertyDef {
@@ -350,6 +421,11 @@ fn string8_property_def(tag: u32) -> Option<MapiPropertyDef> {
         PR_SENDER_EMAIL_ADDRESS_A => "sender_email_address",
         PR_SENDER_ADDRTYPE_A => "sender_address_type",
         PR_SENT_REPRESENTING_EMAIL_ADDRESS_A => "sent_representing_email_address",
+        PR_SENT_REPRESENTING_ADDRTYPE_A => "sent_representing_address_type",
+        PR_RECEIVED_BY_ADDRTYPE_A => "received_by_address_type",
+        PR_RECEIVED_BY_EMAIL_ADDRESS_A => "received_by_email_address",
+        PR_RECEIVED_REPRESENTING_ADDRTYPE_A => "received_representing_address_type",
+        PR_RECEIVED_REPRESENTING_EMAIL_ADDRESS_A => "received_representing_email_address",
         PR_DISPLAY_NAME_A => "display_name",
         PR_TRANSPORT_MESSAGE_HEADERS_A => "transport_message_headers",
         PR_INTERNET_MESSAGE_ID_A => "internet_message_id",
