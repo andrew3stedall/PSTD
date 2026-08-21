@@ -134,6 +134,16 @@ Normalization rules:
 7. Run the malformed/ambiguous derivative and assert bounded failure, no path escape, no silent success, and retained raw evidence where available.
 8. Store a compact comparison report and link it from the issue/fixture manifest. Do not commit private PST payloads or unreviewed tool output.
 
+## RP-M7-02 E4 report
+
+The pinned differential workflow has now run the real readpst oracle at revision
+`cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89` against the approved Unicode Tika fixture.
+Run `32512518536` passed all 18 harness tests and uploaded artifact `9457584897`.
+The run is executable E2/Partial differential evidence and proves the runner's
+negative, isolation, path, timeout, output-limit, and repeat-run controls. It is not a
+release-wide E4 pass: the exact profile/input admissibility table and blocker list are
+in [`rp-m7-02-e4-report.md`](rp-m7-02-e4-report.md), and no missing corpus is inferred.
+
 ## Planned implementation — `RP-13`
 
 ### Harness modules

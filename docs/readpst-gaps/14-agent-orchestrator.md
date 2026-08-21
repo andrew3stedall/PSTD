@@ -399,4 +399,12 @@ It records 2 Implemented, 54 Partial, and 19 Gap rows and does not make a full-p
 claim. RP-M7-02 must run its E4 differential against this exact baseline; RP-M7-03 must
 publish the final decision and name every unresolved row before the global issue closes.
 
+### RP-M7-02 differential checkpoint
+
+The pinned differential workflow passed run `32512518536` (18 tests; artifact
+`9457584897`) against the approved Unicode fixture. The resulting report is
+[`rp-m7-02-e4-report.md`](rp-m7-02-e4-report.md). It proves the executable E2/Partial
+oracle and safety controls, while recording why release-wide E4 is not proven for the
+remaining profiles and input families.
+
 The global orchestration issue should remain open until this checklist is either complete or replaced by an explicitly approved release decision that names every unresolved plan ID.

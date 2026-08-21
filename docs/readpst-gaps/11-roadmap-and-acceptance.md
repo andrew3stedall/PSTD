@@ -150,6 +150,15 @@ and 19 Gap rows. The 19 Gap rows are listed in `10-parity-matrix.md`; none is si
 reclassified as an upstream skip. The review packet is conservative and is the required
 baseline for the E4 differential report and final release decision.
 
+## RP-M7-02 differential delivery
+
+The pinned readpst/PSTD runner passes the approved Unicode differential and its
+malformed, ambiguous, path, timeout, output-limit, and repeatability tests. The E4
+release report records the real oracle run, all eight regression-profile dispositions,
+and the admissibility blockers. Because only one approved fixture currently supports a
+full pinned semantic pair, the report is E2/Partial evidence and the release-wide E4
+claim remains not proven.
+
 ## Fixture and differential strategy
 
 Each capability needs a fixture record containing:

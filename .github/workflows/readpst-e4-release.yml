@@ -1,0 +1,69 @@
+name: Readpst E4 release gate evidence
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  e4-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run differential contract gates
+        run: |
+          set -euo pipefail
+          cargo test --test readpst_diff_contract -- --nocapture
+          cargo test --test readpst_diff_runner -- --nocapture
+      - name: Write E4 release evidence report
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pstd-e4-release/evidence
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = {
+              'work_unit': 'RP-M7-02',
+              'issue': 523,
+              'reviewed_main_baseline': 'e55aae0816c5abace079c81aa4dcfca26c1003a3',
+              'readpst_source_revision': 'cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89',
+              'overall_e4_claim': 'not_proven',
+              'matrix_counts': {'implemented': 2, 'partial': 54, 'gap': 19},
+              'pinned_differential': {
+                  'workflow_run': 32512518536,
+                  'job': 96866688030,
+                  'artifact_id': 9457584897,
+                  'readpst_version': 'ReadPST / LibPST v0.6.76',
+                  'fixture_id': 'unicode_tika_testpst',
+                  'fixture_sha256': 'f2a6b1d2cad00f574e3d1c1211c4b1c854d6526caea77213adc3da92b7813ae3',
+                  'tests_passed': 18,
+              },
+              'profile_status': {
+                  'default': 'e2_differential_partial',
+                  'separate': 'e4_unavailable_admissible_corpus_missing',
+                  'recursive': 'e4_unavailable_admissible_corpus_missing',
+                  'mh': 'e4_unavailable_admissible_corpus_missing',
+                  'kmail': 'e4_unavailable_admissible_corpus_missing',
+                  'thunderbird': 'e4_unavailable_import_compatibility_missing',
+                  'debug': 'operational_evidence_not_semantic_parity',
+                  'valgrind_resource': 'bounded_rust_evidence_no_upstream_valgrind_dependency',
+              },
+              'determinism': 'two isolated normalized runs must compare byte-identically; worker equality is covered by RP-M6 hardening evidence',
+              'negative_evidence': ['malformed', 'ambiguous', 'unsupported', 'unsafe_path', 'timeout', 'output_limit', 'symlink'],
+              'release_blocker': '19 Gap and 54 Partial rows remain; RP-M7-03 must publish the final decision',
+          }
+          Path('/tmp/pstd-e4-release/evidence/report.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
+      - name: Upload E4 release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-e4-release-evidence
+          path: /tmp/pstd-e4-release
+          if-no-files-found: error

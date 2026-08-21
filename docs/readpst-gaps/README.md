@@ -164,6 +164,11 @@ RP-M7-01 has completed the conservative matrix promotion review on main commit
 owns the final compatibility decision. The project must not claim full readpst parity
 while those rows remain unresolved.
 
+RP-M7-02 has now run the pinned readpst oracle against the approved Unicode fixture.
+Run `32512518536` passed the 18-test harness and uploaded artifact `9457584897`; the
+result is E2/Partial differential evidence with explicit profile/input admissibility
+blockers in [`rp-m7-02-e4-report.md`](rp-m7-02-e4-report.md), not a release-wide E4 pass.
+
 ## Maintenance rule
 
 When a gap is implemented, update the matrix, the relevant topic document, the current-state project documentation, and the fixture evidence. Every row must retain:

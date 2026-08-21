@@ -23,6 +23,7 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | External PST implementations | Comparison-only tooling | Pinned external tools may generate or independently inventory controlled fixtures, but PSTD acceptance must come from its own Rust implementation and exact deterministic output. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
 | Readpst parity release gate | RP-M7-01 complete; RP-M7-02 and RP-M7-03 open | Main `57fbcaf1a83e2ddc79fff300be812a23cc66bb53` has 2 Implemented, 54 Partial, and 19 Gap rows. No full-parity claim is permitted until the differential report and final decision are published. |
+| Pinned semantic differential | RP-M7-02 evidence collected | Run `32512518536` passed the 18-test readpst/PSTD harness for the approved Unicode fixture; release-wide E4 remains not proven because admissible profile/input corpus coverage is incomplete. |
 
 ## Exact Tika baseline
 
