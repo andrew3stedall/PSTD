@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use super::manifest::READPST_SOURCE_REVISION;
 
 pub const UPSTREAM_REPOSITORY: &str = "pst-format/libpst";
-pub const UPSTREAM_TREE_URL: &str = "https://github.com/pst-format/libpst/tree/";
+pub const UPSTREAM_BLOB_URL: &str = "https://github.com/pst-format/libpst/blob/";
 pub const LICENSE_BOUNDARY_NOTE: &str =
     "The upstream GPL source is an oracle and review source only; no implementation is copied into PSTD.";
 
@@ -174,6 +174,7 @@ const REGRESSION_SYMBOLS: &[&str] = &[
     "valgrind/size gates",
 ];
 const NEWS_SYMBOLS: &[&str] = &[
+    "release notes",
     "encryption type 2",
     "OST 2013",
     "Content-ID",
@@ -411,7 +412,7 @@ pub fn source_manifest() -> SourceManifest {
 pub fn source_url(path: &str, line_ref: &str) -> String {
     format!(
         "{}{}/{}{}",
-        UPSTREAM_TREE_URL, READPST_SOURCE_REVISION, path, line_ref
+        UPSTREAM_BLOB_URL, READPST_SOURCE_REVISION, path, line_ref
     )
 }
 
