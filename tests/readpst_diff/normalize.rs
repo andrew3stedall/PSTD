@@ -328,7 +328,7 @@ fn parse_headers(bytes: &[u8]) -> BTreeMap<String, String> {
     let mut fields = BTreeMap::new();
     let mut current_name = None::<String>;
     for line in text.lines() {
-        if line.starts_with(char::is_whitespace) {
+        if line.chars().next().is_some_and(char::is_whitespace) {
             if let Some(name) = &current_name {
                 if let Some(value) = fields.get_mut(name) {
                     value.push(' ');
