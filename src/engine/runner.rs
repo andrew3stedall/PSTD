@@ -9,6 +9,7 @@ use crate::error::{PstdError, PstdResult};
 use crate::output::ids;
 use crate::output::jsonl_writer::JsonlBuffer;
 use crate::output::metadata::MessageRecord;
+use crate::output::contact::{serialize_contact_list, serialize_vcards};
 use crate::output::summary::ExtractionSummary;
 use crate::output::tar_writer::TarShardWriter;
 use crate::progress::{ProgressEvent, ProgressEventType};
@@ -108,6 +109,11 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     for record in &metadata.special_items {
         special_items.write_record(record)?;
     }
+    let mut contacts = JsonlBuffer::new();
+    for record in &metadata.contacts {
+        contacts.write_record(record)?;
+    }
+    let contacts_jsonl = contacts.into_bytes();
     let mut attachments = JsonlBuffer::new();
     for record in &metadata.attachments {
         attachments.write_record(record)?;
@@ -185,6 +191,37 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         &["data", "special_items.jsonl"],
         &special_items.into_bytes(),
     )?;
+    if !metadata.contacts.is_empty() {
+        tar.append_bytes(&["data", "contacts.jsonl"], &contacts_jsonl)?;
+    }
+    let contact_profile = match config.readpst.output_profile {
+        crate::config::OutputProfile::Vcard => Some((
+            "vcard",
+            "outputs/contacts.vcf",
+            serialize_vcards(&metadata.contacts),
+        )),
+        crate::config::OutputProfile::ContactList => Some((
+            "contact_list",
+            "outputs/contacts.txt",
+            serialize_contact_list(&metadata.contacts),
+        )),
+        _ => None,
+    };
+    if let Some((profile, archive_path, output)) = contact_profile {
+        tar.append_bytes(
+            &["outputs", "contact-profile-status.json"],
+            &serde_json::to_vec_pretty(&serde_json::json!({
+                "profile": profile,
+                "record_count": metadata.contacts.len(),
+                "status": if metadata.contacts.is_empty() {
+                    "contact_records_unavailable"
+                } else {
+                    "contact_projection_available"
+                },
+            }))?,
+        )?;
+        tar.append_bytes(&archive_path.split('/').collect::<Vec<_>>(), output.as_bytes())?;
+    }
     tar.append_bytes(&["data", "attachments.jsonl"], &attachments.into_bytes())?;
     tar.append_bytes(
         &["data", "compatibility_triage.jsonl"],

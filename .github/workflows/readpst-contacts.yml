@@ -1,0 +1,84 @@
+name: Readpst contact outputs
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  contacts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test contact
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Verify typed contact profiles and explicit empty evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/upstream/java-libpst-dist-list.pst"
+          fixture_sha256="c86841da106036b5abe5a2141dc7644cbb2bf8b504873515eb35a2efeb8c28ac"
+          evidence="/tmp/pstd-contacts"
+          output="/tmp/pstd-contacts-output"
+          mkdir -p "$evidence" "$output"
+          (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
+
+          cargo run -- extract \
+            --input "$fixture" \
+            --output "$output" \
+            --output-profile vcard \
+            --overwrite > "$evidence/stdout.txt" 2> "$evidence/stderr.txt"
+          tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+          tar -xf "$tar_file" -C "$evidence"
+          test -f "$evidence/outputs/contact-profile-status.json"
+          test -f "$evidence/outputs/contacts.vcf"
+
+          cargo run -- extract \
+            --input "$fixture" \
+            --output "$output/contact-list" \
+            --output-profile contact-list \
+            --overwrite > "$evidence/list-stdout.txt" 2> "$evidence/list-stderr.txt"
+          list_tar=$(find "$output/contact-list/archives" -type f -name '*.tar' | sort | head -n 1)
+          mkdir -p "$evidence/contact-list"
+          tar -xf "$list_tar" -C "$evidence/contact-list"
+          test -f "$evidence/contact-list/outputs/contact-profile-status.json"
+          test -f "$evidence/contact-list/outputs/contacts.txt"
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          evidence = Path('/tmp/pstd-contacts')
+          status = json.loads((evidence / 'outputs/contact-profile-status.json').read_text())
+          assert status['profile'] == 'vcard'
+          assert status['status'] in {'contact_projection_available', 'contact_records_unavailable'}
+          assert (evidence / 'outputs/contacts.vcf').read_text().count('BEGIN:VCARD') == status['record_count']
+          list_status = json.loads(
+              (evidence / 'contact-list/outputs/contact-profile-status.json').read_text()
+          )
+          assert list_status['profile'] == 'contact_list'
+          assert list_status['record_count'] == status['record_count']
+          assert Path('/tmp/pstd-contacts/outputs/contacts.vcf').read_bytes() == b'' or status['record_count'] > 0
+          Path('/tmp/pstd-contacts/contact-report.json').write_text(
+              json.dumps({
+                  'fixture': 'tests/fixtures/upstream/java-libpst-dist-list.pst',
+                  'fixture_sha256': 'c86841da106036b5abe5a2141dc7644cbb2bf8b504873515eb35a2efeb8c28ac',
+                  'vcard_profile': 'implemented',
+                  'contact_list_profile': 'implemented',
+                  'record_count': status['record_count'],
+                  'empty_or_partial_status_is_explicit': True,
+                  'unit_fixture_provenance': 'synthetic MessageRecord with source-node evidence in src/output/contact.rs',
+              }, indent=2) + '\n'
+          )
+          PY
+      - name: Upload contact evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-contact-evidence
+          path: /tmp/pstd-contacts
+          if-no-files-found: error

@@ -4,5 +4,6 @@ pub mod metadata;
 pub mod mime;
 pub mod paths;
 pub mod special;
+pub mod contact;
 pub mod summary;
 pub mod tar_writer;

@@ -18,6 +18,24 @@ With `-cv`, readpst emits RFC 2426-style vCards. The upstream writer covers a br
 
 With `-cl`, it emits a simple `fullname <address>` line. PSTD currently has no typed contact record or contact adapter.
 
+## RP-M4-01 delivery
+
+The canonical path now projects validated `IPM.Contact` and distribution-list class
+records into deterministic `ContactRecord` values. The first evidence-safe field set
+uses only source-backed name, address, and address-type values already present in the
+message record; unavailable contact fields remain null and the record carries an
+explicit partial/unavailable status plus raw evidence references. The vCard serializer
+emits stable RFC 2426-style `VERSION:3.0` cards with escaped values and PSTD status
+extensions. The contact-list serializer emits the same records as
+`fullname <address>` lines. Unsupported profiles and absent contact properties do
+not become ordinary email output.
+
+The repository java-libpst distribution-list fixture is retained as a negative/partial
+corpus because PSTD does not yet validate its contact message classes. Positive
+serializer evidence uses a synthetic `MessageRecord` unit fixture whose provenance is
+declared in `src/output/contact.rs`; broader MAPI contact-property coverage remains
+open for a dedicated admitted fixture.
+
 ### Required PSTD model
 
 ```text

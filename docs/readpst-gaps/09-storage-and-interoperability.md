@@ -123,6 +123,12 @@ roots remain explicit, collision/overwrite choices are serialized, job counts ar
 bounded, and repeated canonical runs preserve identical policy and item JSONL. Named
 legacy profiles are parsed for workboard traceability but produce an explicit
 unsupported status rather than writing a misleading canonical or adapter output.
+
+RP-M4-01 adds `vcard` and `contact_list` as the first implemented named output
+profiles. They consume `ContactRecord` values from canonical extraction, publish
+deterministic `contacts.vcf`/`contacts.txt` projections, and emit an explicit
+profile-status record when the source contains no validated contacts. No contact
+profile reparses PST bytes or promotes missing contact fields.
 # RP-M2-03 delivery
 
 Canonical attachment output now records method/source, order, CID, original and safe
