@@ -1,9 +1,8 @@
-use std::path::{Component, Path};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::path::{Component, Path};
 
-pub const READPST_SOURCE_REVISION: &str =
-    "cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89";
+pub const READPST_SOURCE_REVISION: &str = "cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -360,7 +359,9 @@ pub fn approved_unicode_baseline_report() -> EvidenceReport {
                 expected: EvidenceStatus::Present,
                 observed: EvidenceStatus::Present,
                 reason_code: "approved_unicode_baseline".to_string(),
-                detail: Some("Existing deterministic PSTD canonical extraction baseline.".to_string()),
+                detail: Some(
+                    "Existing deterministic PSTD canonical extraction baseline.".to_string(),
+                ),
             },
             OutcomeRecord {
                 case_id: "unicode_tika_embedded_child".to_string(),
@@ -393,7 +394,9 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 
 fn validate_sha256(field: &str, value: &str) -> Result<(), String> {
     if value.len() != 64 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-        return Err(format!("{field} must be a 64-character hexadecimal SHA-256"));
+        return Err(format!(
+            "{field} must be a 64-character hexadecimal SHA-256"
+        ));
     }
     Ok(())
 }
@@ -407,7 +410,10 @@ fn validate_relative_path(field: &str, value: &str) -> Result<(), String> {
         return Err(format!("{field} must be relative"));
     }
     if path.components().any(|component| {
-        matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_))
+        matches!(
+            component,
+            Component::ParentDir | Component::RootDir | Component::Prefix(_)
+        )
     }) {
         return Err(format!("{field} must not contain traversal components"));
     }
