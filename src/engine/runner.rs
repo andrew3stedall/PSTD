@@ -305,6 +305,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         &metadata.body_payloads,
         &metadata.attachments,
         &metadata.attachment_payloads,
+        &config.readpst.attachment_extensions,
     ) {
         tar.append_bytes(
             &[

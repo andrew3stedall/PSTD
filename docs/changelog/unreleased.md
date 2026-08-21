@@ -38,7 +38,12 @@ _Last reviewed: 21 August 2026._
 
 - Added production mailbox projections over canonical records for default mbox, recursive mbox, MH/rfc822, extended EML, and separate numbered message files.
 - Added deterministic mboxrd escaping, MIME-header normalization/reconstruction, nested plain/HTML alternatives, binary attachment projection, path-safe folder collision handling, per-message negative decisions, output hashes, and an adapter manifest.
-- Kept KMail, Thunderbird sidecars, separate binary attachment files/extension filters, and MSG explicitly downstream rather than silently treating them as complete.
+
+### RP-M5-02
+
+- Added separate binary attachment publication over canonical payload evidence, normalized case-insensitive extension filters, collision-safe `<message-file>-<filename>` names, and explicit filtered, embedded, unavailable, and zero-length decisions.
+- Added a deterministic KMail `.<folder>.directory/<folder>.mbox` profile with explicit parent-index invalidation policy and no mutable index output.
+- Added repeated-profile, path-safety, positive payload, and negative attachment/KMail evidence workflow coverage; Thunderbird sidecars and MSG remain downstream.
 
 ### Product foundation
 

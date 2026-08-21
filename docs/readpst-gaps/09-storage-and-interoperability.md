@@ -11,7 +11,7 @@ PSTD’s TAR/JSONL archive is the correct canonical evidence boundary for the pr
 | MH/rfc822 (`-M`) | One message per numbered file, no separator line. | **Partial** | `mh` emits folder-local numbered files with no mbox separator. |
 | separate with extensions (`-e`) | Numbered `.eml`, `.vcf`, and `.ics` files. | **Partial** | `eml` emits numbered `.eml`; contact/calendar/journal extensions are covered by their named profiles and broader combination tests remain. |
 | separate with MSG (`-m`) | Extended separate output plus `.msg`. | **Gap** | Provide a tested MSG writer or clearly scoped equivalent; do not generate a mislabeled EML. |
-| KMail (`-k`) | `.folder.directory` layout and mbox files suitable for KMail. | **Gap** | Add a KMail adapter with safe folder names and documented index behaviour. |
+| KMail (`-k`) | `.folder.directory` layout and mbox files suitable for KMail. | **Partial** | `kmail` emits safe `.<folder>.directory/<folder>.mbox` entries and an explicit index-invalidation policy; import/read compatibility remains. |
 | Thunderbird (`-u`) | Recursive output plus `.type` and `.size` files per folder. | **Gap** | Emit the two sidecars from canonical counts and preserve skipped/unavailable counts separately. |
 
 ## EML and MIME compatibility
@@ -145,6 +145,16 @@ TAR. Paths are sanitized relative paths with stable folder collision suffixes. C
 serialization is performed before archive publication, so a failed or unavailable message
 does not leave a partial direct output file. This slice is Partial until the pinned
 readpst differential corpus and downstream attachment/KMail/Thunderbird gates pass.
+The attachment/KMail portion of that downstream boundary is now covered by RP-M5-02;
+the remaining promotion work is differential and broad-corpus validation.
+
+RP-M5-02 extends the same projection with separate binary attachment files and KMail.
+The separate profile follows readpst’s `<message-file>-<filename>` shape, prefers the
+canonical safe filename, applies the normalized `-a` allow-list, and records filtered,
+embedded, unavailable, unsafe, and zero-length decisions without publishing empty or
+guessed payloads. KMail emits `.<folder>.directory/<folder>.mbox` paths and records that
+the mutable parent index is logically invalidated; it does not emit an index file. The
+attachment/KMail workflow proves repeated output equality and archive path safety.
 # RP-M2-03 delivery
 
 Canonical attachment output now records method/source, order, CID, original and safe

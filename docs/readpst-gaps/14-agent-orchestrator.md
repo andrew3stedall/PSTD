@@ -219,8 +219,10 @@ RP-M5-01 is integrated on the canonical runner as the first mailbox adapter fami
 recipient/attachment evidence without reopening PST bytes. The adapter records mbox
 separator versus message-file semantics, sanitized folder paths, stable collision suffixes,
 per-message unavailable/skipped decisions, output hashes, and a mailbox manifest. The
-sample-PST workflow proves repeat-run equality; full pinned readpst differential promotion,
-binary attachment files, KMail, Thunderbird, and MSG remain downstream work.
+sample-PST workflow proves repeat-run equality. RP-M5-02 adds separate resolved binary
+attachment files, normalized extension-filter decisions, and a safe KMail
+`.<folder>.directory/<folder>.mbox` projection with explicit index policy. Full pinned
+readpst differential promotion, Thunderbird, and MSG remain downstream work.
 
 ### `RP-M6 — Input breadth and hardening`
 

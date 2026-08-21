@@ -1,6 +1,6 @@
 # CLI and output-mode parity
 
-`readpst` exposes a single command with a compact flag set. PSTD exposes `inspect`, `extract`, `batch`, and `version`, with structured TAR/JSONL output plus named adapter profiles. The first mailbox adapter slice is now integrated; the remaining legacy families stay explicitly partial or unsupported until their dedicated work units land.
+`readpst` exposes a single command with a compact flag set. PSTD exposes `inspect`, `extract`, `batch`, and `version`, with structured TAR/JSONL output plus named adapter profiles. The mailbox and attachment/KMail slices are now integrated; the remaining legacy families stay explicitly partial or unsupported until their dedicated work units land.
 
 ### RP-M1-03 classification boundary
 
@@ -19,7 +19,7 @@ The canonical item stream now has an immutable routing policy that distinguishes
 | `-8` | Prefer UTF-8 bodies when an UTF-8 version exists. | **Partial** | Add explicit body-selection policy rather than always assuming UTF-8; preserve original bytes when conversion is lossy or unavailable. |
 | `-D` | Include deleted items. | **Gap** | Traverse and emit deleted content by default-excluded policy, with source flags and a deterministic include option. |
 | `-t[eajc]` | Filter output to email, appointment, journal, and contact classes. | **Gap** | Add typed item filtering at extraction and output-adapter layers without hiding skipped counts. |
-| `-a <exts>` | Keep only attachments whose filename extension is in a comma-separated allow-list. | **Gap** | Implement case-insensitive extension filtering while retaining metadata records for filtered attachments and an explicit status. |
+| `-a <exts>` | Keep only attachments whose filename extension is in a comma-separated allow-list. | **Partial**: separate attachment publication applies a normalized case-insensitive allow-list while canonical records retain filtered decisions. | Full cross-input differential coverage remains. |
 | `-b` | Do not emit the decompressed RTF body as `rtf-body.rtf`. | **Partial** | Make RTF preservation a policy choice in structured output and every MIME/file adapter. |
 | `-c[v\|l]` | Emit contacts as vCard or a simple `name <address>` list. | **Gap** | Implement both contact adapters from one typed contact record. |
 
@@ -31,11 +31,11 @@ The mode flags are mutually exclusive in readpst. PSTD should expose equivalent 
 |---|---|---|
 | default | One mbox-style file per PST folder and reduced item type, with multiple messages separated by mbox `From ` lines. | **Partial**: `mbox` emits deterministic email streams over canonical mail records; reduced typed streams and full differential corpus remain. |
 | `-r` | A directory tree matching the PST folder tree; each directory contains an mbox file such as `mbox`, `calendar`, `contacts`, or `journal`. | **Partial**: `recursive_mbox` emits safe folder trees and explicit skipped/unavailable decisions; typed side streams remain downstream. |
-| `-S` | A directory tree with numbered individual message files and separate binary attachment files. | **Partial**: `separate` emits numbered RFC 822 files; binary attachment files are RP-M5-02. |
+| `-S` | A directory tree with numbered individual message files and separate binary attachment files. | **Partial**: `separate` emits numbered RFC 822 files plus resolved non-empty `<message-file>-<filename>` attachments; full differential coverage remains. |
 | `-M` | MH/rfc822 individual message files without output extensions. | **Partial**: `mh` emits numbered files without mbox separators; full readpst corpus remains. |
 | `-e` | MH/rfc822 individual message files with extensions, normally `.eml`/`.vcf`/`.ics`. | **Partial**: `eml` emits numbered `.eml` files; typed non-mail extensions remain downstream. |
 | `-m` | The `-e` result plus `.msg` files. | **Gap** |
-| `-k` | KMail directory layout, including folder mbox names and index invalidation behaviour. | **Gap** |
+| `-k` | KMail directory layout, including folder mbox names and index invalidation behaviour. | **Partial**: `kmail` emits safe `.<folder>.directory/<folder>.mbox` entries and explicit index policy; import/read coverage remains. |
 | `-u` | Thunderbird recursive mode plus `.type` per folder and `.size` counts. | **Gap** |
 | `-c[v]` | vCard output with contact fields, notes, categories, and RFC 2426 escaping. | **Gap** |
 | `-c[l]` | Simple contact email list. | **Gap** |
@@ -50,6 +50,7 @@ The output adapters need explicit tests for behaviours that are easy to lose in 
 - separate message numbering starts at 1 and is local to the folder;
 - attachment names prefer the long filename and fall back to the 8.3 filename;
 - duplicate attachment names receive a deterministic numeric suffix;
+- separate attachment files use `<message-file>-<filename>` and never publish filtered, unresolved, embedded, or zero-length payloads;
 - an unnamed attachment receives a stable generated name;
 - empty output files are removed by readpst and must instead be represented as skipped/unavailable records when the payload cannot be proven;
 - mbox output uses `From ` separators and mboxrd escaping, while one-message-per-file output does not add a separator;
@@ -136,9 +137,11 @@ bounded jobs, diagnostics, collision, and overwrite settings. The canonical path
 applies the visibility/type filter to `data/items.jsonl` routing statuses while retaining
 source IDs and raw evidence references; it also records the policy in the run manifest.
 
-RP-M5-01 now implements `mbox`, `recursive_mbox`, `mh`, `eml`, and `separate` as
-projections over canonical records. KMail, Thunderbird, and MSG remain fail closed with a
-stable `RPCLI_UNSUPPORTED_OUTPUT_PROFILE` result until their dedicated adapters are merged.
+RP-M5-01 and RP-M5-02 now implement `mbox`, `recursive_mbox`, `mh`, `eml`, `separate`,
+and `kmail` as projections over canonical records. Thunderbird and MSG remain fail closed
+with a stable `RPCLI_UNSUPPORTED_OUTPUT_PROFILE` result until their dedicated adapters are
+merged. Separate attachment publication consumes normalized extension policy and keeps
+filtered/unavailable decisions explicit.
 Invalid item-type combinations, attachment extensions, charset names, diagnostic levels,
 collision policies, and job bounds likewise return explicit `RPCLI_*` configuration
 errors. Profile selection therefore cannot silently fall back to canonical output.

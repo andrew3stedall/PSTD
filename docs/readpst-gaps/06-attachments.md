@@ -73,7 +73,7 @@ payload_status = extracted | filtered_by_extension | unavailable | unsupported |
 filter_policy  = none | allow_list(<normalized extensions>)
 ```
 
-The filter must be case-insensitive, apply to the selected long/short filename according to the same documented rule, and leave message attachment counts explainable.
+The filter must be case-insensitive, apply to the selected long/short filename according to the same documented rule, and leave message attachment counts explainable. RP-M5-02 now implements this as a Partial separate-output policy: canonical attachment records remain unchanged, filtered records produce explicit decisions, and only resolved non-empty payloads become files.
 
 ## Filename and path safety
 

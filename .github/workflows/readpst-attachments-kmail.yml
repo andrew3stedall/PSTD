@@ -1,0 +1,112 @@
+name: Readpst attachment and KMail adapters
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  attachments-kmail:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test mailbox
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Verify separate attachments, filters, KMail layout, and reruns
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/pst/sample.pst"
+          fixture_sha256="ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe"
+          evidence="/tmp/pstd-attachments-kmail"
+          first="/tmp/pstd-attachments-kmail-first"
+          second="/tmp/pstd-attachments-kmail-second"
+          mkdir -p "$evidence" "$first" "$second"
+          printf '%s  %s\n' "$fixture_sha256" "$fixture" | sha256sum --check -
+
+          for output in "$first" "$second"; do
+            for profile in separate kmail; do
+              cargo run -- extract \
+                --input "$fixture" \
+                --output "$output/$profile" \
+                --output-profile "$profile" \
+                --attachment-extensions pdf \
+                --overwrite > "$evidence/$(basename "$output")-$profile.stdout" \
+                2> "$evidence/$(basename "$output")-$profile.stderr"
+              tar_file=$(find "$output/$profile/archives" -type f -name '*.tar' | sort | head -n 1)
+              destination="$evidence/$(basename "$output")-$profile"
+              mkdir -p "$destination"
+              tar -xf "$tar_file" -C "$destination"
+              test -f "$destination/outputs/${profile}-profile-status.json"
+              test -f "$destination/data/mailbox_adapter_manifest.jsonl"
+            done
+          done
+
+          for profile in separate kmail; do
+            diff -ru "$evidence/pstd-attachments-kmail-first-$profile/outputs" \
+              "$evidence/pstd-attachments-kmail-second-$profile/outputs"
+            cmp "$evidence/pstd-attachments-kmail-first-$profile/data/mailbox_adapter_manifest.jsonl" \
+              "$evidence/pstd-attachments-kmail-second-$profile/data/mailbox_adapter_manifest.jsonl"
+          done
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('/tmp/pstd-attachments-kmail')
+          for profile in ('separate', 'kmail'):
+              archive = root / f'pstd-attachments-kmail-first-{profile}'
+              status = json.loads((archive / 'outputs' / f'{profile}-profile-status.json').read_text())
+              assert status['profile'] == profile
+              assert status['attachment_filter'] == 'allowlist: pdf'
+              for artifact in status['artifacts']:
+                  path = artifact['path']
+                  assert not path.startswith('/')
+                  assert '..' not in Path(path).parts
+                  assert (archive / path).is_file()
+              for decision in status['attachment_decisions']:
+                  if decision['status'] == 'attachment_file_emitted':
+                      assert decision['path']
+                      assert (archive / decision['path']).is_file()
+                  else:
+                      assert decision['path'] is None
+              if profile == 'kmail':
+                  assert status['kmail_index_policy']
+                  assert any(
+                      '.directory/' in artifact['path'] and artifact['path'].endswith('.mbox')
+                      for artifact in status['artifacts']
+                  )
+              else:
+                  assert all(
+                      artifact['output_kind'] != 'attachment_file'
+                      or '-' in Path(artifact['path']).name
+                      for artifact in status['artifacts']
+                  )
+              Path('/tmp/pstd-attachments-kmail').joinpath(f'{profile}-report.json').write_text(
+                  json.dumps({
+                      'fixture': str(Path('tests/fixtures/pst/sample.pst')),
+                      'fixture_sha256': 'ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe',
+                      'profile': profile,
+                      'status': status['status'],
+                      'attachment_count': status['attachment_count'],
+                      'emitted_attachment_count': status['emitted_attachment_count'],
+                      'filtered_attachment_count': status['filtered_attachment_count'],
+                      'attachment_unavailable_count': status['attachment_unavailable_count'],
+                      'deterministic_repeat': True,
+                      'path_safety_checked': True,
+                      'positive_unit_provenance': 'synthetic binary attachment cases in src/output/mailbox.rs',
+                      'negative_unit_provenance': 'filtered, unavailable, embedded, and zero-length cases in src/output/mailbox.rs',
+                  }, indent=2) + '\n'
+              )
+          PY
+      - name: Upload attachment and KMail evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-attachments-kmail-evidence
+          path: /tmp/pstd-attachments-kmail
+          if-no-files-found: error

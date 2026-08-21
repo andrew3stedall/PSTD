@@ -99,9 +99,10 @@ coverage remains Partial.
 
 Typed CLI policy translation is integrated into the canonical path. `canonical`,
 vCard, contact-list, the source-backed Partial `iCalendar` profile, and the Partial
-`vjournal` profile are implemented; mbox, recursive mbox, MH, EML, separate, KMail,
-Thunderbird, and MSG names
-are recognized and return explicit unsupported results until RP-M5 adapters land. Visibility/type filters
+`vjournal` profile are implemented; mbox, recursive mbox, MH, EML, separate, and KMail
+are Partial adapter profiles with explicit filter/path/index decisions. Thunderbird and
+MSG names are recognized and return explicit unsupported results until their dedicated
+RP-M5 adapters land. Visibility/type filters
 are applied to item routing statuses while source provenance remains present, and
 policy JSON plus repeat-run item output are deterministic. Adapter parity remains open.
 
@@ -231,8 +232,8 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | OUT-03 | Recursive folder mbox | Partial | Sanitized folder tree, stable collision suffixes, explicit decisions, and sample-PST repeat run; reduced typed streams remain. |
 | OUT-04 | MH/rfc822 separate files | Partial | Folder-local numbered files with no separator and missing-body negative evidence; full corpus remains. |
 | OUT-05 | Extended `.eml` output | Partial | Header normalization/reconstruction, multipart alternative, attachment projection, and sample-PST repeat run; full MIME differential remains. |
-| OUT-06 | Separate binary attachments | Gap | Exact payload files, collisions, filters, and manifest. |
-| OUT-07 | KMail layout | Gap | KMail import/read test and safe indexes. |
+| OUT-06 | Separate binary attachments | Partial | Resolved non-empty payload files, normalized extension filters, collision-safe names, explicit negative decisions, and deterministic adapter manifest; broad corpus remains. |
+| OUT-07 | KMail layout | Partial | Safe `.<folder>.directory/<folder>.mbox` projection and explicit index policy; KMail import/read test remains. |
 | OUT-08 | Thunderbird `.type`/`.size` sidecars | Gap | Sidecar count/status tests. |
 | OUT-09 | vCard/list | Partial | Source-backed contact output and explicit partial/empty profile evidence; full field round trips remain required. |
 | OUT-10 | vCalendar/vJournal | Partial | Deterministic appointment iCalendar and Partial vJournal profiles with explicit missing-field/status evidence. |
