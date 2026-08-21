@@ -10,10 +10,10 @@ _Last reviewed: 21 August 2026._
 |---|---|---|
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
-| Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI version-14/15 header fields are decoded with variant-correct widths but cannot authorize traversal or extraction. |
-| Current milestone | First controlled Microsoft Purview Unicode export | Admit immutable, redistributable synthetic Purview bytes, lock the exact before-state, then implement the smallest newly evidenced email-to-EML capability. |
+| Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI v14/v15 and OST 2013 structural page/index traversal is now integrated with explicit evidence boundaries. |
+| Current milestone | Readpst parity RP-M6 input breadth | Complete the serialized encryption and hardening slices after the controlled ANSI/OST structural admission, then run the RP-M7 matrix, differential, and release gates. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
-| Readpst parity workboard | RP-M5-04 in progress | Canonical typed records now feed deterministic mailbox, attachment, KMail, Thunderbird-sidecar, typed non-mail, and Rust-native OLE MSG projections; input and release gates remain open. |
+| Readpst parity workboard | RP-M6-01 complete; RP-M6-02 next | Canonical typed records feed deterministic output projections, and the production input path now admits controlled ANSI/OST layouts with explicit negative and determinism evidence; semantic family breadth and release gates remain open. |
 
 ### RP-M4-03
 
@@ -63,6 +63,15 @@ attachment records. A supported MAPI property map, deterministic recipient and
 attachment storages, explicit method-5/method-6 decisions, and an independent
 `olefile` round-trip workflow keep unsupported values visible without using an EML
 file disguised as MSG.
+
+### RP-M6-01
+
+The production parser now selects variant-correct ANSI v14/v15 and OST 2013 layouts for
+headers, roots, BBT/NBT pages, inspect, and canonical metadata loading. The dedicated
+workflow proves controlled positive traversal, strong-crypt `unsupported`, truncation
+`partial`, malformed-short failure, fixture hashes, and repeat-run equality. This is a
+Partial structural input contract; broader family-specific item/output corpus coverage,
+encryption, hardening, and final parity promotion remain open.
 
 ## Intent
 

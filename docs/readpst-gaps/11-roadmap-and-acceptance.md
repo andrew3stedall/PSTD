@@ -114,17 +114,23 @@ Exit criterion: a semantic differential harness can run the same fixture through
 
 ## Phase 4 — legacy input and hardening
 
-Add the remaining input breadth:
+Add the remaining input breadth and semantic promotion:
 
-- ANSI NDB v14/v15 traversal;
 - compressible encryption;
 - strong encryption;
-- OST 2013;
+- broader ANSI NDB v14/v15 item and output corpus;
+- broader OST 2013 item and output corpus;
 - large-file and sparse-file handling;
 - corrupt, truncated, and malicious derivatives;
 - bounded parallel execution with deterministic output.
 
 Exit criterion: each supported input family has a real or controlled fixture, exact hashes, independent inventory, repeat-run equality, and no silent loss under malformed derivatives.
+
+RP-M6-01 has met the controlled structural-input slice: ANSI v14/v15 and OST 2013
+header/root/page layouts are selected by the production path, with positive, strong-crypt,
+truncated, malformed, hash, and repeat-run evidence in the dedicated workflow. The
+matrix remains Partial until semantic item and output coverage is demonstrated for those
+families; #520 owns encryption and #521 owns broader adversarial/resource evidence.
 
 ## Fixture and differential strategy
 

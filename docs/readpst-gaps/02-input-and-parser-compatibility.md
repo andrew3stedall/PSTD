@@ -6,9 +6,9 @@
 
 | Input family | libpst/readpst behaviour | PSTD status | Closure evidence |
 |---|---|---|---|
-| 32-bit ANSI PST, NDB version 14/15 | Reads pre-Outlook-2003 32-bit index and descriptor structures. | **Gap**: header values are diagnostic-only. | A redistributable ANSI fixture plus traversal, folder, message, body, attachment, and malformed derivatives. |
+| 32-bit ANSI PST, NDB version 14/15 | Reads pre-Outlook-2003 32-bit index and descriptor structures. | **Partial**: variant-correct header, 32-bit root, and BBT/NBT traversal are integrated through the production inspect/extraction loaders. | Controlled ANSI v14 evidence, malformed/strong-crypt negatives, repeat-run equality, and a broader semantic ANSI corpus for full item/output promotion. |
 | 64-bit Unicode PST, NDB version 23/24 paths | Reads Outlook 2003+ Unicode PST structures. | **Partial**: bounded Unicode traversal and several real fixtures are validated. | Multiple producers, large files, mixed item classes, and exact completeness counts. |
-| 64-bit OST 2013 path | libpst 0.6.71 added support for the OST 2013 format. | **Gap** | A qualifying OST fixture and a documented decision about whether PSTD’s input contract names OST explicitly. |
+| 64-bit OST 2013 path | libpst 0.6.71 added support for the OST 2013 format. | **Partial**: explicit OST 2013 family detection, 4 KiB roots, and 16-bit/64-bit BBT/NBT traversal are integrated through the production path. | Controlled OST 2013 evidence, truncation/malformed negatives, repeat-run equality, and a broader semantic OST corpus for full item/output promotion. |
 | Files larger than 2 GiB | Uses large-file-safe offsets and 64-bit sizes where supported by the build. | **Partial**: internal offsets are wide, but large-file behaviour is not fixture-proven. | Sparse/large synthetic fixture and a real large-file performance run without overflow or whole-file loading. |
 | Empty, truncated, corrupt, or malicious input | Must not produce unbounded reads or silently valid-looking content. | **Partial**: bounded reads and diagnostics exist. | Differential corruptions for every parser stage with stable error codes and no partial ownership claims. |
 
@@ -23,6 +23,31 @@ body payloads, and attachment payloads, together with a SHA-256 digest and bound
 raw-byte retention. Property-load and unavailable-payload failures remain explicit
 evidence statuses; the bounded raw field is not a claim that an oversized value was
 fully retained.
+
+## RP-M6-01 delivery
+
+The ANSI v14/v15 and OST 2013 input boundary is now integrated in `src/pst/header.rs`,
+`src/pst/layout.rs`, `src/pst/bbt.rs`, `src/pst/nbt.rs`, `src/pst/inspect.rs`, and the
+canonical metadata extraction path. ANSI uses 512-byte pages, 8-bit page counts,
+32-bit node/block identities, and 32-bit root offsets; OST 2013 uses 4096-byte pages,
+16-bit page counts, 64-bit identities, and Unicode-width root offsets. The legacy
+public loaders retain their Unicode behaviour while production callers select the
+layout from the parsed family.
+
+The permanent workflow `.github/workflows/readpst-ansi-ost.yml` generated controlled
+byte-level fixtures and passed run `32508581805` plus the full CI run `32508581926` at
+branch head `86c91304a859aae1d31f5974f7873d2a6ecbb514`. Fixture hashes are recorded in
+the uploaded artifact (`readpst-ansi-ost-evidence`, artifact `9456174707`, ZIP digest
+`cbb0bc2408de09a0294ac864352d066d7a421f5941d48e90f02774226f0cea04`): ANSI v14
+`faa9e0f8c5fcee7abbdf4078d25d993ecfcba16889d6739deb7787e9ade1dfe`, OST 2013
+`d600489f97a0e4123a4d9b389e72c0bc1edd48e5b908fda496d23b2f9f42262d`, strong-crypt
+ANSI `55b2a5ec86c3b4df896e8aebd8f1098b02d860244ae398f5df134740832d8ac9`, truncated
+OST `2849147f44eae7169efa85cf027aeb04ed1eb69513ac50c32d37ca144f33c7d3`, and
+malformed-short `44a1460f6df89ff23b880552ed878044b97d26074ea1d63d3b79a18091d81e4d`.
+The positive fixtures prove canonical family/root/index identity and repeated inspect
+JSON equality. Strong crypt is explicit `unsupported`, truncation is explicit
+`partial`, and a short malformed file exits non-zero. This is structural input breadth,
+not a claim that every ANSI/OST message, property, or output mode is complete.
 
 ## Encryption
 

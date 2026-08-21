@@ -158,8 +158,8 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | ID | Capability | Status | Closure evidence |
 |---|---|---|---|
 | IN-01 | Unicode PST traversal | Partial | Multiple producer fixtures with folder/message/body/attachment completeness. |
-| IN-02 | ANSI version 14/15 traversal | Gap | Qualifying redistributable ANSI fixture and corrupt derivatives. |
-| IN-03 | OST 2013 input | Gap | Qualifying OST fixture and explicit input-contract support. |
+| IN-02 | ANSI version 14/15 traversal | Partial | Controlled v14/v15 header/root/BBT/NBT traversal, explicit strong-crypt/malformed negatives, and repeat-run evidence; full item/output corpus remains. |
+| IN-03 | OST 2013 input | Partial | Controlled 4 KiB OST 2013 header/root/BBT/NBT traversal, explicit truncation/malformed negatives, and repeat-run evidence; full item/output corpus remains. |
 | IN-04 | No/compressible/strong encryption | Partial / Gap | End-to-end encrypted fixtures; header classification alone is insufficient. |
 | IN-05 | Large-file offsets and streaming | Partial | Sparse/large and real large-file runs without overflow or whole-file loading. |
 | IN-06 | BBT/NBT and descriptor traversal breadth | Partial | 32/64-bit page variants, mixed roots, malformed pages, and count reconciliation. |

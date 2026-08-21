@@ -57,6 +57,12 @@ _Last reviewed: 21 August 2026._
 - Added a separate `.eml` companion for readpst `-m` compatibility, explicit invalid/missing/method-5/method-6/unsupported decisions, and canonical raw evidence preservation.
 - Added an independent `olefile` round-trip workflow covering semantic properties, recipient roles, attachment payload hashes, path safety, negative statuses, and repeated-byte determinism.
 
+### RP-M6-01
+
+- Added production ANSI v14/v15 and OST 2013 layout dispatch for headers, roots, BBT/NBT pages, inspect, and canonical metadata loading.
+- Added controlled byte-level positive and negative fixtures with exact SHA-256 records, explicit strong-crypt/truncation/malformed statuses, and repeated inspect equality in `readpst-ansi-ost.yml`.
+- The input rows are promoted from Gap to Partial structural coverage only; broader semantic family corpora, encryption, hardening, and release-gate promotion remain open.
+
 ### Product foundation
 
 - Rust `pstd` CLI with `inspect`, `extract`, `batch`, and `version` commands.
