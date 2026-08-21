@@ -225,7 +225,10 @@ pub fn render_profile(
                             .unsupported
                             .iter()
                             .cloned()
-                            .chain(std::iter::once(format!("eml_build_error: {}", error.status)))
+                            .chain(std::iter::once(format!(
+                                "eml_build_error: {}",
+                                error.status
+                            )))
                             .collect(),
                     });
                     continue;
@@ -311,10 +314,7 @@ fn build_msg(
         root,
         &mut top_props,
         0x001A,
-        message
-            .message_class
-            .as_deref()
-            .unwrap_or("IPM.Note"),
+        message.message_class.as_deref().unwrap_or("IPM.Note"),
     );
     if let Some(value) = &message.subject {
         add_unicode_property(&mut document, root, &mut top_props, 0x0037, value);
@@ -323,7 +323,11 @@ fn build_msg(
         add_unicode_property(&mut document, root, &mut top_props, 0x007D, value);
     }
     for (property_id, value, label) in [
-        (0x1035, message.internet_message_id.as_ref(), "internet_message_id"),
+        (
+            0x1035,
+            message.internet_message_id.as_ref(),
+            "internet_message_id",
+        ),
         (0x1042, message.in_reply_to_id.as_ref(), "in_reply_to"),
     ] {
         if let Some(value) = value {
@@ -396,7 +400,12 @@ fn build_msg(
     );
     if let Some(value) = &message.sent_at {
         if let Some(filetime) = windows_filetime(value) {
-            top_props.push(Property::inline(0x0039, 0x0040, filetime as u32, (filetime >> 32) as u32));
+            top_props.push(Property::inline(
+                0x0039,
+                0x0040,
+                filetime as u32,
+                (filetime >> 32) as u32,
+            ));
         } else {
             unsupported.insert("sent_at_invalid_or_unavailable".to_string());
         }
@@ -433,7 +442,8 @@ fn build_msg(
                 }
             }
             "rtf" => {
-                unsupported.insert("rtf_property_not_represented_raw_evidence_preserved".to_string());
+                unsupported
+                    .insert("rtf_property_not_represented_raw_evidence_preserved".to_string());
             }
             _ => {
                 unsupported.insert(format!("body_type_not_represented:{}", body.body_type));
@@ -449,19 +459,36 @@ fn build_msg(
     for (ordinal, recipient) in message_recipients.iter().enumerate() {
         let storage = document.add_storage(root, format!("__recip_version1.0_#{ordinal:08X}"));
         let mut properties = vec![
-            Property::inline(0x0C15, 0x0003, recipient_type(recipient.recipient_type.as_str()), 0),
+            Property::inline(
+                0x0C15,
+                0x0003,
+                recipient_type(recipient.recipient_type.as_str()),
+                0,
+            ),
             Property::inline(0x3000, 0x0003, ordinal as u32, 0),
         ];
-        if let Some(value) = recipient.display_name.as_deref().or(recipient.smtp_address.as_deref()) {
+        if let Some(value) = recipient
+            .display_name
+            .as_deref()
+            .or(recipient.smtp_address.as_deref())
+        {
             add_unicode_property(&mut document, storage, &mut properties, 0x3001, value);
         }
         if let Some(value) = recipient.address_type.as_deref() {
             add_unicode_property(&mut document, storage, &mut properties, 0x3002, value);
         }
-        if let Some(value) = recipient.smtp_address.as_deref().or(recipient.raw_address.as_deref()) {
+        if let Some(value) = recipient
+            .smtp_address
+            .as_deref()
+            .or(recipient.raw_address.as_deref())
+        {
             add_unicode_property(&mut document, storage, &mut properties, 0x3003, value);
         }
-        document.add_stream(storage, "__properties_version1.0", property_stream(&[0; 8], properties));
+        document.add_stream(
+            storage,
+            "__properties_version1.0",
+            property_stream(&[0; 8], properties),
+        );
     }
 
     let attachment_map = attachment_payloads
@@ -476,12 +503,18 @@ fn build_msg(
     for (ordinal, attachment) in message_attachments.iter().enumerate() {
         if attachment.attachment_method == Some(5) {
             evidence.unsupported_attachment_count += 1;
-            unsupported.insert(format!("embedded_method_5_not_supported:{}", attachment.attachment_key));
+            unsupported.insert(format!(
+                "embedded_method_5_not_supported:{}",
+                attachment.attachment_key
+            ));
             continue;
         }
         let Some(payload) = attachment_map.get(attachment.attachment_key.as_str()) else {
             evidence.unsupported_attachment_count += 1;
-            unsupported.insert(format!("attachment_payload_unavailable:{}", attachment.attachment_key));
+            unsupported.insert(format!(
+                "attachment_payload_unavailable:{}",
+                attachment.attachment_key
+            ));
             continue;
         };
         let storage = document.add_storage(root, format!("__attach_version1.0_#{ordinal:08X}"));
@@ -491,7 +524,12 @@ fn build_msg(
             Property::inline(0x0FF7, 0x0003, 0, 2),
             Property::inline(0x0FFE, 0x0003, 7, 2),
             Property::inline(0x3705, 0x0003, 1, 7),
-            Property::inline(0x370B, 0x0003, attachment.rendering_position.unwrap_or(attachment.ordinal) as u32, 7),
+            Property::inline(
+                0x370B,
+                0x0003,
+                attachment.rendering_position.unwrap_or(attachment.ordinal) as u32,
+                7,
+            ),
             Property::inline(0x3710, 0x0003, attachment.ordinal as u32, 6),
         ];
         add_binary_property(
@@ -501,7 +539,13 @@ fn build_msg(
             0x0FF9,
             attachment.attachment_key.as_bytes(),
         );
-        add_binary_property(&mut document, storage, &mut properties, 0x3701, &payload.bytes);
+        add_binary_property(
+            &mut document,
+            storage,
+            &mut properties,
+            0x3701,
+            &payload.bytes,
+        );
         let filename = attachment
             .filename_original
             .as_deref()
@@ -510,23 +554,40 @@ fn build_msg(
         if let Some(value) = attachment.content_type.as_deref() {
             add_unicode_property(&mut document, storage, &mut properties, 0x370E, value);
         }
-        document.add_stream(storage, "__properties_version1.0", property_stream(&[0; 8], properties));
+        document.add_stream(
+            storage,
+            "__properties_version1.0",
+            property_stream(&[0; 8], properties),
+        );
         evidence.emitted_attachment_count += 1;
-        evidence.attachment_sha256s.push(payload.record.sha256.clone());
+        evidence
+            .attachment_sha256s
+            .push(payload.record.sha256.clone());
         if attachment.attachment_method == Some(6) {
-            unsupported.insert(format!("ole_method_6_materialized_by_value:{}", attachment.attachment_key));
+            unsupported.insert(format!(
+                "ole_method_6_materialized_by_value:{}",
+                attachment.attachment_key
+            ));
         }
     }
 
     let nameid = document.add_storage(root, "__nameid_version1.0");
     for property_id in [0x0002u16, 0x0003, 0x0004] {
-        document.add_stream(nameid, format!("__substg1.0_{property_id:04X}0102"), Vec::new());
+        document.add_stream(
+            nameid,
+            format!("__substg1.0_{property_id:04X}0102"),
+            Vec::new(),
+        );
     }
     let header = top_property_header(
         message_recipients.len() as u32,
         evidence.emitted_attachment_count as u32,
     );
-    document.add_stream(root, "__properties_version1.0", property_stream(&header, top_props));
+    document.add_stream(
+        root,
+        "__properties_version1.0",
+        property_stream(&header, top_props),
+    );
     evidence.unsupported = unsupported.into_iter().collect();
     Ok((document.finish(), evidence))
 }
@@ -600,7 +661,9 @@ fn add_bool_if_parseable(
 }
 
 fn windows_filetime(value: &str) -> Option<u64> {
-    let parsed = DateTime::parse_from_rfc3339(value).ok()?.with_timezone(&Utc);
+    let parsed = DateTime::parse_from_rfc3339(value)
+        .ok()?
+        .with_timezone(&Utc);
     let unix_100ns = i128::from(parsed.timestamp()) * 10_000_000
         + i128::from(parsed.timestamp_subsec_nanos() / 100);
     let epoch_offset = i128::from(11_644_473_600i64) * 10_000_000;
@@ -844,11 +907,7 @@ impl OleDocument {
                     node.start_sector as usize,
                     sectors(node.data.len(), SECTOR_SIZE),
                 );
-                write_bytes_at_sectors(
-                    &mut sectors_data,
-                    node.start_sector as usize,
-                    &node.data,
-                );
+                write_bytes_at_sectors(&mut sectors_data, node.start_sector as usize, &node.data);
             }
         }
         if !mini_stream.is_empty() {
@@ -893,7 +952,13 @@ impl OleDocument {
             }
         }
         if difat_sector_count > 0 {
-            write_difat(&mut sectors_data, difat_start as usize, difat_sector_count, fat_start, fat_sector_count);
+            write_difat(
+                &mut sectors_data,
+                difat_start as usize,
+                difat_sector_count,
+                fat_start,
+                fat_sector_count,
+            );
         }
 
         let mut header = vec![0u8; SECTOR_SIZE];
@@ -978,7 +1043,11 @@ fn directory_bytes(nodes: &[OleNode], mini_stream_size: usize) -> Vec<u8> {
             node.start_sector
         };
         put_u32(&mut output, offset + 116, start);
-        let size = if index == 0 { mini_stream_size } else { node.data.len() };
+        let size = if index == 0 {
+            mini_stream_size
+        } else {
+            node.data.len()
+        };
         put_u64(&mut output, offset + 120, size as u64);
     }
     output
@@ -1059,14 +1128,25 @@ mod tests {
         let mut first = OleDocument::new();
         let storage = first.add_storage(0, "__nameid_version1.0");
         first.add_stream(storage, "__substg1.0_00020102", Vec::new());
-        first.add_stream(0, "__properties_version1.0", property_stream(&[0; 32], vec![Property::inline(0x001A, 0x0003, 1, 0)]));
+        first.add_stream(
+            0,
+            "__properties_version1.0",
+            property_stream(&[0; 32], vec![Property::inline(0x001A, 0x0003, 1, 0)]),
+        );
         let first = first.finish();
         let mut second = OleDocument::new();
         let storage = second.add_storage(0, "__nameid_version1.0");
         second.add_stream(storage, "__substg1.0_00020102", Vec::new());
-        second.add_stream(0, "__properties_version1.0", property_stream(&[0; 32], vec![Property::inline(0x001A, 0x0003, 1, 0)]));
+        second.add_stream(
+            0,
+            "__properties_version1.0",
+            property_stream(&[0; 32], vec![Property::inline(0x001A, 0x0003, 1, 0)]),
+        );
         let second = second.finish();
-        assert_eq!(&first[..8], &[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+        assert_eq!(
+            &first[..8],
+            &[0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]
+        );
         assert_eq!(first, second);
     }
 
