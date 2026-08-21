@@ -82,7 +82,7 @@ pub fn decode_in_place(i_id: u64, bytes: &mut [u8], method: u8) -> PstdResult<&'
         }
         NDB_CRYPT_STRONG => {
             let mut salt =
-                ((((i_id & 0x0000_0000_ffff_0000) >> 16) ^ (i_id & 0x0000_0000_0000_ffff)) as u16);
+                (((i_id & 0x0000_0000_ffff_0000) >> 16) ^ (i_id & 0x0000_0000_0000_ffff)) as u16;
             for byte in bytes {
                 let losalt = (salt & 0x00ff) as u8;
                 let hisalt = (salt >> 8) as u8;
