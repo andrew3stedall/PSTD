@@ -9,10 +9,11 @@ use crate::output::ids;
 use crate::output::metadata::{
     AttachmentRecord, BodyRecord, CalendarRecord, ContactRecord, EmbeddedGraphRecord,
     EvidenceRecord, FolderRecord, HeaderProjectionRecord, ItemEnvelope, ItemRoutingCountRecord,
-    ManifestRecord, MessageRecord, MessageReferenceRecord, MimePartRecord, RecipientRecord,
-    SpecialItemRecord,
+    ManifestRecord, MessageRecord, MessageReferenceRecord, MimePartRecord, NonMailRecord,
+    RecipientRecord, SpecialItemRecord,
 };
 use crate::output::mime::build_mime_parts;
+use crate::output::non_mail::build_non_mail_records;
 use crate::output::special::build_special_items;
 use crate::pst::attachment_property_context::{
     attachment_payloads_from_property_context_subnodes,
@@ -74,6 +75,7 @@ pub struct MetadataExtractionOutput {
     pub special_items: Vec<SpecialItemRecord>,
     pub contacts: Vec<ContactRecord>,
     pub calendars: Vec<CalendarRecord>,
+    pub non_mail: Vec<NonMailRecord>,
     pub attachments: Vec<AttachmentRecord>,
     pub attachment_payloads: Vec<AttachmentPayload>,
     pub compatibility_triage: Vec<CompatibilityTriageRecord>,
@@ -683,6 +685,7 @@ pub fn extract_metadata(
     let special_items = build_special_items(&messages, &bodies, &body_payloads);
     let contacts = build_contact_records(&messages);
     let calendars = build_calendar_records(&messages);
+    let non_mail = build_non_mail_records(&messages, &bodies);
 
     let items = build_item_envelopes(
         pst_id,
@@ -737,6 +740,16 @@ pub fn extract_metadata(
             "data/calendars.jsonl",
             None,
             &calendar.status,
+        ));
+    }
+    for record in &non_mail {
+        evidence.push(crate::pst::evidence::payload_record(
+            &record.message_key,
+            "non_mail_record",
+            format!("non-mail:{}", record.non_mail_key),
+            "data/non_mail.jsonl",
+            None,
+            &record.status,
         ));
     }
     for mime_part in &mime_parts {
@@ -861,6 +874,20 @@ pub fn extract_metadata(
             issue_count: 0,
         });
     }
+    if !non_mail.is_empty() {
+        manifest.push(ManifestRecord {
+            run_id: run_id.to_string(),
+            pst_id: pst_id.to_string(),
+            message_key: None,
+            folder_key: None,
+            artefact_type: "non_mail".to_string(),
+            archive_path: "data/non_mail.jsonl".to_string(),
+            sha256: None,
+            size_bytes: None,
+            status: "non_mail_records_preserved".to_string(),
+            issue_count: 0,
+        });
+    }
 
     let folders_discovered = folders.len() as u64;
     let messages_discovered = message_table_discovery.message_candidate_count() as u64;
@@ -929,6 +956,7 @@ pub fn extract_metadata(
         special_items,
         contacts,
         calendars,
+        non_mail,
         attachments,
         attachment_payloads,
         compatibility_triage,
@@ -1443,6 +1471,7 @@ pub fn fallback_metadata(
         special_items: Vec::new(),
         contacts: Vec::new(),
         calendars: Vec::new(),
+        non_mail: Vec::new(),
         attachments: Vec::new(),
         attachment_payloads: Vec::new(),
         compatibility_triage: Vec::new(),

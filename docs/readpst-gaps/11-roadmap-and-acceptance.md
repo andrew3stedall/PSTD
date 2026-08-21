@@ -37,7 +37,7 @@ The typed folder/item envelope is integrated into metadata extraction and canoni
 
 ### RP-M1-03 delivery
 
-The classification slice is integrated into `src/pst/item_envelope.rs` and `src/pst/item_routing.rs`. It reads validated message-class evidence, maps the readpst item families, applies an immutable default visibility/type policy, and emits deterministic routing statuses in `data/items.jsonl`. The evidence includes a mixed synthetic class corpus, unsupported/missing/unknown classes, associated/deleted/filter decisions, and byte-identical repeated serialization. The result deliberately leaves CLI flag plumbing, typed non-mail serializers, and broad real-PST mixed-folder evidence to their dependent issues.
+The classification slice is integrated into `src/pst/item_envelope.rs` and `src/pst/item_routing.rs`. It reads validated message-class evidence, maps the readpst item families, applies an immutable default visibility/type policy, and emits deterministic routing statuses in `data/items.jsonl`. The evidence includes a mixed synthetic class corpus, unsupported/missing/unknown classes, associated/deleted/filter decisions, and byte-identical repeated serialization. RP-M4-03 now adds the canonical non-mail evidence and Partial vJournal boundary; CLI flag breadth and broad real-PST mixed-folder evidence remain dependent work.
 
 ## Phase 1 — Unicode message breadth
 
@@ -82,6 +82,13 @@ class, subject, and organizer values are preserved, while dates, timezone, recur
 exceptions, alarms, and categories remain explicit unavailable statuses until an
 admitted appointment-property corpus exists. A synthetic `DTSTAMP` is marked in the
 output solely to keep the projected component deterministic and parseable.
+
+RP-M4-03 now establishes the `NonMailRecord` boundary for journals, tasks, sticky
+notes, unknown classes, and missing message classes. Journal records have a
+deterministic Partial `vjournal` profile; unsupported classes remain canonical typed
+evidence with separate readpst and PSTD statuses and are never promoted to ordinary
+mail. Full journal MAPI field coverage and dedicated task/sticky renderers remain
+open.
 
 ## Phase 3 — output adapters
 

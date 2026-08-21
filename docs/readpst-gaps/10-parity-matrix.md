@@ -26,7 +26,7 @@ The RP-M0-02 runner now provides the executable comparison contract: isolated bo
 The parser boundary now emits a typed capability projection before traversal. It classifies Unicode/ANSI/OST/unknown families and crypt method, records root/index/attribute readiness, applies the ISO-8859-1 fallback policy, serializes budgets, and fails closed for unsupported, malformed, partial, or over-budget input. This closes only the capability/evidence boundary; IN-01 through IN-10 remain at their existing statuses until their traversal and corpus gates pass.
 ## RP-M1-02 typed folder/item envelope delivery
 
-The canonical extraction path now publishes `data/items.jsonl` with deterministic folder and item envelopes. Source node identity, folder ownership, canonical paths, associated visibility, item-kind confidence, raw evidence references, and unresolved/ambiguous/duplicate/path-collision statuses are explicit. This improves the ITEM-01/ITEM-02 evidence boundary but does not promote mixed non-mail routing, deleted filtering, or typed schedule/contact/calendar/journal/report output; those rows remain at their existing statuses until their own corpus gates pass.
+The canonical extraction path now publishes `data/items.jsonl` with deterministic folder and item envelopes. Source node identity, folder ownership, canonical paths, associated visibility, item-kind confidence, raw evidence references, and unresolved/ambiguous/duplicate/path-collision statuses are explicit. This improves the ITEM-01/ITEM-02 evidence boundary; full mixed-folder, deleted-filter, and typed schedule/contact/calendar/journal/report corpus gates remain open even though bounded contact, appointment, and non-mail Partial projections now exist.
 
 ## RP-M1-03 classification and routing delivery
 
@@ -98,8 +98,9 @@ coverage remains Partial.
 ## RP-M3-03 delivery
 
 Typed CLI policy translation is integrated into the canonical path. `canonical`,
-vCard, contact-list, and the source-backed Partial `iCalendar` profile are implemented;
-mbox, recursive mbox, MH, EML, separate, KMail, Thunderbird, vJournal, and MSG names
+vCard, contact-list, the source-backed Partial `iCalendar` profile, and the Partial
+`vjournal` profile are implemented; mbox, recursive mbox, MH, EML, separate, KMail,
+Thunderbird, and MSG names
 are recognized and return explicit unsupported results until RP-M5 adapters land. Visibility/type filters
 are applied to item routing statuses while source provenance remains present, and
 policy JSON plus repeat-run item output are deterministic. Adapter parity remains open.
@@ -123,6 +124,15 @@ canonical property decoder does not yet authorize those MAPI groups. The profile
 only a marked synthetic `DTSTAMP` for standards-shaped deterministic output; it never
 guesses a source date. Schedule-email MIME remains RP-M3-02.
 
+## RP-M4-03 delivery
+
+`NonMailRecord` now preserves journal, task, sticky-note, unknown, and missing-class
+items exactly once through canonical JSONL evidence, manifest entries, and raw body
+references. Journal records expose a deterministic Partial `vjournal` profile. Task
+and sticky-note records retain `skipped_unsupported_by_readpst` while recording
+PSTD's stronger typed-preservation status; unknown and missing classes use distinct
+PSTD-unsupported statuses. None are promoted to ordinary email.
+
 ## CLI, policy, and operational behaviour
 
 | ID | Capability | Status | Closure evidence |
@@ -140,6 +150,7 @@ guesses a source date. Schedule-email MIME remains RP-M3-02.
 | CLI-11 | Suppress synthetic RTF attachment (`-b`) | Partial | Adapter policy that does not erase canonical RTF evidence. |
 | CLI-12 | Contact modes (`-cv`, `-cl`) | Partial | Source-backed vCard and simple contact-list profiles with explicit partial/empty status. |
 | CLI-13 | Appointment iCalendar profile | Partial | Deterministic `icalendar` profile with explicit unavailable date/recurrence status. |
+| CLI-14 | Journal vJournal profile | Partial | Deterministic `vjournal` profile with explicit source-field and synthetic-timestamp status. |
 
 ## Input and parser families
 
@@ -168,8 +179,8 @@ guesses a source date. Schedule-email MIME remains RP-M3-02.
 | ITEM-06 | Schedule/meeting email | Gap | Email plus validated `text/calendar` part. |
 | ITEM-07 | Appointment/event | Partial | Typed appointment record and deterministic iCalendar profile; recurrence/date property corpus remains required. |
 | ITEM-08 | Contact | Partial | Source-backed typed contact plus deterministic vCard/list output; full MAPI contact fields remain required. |
-| ITEM-09 | Journal | Gap | Typed journal plus vJournal output. |
-| ITEM-10 | Sticky note/task/other classification | Partial | Source-class classification and explicit skip/unknown statuses are integrated; typed non-mail preservation remains RP-M4. |
+| ITEM-09 | Journal | Partial | Canonical `NonMailRecord` plus deterministic vJournal output; full MAPI field coverage remains required. |
+| ITEM-10 | Sticky note/task/other classification | Partial | Typed non-mail preservation, distinct readpst/PSTD statuses, and deterministic evidence are integrated; dedicated renderers remain unsupported. |
 | ITEM-11 | Delivery/disposition report | Gap | Typed report and `multipart/report` output. |
 
 ## Message fields and body handling
@@ -224,7 +235,7 @@ guesses a source date. Schedule-email MIME remains RP-M3-02.
 | OUT-07 | KMail layout | Gap | KMail import/read test and safe indexes. |
 | OUT-08 | Thunderbird `.type`/`.size` sidecars | Gap | Sidecar count/status tests. |
 | OUT-09 | vCard/list | Partial | Source-backed contact output and explicit partial/empty profile evidence; full field round trips remain required. |
-| OUT-10 | vCalendar/vJournal | Partial | Deterministic appointment iCalendar profile with explicit missing recurrence/date status; vJournal remains open. |
+| OUT-10 | vCalendar/vJournal | Partial | Deterministic appointment iCalendar and Partial vJournal profiles with explicit missing-field/status evidence. |
 | OUT-11 | `.msg` writer | Gap | OLE MSG round-trip and property/recipient/attachment tests. |
 
 ## Matrix rule

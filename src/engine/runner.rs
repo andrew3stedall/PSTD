@@ -11,6 +11,7 @@ use crate::output::contact::{serialize_contact_list, serialize_vcards};
 use crate::output::ids;
 use crate::output::jsonl_writer::JsonlBuffer;
 use crate::output::metadata::MessageRecord;
+use crate::output::non_mail::serialize_vjournals;
 use crate::output::summary::ExtractionSummary;
 use crate::output::tar_writer::TarShardWriter;
 use crate::progress::{ProgressEvent, ProgressEventType};
@@ -120,6 +121,11 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         calendars.write_record(record)?;
     }
     let calendars_jsonl = calendars.into_bytes();
+    let mut non_mail = JsonlBuffer::new();
+    for record in &metadata.non_mail {
+        non_mail.write_record(record)?;
+    }
+    let non_mail_jsonl = non_mail.into_bytes();
     let mut attachments = JsonlBuffer::new();
     for record in &metadata.attachments {
         attachments.write_record(record)?;
@@ -234,6 +240,9 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     if !metadata.calendars.is_empty() {
         tar.append_bytes(&["data", "calendars.jsonl"], &calendars_jsonl)?;
     }
+    if !metadata.non_mail.is_empty() {
+        tar.append_bytes(&["data", "non_mail.jsonl"], &non_mail_jsonl)?;
+    }
     if config.readpst.output_profile == crate::config::OutputProfile::Icalendar {
         tar.append_bytes(
             &["outputs", "calendar-profile-status.json"],
@@ -255,6 +264,34 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         tar.append_bytes(
             &["outputs", "appointments.ics"],
             serialize_icalendar(&metadata.calendars).as_bytes(),
+        )?;
+    }
+    if config.readpst.output_profile == crate::config::OutputProfile::Vjournal {
+        let journals = metadata
+            .non_mail
+            .iter()
+            .filter(|record| record.item_kind == "journal")
+            .count();
+        tar.append_bytes(
+            &["outputs", "journal-profile-status.json"],
+            &serde_json::to_vec_pretty(&serde_json::json!({
+                "profile": "vjournal",
+                "record_count": journals,
+                "status": if journals == 0 {
+                    "journal_records_unavailable"
+                } else {
+                    "journal_projection_partial"
+                },
+                "readpst_status": if journals == 0 {
+                    "not_applicable"
+                } else {
+                    "routed_journal"
+                },
+            }))?,
+        )?;
+        tar.append_bytes(
+            &["outputs", "journals.vjournal"],
+            serialize_vjournals(&metadata.non_mail).as_bytes(),
         )?;
     }
     tar.append_bytes(&["data", "attachments.jsonl"], &attachments.into_bytes())?;

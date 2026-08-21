@@ -210,6 +210,27 @@ pub struct CalendarRecord {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct NonMailRecord {
+    pub non_mail_key: String,
+    pub message_key: String,
+    pub folder_path: String,
+    pub source_node_id: Option<String>,
+    pub message_class: Option<String>,
+    pub item_kind: String,
+    pub summary: Option<String>,
+    pub sender_name: Option<String>,
+    pub sender_email: Option<String>,
+    pub created_at: Option<String>,
+    pub modified_at: Option<String>,
+    pub readpst_status: String,
+    pub pstd_status: String,
+    pub status: String,
+    pub authoritative: bool,
+    pub synthetic: bool,
+    pub raw_evidence_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AttachmentRecord {
     pub message_key: String,
     pub attachment_key: String,
