@@ -88,7 +88,7 @@ impl TarShardWriter {
 
     pub fn finish(mut self) -> PstdResult<Vec<ShardInfo>> {
         self.finish_current()?;
-        Ok(self.shards)
+        Ok(std::mem::take(&mut self.shards))
     }
 
     fn rotate(&mut self) -> PstdResult<()> {

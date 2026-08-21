@@ -58,7 +58,11 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
             return Err(reason);
         }
     };
-    cap_diagnostics(&mut metadata.issues, InputLimits::default().max_diagnostics, &run_id);
+    cap_diagnostics(
+        &mut metadata.issues,
+        InputLimits::default().max_diagnostics,
+        &run_id,
+    );
     apply_item_routing_policy(&mut metadata.items, config.readpst.routing_policy());
     metadata.item_routing_counts = build_item_routing_counts(&metadata.folders, &metadata.items);
     let metadata_status = status_with_property_diagnostics(&metadata.status, &metadata.messages);

@@ -74,7 +74,12 @@ pub fn validate_archive_path(path: &Path) -> PstdResult<()> {
     if path.is_absolute()
         || path
             .components()
-            .any(|component| matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_)))
+            .any(|component| {
+                matches!(
+                    component,
+                    Component::ParentDir | Component::RootDir | Component::Prefix(_)
+                )
+            })
     {
         return Err(PstdError::OutputWrite(format!(
             "archive path is not confined to the output root: {}",
@@ -93,7 +98,10 @@ mod tests {
     #[test]
     fn sanitization_and_collision_policy_are_bounded() {
         assert_eq!(sanitize_segment("../secret"), "_secret");
-        assert_eq!(archive_path(&["folder", "../secret"]), Path::new("folder/_secret"));
+        assert_eq!(
+            archive_path(&["folder", "../secret"]),
+            Path::new("folder/_secret")
+        );
 
         let mut tracker = UniquePathTracker::default();
         assert_eq!(tracker.unique_file_name("same.eml"), "same.eml");
