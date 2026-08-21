@@ -162,7 +162,10 @@ mod tests {
         assert!(vcard.contains("VERSION:3.0\r\n"));
         assert!(vcard.contains("FN:Doe\\, Jane\r\n"));
         assert!(vcard.contains("EMAIL;TYPE=SMTP:jane@example.test\r\n"));
-        assert_eq!(serialize_contact_list(&records), "Doe, Jane <jane@example.test>\n");
+        assert_eq!(
+            serialize_contact_list(&records),
+            "Doe, Jane <jane@example.test>\n"
+        );
     }
 
     #[test]
