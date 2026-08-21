@@ -384,12 +384,19 @@ The agent must record “no change required” for each tangential page it inspe
 - [x] every issue is assigned to one milestone and one specialist role;
 - [x] RP-M0-01 status/provenance/fixture/evidence schema and E2 Unicode baseline contract are implemented and CI-validated;
 - [x] RP-M0-03 pinned source manifest, 28 work-unit anchors, and deterministic drift report are implemented and CI-validated;
-- [ ] `RP-M0` evidence and differential contracts are merged before feature dispatch;
+- [x] `RP-M0` evidence and differential contracts are merged before feature dispatch;
 - [ ] no active issue bypasses the typed envelope or raw-evidence boundary;
 - [ ] every output adapter consumes canonical records rather than reparsing PST bytes;
 - [ ] all supported input families have provenance, hashes, limits, and repeat-run evidence;
 - [ ] matrix rows include equivalent/stronger/unsupported outcomes and negative statuses;
 - [ ] E4 semantic differentials cover every readpst regression profile and every PSTD output profile;
 - [ ] final documentation, changelog, and release status agree with the matrix.
+
+### RP-M7-01 promotion checkpoint
+
+The matrix promotion review is complete on main `57fbcaf1a83e2ddc79fff300be812a23cc66bb53`.
+It records 2 Implemented, 54 Partial, and 19 Gap rows and does not make a full-parity
+claim. RP-M7-02 must run its E4 differential against this exact baseline; RP-M7-03 must
+publish the final decision and name every unresolved row before the global issue closes.
 
 The global orchestration issue should remain open until this checklist is either complete or replaced by an explicitly approved release decision that names every unresolved plan ID.

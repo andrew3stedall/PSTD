@@ -108,6 +108,15 @@ PSTD’s replacement must make these implicit assumptions explicit: fixture mani
 
 The source-review contract is implemented in `tests/readpst_diff/source_manifest.rs` and exported through `tests/readpst_diff/mod.rs`. It records all 22 direct source/script/release-note paths in this ledger, their selected symbols or stable behaviour anchors, the 28 work-unit mappings, and the eight regression profile categories. Every generated source URL is pinned to `cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89`; a revision mismatch, missing/duplicate path, unresolved work-unit symbol, or changed repository/license boundary produces an actionable failure. The check is deterministic and has no network or private-fixture dependency. Sibling utilities (`lspst`, `pst2ldif`, `nick2ldif`, and `pst2dii`) remain explicitly out of scope for readpst parity.
 
+## RP-M7 source review checkpoint
+
+The release review revalidated this ledger at pinned revision
+`cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89` before reading the live matrix on main
+`57fbcaf1a83e2ddc79fff300be812a23cc66bb53`. The remaining 19 Gap rows are all
+readpst-exposed behaviours from these anchors, not upstream skips. RP-M7-02 must
+record unavailable or inadmissible regression profiles explicitly; it must not use a
+moving upstream checkout or silently convert missing corpus evidence into parity.
+
 ## Planned implementation — `RP-12`
 
 1. Keep this ledger pinned to `cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89` and add a new review row whenever upstream changes the readpst dependency boundary.

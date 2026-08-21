@@ -238,3 +238,8 @@ All seven top-level messages belong to `/Début du fichier de données Outlook` 
 - Raw `text/rtf` as the preferred rich EML alternative for the current HTML-derived fixture body.
 - The earlier evidence blocker that no approved attachment-bearing PST was available.
 - The assumption that the attachment file payload must be padded or truncated to the 15,503-byte `PidTagAttachSize` value.
+## RP-M7 release-gate review
+
+- Added the RP-M7-01 conservative matrix promotion report at main commit `57fbcaf1a83e2ddc79fff300be812a23cc66bb53`: 2 Implemented, 54 Partial, and 19 Gap rows remain explicit.
+- Preserved the distinction between readpst-exposed gaps and cases readpst itself skips; no row was promoted from a helper, field, fixture-only probe, or process exit.
+- The unresolved Gap set is now the fixed input to the RP-M7-02 differential report and RP-M7-03 final decision.

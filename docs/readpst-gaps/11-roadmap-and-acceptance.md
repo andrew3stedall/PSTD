@@ -141,6 +141,15 @@ diagnostic amplification is capped. The matrix remains Partial because broad sem
 family/item/output corpus coverage and final RP-M7 differential/release evidence remain
 open.
 
+## RP-M7-01 promotion delivery
+
+The matrix promotion review is complete against `main` commit
+`57fbcaf1a83e2ddc79fff300be812a23cc66bb53` and pinned libpst revision
+`cc600ee98c4ed23b8ab0bc2cf6b6c6e9cb587e89`. It retains 2 Implemented, 54 Partial,
+and 19 Gap rows. The 19 Gap rows are listed in `10-parity-matrix.md`; none is silently
+reclassified as an upstream skip. The review packet is conservative and is the required
+baseline for the E4 differential report and final release decision.
+
 ## Fixture and differential strategy
 
 Each capability needs a fixture record containing:

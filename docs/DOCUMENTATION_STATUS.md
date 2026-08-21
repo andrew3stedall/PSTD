@@ -114,9 +114,9 @@ Every meaningful extraction change must:
 
 As of this review:
 
-- merged implementation is complete through PR #457 / Vertical 35;
+- readpst-parity implementation is merged through RP-M6-03 / PR #550;
 - the Tika fixture emits eight structured messages, nine recipients, one exact DOCX payload, one 17,035-byte parent EML, and one 453-byte child EML;
-- the active boundary is method-`5` `message/rfc822` attachment payload materialisation;
-- fixture breadth, ANSI support, nested messages, non-mail object coverage, and broad address/body fidelity remain incomplete;
+- the active boundary is RP-M7 release evidence: matrix promotion is complete, while E4 semantic differential and final decision remain open;
+- the matrix records 2 Implemented, 54 Partial, and 19 Gap rows; fixture breadth, mixed item/output semantics, and broad address/body fidelity remain incomplete;
 - downstream Snowflake/UI/search work remains parked;
 - historical M/PQ/vertical files are retained as traceability records and are no longer used as the current roadmap.
