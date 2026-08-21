@@ -130,8 +130,8 @@ impl MailMode {
 }
 
 #[derive(Debug)]
-struct RenderError {
-    status: &'static str,
+pub(crate) struct RenderError {
+    pub(crate) status: &'static str,
 }
 
 pub fn render_profile(
@@ -400,7 +400,7 @@ pub fn render_profile(
     })
 }
 
-fn ordered_mail_messages(messages: &[MessageRecord]) -> Vec<&MessageRecord> {
+pub(crate) fn ordered_mail_messages(messages: &[MessageRecord]) -> Vec<&MessageRecord> {
     let mut ordered = messages
         .iter()
         .filter(|message| message.item_type != "metadata_status")
@@ -414,7 +414,7 @@ fn ordered_mail_messages(messages: &[MessageRecord]) -> Vec<&MessageRecord> {
     ordered
 }
 
-fn folder_path_map(
+pub(crate) fn folder_path_map(
     folders: &[FolderRecord],
     messages: &[&MessageRecord],
 ) -> BTreeMap<(String, String), String> {
@@ -441,7 +441,7 @@ fn folder_path_map(
     result
 }
 
-fn safe_folder_path(folder_path: &str) -> String {
+pub(crate) fn safe_folder_path(folder_path: &str) -> String {
     let segments = folder_path
         .split('/')
         .filter(|segment| !segment.is_empty())
@@ -641,7 +641,7 @@ fn append_separate_attachments(
     }
 }
 
-fn serialize_message_eml(
+pub(crate) fn serialize_message_eml(
     message: &MessageRecord,
     headers: &[HeaderProjectionRecord],
     recipients: &[RecipientRecord],

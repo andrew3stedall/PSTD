@@ -89,6 +89,15 @@ The `.msg` writer is reviewed separately because it is easy to overstate parity 
 
 PSTD should preserve this observable compatibility map while fixing the upstream writer’s hard-coded `iso-8859-1//TRANSLIT//IGNORE`, destructive string conversion, temporary filename, limited recipient projection, and silent embedded-attachment omission. The issue must state which MSG properties are supported, raw-preserved, or unsupported.
 
+RP-M5-04 implements the supported boundary in `src/output/msg.rs` without linking or
+porting GPL code: a Rust-native CFB/OLE writer emits UTF-16 string streams, FILETIME,
+numeric/boolean flags, root properties, recipient storages, by-value attachment
+storages, and the three empty NameID streams observed upstream. It preserves canonical
+raw evidence while marking invalid scalar/date values, missing payloads, method-5
+embedded attachments, and method-6 materialization decisions. The independent workflow
+uses `olefile` to open every output and compare subject, recipient roles, attachment
+payload hashes, path safety, and repeated bytes.
+
 ### Regression-script application notes
 
 `regression-tests.bash` is not a parser specification, but it is an operational source of truth. `dopst` demonstrates recursive/contact mode, `-8`, `-a`, `-C`, `-j`, `-r`, `-m`, `-S`, `-D`, and logging combinations; the fixture list names HTML/text, ANSI-era, large, appointment, MIME-signed, embedded RFC 822, non-ASCII, RTF, and journal cases. `consistency` compares property constants to XML documentation. The script also removes output files in regression mode and filters a known unstable token before comparison.

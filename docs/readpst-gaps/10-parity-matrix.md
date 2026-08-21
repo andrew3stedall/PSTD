@@ -237,7 +237,7 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | OUT-08 | Thunderbird `.type`/`.size` sidecars | Partial | Recursive mbox plus canonical-identity `.type`/`.size` sidecars, typed vCard/iCalendar/vJournal/non-mail files, semantic parsing, negative type evidence, and repeat-run equality; exact import compatibility remains. |
 | OUT-09 | vCard/list | Partial | Source-backed contact output and explicit partial/empty profile evidence; full field round trips remain required. |
 | OUT-10 | vCalendar/vJournal | Partial | Deterministic appointment iCalendar and Partial vJournal profiles with explicit missing-field/status evidence. |
-| OUT-11 | `.msg` writer | Gap | OLE MSG round-trip and property/recipient/attachment tests. |
+| OUT-11 | `.msg` writer | Partial | Rust-native CFB/OLE writer, deterministic `.msg` plus `.eml` companion, supported MAPI property map, recipient/attachment storages, explicit unsupported/method-5 decisions, and independent `olefile` round-trip evidence; named properties and embedded breadth remain. |
 
 ## Matrix rule
 

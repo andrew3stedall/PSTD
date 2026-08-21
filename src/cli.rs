@@ -313,7 +313,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unsupported_output_profiles_with_stable_code() {
+    fn accepts_msg_output_profile() {
         let cli = Cli::try_parse_from([
             "pstd",
             "extract",
@@ -331,9 +331,7 @@ mod tests {
         else {
             panic!("expected extract command");
         };
-        let error = readpst
-            .policy(overwrite)
-            .expect_err("msg is not implemented");
-        assert!(error.contains("RPCLI_UNSUPPORTED_OUTPUT_PROFILE"));
+        let policy = readpst.policy(overwrite).expect("msg should be supported");
+        assert_eq!(policy.output_profile, OutputProfile::Msg);
     }
 }

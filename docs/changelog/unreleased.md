@@ -51,6 +51,12 @@ _Last reviewed: 21 August 2026._
 - Added independent typed contact, appointment, journal, task, sticky-note, unknown, and missing-class projections for Thunderbird, with vCard/iCalendar/vJournal/JSONL outputs and a stable adapter manifest.
 - Added semantic sidecar/file parsing, negative typed-source, path-safety, and repeat-run evidence workflow coverage; MSG and input breadth remain downstream.
 
+### RP-M5-04
+
+- Added a Rust-native CFB/OLE `msg` output profile with deterministic root MAPI properties, Unicode strings, FILETIME/scalar flags, recipient storages, by-value attachment storages, and three empty NameID streams.
+- Added a separate `.eml` companion for readpst `-m` compatibility, explicit invalid/missing/method-5/method-6/unsupported decisions, and canonical raw evidence preservation.
+- Added an independent `olefile` round-trip workflow covering semantic properties, recipient roles, attachment payload hashes, path safety, negative statuses, and repeated-byte determinism.
+
 ### Product foundation
 
 - Rust `pstd` CLI with `inspect`, `extract`, `batch`, and `version` commands.

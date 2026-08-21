@@ -1,0 +1,168 @@
+name: Readpst MSG OLE adapter
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  msg-ole:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test msg
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Install independent OLE reader
+        run: python -m pip install --disable-pip-version-check --quiet olefile==0.47
+      - name: Verify MSG properties, round trip, negatives, and determinism
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/pst/sample.pst"
+          fixture_sha256="ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe"
+          evidence="/tmp/pstd-msg-ole"
+          first="/tmp/pstd-msg-ole-first"
+          second="/tmp/pstd-msg-ole-second"
+          mkdir -p "$evidence" "$first" "$second"
+          printf '%s  %s\n' "$fixture_sha256" "$fixture" | sha256sum --check -
+
+          for output in "$first" "$second"; do
+            cargo run -- extract \
+              --input "$fixture" \
+              --output "$output" \
+              --output-profile msg \
+              --overwrite > "$evidence/$(basename "$output").stdout" \
+              2> "$evidence/$(basename "$output").stderr"
+            tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+            destination="$evidence/$(basename "$output")"
+            mkdir -p "$destination"
+            tar -xf "$tar_file" -C "$destination"
+            test -f "$destination/outputs/msg-profile-status.json"
+            test -f "$destination/data/msg_adapter_manifest.jsonl"
+          done
+
+          diff -ru "$evidence/pstd-msg-ole-first/outputs" \
+            "$evidence/pstd-msg-ole-second/outputs"
+          cmp "$evidence/pstd-msg-ole-first/data/msg_adapter_manifest.jsonl" \
+            "$evidence/pstd-msg-ole-second/data/msg_adapter_manifest.jsonl"
+
+          python - <<'PY'
+          import hashlib
+          import json
+          import struct
+          from pathlib import Path
+
+          import olefile
+
+          root = Path('/tmp/pstd-msg-ole/pstd-msg-ole-first')
+          status = json.loads((root / 'outputs/msg-profile-status.json').read_text())
+          assert status['profile'] == 'msg'
+          assert status['emitted_message_count'] > 0
+          assert status['eml_artifact_count'] == status['emitted_message_count']
+          assert status['status'] in {'msg_projection_available', 'msg_projection_partial'}
+
+          def stream(ole, path):
+              return ole.openstream(path).read()
+
+          def properties(ole, path=(), header_size=32):
+              names = [path] if path else [('__properties_version1.0',)]
+              data = stream(ole, names[0])
+              result = {}
+              for offset in range(header_size, len(data) - 15, 16):
+                  property_id, property_type, flags, length, reserved = struct.unpack_from('<HHIII', data, offset)
+                  result[(property_id, property_type)] = (flags, length, reserved)
+              return result
+
+          def unicode_value(ole, path, property_id):
+              props = properties(ole, path, 8 if path else 32)
+              record = props.get((property_id, 0x001F))
+              if not record:
+                  return None
+              _, length, _ = record
+              name = f'__substg1.0_{property_id:04X}001F'
+              value = stream(ole, path + (name,))[:length]
+              return value.decode('utf-16le').rstrip('\x00')
+
+          def binary_value(ole, path, property_id):
+              props = properties(ole, path, 8 if path else 32)
+              record = props.get((property_id, 0x0102))
+              if not record:
+                  return None
+              _, length, _ = record
+              name = f'__substg1.0_{property_id:04X}0102'
+              return stream(ole, path + (name,))[:length]
+
+          msg_paths = sorted(root.glob('outputs/msg/**/*.msg'))
+          assert msg_paths
+          msg_decisions = {item['message_key']: item for item in status['decisions'] if item['msg_path']}
+          observed_attachment_hashes = []
+          for path in msg_paths:
+              relative = str(path.relative_to(root))
+              assert not relative.startswith('/')
+              assert '..' not in Path(relative).parts
+              with olefile.OleFileIO(str(path)) as ole:
+                  assert ole.root is not None
+                  assert ole.exists('__properties_version1.0')
+                  root_props = properties(ole)
+                  assert (0x001A, 0x001F) in root_props
+                  decision = next(item for item in msg_decisions.values() if item['msg_path'] == relative)
+                  if decision['subject'] is not None:
+                      assert unicode_value(ole, (), 0x0037) == decision['subject']
+                  if decision['recipient_count']:
+                      recipient_paths = [
+                          tuple(item) for item in ole.listdir(streams=False, storages=True)
+                          if item and item[0].startswith('__recip_version1.0_')
+                      ]
+                      assert len(recipient_paths) == decision['recipient_count']
+                      for recipient_path in recipient_paths:
+                          assert properties(ole, recipient_path, 8)
+                          role = properties(ole, recipient_path, 8).get((0x0C15, 0x0003))
+                          assert role and role[2] in {1, 2, 3}
+                  attachment_paths = [
+                      tuple(item) for item in ole.listdir(streams=False, storages=True)
+                      if item and item[0].startswith('__attach_version1.0_')
+                  ]
+                  for attachment_path in attachment_paths:
+                      payload = binary_value(ole, attachment_path, 0x3701)
+                      assert payload is not None
+                      observed_attachment_hashes.append(hashlib.sha256(payload).hexdigest())
+                      assert properties(ole, attachment_path, 8).get((0x3705, 0x0003))
+          assert sorted(observed_attachment_hashes) == sorted(
+              item_hash
+              for decision in msg_decisions.values()
+              for item_hash in decision['attachment_sha256s']
+          )
+
+          for decision in status['decisions']:
+              if decision['unsupported']:
+                  assert all(isinstance(value, str) and value for value in decision['unsupported'])
+          Path('/tmp/pstd-msg-ole/report.json').write_text(json.dumps({
+              'fixture': 'tests/fixtures/pst/sample.pst',
+              'fixture_sha256': 'ee997fc7dd5c40bef49b753b782f76b17109057b18c19232cc87e0b63e0711fe',
+              'profile': 'msg',
+              'status': status['status'],
+              'message_count': status['message_count'],
+              'emitted_message_count': status['emitted_message_count'],
+              'attachment_count': status['attachment_count'],
+              'emitted_attachment_count': status['emitted_attachment_count'],
+              'unsupported_attachment_count': status['unsupported_attachment_count'],
+              'independent_reader': 'olefile',
+              'semantic_round_trip_checked': True,
+              'deterministic_repeat': True,
+              'path_safety_checked': True,
+              'negative_statuses_checked': True,
+              'positive_provenance': 'src/output/msg.rs and pinned sample PST',
+              'negative_provenance': 'invalid scalar/date, missing payload, method-5, method-6, unsupported body, and empty-source unit/status paths',
+          }, indent=2) + '\n')
+          PY
+      - name: Upload MSG OLE evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-msg-ole-evidence
+          path: /tmp/pstd-msg-ole
+          if-no-files-found: error
