@@ -53,7 +53,8 @@ fn supported_legacy_families_and_unknown_inputs_are_explicit() {
         (0x24, InputFamily::Ost2013),
     ] {
         let bytes = synthetic_header(index_type, Some(0), true);
-        let header = PstHeader::parse_bytes(&bytes, 4096).expect("header");
+        let file_size = if index_type == 0x24 { 12_288 } else { 4_096 };
+        let header = PstHeader::parse_bytes(&bytes, file_size).expect("header");
         let capability =
             InputCapability::from_header("fixture.pst", &header, InputLimits::default());
         assert_eq!(capability.family, expected_family);
@@ -71,7 +72,8 @@ fn supported_legacy_families_and_unknown_inputs_are_explicit() {
 
     for index_type in [0x0e, 0x24] {
         let bytes = synthetic_header(index_type, Some(1), true);
-        let header = PstHeader::parse_bytes(&bytes, 4096).expect("header");
+        let file_size = if index_type == 0x24 { 12_288 } else { 4_096 };
+        let header = PstHeader::parse_bytes(&bytes, file_size).expect("header");
         let capability =
             InputCapability::from_header("fixture.pst", &header, InputLimits::default());
         assert_eq!(capability.status, InputCapabilityStatus::Ready);

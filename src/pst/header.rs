@@ -459,7 +459,7 @@ fn build_root_candidates(
         return Ok(candidates);
     }
 
-    let mut legacy_candidate = PstRootCandidateDiagnostic::from_offsets(
+    let legacy_candidate = PstRootCandidateDiagnostic::from_offsets(
         if variant == PstVariant::Ansi {
             "ansi_root_bref_offsets"
         } else {
