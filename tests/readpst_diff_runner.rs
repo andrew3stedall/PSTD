@@ -81,8 +81,110 @@ fn approved_unicode_fixture_runs_through_isolated_comparison_contract() {
 }
 
 #[test]
-fn configured_readpst_is_explicitly_opt_in_until_oracle_binary_is_provisioned() {
-    if env::var_os("PSTD_READPST_BIN").is_none() {
-        eprintln!("PSTD_READPST_BIN is not set; external pinned readpst execution is not claimed by the contract test");
-    }
+fn configured_readpst_approved_fixture_differential() {
+    let Some(readpst_bin) = env::var_os("PSTD_READPST_BIN") else {
+        eprintln!("PSTD_READPST_BIN is not set; dedicated pinned-oracle workflow provisions this test");
+        return;
+    };
+    let fixture = FixtureManifest::approved_unicode_tika();
+    let repository_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let fixture_path = readpst_diff::runner::validate_fixture_on_disk(&fixture, repository_root)
+        .expect("approved fixture must pass provenance and hash admission");
+    let sandbox = tempdir().expect("sandbox");
+    let readpst_version = env::var("PSTD_READPST_VERSION")
+        .unwrap_or_else(|_| "pinned-source-build".to_string());
+    let pstd_bin = env!("CARGO_BIN_EXE_pstd").to_string();
+    let fixture_path = fixture_path.to_string_lossy().into_owned();
+    let readpst_bin = readpst_bin.to_string_lossy().into_owned();
+    let run_pair = |suffix: &str| {
+        let readpst_sandbox = sandbox.path().join(format!("readpst-{suffix}"));
+        let pstd_sandbox = sandbox.path().join(format!("pstd-{suffix}"));
+        let readpst_output = readpst_sandbox.join("output");
+        let pstd_output = pstd_sandbox.join("output");
+        let readpst = run_isolated(
+            &CommandSpec::new(
+                "readpst",
+                readpst_version.clone(),
+                vec![
+                    readpst_bin.clone(),
+                    "-e".to_string(),
+                    "-8".to_string(),
+                    "-o".to_string(),
+                    readpst_output.to_string_lossy().into_owned(),
+                    fixture_path.clone(),
+                ],
+                &readpst_sandbox,
+                &readpst_output,
+            ),
+            &RunLimits::default(),
+        )
+        .expect("run pinned readpst");
+        let pstd = run_isolated(
+            &CommandSpec::new(
+                "pstd",
+                env!("CARGO_PKG_VERSION"),
+                vec![
+                    pstd_bin.clone(),
+                    "extract".to_string(),
+                    "--input".to_string(),
+                    fixture_path.clone(),
+                    "--output".to_string(),
+                    pstd_output.to_string_lossy().into_owned(),
+                    "--overwrite".to_string(),
+                ],
+                &pstd_sandbox,
+                &pstd_output,
+            ),
+            &RunLimits::default(),
+        )
+        .expect("run PSTD");
+        let readpst_normalized = normalize_readpst_directory(
+            &readpst_output,
+            "readpst",
+            &NormalizationLimits::default(),
+        )
+        .expect("normalize readpst output");
+        let pstd_normalized =
+            normalize_pstd_archive(&pstd_output, "pstd", &NormalizationLimits::default())
+                .expect("normalize PSTD output");
+        (readpst, pstd, readpst_normalized, pstd_normalized)
+    };
+
+    let (readpst_a, pstd_a, readpst_normalized_a, pstd_normalized_a) = run_pair("a");
+    let (readpst_b, pstd_b, readpst_normalized_b, pstd_normalized_b) = run_pair("b");
+    assert!(readpst_a.execution.exit_status.is_some());
+    assert!(pstd_a.execution.exit_status.is_some());
+    let deterministic_repeat =
+        readpst_normalized_a == readpst_normalized_b && pstd_normalized_a == pstd_normalized_b;
+    let report = build_differential_report(
+        &fixture,
+        &readpst_a,
+        &pstd_a,
+        readpst_normalized_a,
+        pstd_normalized_a,
+        1,
+        "utf-8",
+        "eml",
+        deterministic_repeat,
+    )
+    .expect("build configured differential report");
+    let report_b = build_differential_report(
+        &fixture,
+        &readpst_b,
+        &pstd_b,
+        readpst_normalized_b,
+        pstd_normalized_b,
+        1,
+        "utf-8",
+        "eml",
+        deterministic_repeat,
+    )
+    .expect("build repeated differential report");
+    assert!(reports_are_deterministic(&report, &report_b).expect("compare repeated reports"));
+    let evidence_root = env::var_os("PSTD_DIFFERENTIAL_EVIDENCE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| sandbox.path().join("evidence"));
+    let report_path = write_report(&evidence_root, "comparison.json", &report)
+        .expect("write configured differential report");
+    assert!(report_path.is_file());
 }
