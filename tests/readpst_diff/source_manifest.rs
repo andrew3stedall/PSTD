@@ -349,53 +349,220 @@ const DIRECT_ENTRIES: &[SourceEntry] = &[
 ];
 
 const WORK_UNIT_ANCHORS: &[WorkUnitAnchor] = &[
-    WorkUnitAnchor { key: "RP-M0-01", issue: 497, path: "src/readpst.c", symbol: "main" },
-    WorkUnitAnchor { key: "RP-M0-02", issue: 498, path: "regression/regression-tests.bash", symbol: "dopst" },
-    WorkUnitAnchor { key: "RP-M0-03", issue: 499, path: "src/readpst.c", symbol: "main" },
-    WorkUnitAnchor { key: "RP-M0-04", issue: 500, path: "regression/regression-tests.bash", symbol: "profile commands" },
-    WorkUnitAnchor { key: "RP-M1-01", issue: 501, path: "src/libpst.c", symbol: "pst_open" },
-    WorkUnitAnchor { key: "RP-M1-02", issue: 502, path: "src/readpst.c", symbol: "process" },
-    WorkUnitAnchor { key: "RP-M1-03", issue: 503, path: "src/readpst.c", symbol: "process" },
-    WorkUnitAnchor { key: "RP-M1-04", issue: 504, path: "src/libpst.c", symbol: "pst_parse_item" },
-    WorkUnitAnchor { key: "RP-M2-01", issue: 505, path: "src/readpst.c", symbol: "write_normal_email" },
-    WorkUnitAnchor { key: "RP-M2-02", issue: 506, path: "src/readpst.c", symbol: "valid_headers" },
-    WorkUnitAnchor { key: "RP-M2-03", issue: 507, path: "src/readpst.c", symbol: "write_inline_attachment" },
-    WorkUnitAnchor { key: "RP-M2-04", issue: 508, path: "src/readpst.c", symbol: "write_body_part" },
-    WorkUnitAnchor { key: "RP-M3-01", issue: 509, path: "src/readpst.c", symbol: "write_embedded_message" },
-    WorkUnitAnchor { key: "RP-M3-02", issue: 510, path: "src/readpst.c", symbol: "write_schedule_part_data" },
-    WorkUnitAnchor { key: "RP-M3-03", issue: 511, path: "src/readpst.c", symbol: "main" },
-    WorkUnitAnchor { key: "RP-M4-01", issue: 512, path: "src/readpst.c", symbol: "write_vcard" },
-    WorkUnitAnchor { key: "RP-M4-02", issue: 513, path: "src/readpst.c", symbol: "write_appointment" },
-    WorkUnitAnchor { key: "RP-M4-03", issue: 514, path: "src/readpst.c", symbol: "write_journal" },
-    WorkUnitAnchor { key: "RP-M5-01", issue: 515, path: "src/readpst.c", symbol: "create_enter_dir" },
-    WorkUnitAnchor { key: "RP-M5-02", issue: 516, path: "src/readpst.c", symbol: "write_separate_attachment" },
-    WorkUnitAnchor { key: "RP-M5-03", issue: 517, path: "src/readpst.c", symbol: "mk_thunderbird_dir" },
-    WorkUnitAnchor { key: "RP-M5-04", issue: 518, path: "src/msg.cpp", symbol: "write_msg_email" },
-    WorkUnitAnchor { key: "RP-M6-01", issue: 519, path: "src/libpst.c", symbol: "pst_open" },
-    WorkUnitAnchor { key: "RP-M6-02", issue: 520, path: "src/libpst.c", symbol: "pst_open" },
-    WorkUnitAnchor { key: "RP-M6-03", issue: 521, path: "src/vbuf.c", symbol: "buffer growth" },
-    WorkUnitAnchor { key: "RP-M7-01", issue: 522, path: "regression/regression-tests.bash", symbol: "dopst" },
-    WorkUnitAnchor { key: "RP-M7-02", issue: 523, path: "regression/regression-tests.bash", symbol: "dopst" },
-    WorkUnitAnchor { key: "RP-M7-03", issue: 524, path: "NEWS", symbol: "release notes" },
+    WorkUnitAnchor {
+        key: "RP-M0-01",
+        issue: 497,
+        path: "src/readpst.c",
+        symbol: "main",
+    },
+    WorkUnitAnchor {
+        key: "RP-M0-02",
+        issue: 498,
+        path: "regression/regression-tests.bash",
+        symbol: "dopst",
+    },
+    WorkUnitAnchor {
+        key: "RP-M0-03",
+        issue: 499,
+        path: "src/readpst.c",
+        symbol: "main",
+    },
+    WorkUnitAnchor {
+        key: "RP-M0-04",
+        issue: 500,
+        path: "regression/regression-tests.bash",
+        symbol: "profile commands",
+    },
+    WorkUnitAnchor {
+        key: "RP-M1-01",
+        issue: 501,
+        path: "src/libpst.c",
+        symbol: "pst_open",
+    },
+    WorkUnitAnchor {
+        key: "RP-M1-02",
+        issue: 502,
+        path: "src/readpst.c",
+        symbol: "process",
+    },
+    WorkUnitAnchor {
+        key: "RP-M1-03",
+        issue: 503,
+        path: "src/readpst.c",
+        symbol: "process",
+    },
+    WorkUnitAnchor {
+        key: "RP-M1-04",
+        issue: 504,
+        path: "src/libpst.c",
+        symbol: "pst_parse_item",
+    },
+    WorkUnitAnchor {
+        key: "RP-M2-01",
+        issue: 505,
+        path: "src/readpst.c",
+        symbol: "write_normal_email",
+    },
+    WorkUnitAnchor {
+        key: "RP-M2-02",
+        issue: 506,
+        path: "src/readpst.c",
+        symbol: "valid_headers",
+    },
+    WorkUnitAnchor {
+        key: "RP-M2-03",
+        issue: 507,
+        path: "src/readpst.c",
+        symbol: "write_inline_attachment",
+    },
+    WorkUnitAnchor {
+        key: "RP-M2-04",
+        issue: 508,
+        path: "src/readpst.c",
+        symbol: "write_body_part",
+    },
+    WorkUnitAnchor {
+        key: "RP-M3-01",
+        issue: 509,
+        path: "src/readpst.c",
+        symbol: "write_embedded_message",
+    },
+    WorkUnitAnchor {
+        key: "RP-M3-02",
+        issue: 510,
+        path: "src/readpst.c",
+        symbol: "write_schedule_part_data",
+    },
+    WorkUnitAnchor {
+        key: "RP-M3-03",
+        issue: 511,
+        path: "src/readpst.c",
+        symbol: "main",
+    },
+    WorkUnitAnchor {
+        key: "RP-M4-01",
+        issue: 512,
+        path: "src/readpst.c",
+        symbol: "write_vcard",
+    },
+    WorkUnitAnchor {
+        key: "RP-M4-02",
+        issue: 513,
+        path: "src/readpst.c",
+        symbol: "write_appointment",
+    },
+    WorkUnitAnchor {
+        key: "RP-M4-03",
+        issue: 514,
+        path: "src/readpst.c",
+        symbol: "write_journal",
+    },
+    WorkUnitAnchor {
+        key: "RP-M5-01",
+        issue: 515,
+        path: "src/readpst.c",
+        symbol: "create_enter_dir",
+    },
+    WorkUnitAnchor {
+        key: "RP-M5-02",
+        issue: 516,
+        path: "src/readpst.c",
+        symbol: "write_separate_attachment",
+    },
+    WorkUnitAnchor {
+        key: "RP-M5-03",
+        issue: 517,
+        path: "src/readpst.c",
+        symbol: "mk_thunderbird_dir",
+    },
+    WorkUnitAnchor {
+        key: "RP-M5-04",
+        issue: 518,
+        path: "src/msg.cpp",
+        symbol: "write_msg_email",
+    },
+    WorkUnitAnchor {
+        key: "RP-M6-01",
+        issue: 519,
+        path: "src/libpst.c",
+        symbol: "pst_open",
+    },
+    WorkUnitAnchor {
+        key: "RP-M6-02",
+        issue: 520,
+        path: "src/libpst.c",
+        symbol: "pst_open",
+    },
+    WorkUnitAnchor {
+        key: "RP-M6-03",
+        issue: 521,
+        path: "src/vbuf.c",
+        symbol: "buffer growth",
+    },
+    WorkUnitAnchor {
+        key: "RP-M7-01",
+        issue: 522,
+        path: "regression/regression-tests.bash",
+        symbol: "dopst",
+    },
+    WorkUnitAnchor {
+        key: "RP-M7-02",
+        issue: 523,
+        path: "regression/regression-tests.bash",
+        symbol: "dopst",
+    },
+    WorkUnitAnchor {
+        key: "RP-M7-03",
+        issue: 524,
+        path: "NEWS",
+        symbol: "release notes",
+    },
 ];
 
 const REGRESSION_PROFILES: &[RegressionProfile] = &[
-    RegressionProfile { name: "default", command_shape: "readpst fixture.pst", evidence_scope: "ordinary message and canonical extraction" },
-    RegressionProfile { name: "separate", command_shape: "readpst -S fixture.pst", evidence_scope: "separate files and attachment paths" },
-    RegressionProfile { name: "recursive", command_shape: "readpst -r fixture.pst", evidence_scope: "recursive folder traversal" },
-    RegressionProfile { name: "mh", command_shape: "readpst -h fixture.pst", evidence_scope: "MH/rfc822 output" },
-    RegressionProfile { name: "kmail", command_shape: "readpst -k fixture.pst", evidence_scope: "KMail output" },
-    RegressionProfile { name: "thunderbird", command_shape: "readpst -t fixture.pst", evidence_scope: "Thunderbird sidecars and typed files" },
-    RegressionProfile { name: "debug", command_shape: "readpst -d debug.log fixture.pst", evidence_scope: "diagnostic output and bounded logs" },
-    RegressionProfile { name: "valgrind-resource", command_shape: "readpst under resource checker", evidence_scope: "resource and leak-budget evidence" },
+    RegressionProfile {
+        name: "default",
+        command_shape: "readpst fixture.pst",
+        evidence_scope: "ordinary message and canonical extraction",
+    },
+    RegressionProfile {
+        name: "separate",
+        command_shape: "readpst -S fixture.pst",
+        evidence_scope: "separate files and attachment paths",
+    },
+    RegressionProfile {
+        name: "recursive",
+        command_shape: "readpst -r fixture.pst",
+        evidence_scope: "recursive folder traversal",
+    },
+    RegressionProfile {
+        name: "mh",
+        command_shape: "readpst -h fixture.pst",
+        evidence_scope: "MH/rfc822 output",
+    },
+    RegressionProfile {
+        name: "kmail",
+        command_shape: "readpst -k fixture.pst",
+        evidence_scope: "KMail output",
+    },
+    RegressionProfile {
+        name: "thunderbird",
+        command_shape: "readpst -t fixture.pst",
+        evidence_scope: "Thunderbird sidecars and typed files",
+    },
+    RegressionProfile {
+        name: "debug",
+        command_shape: "readpst -d debug.log fixture.pst",
+        evidence_scope: "diagnostic output and bounded logs",
+    },
+    RegressionProfile {
+        name: "valgrind-resource",
+        command_shape: "readpst under resource checker",
+        evidence_scope: "resource and leak-budget evidence",
+    },
 ];
 
-const OUT_OF_SCOPE_UTILITIES: &[&str] = &[
-    "lspst",
-    "pst2ldif",
-    "nick2ldif",
-    "pst2dii",
-];
+const OUT_OF_SCOPE_UTILITIES: &[&str] = &["lspst", "pst2ldif", "nick2ldif", "pst2dii"];
 
 pub fn source_manifest() -> SourceManifest {
     SourceManifest {
@@ -510,12 +677,16 @@ impl SourceManifest {
             if entry.behavior.is_empty() {
                 return Err(format!("source_entry_has_no_behavior: {}", entry.path));
             }
-            if entry
-                .work_units
-                .iter()
-                .any(|key| !self.work_unit_anchors.iter().any(|anchor| anchor.key == *key))
-            {
-                return Err(format!("source_entry_has_unknown_work_unit: {}", entry.path));
+            if entry.work_units.iter().any(|key| {
+                !self
+                    .work_unit_anchors
+                    .iter()
+                    .any(|anchor| anchor.key == *key)
+            }) {
+                return Err(format!(
+                    "source_entry_has_unknown_work_unit: {}",
+                    entry.path
+                ));
             }
             let url = source_url(entry.path, entry.line_ref);
             let expected_prefix = format!("{}{}/{}", UPSTREAM_BLOB_URL, self.revision, entry.path);
@@ -533,7 +704,12 @@ impl SourceManifest {
             if !work_units.insert(anchor.key) {
                 return Err(format!("duplicate_work_unit_anchor: {}", anchor.key));
             }
-            if self.entries.iter().find(|entry| entry.path == anchor.path).is_none_or(|entry| !entry.symbols.contains(&anchor.symbol)) {
+            if self
+                .entries
+                .iter()
+                .find(|entry| entry.path == anchor.path)
+                .is_none_or(|entry| !entry.symbols.contains(&anchor.symbol))
+            {
                 return Err(format!("unresolved_work_unit_anchor: {}", anchor.key));
             }
             if anchor.issue < 497 || anchor.issue > 524 {
@@ -541,7 +717,10 @@ impl SourceManifest {
             }
         }
         if work_units.len() != 28 {
-            return Err(format!("work_unit_anchor_count_mismatch: {}", work_units.len()));
+            return Err(format!(
+                "work_unit_anchor_count_mismatch: {}",
+                work_units.len()
+            ));
         }
         if self.regression_profiles.len() != 8 {
             return Err(format!(
@@ -564,7 +743,9 @@ mod tests {
     #[test]
     fn pinned_manifest_covers_ledger_and_workboard() {
         let manifest = source_manifest();
-        manifest.validate().expect("source manifest should validate");
+        manifest
+            .validate()
+            .expect("source manifest should validate");
         assert_eq!(manifest.entries.len(), REQUIRED_DIRECT_PATHS.len());
         assert_eq!(manifest.work_unit_anchors.len(), 28);
         assert_eq!(manifest.regression_profiles.len(), 8);
@@ -572,8 +753,12 @@ mod tests {
         assert!(manifest
             .entries
             .iter()
-            .all(|entry| source_url(entry.path, entry.line_ref)
-                .starts_with(&format!("{}{}/{}", UPSTREAM_BLOB_URL, READPST_SOURCE_REVISION, entry.path))));
+            .all(
+                |entry| source_url(entry.path, entry.line_ref).starts_with(&format!(
+                    "{}{}/{}",
+                    UPSTREAM_BLOB_URL, READPST_SOURCE_REVISION, entry.path
+                ))
+            ));
     }
 
     #[test]
