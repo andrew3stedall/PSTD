@@ -148,11 +148,12 @@ pub fn normalize_pstd_archive(
                     }
                 }
             } else {
+                let normalized_bytes = stable_artifact_bytes(&path, &bytes);
                 let artifact = ArtifactDigest {
                     artifact_type: artifact_type(&relative),
                     path: relative,
-                    sha256: sha256_hex(&bytes),
-                    size_bytes: bytes.len() as u64,
+                    sha256: sha256_hex(&normalized_bytes),
+                    size_bytes: normalized_bytes.len() as u64,
                 };
                 artifact.validate()?;
                 output.artifacts.push(artifact);
@@ -426,6 +427,36 @@ fn canonical_value(value: &Value) -> String {
     canonical_json(value)
 }
 
+fn stable_artifact_bytes(path: &Path, bytes: &[u8]) -> Vec<u8> {
+    let is_json = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("json"));
+    if !is_json {
+        return bytes.to_vec();
+    }
+    let Ok(value) = serde_json::from_slice::<Value>(bytes) else {
+        return bytes.to_vec();
+    };
+    canonical_json(&strip_volatile_json(value)).into_bytes()
+}
+
+fn strip_volatile_json(value: Value) -> Value {
+    match value {
+        Value::Object(object) => Value::Object(
+            object
+                .into_iter()
+                .filter(|(key, _)| !is_volatile_field(key))
+                .map(|(key, value)| (key, strip_volatile_json(value)))
+                .collect(),
+        ),
+        Value::Array(values) => {
+            Value::Array(values.into_iter().map(strip_volatile_json).collect())
+        }
+        other => other,
+    }
+}
+
 fn canonical_json(value: &Value) -> String {
     match value {
         Value::Object(object) => {
@@ -527,6 +558,20 @@ mod tests {
         assert_eq!(result.records.len(), 1);
         assert_eq!(result.records[0].identity, "m1");
         assert!(!result.records[0].fields.contains_key("timestamp_utc"));
+    }
+
+    #[test]
+    fn canonicalizes_volatile_json_artifacts_for_repeatability() {
+        let first = stable_artifact_bytes(
+            Path::new("summary.json"),
+            br#"{"finished_at":"later","messages":1,"started_at":"now"}"#,
+        );
+        let second = stable_artifact_bytes(
+            Path::new("summary.json"),
+            br#"{"finished_at":"different","messages":1,"started_at":"earlier"}"#,
+        );
+        assert_eq!(first, second);
+        assert_eq!(String::from_utf8(first).unwrap(), r#"{"messages":1}"#);
     }
 
     #[test]
