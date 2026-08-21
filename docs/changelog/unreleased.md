@@ -45,6 +45,12 @@ _Last reviewed: 21 August 2026._
 - Added a deterministic KMail `.<folder>.directory/<folder>.mbox` profile with explicit parent-index invalidation policy and no mutable index output.
 - Added repeated-profile, path-safety, positive payload, and negative attachment/KMail evidence workflow coverage; Thunderbird sidecars and MSG remain downstream.
 
+### RP-M5-03
+
+- Added a deterministic Thunderbird profile with recursive mbox output, canonical-identity `.type` and readpst-compatible `.size` sidecars, and explicit unavailable folder-type evidence instead of guessed numeric values.
+- Added independent typed contact, appointment, journal, task, sticky-note, unknown, and missing-class projections for Thunderbird, with vCard/iCalendar/vJournal/JSONL outputs and a stable adapter manifest.
+- Added semantic sidecar/file parsing, negative typed-source, path-safety, and repeat-run evidence workflow coverage; MSG and input breadth remain downstream.
+
 ### Product foundation
 
 - Rust `pstd` CLI with `inspect`, `extract`, `batch`, and `version` commands.

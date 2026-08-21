@@ -15,6 +15,7 @@ use crate::output::metadata::MessageRecord;
 use crate::output::non_mail::serialize_vjournals;
 use crate::output::summary::ExtractionSummary;
 use crate::output::tar_writer::TarShardWriter;
+use crate::output::thunderbird::render_typed_outputs;
 use crate::progress::{ProgressEvent, ProgressEventType};
 use crate::pst::capability::{InputCapability, InputCapabilityStatus};
 use crate::pst::item_envelope::{apply_item_routing_policy, build_item_routing_counts};
@@ -331,6 +332,34 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
             };
             manifest.write_record(&record)?;
             adapter_manifest.write_record(&artifact.summary)?;
+        }
+        if config.readpst.output_profile == crate::config::OutputProfile::Thunderbird {
+            let (typed_status, typed_artifacts) = render_typed_outputs(
+                &metadata.contacts,
+                &metadata.calendars,
+                &metadata.non_mail,
+            );
+            tar.append_bytes(
+                &["outputs", "thunderbird-typed-profile-status.json"],
+                &serde_json::to_vec_pretty(&typed_status)?,
+            )?;
+            for artifact in typed_artifacts {
+                append_archive_payload(&mut tar, &artifact.summary.path, &artifact.bytes)?;
+                let record = crate::output::metadata::ManifestRecord {
+                    run_id: run_id.clone(),
+                    pst_id: pst_id.clone(),
+                    message_key: None,
+                    folder_key: None,
+                    artefact_type: artifact.summary.output_kind.clone(),
+                    archive_path: artifact.summary.path.clone(),
+                    sha256: Some(artifact.summary.sha256.clone()),
+                    size_bytes: Some(artifact.summary.size_bytes),
+                    status: artifact.summary.status.clone(),
+                    issue_count: 0,
+                };
+                manifest.write_record(&record)?;
+                adapter_manifest.write_record(&artifact.summary)?;
+            }
         }
         tar.append_bytes(
             &["data", "mailbox_adapter_manifest.jsonl"],

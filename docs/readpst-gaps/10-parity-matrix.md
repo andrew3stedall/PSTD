@@ -234,7 +234,7 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | OUT-05 | Extended `.eml` output | Partial | Header normalization/reconstruction, multipart alternative, attachment projection, and sample-PST repeat run; full MIME differential remains. |
 | OUT-06 | Separate binary attachments | Partial | Resolved non-empty payload files, normalized extension filters, collision-safe names, explicit negative decisions, and deterministic adapter manifest; broad corpus remains. |
 | OUT-07 | KMail layout | Partial | Safe `.<folder>.directory/<folder>.mbox` projection and explicit index policy; KMail import/read test remains. |
-| OUT-08 | Thunderbird `.type`/`.size` sidecars | Gap | Sidecar count/status tests. |
+| OUT-08 | Thunderbird `.type`/`.size` sidecars | Partial | Recursive mbox plus canonical-identity `.type`/`.size` sidecars, typed vCard/iCalendar/vJournal/non-mail files, semantic parsing, negative type evidence, and repeat-run equality; exact import compatibility remains. |
 | OUT-09 | vCard/list | Partial | Source-backed contact output and explicit partial/empty profile evidence; full field round trips remain required. |
 | OUT-10 | vCalendar/vJournal | Partial | Deterministic appointment iCalendar and Partial vJournal profiles with explicit missing-field/status evidence. |
 | OUT-11 | `.msg` writer | Gap | OLE MSG round-trip and property/recipient/attachment tests. |

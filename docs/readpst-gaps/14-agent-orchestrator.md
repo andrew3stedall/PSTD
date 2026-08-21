@@ -222,7 +222,9 @@ per-message unavailable/skipped decisions, output hashes, and a mailbox manifest
 sample-PST workflow proves repeat-run equality. RP-M5-02 adds separate resolved binary
 attachment files, normalized extension-filter decisions, and a safe KMail
 `.<folder>.directory/<folder>.mbox` projection with explicit index policy. Full pinned
-readpst differential promotion, Thunderbird, and MSG remain downstream work.
+readpst differential promotion remains open. RP-M5-03 adds Thunderbird recursive mbox,
+canonical-identity `.type`/`.size` sidecars, and independent typed contact/calendar/
+journal/non-mail files. MSG and input breadth remain downstream work.
 
 ### `RP-M6 — Input breadth and hardening`
 

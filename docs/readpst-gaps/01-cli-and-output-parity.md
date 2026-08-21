@@ -36,7 +36,7 @@ The mode flags are mutually exclusive in readpst. PSTD should expose equivalent 
 | `-e` | MH/rfc822 individual message files with extensions, normally `.eml`/`.vcf`/`.ics`. | **Partial**: `eml` emits numbered `.eml` files; typed non-mail extensions remain downstream. |
 | `-m` | The `-e` result plus `.msg` files. | **Gap** |
 | `-k` | KMail directory layout, including folder mbox names and index invalidation behaviour. | **Partial**: `kmail` emits safe `.<folder>.directory/<folder>.mbox` entries and explicit index policy; import/read coverage remains. |
-| `-u` | Thunderbird recursive mode plus `.type` per folder and `.size` counts. | **Gap** |
+| `-u` | Thunderbird recursive mode plus `.type` per folder and `.size` counts. | **Partial**: `thunderbird` emits recursive mbox, explicit `.type` source-status JSON, `.size` counts, and typed non-mail files; exact import compatibility remains. |
 | `-c[v]` | vCard output with contact fields, notes, categories, and RFC 2426 escaping. | **Gap** |
 | `-c[l]` | Simple contact email list. | **Gap** |
 | appointment/journal selection | iCalendar or vJournal records, including recurrence and alarms where available. | **Gap** |

@@ -10,3 +10,4 @@ pub mod paths;
 pub mod special;
 pub mod summary;
 pub mod tar_writer;
+pub mod thunderbird;

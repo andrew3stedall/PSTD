@@ -61,6 +61,7 @@ impl OutputProfile {
                 | Self::Eml
                 | Self::Separate
                 | Self::Kmail
+                | Self::Thunderbird
                 | Self::Vcard
                 | Self::ContactList
                 | Self::Icalendar

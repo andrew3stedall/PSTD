@@ -87,6 +87,7 @@ enum MailMode {
     Eml,
     Separate,
     Kmail,
+    Thunderbird,
 }
 
 impl MailMode {
@@ -98,6 +99,7 @@ impl MailMode {
             OutputProfile::Eml => Some(Self::Eml),
             OutputProfile::Separate => Some(Self::Separate),
             OutputProfile::Kmail => Some(Self::Kmail),
+            OutputProfile::Thunderbird => Some(Self::Thunderbird),
             _ => None,
         }
     }
@@ -110,6 +112,7 @@ impl MailMode {
             Self::Eml => "eml",
             Self::Separate => "separate",
             Self::Kmail => "kmail",
+            Self::Thunderbird => "thunderbird",
         }
     }
 
@@ -121,6 +124,7 @@ impl MailMode {
             Self::Eml => "outputs/eml",
             Self::Separate => "outputs/separate",
             Self::Kmail => "outputs/kmail",
+            Self::Thunderbird => "outputs/thunderbird",
         }
     }
 }
@@ -207,7 +211,10 @@ pub fn render_profile(
 
     for (folder, group) in &groups {
         match mode {
-            MailMode::Mbox | MailMode::RecursiveMbox | MailMode::Kmail => {
+            MailMode::Mbox
+            | MailMode::RecursiveMbox
+            | MailMode::Kmail
+            | MailMode::Thunderbird => {
                 let mut output = Vec::new();
                 for message in group {
                     match serialize_message_eml(
@@ -249,6 +256,9 @@ pub fn render_profile(
                             format!("{}/{}/mbox", mode.output_root(), folder)
                         }
                         MailMode::Kmail => kmail_mbox_path(folder),
+                        MailMode::Thunderbird => {
+                            format!("{}/{}/mbox", mode.output_root(), folder)
+                        }
                         _ => unreachable!(),
                     };
                     artifacts.push(artifact(
@@ -259,6 +269,14 @@ pub fn render_profile(
                         output,
                         "mailbox_stream_emitted",
                     ));
+                    if mode == MailMode::Thunderbird {
+                        append_thunderbird_sidecars(
+                            folder,
+                            group,
+                            folders,
+                            &mut artifacts,
+                        );
+                    }
                 }
             }
             MailMode::Mh | MailMode::Eml | MailMode::Separate => {
@@ -457,6 +475,47 @@ fn kmail_mbox_path(folder: &str) -> String {
         format!("{}/", segments.join("/"))
     };
     format!("outputs/kmail/{parent}.{leaf}.directory/{leaf}.mbox")
+}
+
+fn append_thunderbird_sidecars(
+    folder: &str,
+    group: &[&MessageRecord],
+    folders: &[FolderRecord],
+    artifacts: &mut Vec<MailboxArtifact>,
+) {
+    let folder_record = folders
+        .iter()
+        .find(|record| record.folder_path == group[0].folder_path);
+    let folder_key = group[0].folder_key.clone();
+    let folder_path = group[0].folder_path.clone();
+    let stored_count = folder_record
+        .and_then(|record| record.item_count_total)
+        .unwrap_or(group.len() as u64);
+    let type_bytes = serde_json::to_vec_pretty(&serde_json::json!({
+        "folder_key": folder_key,
+        "folder_path": folder_path,
+        "readpst_type": serde_json::Value::Null,
+        "status": "folder_item_type_unavailable_no_guess",
+        "source": "canonical_folder_record",
+    }))
+    .unwrap_or_else(|_| b"{}".to_vec());
+    artifacts.push(artifact(
+        format!("outputs/thunderbird/{folder}/.type"),
+        None,
+        group[0].folder_path.clone(),
+        "thunderbird_sidecar",
+        type_bytes,
+        "sidecar_type_explicit_unavailable",
+    ));
+    let size_bytes = format!("{} {stored_count}\n", group.len()).into_bytes();
+    artifacts.push(artifact(
+        format!("outputs/thunderbird/{folder}/.size"),
+        None,
+        group[0].folder_path.clone(),
+        "thunderbird_sidecar",
+        size_bytes,
+        "sidecar_size_emitted",
+    ));
 }
 
 fn artifact(
@@ -1353,6 +1412,46 @@ mod tests {
             .path
             .ends_with(".Inbox.directory/Inbox.mbox"));
         assert!(output.status.kmail_index_policy.is_some());
+    }
+
+    #[test]
+    fn thunderbird_profile_emits_mbox_and_explicit_sidecars() {
+        let msg = message("msg-thunderbird", "/Inbox", Some("IPM.Note"));
+        let body = text_body_payload("msg-thunderbird", "body");
+        let output = render_profile(
+            OutputProfile::Thunderbird,
+            &[],
+            &[msg],
+            &[],
+            &[],
+            std::slice::from_ref(&body.record),
+            std::slice::from_ref(&body),
+            &[],
+            &[],
+            &[],
+        )
+        .expect("thunderbird profile");
+        assert!(output
+            .artifacts
+            .iter()
+            .any(|artifact| artifact.summary.path.ends_with("/mbox")));
+        assert!(output
+            .artifacts
+            .iter()
+            .any(|artifact| artifact.summary.path.ends_with("/.type")));
+        assert!(output
+            .artifacts
+            .iter()
+            .any(|artifact| artifact.summary.path.ends_with("/.size")));
+        assert!(String::from_utf8_lossy(
+            &output
+                .artifacts
+                .iter()
+                .find(|artifact| artifact.summary.path.ends_with("/.type"))
+                .expect("type sidecar")
+                .bytes
+        )
+        .contains("folder_item_type_unavailable_no_guess"));
     }
 
     #[allow(dead_code)]

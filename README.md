@@ -13,7 +13,7 @@ _Last reviewed: 21 August 2026._
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI version-14/15 header fields are decoded with variant-correct widths but cannot authorize traversal or extraction. |
 | Current milestone | First controlled Microsoft Purview Unicode export | Admit immutable, redistributable synthetic Purview bytes, lock the exact before-state, then implement the smallest newly evidenced email-to-EML capability. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
-| Readpst parity workboard | RP-M5-02 in progress | Canonical typed records now feed deterministic mbox, recursive-mbox, MH, EML, separate message files and binary attachments, plus a KMail directory projection; Thunderbird, MSG, and input gates remain open. |
+| Readpst parity workboard | RP-M5-03 in progress | Canonical typed records now feed deterministic mailbox, attachment, KMail, Thunderbird-sidecar, and typed non-mail projections; MSG and input gates remain open. |
 
 ### RP-M4-03
 
@@ -45,6 +45,15 @@ cases remain explicit decisions. The `kmail` profile emits safe relative
 `.<folder>.directory/<folder>.mbox` paths and records the readpst index invalidation
 policy without producing a mutable index. Repeated profile output and the adapter
 manifest are deterministic.
+
+### RP-M5-03
+
+The Thunderbird profile now emits recursive mbox streams with deterministic `.type` and
+`.size` sidecars linked to canonical folder identity. Typed contact, appointment, journal,
+task, sticky-note, unknown, and missing-class evidence is published through independent
+vCard, iCalendar, vJournal, or JSONL projections; unsupported folder type remains explicit
+instead of being guessed. Sidecars, typed files, and adapter manifests are repeat-run
+deterministic and archive-path safe.
 
 ## Intent
 
