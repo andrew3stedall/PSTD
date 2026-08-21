@@ -163,6 +163,18 @@ pub struct ItemEnvelope {
     pub raw_evidence_refs: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ItemRoutingCountRecord {
+    pub folder_key: Option<String>,
+    pub folder_path: String,
+    pub item_count: u64,
+    pub emitted_count: u64,
+    pub filtered_count: u64,
+    pub skipped_count: u64,
+    pub unavailable_count: u64,
+    pub failed_count: u64,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ManifestRecord {
     pub run_id: String,

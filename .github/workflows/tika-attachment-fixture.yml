@@ -113,6 +113,7 @@ jobs:
           recipients = records('recipients.jsonl')
           attachments = records('attachments.jsonl')
           items = records('items.jsonl')
+          routing_counts = records('item_routing_counts.jsonl')
           if len(messages) != 8:
               raise SystemExit(f'unexpected message count: {len(messages)}')
           folder_fields = (
@@ -392,6 +393,22 @@ jobs:
               raise SystemExit('item envelope routing status is missing')
           if any('message_class' not in message for message in messages):
               raise SystemExit('message class evidence field is missing')
+          item_rows = [item for item in items if item['record_kind'] == 'item']
+          if sum(count['item_count'] for count in routing_counts) != len(item_rows):
+              raise SystemExit('routing counts do not reconcile item envelopes')
+          for count in routing_counts:
+              classified = sum(
+                  count[name]
+                  for name in (
+                      'emitted_count',
+                      'filtered_count',
+                      'skipped_count',
+                      'unavailable_count',
+                      'failed_count',
+                  )
+              )
+              if classified != count['item_count']:
+                  raise SystemExit(f'routing count bucket mismatch: {count!r}')
           envelope_by_key = {item['envelope_key']: item for item in items}
           for folder in folders:
               envelope = envelope_by_key.get(folder['folder_key'])
@@ -715,8 +732,8 @@ jobs:
               'bodies_jsonl_bytes': 2922,
               'recipients_jsonl_bytes': 2708,
               'attachments_jsonl_bytes': 1240,
-              'tar_bytes': 264192,
-              'output_total_bytes': 309239,
+              'tar_bytes': 266752,
+              'output_total_bytes': 311799,
           }
           if metrics != expected_metrics:
               raise SystemExit(f'fixture metrics mismatch: {metrics!r}')
