@@ -76,10 +76,10 @@ impl ReadpstArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    #[command(
+        about = "Extract one PST/OST input into canonical evidence and an optional named output profile."
+    )]
     Extract {
-        #[command(
-            about = "Extract one PST/OST input into canonical evidence and an optional named output profile."
-        )]
         #[arg(long)]
         input: std::path::PathBuf,
         #[arg(long)]
@@ -105,10 +105,10 @@ pub enum Commands {
         #[command(flatten)]
         readpst: ReadpstArgs,
     },
+    #[command(
+        about = "Process PST/OST inputs from a directory with bounded deterministic scheduling."
+    )]
     Batch {
-        #[command(
-            about = "Process PST/OST inputs from a directory with bounded deterministic scheduling."
-        )]
         #[arg(long)]
         input: std::path::PathBuf,
         #[arg(long)]
@@ -136,10 +136,10 @@ pub enum Commands {
         #[command(flatten)]
         readpst: ReadpstArgs,
     },
+    #[command(
+        about = "Inspect input capability and bounded parser diagnostics without extracting content."
+    )]
     Inspect {
-        #[command(
-            about = "Inspect input capability and bounded parser diagnostics without extracting content."
-        )]
         #[arg(long)]
         input: std::path::PathBuf,
         #[arg(long, default_value_t = false)]
