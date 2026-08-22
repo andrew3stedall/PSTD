@@ -1,10 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 
 use chrono::{DateTime, FixedOffset, Utc};
-use pstd::eml::build_plain_text_eml;
 use pstd::engine::metadata::extract_metadata;
 use pstd::output::headers::{
     encode_display_name, encode_mime_parameter, encode_unstructured_value,
@@ -37,13 +36,26 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), String> {
-    let mut args = env::args_os().skip(1);
-    let input = args.next().map(PathBuf::from).ok_or_else(usage)?;
-    let output = args.next().map(PathBuf::from).ok_or_else(usage)?;
-    if args.next().is_some() {
-        return Err(usage());
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AttachmentMode {
+    Inline,
+    External,
+}
+
+impl AttachmentMode {
+    fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "inline" => Ok(Self::Inline),
+            "external" => Ok(Self::External),
+            _ => Err(format!(
+                "unsupported attachment mode {value:?}; expected inline or external"
+            )),
+        }
     }
+}
+
+fn run() -> Result<(), String> {
+    let (input, output, attachment_mode) = parse_args()?;
 
     fs::create_dir_all(&output).map_err(|error| error.to_string())?;
     let input_display = input.display().to_string();
@@ -55,12 +67,17 @@ fn run() -> Result<(), String> {
     let recipients = recipients_by_message(&metadata.recipients);
     let bodies = bodies_by_message(&metadata.body_payloads);
     let attachments = attachments_by_message(&metadata.attachment_payloads);
+    let attachment_records = attachment_records_by_message(
+        &metadata.attachments,
+        &metadata.attachment_payloads,
+    );
     let embedded_messages = embedded_message_keys(&metadata.attachments);
+    let mut pending_external_attachments = Vec::new();
+    let mut external_manifest = Vec::new();
+    let mut external_paths = BTreeSet::new();
+    external_paths.insert(PathBuf::from("attachments.jsonl"));
     let mut emitted = 0usize;
     for message in &metadata.messages {
-        let Some(body) = bodies.get(&message.message_key) else {
-            continue;
-        };
         let message_recipients = recipients
             .get(&message.message_key)
             .map(Vec::as_slice)
@@ -69,18 +86,60 @@ fn run() -> Result<(), String> {
             .get(&message.message_key)
             .map(Vec::as_slice)
             .unwrap_or_default();
-        let Some(eml) = build_eml_with_plain_text_policy(
-            message,
-            message_recipients,
-            body,
+        let message_attachment_records = attachment_records
+            .get(&message.message_key)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let unavailable_attachment_count = unavailable_attachment_count(
+            message_attachment_records,
             message_attachments,
-            embedded_messages.contains(&message.message_key),
-        ) else {
+        );
+        let inline_attachments = if attachment_mode == AttachmentMode::Inline {
+            message_attachments
+        } else {
+            &[]
+        };
+        let eml = bodies.get(&message.message_key).and_then(|body| {
+            build_eml_with_attachment_mode(
+                message,
+                message_recipients,
+                body,
+                inline_attachments,
+                attachment_mode,
+                attachment_mode == AttachmentMode::External
+                    || embedded_messages.contains(&message.message_key)
+                    || unavailable_attachment_count > 0,
+                unavailable_attachment_count,
+            )
+        });
+        if attachment_mode == AttachmentMode::External {
+            let eml_filename = format!("{}.eml", safe_filename(&message.message_key));
+            if !external_paths.insert(PathBuf::from(eml_filename.as_str())) {
+                return Err(format!("duplicate EML output path: {eml_filename}"));
+            }
+            let (pending, manifest) = plan_external_attachments(
+                if eml.is_some() {
+                    Some(eml_filename.as_str())
+                } else {
+                    None
+                },
+                message_attachment_records,
+                message_attachments,
+                &mut external_paths,
+            )?;
+            pending_external_attachments.extend(pending);
+            external_manifest.extend(manifest);
+        }
+        let Some(eml) = eml else {
             continue;
         };
         let path = output.join(format!("{}.eml", safe_filename(&message.message_key)));
         fs::write(path, eml).map_err(|error| error.to_string())?;
         emitted += 1;
+    }
+
+    if attachment_mode == AttachmentMode::External {
+        write_external_attachments(&output, &pending_external_attachments, &external_manifest)?;
     }
 
     println!("eml_files_emitted={emitted}");
@@ -90,8 +149,40 @@ fn run() -> Result<(), String> {
     Ok(())
 }
 
+fn parse_args() -> Result<(PathBuf, PathBuf, AttachmentMode), String> {
+    let mut positionals = Vec::new();
+    let mut attachment_mode = AttachmentMode::Inline;
+    let mut args = env::args_os().skip(1);
+
+    while let Some(raw) = args.next() {
+        let argument = raw.to_str().ok_or_else(usage)?;
+        if argument == "--attachment-mode" {
+            let Some(raw_value) = args.next() else {
+                return Err(usage());
+            };
+            let value = raw_value.to_str().ok_or_else(usage)?;
+            attachment_mode = AttachmentMode::parse(value)?;
+        } else if let Some(value) = argument.strip_prefix("--attachment-mode=") {
+            attachment_mode = AttachmentMode::parse(value)?;
+        } else if argument.starts_with('-') {
+            return Err(usage());
+        } else {
+            positionals.push(PathBuf::from(raw));
+        }
+    }
+
+    if positionals.len() != 2 {
+        return Err(usage());
+    }
+    Ok((
+        positionals.remove(0),
+        positionals.remove(0),
+        attachment_mode,
+    ))
+}
+
 fn usage() -> String {
-    "usage: pstd-eml <input.pst> <output-dir>".to_string()
+    "usage: pstd-eml [--attachment-mode inline|external] <input.pst> <output-dir>".to_string()
 }
 
 #[derive(Default)]
@@ -118,19 +209,56 @@ fn attachments_by_message(
     payloads: &[AttachmentPayload],
 ) -> BTreeMap<String, Vec<AttachmentPayload>> {
     let mut grouped: BTreeMap<String, Vec<AttachmentPayload>> = BTreeMap::new();
-    for payload in payloads
-        .iter()
-        .filter(|payload| payload.record.attachment_method == Some(1))
-    {
+    for payload in payloads {
         grouped
             .entry(payload.record.message_key.clone())
             .or_default()
             .push(payload.clone());
     }
     for payloads in grouped.values_mut() {
-        payloads.sort_by_key(|payload| payload.record.ordinal);
+        payloads.sort_by_key(|payload| attachment_order_key(&payload.record));
     }
     grouped
+}
+
+fn attachment_records_by_message(
+    records: &[AttachmentRecord],
+    payloads: &[AttachmentPayload],
+) -> BTreeMap<String, Vec<AttachmentRecord>> {
+    let mut grouped: BTreeMap<String, Vec<AttachmentRecord>> = BTreeMap::new();
+    for record in records {
+        grouped
+            .entry(record.message_key.clone())
+            .or_default()
+            .push(record.clone());
+    }
+    for payload in payloads {
+        let records = grouped
+            .entry(payload.record.message_key.clone())
+            .or_default();
+        if !records
+            .iter()
+            .any(|record| record.attachment_key == payload.record.attachment_key)
+        {
+            records.push(payload.record.clone());
+        }
+    }
+    for records in grouped.values_mut() {
+        records.sort_by_key(attachment_order_key);
+    }
+    grouped
+}
+
+fn attachment_order_key(
+    record: &AttachmentRecord,
+) -> (bool, u64, u64, u64, String) {
+    (
+        record.mime_sequence.is_none(),
+        record.mime_sequence.unwrap_or(u64::MAX),
+        record.rendering_position.unwrap_or(u64::MAX),
+        record.ordinal,
+        record.attachment_key.clone(),
+    )
 }
 
 fn embedded_message_keys(records: &[AttachmentRecord]) -> BTreeSet<String> {
@@ -138,6 +266,171 @@ fn embedded_message_keys(records: &[AttachmentRecord]) -> BTreeSet<String> {
         .iter()
         .filter_map(|record| record.embedded_message_key.clone())
         .collect()
+}
+
+fn unavailable_attachment_count(
+    records: &[AttachmentRecord],
+    payloads: &[AttachmentPayload],
+) -> usize {
+    records
+        .iter()
+        .filter(|record| {
+            match payloads
+                .iter()
+                .find(|payload| payload.record.attachment_key == record.attachment_key)
+            {
+                Some(payload) => !payload_matches_record(payload, record),
+                None => true,
+            }
+        })
+        .count()
+}
+
+fn payload_matches_record(payload: &AttachmentPayload, record: &AttachmentRecord) -> bool {
+    payload.record.message_key == record.message_key
+        && payload.record.attachment_key == record.attachment_key
+        && payload.record.archive_path == record.archive_path
+        && record.size_bytes == payload.bytes.len() as u64
+        && record.sha256 == sha256_hex(&payload.bytes)
+        && payload.record.size_bytes == payload.bytes.len() as u64
+        && payload.record.sha256 == sha256_hex(&payload.bytes)
+}
+
+struct PendingExternalAttachment {
+    relative_path: PathBuf,
+    bytes: Vec<u8>,
+}
+
+fn plan_external_attachments(
+    eml_path: Option<&str>,
+    records: &[AttachmentRecord],
+    payloads: &[AttachmentPayload],
+    used_paths: &mut BTreeSet<PathBuf>,
+) -> Result<(Vec<PendingExternalAttachment>, Vec<String>), String> {
+    let mut pending = Vec::new();
+    let mut manifest = Vec::new();
+    for record in records {
+        let relative_path = relative_attachment_path(record)?;
+        if !used_paths.insert(relative_path.clone()) {
+            return Err(format!(
+                "duplicate external attachment path: {}",
+                record.archive_path
+            ));
+        }
+
+        let matching_payloads = payloads
+            .iter()
+            .filter(|payload| payload.record.attachment_key == record.attachment_key)
+            .collect::<Vec<_>>();
+        if matching_payloads.len() > 1 {
+            return Err(format!(
+                "duplicate attachment payload key: {}",
+                record.attachment_key
+            ));
+        }
+        let (materialization_status, materialized_path, payload_bytes) =
+            match matching_payloads.first().copied() {
+                Some(payload) if payload_matches_record(payload, record) => (
+                    "attachment_file_emitted",
+                    Some(record.archive_path.clone()),
+                    Some(payload.bytes.clone()),
+                ),
+                Some(_) => (
+                    "attachment_payload_integrity_failed",
+                    None,
+                    None,
+                ),
+                None => ("attachment_payload_unavailable", None, None),
+            };
+        if let Some(bytes) = payload_bytes {
+            pending.push(PendingExternalAttachment {
+                relative_path,
+                bytes,
+            });
+        }
+
+        let mut value = serde_json::to_value(record)
+            .map_err(|error| format!("failed to serialize attachment record: {error}"))?;
+        let Some(object) = value.as_object_mut() else {
+            return Err("attachment record did not serialize as a JSON object".to_string());
+        };
+        object.insert(
+            "eml_path".to_string(),
+            eml_path
+                .map(ToString::to_string)
+                .map(serde_json::Value::String)
+                .unwrap_or(serde_json::Value::Null),
+        );
+        object.insert(
+            "materialized_path".to_string(),
+            materialized_path
+                .map(serde_json::Value::String)
+                .unwrap_or(serde_json::Value::Null),
+        );
+        object.insert(
+            "materialization_status".to_string(),
+            serde_json::Value::String(materialization_status.to_string()),
+        );
+        manifest.push(
+            serde_json::to_string(&value)
+                .map_err(|error| format!("failed to serialize attachment manifest: {error}"))?,
+        );
+    }
+    Ok((pending, manifest))
+}
+
+fn relative_attachment_path(record: &AttachmentRecord) -> Result<PathBuf, String> {
+    let path = Path::new(&record.archive_path);
+    if path.as_os_str().is_empty()
+        || path.is_absolute()
+        || path.components().any(|component| {
+            matches!(
+                component,
+                Component::CurDir
+                    | Component::ParentDir
+                    | Component::RootDir
+                    | Component::Prefix(_)
+            )
+        })
+    {
+        return Err(format!(
+            "attachment archive path is not confined to the output directory: {}",
+            record.archive_path
+        ));
+    }
+    Ok(path.to_path_buf())
+}
+
+fn write_external_attachments(
+    output: &Path,
+    pending: &[PendingExternalAttachment],
+    manifest: &[String],
+) -> Result<(), String> {
+    for attachment in pending {
+        let path = output.join(&attachment.relative_path);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|error| {
+                format!(
+                    "failed to create external attachment directory {}: {error}",
+                    parent.display()
+                )
+            })?;
+        }
+        fs::write(&path, &attachment.bytes).map_err(|error| {
+            format!(
+                "failed to write external attachment {}: {error}",
+                attachment.relative_path.display()
+            )
+        })?;
+    }
+
+    let mut manifest_bytes = String::new();
+    for line in manifest {
+        manifest_bytes.push_str(line);
+        manifest_bytes.push('\n');
+    }
+    fs::write(output.join("attachments.jsonl"), manifest_bytes)
+        .map_err(|error| format!("failed to write attachments.jsonl: {error}"))
 }
 
 fn bodies_by_message(payloads: &[BodyPayload]) -> BTreeMap<String, MessageBodies> {
@@ -169,15 +462,44 @@ fn build_eml(
     bodies: &MessageBodies,
     attachments: &[AttachmentPayload],
 ) -> Option<Vec<u8>> {
-    build_eml_with_plain_text_policy(message, recipients, bodies, attachments, false)
+    build_eml_with_attachment_mode(
+        message,
+        recipients,
+        bodies,
+        attachments,
+        AttachmentMode::Inline,
+        false,
+        0,
+    )
 }
 
+#[cfg(test)]
 fn build_eml_with_plain_text_policy(
     message: &MessageRecord,
     recipients: &[RecipientRecord],
     bodies: &MessageBodies,
     attachments: &[AttachmentPayload],
     allow_plain_text_only: bool,
+) -> Option<Vec<u8>> {
+    build_eml_with_attachment_mode(
+        message,
+        recipients,
+        bodies,
+        attachments,
+        AttachmentMode::Inline,
+        allow_plain_text_only,
+        0,
+    )
+}
+
+fn build_eml_with_attachment_mode(
+    message: &MessageRecord,
+    recipients: &[RecipientRecord],
+    bodies: &MessageBodies,
+    attachments: &[AttachmentPayload],
+    attachment_mode: AttachmentMode,
+    allow_plain_text_only: bool,
+    unavailable_attachment_count: usize,
 ) -> Option<Vec<u8>> {
     let subject = clean_header(message.subject.as_deref()?)?;
     let sender_address = message
@@ -204,11 +526,11 @@ fn build_eml_with_plain_text_policy(
     {
         return None;
     }
-    if !attachments.is_empty() && !attachments_are_valid(attachments) {
+    if attachment_mode == AttachmentMode::Inline
+        && !attachments.is_empty()
+        && !attachments_are_valid(attachments)
+    {
         return None;
-    }
-    if attachments.is_empty() && html.is_none() && allow_plain_text_only {
-        return build_plain_text_eml(message, recipients, text.as_bytes());
     }
 
     let mut eml = String::new();
@@ -227,6 +549,18 @@ fn build_eml_with_plain_text_policy(
         .and_then(clean_header)
     {
         push_header(&mut eml, "Message-ID", &message_id);
+    }
+    if attachment_mode == AttachmentMode::External {
+        push_header(&mut eml, "X-PSTD-Attachment-Mode", "external");
+        push_header(&mut eml, "X-PSTD-Attachment-Manifest", "attachments.jsonl");
+        push_header(&mut eml, "X-PSTD-Attachment-Root", ".");
+    }
+    if unavailable_attachment_count > 0 {
+        push_header(
+            &mut eml,
+            "X-PSTD-Attachments-Unavailable",
+            &unavailable_attachment_count.to_string(),
+        );
     }
     push_header(&mut eml, "MIME-Version", "1.0");
 
@@ -297,14 +631,18 @@ fn push_alternative_body(output: &mut String, text: &str, html: &str) {
 }
 
 fn attachments_are_valid(attachments: &[AttachmentPayload]) -> bool {
+    let mut attachment_keys = BTreeSet::new();
+    let mut ordinals = BTreeSet::new();
     attachments.iter().all(|attachment| {
-        !attachment.bytes.is_empty()
-            && attachment.record.attachment_method == Some(1)
-            && attachment.record.size_bytes == attachment.bytes.len() as u64
-            && attachment.record.sha256 == sha256_hex(&attachment.bytes)
-    }) && attachments
-        .windows(2)
-        .all(|pair| pair[0].record.ordinal < pair[1].record.ordinal)
+        payload_is_valid(attachment)
+            && attachment_keys.insert(attachment.record.attachment_key.clone())
+            && ordinals.insert(attachment.record.ordinal)
+    })
+}
+
+fn payload_is_valid(attachment: &AttachmentPayload) -> bool {
+    attachment.record.size_bytes == attachment.bytes.len() as u64
+        && attachment.record.sha256 == sha256_hex(&attachment.bytes)
 }
 
 fn push_attachment_part(output: &mut String, attachment: &AttachmentPayload) -> Option<()> {
@@ -356,6 +694,9 @@ fn attachment_content_type(attachment: &AttachmentPayload) -> String {
         .as_deref()
         .and_then(clean_header)
         .or_else(|| match attachment.record.extension.as_deref() {
+            _ if attachment.record.attachment_method == Some(5) => {
+                Some("message/rfc822".to_string())
+            }
             Some("docx") => Some(
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     .to_string(),
@@ -773,7 +1114,9 @@ fn safe_filename(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pstd::pst::attachments::{attachment_payload, AttachmentMetadata};
+    use pstd::pst::attachments::{
+        attachment_payload, unavailable_attachment_record, AttachmentMetadata,
+    };
     use pstd::pst::messages::body_payload;
 
     fn message() -> MessageRecord {
@@ -929,7 +1272,7 @@ mod tests {
     }
 
     #[test]
-    fn excludes_embedded_message_payloads_from_parent_mime_assembly() {
+    fn includes_recovered_embedded_message_payloads_in_mime_assembly() {
         let by_value = attachment(0, b"docx");
         let mut embedded = attachment(1, b"child eml");
         embedded.record.attachment_method = Some(5);
@@ -937,8 +1280,9 @@ mod tests {
 
         let grouped = attachments_by_message(&[by_value, embedded]);
         let payloads = grouped.get("message").unwrap();
-        assert_eq!(payloads.len(), 1);
+        assert_eq!(payloads.len(), 2);
         assert_eq!(payloads[0].record.attachment_method, Some(1));
+        assert_eq!(payloads[1].record.attachment_method, Some(5));
     }
 
     fn attachment(ordinal: usize, bytes: &[u8]) -> AttachmentPayload {
@@ -949,9 +1293,9 @@ mod tests {
                 filename_original: Some("attachment.docx".to_string()),
                 content_type: None,
                 is_inline: false,
-                content_id: None,
                 attachment_method: Some(1),
                 declared_size_bytes: Some(bytes.len() as u64),
+                ..AttachmentMetadata::default()
             },
             bytes.to_vec(),
         )
@@ -982,7 +1326,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_mixed_eml_without_date_or_valid_by_value_payload() {
+    fn rejects_mixed_eml_without_date_or_valid_payload() {
         let mut message = message();
         message.transport_message_headers = None;
         message.received_at = None;
@@ -1002,8 +1346,58 @@ mod tests {
 
         message.received_at = Some("filetime:132509026800000000".to_string());
         let mut invalid = attachment;
-        invalid.record.attachment_method = Some(5);
+        invalid.record.sha256 = "not-the-payload-hash".to_string();
         assert!(build_eml(&message, &[recipient], &bodies, &[invalid]).is_none());
+    }
+
+    #[test]
+    fn emits_recovered_embedded_message_as_rfc822_attachment() {
+        let mut message = message();
+        message.transport_message_headers = None;
+        message.received_at = Some("filetime:132509026800000000".to_string());
+        let bodies = MessageBodies {
+            text: Some(b"plain".to_vec()),
+            html: None,
+        };
+        let mut embedded = attachment(0, b"child eml");
+        embedded.record.attachment_method = Some(5);
+        embedded.record.content_type = None;
+        embedded.record.filename_safe = "child.eml".to_string();
+        embedded.record.extension = Some("eml".to_string());
+        let eml = build_eml(
+            &message,
+            &[recipient(0, "to")],
+            &bodies,
+            &[embedded],
+        )
+        .unwrap();
+        let eml = String::from_utf8(eml).unwrap();
+        assert!(eml.contains("Content-Type: message/rfc822; name=\"child.eml\"\r\n"));
+        assert!(eml.contains("Y2hpbGQgZW1s\r\n"));
+    }
+
+    #[test]
+    fn retains_zero_length_attachment_as_an_empty_mime_part() {
+        let mut message = message();
+        message.transport_message_headers = None;
+        message.received_at = Some("filetime:132509026800000000".to_string());
+        let bodies = MessageBodies {
+            text: Some(b"plain".to_vec()),
+            html: None,
+        };
+        let empty = attachment(0, &[]);
+        let eml = build_eml(
+            &message,
+            &[recipient(0, "to")],
+            &bodies,
+            &[empty],
+        )
+        .unwrap();
+        let eml = String::from_utf8(eml).unwrap();
+        assert!(eml.contains("Content-Disposition: attachment; filename=\"attachment.docx\"\r\n"));
+        assert!(eml.contains(
+            "Content-Disposition: attachment; filename=\"attachment.docx\"\r\n\r\n--pstd-mixed-3e2b1a9c--"
+        ));
     }
 
     #[test]
@@ -1020,5 +1414,109 @@ mod tests {
         assert_eq!(message[0].record.ordinal, 1);
         assert_eq!(message[1].record.ordinal, 2);
         assert_eq!(grouped.get("other").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn orders_attachment_payloads_by_mime_sequence_before_ordinal() {
+        let mut first = attachment(0, b"first");
+        first.record.mime_sequence = Some(2);
+        let mut second = attachment(1, b"second");
+        second.record.mime_sequence = Some(1);
+        let grouped = attachments_by_message(&[first, second]);
+        let payloads = grouped.get("message").unwrap();
+        assert_eq!(payloads[0].record.ordinal, 1);
+        assert_eq!(payloads[1].record.ordinal, 0);
+        assert!(attachments_are_valid(payloads));
+    }
+
+    #[test]
+    fn parses_attachment_modes() {
+        assert_eq!(AttachmentMode::parse("inline"), Ok(AttachmentMode::Inline));
+        assert_eq!(
+            AttachmentMode::parse("external"),
+            Ok(AttachmentMode::External)
+        );
+        assert!(AttachmentMode::parse("sidecar").is_err());
+    }
+
+    #[test]
+    fn external_mode_emits_manifest_headers_without_inline_base64() {
+        let bodies = MessageBodies {
+            text: Some(b"plain body".to_vec()),
+            html: None,
+        };
+        let eml = build_eml_with_attachment_mode(
+            &message(),
+            &[recipient(0, "to")],
+            &bodies,
+            &[],
+            AttachmentMode::External,
+            true,
+            0,
+        )
+        .unwrap();
+        let eml = String::from_utf8(eml).unwrap();
+        assert!(eml.contains("X-PSTD-Attachment-Mode: external\r\n"));
+        assert!(eml.contains("X-PSTD-Attachment-Manifest: attachments.jsonl\r\n"));
+        assert!(eml.contains("X-PSTD-Attachment-Root: .\r\n"));
+        assert!(!eml.contains("Content-Transfer-Encoding: base64\r\n"));
+        assert!(eml.ends_with("plain body\r\n"));
+    }
+
+    #[test]
+    fn external_mode_materializes_bytes_and_links_manifest_records() {
+        let directory = tempfile::tempdir().unwrap();
+        let attachment = attachment(0, b"external bytes");
+        let records = vec![attachment.record.clone()];
+        let (pending, manifest) = plan_external_attachments(
+            Some("message.eml"),
+            &records,
+            std::slice::from_ref(&attachment),
+            &mut BTreeSet::new(),
+        )
+        .unwrap();
+        write_external_attachments(directory.path(), &pending, &manifest).unwrap();
+
+        let path = directory.path().join(&attachment.record.archive_path);
+        assert_eq!(fs::read(path).unwrap(), b"external bytes");
+        let manifest = fs::read_to_string(directory.path().join("attachments.jsonl")).unwrap();
+        assert!(manifest.contains(&attachment.record.attachment_key));
+        assert!(manifest.contains("\"materialized_path\":\"attachments/message/"));
+        assert!(manifest.contains("\"materialization_status\":\"attachment_file_emitted\""));
+    }
+
+    #[test]
+    fn external_mode_preserves_empty_and_unavailable_attachment_states() {
+        let directory = tempfile::tempdir().unwrap();
+        let empty = attachment(0, &[]);
+        let unavailable = unavailable_attachment_record(
+            "message",
+            1,
+            Some("missing.bin".to_string()),
+            "payload_unavailable",
+        );
+        let records = vec![empty.record.clone(), unavailable.clone()];
+        let (pending, manifest) = plan_external_attachments(
+            None,
+            &records,
+            std::slice::from_ref(&empty),
+            &mut BTreeSet::new(),
+        )
+        .unwrap();
+        write_external_attachments(directory.path(), &pending, &manifest).unwrap();
+
+        let empty_path = directory.path().join(&empty.record.archive_path);
+        assert!(empty_path.is_file());
+        assert!(fs::read(empty_path).unwrap().is_empty());
+        let manifest = fs::read_to_string(directory.path().join("attachments.jsonl")).unwrap();
+        assert!(manifest.contains("\"materialization_status\":\"attachment_payload_unavailable\""));
+        assert!(manifest.contains("\"materialized_path\":null"));
+    }
+
+    #[test]
+    fn rejects_external_attachment_path_escape() {
+        let mut record = attachment(0, b"bytes").record;
+        record.archive_path = "../outside.bin".to_string();
+        assert!(relative_attachment_path(&record).is_err());
     }
 }

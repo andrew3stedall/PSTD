@@ -1,6 +1,6 @@
 # PSTD Project Status
 
-_Last reviewed: 21 August 2026._
+_Last reviewed: 22 August 2026._
 
 ## Purpose
 
@@ -15,14 +15,14 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Original public fixture | Material readable-email path | One message, four structured recipients, text and recovered HTML, and one deterministic 956-byte EML. |
 | Tika DOCX attachment | Exact | One 11,862-byte DOCX payload with validated ownership, length, hash, ZIP/CRC evidence, and deterministic parent EML placement. |
 | Tika recipients | Exact or explicit native preservation | Nine directly owned recipients across the fixture, including SMTP rows and preserved legacy Exchange evidence. |
-| Embedded message | Exact for one method-5 layout | One separately linked child, exact 453-byte standalone EML, and byte-identical `message/rfc822` attachment payload. Nested recursion and additional producer layouts remain unproven. |
+| Embedded message | Partial bounded recovery | One separately linked child remains exact for the approved layout; child attachment subnodes and nested method-5 children are now walked under the depth budget, while additional producer layouts remain unproven. |
 | Folder/message ownership | Exact on the Tika fixture | Eight folders and seven top-level physical message owners resolved from authoritative contents-table rows; the embedded child remains isolated. |
 | Independent body forms | Exact on approved fixtures | Four-byte Property Context body locators remain explicit unavailable forms; valid plain-text siblings are retained independently. |
 | ANSI header diagnostics | Diagnostic only | Version-14/15 field offsets are decoded with variant-correct widths. ANSI traversal and email extraction remain unsupported and are not the active product priority. |
 | Microsoft Purview Unicode exports | Active corpus target | No approved Purview export fixture is yet committed. Compatibility must be established capability-by-capability on controlled synthetic Purview exports rather than inferred from the existing fixtures. |
 | External PST implementations | Comparison-only tooling | Pinned external tools may generate or independently inventory controlled fixtures, but PSTD acceptance must come from its own Rust implementation and exact deterministic output. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
-| Readpst parity release gate | Attachment metadata closure wave | RP-M7-03 remains NOT PARITY-COMPLETE for its reviewed baseline; the maintained ledger is now 10 Implemented, 53 Partial, and 14 Gap after closing CLI policy, deterministic scheduling, attachment filtering, RFC-aware generated MIME projection, filename selection, and MIME type handling. |
+| Readpst parity release gate | Attachment payload extraction wave | RP-M7-03 remains NOT PARITY-COMPLETE for its reviewed baseline; the maintained matrix is now 10 Implemented, 54 Partial, and 11 Gap after generic direct/data-tree extraction, method-aware metadata, MIME sequence ordering, and bounded nested-child recovery. |
 | Pinned semantic differential | RP-M7-02 evidence collected | Run `32512518536` passed the 18-test readpst/PSTD harness for the approved Unicode fixture; release-wide E4 remains not proven because admissible profile/input corpus coverage is incomplete. |
 
 ## Exact Tika baseline
@@ -37,14 +37,14 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Recipient records | 9 |
 | Attachment records | 2 |
 | Attachment payload files / bytes | 2 / 12,315 |
-| EML files / bytes | 2 / 17,488 |
+| EML files / bytes | 2 / deterministic; inline parent carries both recovered payloads |
 | Messages JSONL bytes | 23,865 |
 | Bodies JSONL bytes | 2,922 |
 | Recipients JSONL bytes | 2,708 |
 | Attachments JSONL bytes | 1,240 |
 | Extraction TAR bytes | 234,496 |
 
-The method-5 record `att_a9c94a13d70f1cb3` publishes a 453-byte `message/rfc822` payload with SHA-256 `86ffe5567da7aa505b8be16400889170ca583fd247cc0758f00a43c2a8a99420`. Those bytes are identical to standalone child `msg_0ff529af59d373d5.eml`. The parent EML remains exactly 17,035 bytes and includes only the validated method-1 DOCX payload.
+The method-5 record `att_a9c94a13d70f1cb3` publishes a 453-byte `message/rfc822` payload with SHA-256 `86ffe5567da7aa505b8be16400889170ca583fd247cc0758f00a43c2a8a99420`. Those bytes are identical to standalone child `msg_0ff529af59d373d5.eml`. Inline parent EML now carries both the validated DOCX and recovered embedded-message payload; external mode publishes the same bytes at manifest-linked paths.
 
 ## Latest completed work
 

@@ -51,6 +51,7 @@ jobs:
 
           python - <<'PY'
           import hashlib
+          import base64
           import json
           import zipfile
           from email import policy
@@ -689,8 +690,11 @@ jobs:
               raise SystemExit(f'unexpected EML filenames: {sorted(eml_by_name)}')
           eml_path = eml_by_name['msg_c6163b9157944cc9.eml']
           eml_bytes = eml_path.read_bytes()
-          if len(eml_bytes) != 17035:
-              raise SystemExit(f'unexpected EML size: {len(eml_bytes)}')
+          if len(eml_bytes) <= 17035:
+              raise SystemExit(
+                  f'inline EML did not grow to include the recovered method-5 payload: '
+                  f'{len(eml_bytes)}'
+              )
           if b'\n' in eml_bytes.replace(b'\r\n', b'') or b'\r' in eml_bytes.replace(b'\r\n', b''):
               raise SystemExit('EML contains non-CRLF line endings')
           parsed_eml = BytesParser(policy=policy.default).parsebytes(eml_bytes)
@@ -710,9 +714,17 @@ jobs:
           if body is None or body.get_content() != 'Forwarding mail…\r\n':
               raise SystemExit(f'unexpected EML plain body: {body!r}')
           eml_attachments = list(parsed_eml.iter_attachments())
-          if len(eml_attachments) != 1:
+          if len(eml_attachments) != 2:
               raise SystemExit(f'unexpected EML attachment count: {len(eml_attachments)}')
-          eml_attachment = eml_attachments[0]
+          eml_attachments_by_name = {
+              attachment.get_filename(): attachment for attachment in eml_attachments
+          }
+          if set(eml_attachments_by_name) != {'attachment.docx', 'attachment_1.eml'}:
+              raise SystemExit(
+                  f'unexpected EML attachment filenames: '
+                  f'{sorted(eml_attachments_by_name)}'
+              )
+          eml_attachment = eml_attachments_by_name['attachment.docx']
           if eml_attachment.get_filename() != 'attachment.docx':
               raise SystemExit(f'unexpected EML attachment filename: {eml_attachment.get_filename()!r}')
           if eml_attachment.get_content_type() != (
@@ -723,6 +735,15 @@ jobs:
               )
           if eml_attachment.get_payload(decode=True) != payload:
               raise SystemExit('EML attachment payload differs from extracted DOCX bytes')
+          eml_embedded_attachment = eml_attachments_by_name['attachment_1.eml']
+          if eml_embedded_attachment.get_content_type() != 'message/rfc822':
+              raise SystemExit(
+                  f'unexpected embedded EML content type: '
+                  f'{eml_embedded_attachment.get_content_type()}'
+              )
+          compact_eml = b''.join(eml_bytes.splitlines())
+          if base64.b64encode(embedded_payload) not in compact_eml:
+              raise SystemExit('EML embedded-message base64 differs from extracted bytes')
 
 
           child_eml_path = eml_by_name['msg_0ff529af59d373d5.eml']
@@ -796,7 +817,6 @@ jobs:
               'attachment_payload_files': 2,
               'attachment_payload_bytes': 12315,
               'eml_files': 2,
-              'eml_bytes': 17488,
               'messages_jsonl_bytes': 28727,
               'bodies_jsonl_bytes': 2922,
               'recipients_jsonl_bytes': 2708,
@@ -806,7 +826,9 @@ jobs:
               'stable_archive_bytes': 550912,
           }
           stable_metrics = {
-              key: value for key, value in metrics.items() if key != 'output_total_bytes'
+              key: value
+              for key, value in metrics.items()
+              if key not in {'output_total_bytes', 'eml_bytes'}
           }
           if stable_metrics != expected_metrics:
               raise SystemExit(

@@ -42,6 +42,11 @@ _Last reviewed: 21 August 2026._
 ### RP-M5-02
 
 - Added separate binary attachment publication over canonical payload evidence, normalized case-insensitive extension filters, collision-safe `<message-file>-<filename>` names, and explicit filtered, embedded, unavailable, and zero-length decisions.
+- Hardened attachment materialization across generated EML: `pstd-eml` now accepts
+  `--attachment-mode inline|external`, includes every integrity-validated recovered
+  payload in inline MIME (including zero-length and method-5 `message/rfc822` bytes),
+  and externalizes raw bytes with safe manifest-linked paths and explicit unavailable
+  or integrity-failed statuses.
 - Added a deterministic KMail `.<folder>.directory/<folder>.mbox` profile with explicit parent-index invalidation policy and no mutable index output.
 - Added repeated-profile, path-safety, positive payload, and negative attachment/KMail evidence workflow coverage; Thunderbird sidecars and MSG remain downstream.
 
@@ -271,6 +276,21 @@ All seven top-level messages belong to `/Début du fichier de données Outlook` 
   preservation, octet-stream defaults, unsafe-value rejection, and repeat-run equality.
 - The maintained ledger is now 10 Implemented, 53 Partial, and 14 Gap; no full-parity
   claim is made.
+
+### Attachment payload extraction wave — 22 August 2026
+
+- Replaced the DOCX-signature-only attachment loader with a bounded generic resolver
+  for direct payload blocks and 0x0101/0x0201 data trees, including validated 4-byte
+  and 8-byte child BID layouts, exact byte concatenation, cycle/repeat checks, and
+  declared-size diagnostics.
+- Added direct `PR_ATTACH_DATA_BIN`/`PR_ATTACH_DATA_OBJ` extraction, method-aware
+  reference handling, hidden/rendering-position/MIME-sequence projection, and MIME
+  sequence ordering. Attachment property contexts now retain unnamed, zero-length,
+  and unresolved metadata rows instead of dropping them.
+- Embedded-message recovery now walks child attachment subnodes recursively within
+  the existing depth budget. Broad producer, OLE-reference, CID-correlation, and
+  differential fixture coverage remain Partial. The maintained matrix is now 10
+  Implemented, 54 Partial, and 11 Gap; no full-parity claim is made.
 
 ## RP-M7 release-gate review
 

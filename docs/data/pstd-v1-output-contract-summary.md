@@ -22,7 +22,7 @@ The existence of a record type or archive path means the output layer supports t
 | Recipient records | Implemented | Row-aligned role/name/address records are fixture validated, including direct ownership for one embedded child |
 | Message-reference records | Implemented as a contract | Coverage is not yet sufficient to claim complete threading fidelity |
 | Attachment records and raw attachment artefacts | Implemented | Tika emits one by-value DOCX payload plus one metadata-only method-`5` record linked to its child message |
-| EML | Non-canonical assembly output | Two fixture paths are validated: one 956-byte plain/HTML EML and one 17,035-byte plain/DOCX EML |
+| EML | Non-canonical assembly output | Deterministic inline and external assembly are validated over plain/HTML, DOCX, and recovered `message/rfc822` evidence |
 
 ## Single-PST output root
 
@@ -177,7 +177,12 @@ recipient_status
 
 ## EML policy
 
-EML generation is a non-canonical assembly layer over validated structured evidence. Current fixture gates cover one plain/HTML and one plain/DOCX message. Attachmentless plain-text-only child assembly, method-`5` payload materialisation, and exact preservation remain incomplete and require their own byte-level contracts.
+EML generation is a non-canonical assembly layer over validated structured evidence.
+The fixture gates cover plain/HTML, plain/DOCX, and recovered `message/rfc822`
+payload assembly. Inline mode carries every integrity-validated payload as a standard
+base64 MIME part; external mode writes validated raw files plus a manifest-linked
+sidecar without base64-ing payloads into JSONL. Metadata-only and integrity-failed
+attachments remain explicit rather than becoming fabricated MIME parts.
 
 ## Downstream boundary
 

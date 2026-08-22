@@ -45,7 +45,7 @@ The mode flags are mutually exclusive in readpst. PSTD should expose equivalent 
 |---|---|---|
 | default | One mbox-style file per PST folder and reduced item type, with multiple messages separated by mbox `From ` lines. | **Partial**: `mbox` emits deterministic email streams over canonical mail records; reduced typed streams and full differential corpus remain. |
 | `-r` | A directory tree matching the PST folder tree; each directory contains an mbox file such as `mbox`, `calendar`, `contacts`, or `journal`. | **Partial**: `recursive_mbox` emits safe folder trees and explicit skipped/unavailable decisions; typed side streams remain downstream. |
-| `-S` | A directory tree with numbered individual message files and separate binary attachment files. | **Partial**: `separate` emits numbered RFC 822 files plus resolved non-empty `<message-file>-<filename>` attachments; full differential coverage remains. |
+| `-S` | A directory tree with numbered individual message files and separate binary attachment files. | **Partial**: `separate` emits numbered RFC 822 files plus every integrity-validated `<message-file>-<filename>` attachment, including zero-length and recovered embedded-message payloads; full differential coverage remains. |
 | `-M` | MH/rfc822 individual message files without output extensions. | **Partial**: `mh` emits numbered files without mbox separators; full readpst corpus remains. |
 | `-e` | MH/rfc822 individual message files with extensions, normally `.eml`/`.vcf`/`.ics`. | **Partial**: `eml` emits numbered `.eml` files; typed non-mail extensions remain downstream. |
 | `-m` | The `-e` result plus `.msg` files. | **Partial**: `msg` emits deterministic CFB/OLE `.msg` files and `.eml` companions from canonical records; independent property/recipient/attachment round trips pass, while full named-property and embedded-message breadth remains explicit. |
@@ -64,9 +64,12 @@ The output adapters need explicit tests for behaviours that are easy to lose in 
 - separate message numbering starts at 1 and is local to the folder;
 - attachment names prefer the long filename and fall back to the 8.3 filename;
 - duplicate attachment names receive a deterministic numeric suffix;
-- separate attachment files use `<message-file>-<filename>` and never publish filtered, unresolved, embedded, or zero-length payloads;
+- separate attachment files use `<message-file>-<filename>` and publish every
+  integrity-validated payload, including zero-length and recovered embedded-message
+  bytes, while retaining filtered, unresolved, unsafe, and integrity-failed decisions;
 - an unnamed attachment receives a stable generated name;
-- empty output files are removed by readpst and must instead be represented as skipped/unavailable records when the payload cannot be proven;
+- valid zero-length payloads are emitted as zero-byte artifacts; an empty value is
+  represented as skipped/unavailable only when the payload cannot be proven;
 - mbox output uses `From ` separators and mboxrd escaping, while one-message-per-file output does not add a separator;
 - output type filtering must support folders containing mixed item types;
 - output counts must distinguish stored, emitted, skipped, unavailable, and failed items.

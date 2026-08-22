@@ -1,6 +1,6 @@
 # PSTD/readpst parity gap register
 
-_Baseline reviewed: 21 August 2026._
+_Baseline reviewed: 22 August 2026._
 
 This folder is the compatibility register for making PSTD capable of everything that the `readpst` program in `pst-format/libpst` can do. It is deliberately broader than the current PSTD email-to-EML milestone: `readpst` is a mature command-line extractor with multiple input variants, output modes, MIME behaviours, attachments, contacts, appointments, journals, and operational controls.
 
@@ -175,8 +175,10 @@ parity-complete** at the reviewed baseline. The post-decision output expansion h
 since moved five rows to Partial, and the easiest-closure wave has promoted six
 policy/projection rows to Implemented; the attachment metadata closure wave has now
 promoted two additional rows, bringing the maintained ledger to 10 Implemented, 53
-Partial, and 14 Gap rows. Future work must still add admissible corpora and semantic
-differentials before making a full-parity claim.
+Partial, and 14 Gap rows. The attachment payload extraction wave then moved three
+attachment capability rows from Gap to Partial, bringing the maintained ledger to 10
+Implemented, 54 Partial, and 11 Gap rows. Future work must still add admissible corpora
+and semantic differentials before making a full-parity claim.
 
 RP-M7-03 remains the historical release decision for its reviewed baseline. The
 current matrix is maintained by subsequent parity deliveries and must not be read as a

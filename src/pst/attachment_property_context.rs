@@ -6,7 +6,7 @@ use crate::pst::attachments::{
 };
 use crate::pst::bbt::BbtIndex;
 use crate::pst::bth::BthMap;
-use crate::pst::data_tree::load_unicode_xblock_payload;
+use crate::pst::data_tree::load_attachment_data_payload;
 use crate::pst::heap::HeapOnNode;
 use crate::pst::limits::ParserLimits;
 use crate::pst::mapi::{
@@ -205,39 +205,21 @@ pub fn attachment_payloads_from_property_context_subnodes(
             continue;
         };
 
-        let Some((data_nid, data_bid)) = resolved_subnode_data_reference(&report.context, blocks)
-        else {
-            payload_failure_count += 1;
-            records.push(record);
-            continue;
-        };
-        let Some(expected_size) = record.declared_size_bytes else {
-            payload_failure_count += 1;
-            records.push(record);
-            continue;
-        };
-
-        match load_unicode_xblock_payload(
-            reader,
-            bbt,
-            crate::pst::primitives::BlockId(data_bid),
-            expected_size,
-            limits,
-        ) {
-            Ok(tree) => {
+        match resolve_attachment_payload(&report.context, blocks, reader, bbt, limits) {
+            Ok((bytes, source_status)) => {
                 let metadata = AttachmentMetadata {
                     filename_original: record.filename_original.clone(),
                     content_type: record.content_type.clone(),
                     is_inline: record.is_inline,
+                    is_hidden: record.is_hidden,
                     content_id: record.content_id.clone(),
                     attachment_method: record.attachment_method,
                     declared_size_bytes: record.declared_size_bytes,
+                    rendering_position: record.rendering_position,
+                    mime_sequence: record.mime_sequence,
                 };
-                let mut payload = attachment_payload(message_key, ordinal, metadata, tree.bytes);
-                payload.record.extraction_status = format!(
-                    "attachment_payload_extracted_unicode_xblock; data_nid=0x{data_nid:08x}; data_bid=0x{data_bid:x}; child_blocks={}; zip_signature=504b0304",
-                    tree.child_bids.len()
-                );
+                let mut payload = attachment_payload(message_key, ordinal, metadata, bytes);
+                payload.record.extraction_status = source_status;
                 payloads.push(payload);
             }
             Err(reason) => {
@@ -245,7 +227,7 @@ pub fn attachment_payloads_from_property_context_subnodes(
                 record.extraction_status = format!(
                     "{}; data_tree_error={}",
                     record.extraction_status,
-                    sanitized_status_reason(&reason.to_string())
+                    sanitized_status_reason(&reason)
                 );
                 records.push(record);
             }
@@ -642,13 +624,87 @@ fn filename_attachment_record(
         return None;
     }
     record.filename_original = Some(filename.clone());
-    record.filename_safe = crate::pst::attachments::safe_filename(Some(&filename), ordinal);
+    record.filename_safe = crate::pst::attachments::safe_filename(
+        Some(&filename),
+        ordinal,
+    );
     record.extension = crate::pst::attachments::file_extension(&record.filename_safe);
     record.archive_path = format!(
         "attachments/{message_key}/{}_{}",
         record.attachment_key, record.filename_safe
     );
     Some(record)
+}
+
+fn first_non_empty_string(properties: &PropertyContext, tags: &[u32]) -> Option<String> {
+    tags.iter().find_map(|tag| {
+        let value = properties.value(*tag)?;
+        match value.decoded.as_ref() {
+            Some(MapiValue::String(value)) if !value.trim().is_empty() => {
+                Some(value.trim().to_string())
+            }
+            _ => None,
+        }
+    })
+}
+
+fn resolve_attachment_payload(
+    properties: &PropertyContext,
+    blocks: &[PayloadBlock],
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    limits: ParserLimits,
+) -> Result<(Vec<u8>, String), String> {
+    if let Some((data_nid, data_bid)) = resolved_subnode_data_reference(properties, blocks) {
+        let tree = load_attachment_data_payload(
+            reader,
+            bbt,
+            crate::pst::primitives::BlockId(data_bid),
+            non_negative_integer32_property(properties, PR_ATTACH_SIZE)
+                .map(|size| size as u64),
+            limits,
+        )
+        .map_err(|reason| reason.to_string())?;
+        return Ok((
+            tree.bytes,
+            format!(
+                "attachment_payload_extracted_data_tree; data_nid=0x{data_nid:08x}; data_bid=0x{data_bid:x}; child_blocks={}; {}",
+                tree.child_bids.len(),
+                sanitized_status_reason(&tree.status)
+            ),
+        ));
+    }
+
+    if let Some(bytes) = inline_attachment_bytes(properties) {
+        return Ok((
+            bytes,
+            "attachment_payload_extracted_inline_property".to_string(),
+        ));
+    }
+
+    Err("attachment_payload_reference_unresolved".to_string())
+}
+
+fn inline_attachment_bytes(properties: &PropertyContext) -> Option<Vec<u8>> {
+    for tag in [PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ] {
+        let Some(value) = properties.value(tag) else {
+            continue;
+        };
+        if value.raw.len() != 4 || !indirect_attachment_method(properties) {
+            return Some(value.raw.clone());
+        }
+    }
+    // Four-byte variable-property values for reference-based methods are HNID
+    // references in the PST attachment layout. Without a validated SLBLOCK
+    // target they remain unresolved rather than being emitted as fake bytes.
+    None
+}
+
+fn indirect_attachment_method(properties: &PropertyContext) -> bool {
+    matches!(
+        positive_integer32_property(properties, PR_ATTACH_METHOD),
+        Some(2..=6)
+    )
 }
 
 fn resolved_subnode_data_reference(
@@ -666,12 +722,19 @@ fn resolved_subnode_data_reference(
 }
 
 fn attachment_data_nid(properties: &PropertyContext) -> Option<u32> {
-    let value = properties.value(PR_ATTACH_DATA_BIN)?;
-    if value.raw.len() != 4 {
-        return None;
+    for tag in [PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ] {
+        let Some(value) = properties.value(tag) else {
+            continue;
+        };
+        if value.raw.len() != 4 {
+            continue;
+        }
+        let hnid = u32::from_le_bytes(value.raw.as_slice().try_into().ok()?);
+        if hnid & HNID_TYPE_MASK != 0 {
+            return Some(hnid);
+        }
     }
-    let hnid = u32::from_le_bytes(value.raw.as_slice().try_into().ok()?);
-    (hnid & HNID_TYPE_MASK != 0).then_some(hnid)
+    None
 }
 
 fn slblock_data_bid_for_nid(bytes: &[u8], target_nid: u32) -> Option<u64> {
@@ -698,18 +761,6 @@ fn slblock_data_bid_for_nid(bytes: &[u8], target_nid: u32) -> Option<u64> {
         }
     }
     None
-}
-
-fn first_non_empty_string(properties: &PropertyContext, tags: &[u32]) -> Option<String> {
-    tags.iter().find_map(|tag| {
-        let value = properties.value(*tag)?;
-        match value.decoded.as_ref() {
-            Some(MapiValue::String(value)) if !value.trim().is_empty() => {
-                Some(value.trim().to_string())
-            }
-            _ => None,
-        }
-    })
 }
 
 fn positive_integer32_property(properties: &PropertyContext, tag: u32) -> Option<i32> {

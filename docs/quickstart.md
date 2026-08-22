@@ -98,6 +98,23 @@ Run it with a PST and destination directory:
 ./target/release/pstd-eml /path/to/mailbox.pst ./eml-output
 ```
 
+The default `inline` attachment mode emits recovered attachment bytes as standard
+MIME parts with base64 transfer encoding. To keep the EML body small and publish
+raw files beside it, use external mode:
+
+```bash
+./target/release/pstd-eml \
+  --attachment-mode external \
+  /path/to/mailbox.pst ./eml-output
+```
+
+External mode writes each recovered payload at its validated relative
+`AttachmentRecord.archive_path`, writes `attachments.jsonl` with the attachment
+record plus `eml_path`, `materialized_path`, and `materialization_status`, and adds
+`X-PSTD-Attachment-*` headers to each EML. Metadata-only or integrity-failed
+attachments remain in the manifest with no fabricated empty file; inline EMLs
+carry `X-PSTD-Attachments-Unavailable` when a payload could not be included.
+
 Only messages meeting the current validated EML requirements are emitted. PSTD fails closed rather than inventing missing sender, recipient, Date, body, attachment, ownership, or embedded-message evidence.
 
 ## 5. Call PSTD from Python

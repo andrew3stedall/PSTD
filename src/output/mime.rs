@@ -78,7 +78,10 @@ pub fn build_mime_parts(
             .collect::<Vec<_>>();
         attachment_records.sort_by_key(|attachment| {
             (
-                attachment.rendering_position.unwrap_or(attachment.ordinal),
+                attachment.mime_sequence.is_none(),
+                attachment.mime_sequence.unwrap_or(u64::MAX),
+                attachment.rendering_position.unwrap_or(u64::MAX),
+                attachment.ordinal,
                 attachment.attachment_key.clone(),
             )
         });
@@ -728,7 +731,7 @@ mod tests {
     }
 
     #[test]
-    fn orders_attachment_and_embedded_parts_by_rendering_position() {
+    fn orders_attachment_and_embedded_parts_by_mime_sequence_then_position() {
         let mut first = attachment_payload(
             "msg",
             0,
@@ -740,6 +743,7 @@ mod tests {
             b"one".to_vec(),
         );
         first.record.rendering_position = Some(0);
+        first.record.mime_sequence = Some(2);
         let mut second = attachment_payload(
             "msg",
             1,
@@ -751,6 +755,7 @@ mod tests {
             b"two".to_vec(),
         );
         second.record.rendering_position = Some(1);
+        second.record.mime_sequence = Some(1);
         let parts = build_mime_parts(
             &[message(None)],
             &[text_body_payload("msg", "body").record.clone()],
@@ -763,8 +768,8 @@ mod tests {
             .filter(|part| part.part_type == "attachment" || part.part_type == "embedded_message")
             .collect::<Vec<_>>();
         assert_eq!(attachment_parts.len(), 2);
-        assert_eq!(attachment_parts[0].part_type, "attachment");
-        assert_eq!(attachment_parts[1].part_type, "embedded_message");
+        assert_eq!(attachment_parts[0].part_type, "embedded_message");
+        assert_eq!(attachment_parts[1].part_type, "attachment");
     }
 
     #[test]

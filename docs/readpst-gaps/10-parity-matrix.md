@@ -213,12 +213,12 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 |---|---|---|---|
 | ATT-01 | Long/short filename selection | Implemented | Canonical property projection prefers `PR_ATTACH_LONG_FILENAME`, falls back to `PR_ATTACH_FILENAME`, preserves the original candidate, and applies deterministic safe-name handling. |
 | ATT-02 | MIME tag/default type | Implemented | Generated EML and canonical MIME parts use the attachment MIME tag, default safely to `application/octet-stream`, reject injected media types, and render deterministically. |
-| ATT-03 | By-value method 1 | Partial | Multiple payloads, large/split data, zero length, and size mismatch. |
-| ATT-04 | By-reference methods 2/3/4 | Gap | ID2/reference-resolution fixture family. |
-| ATT-05 | Embedded message method 5 | Partial | Nested, ambiguous, non-email, and cycle cases. |
-| ATT-06 | OLE method 6 | Gap | Lossless OLE bytes and metadata. |
+| ATT-03 | By-value method 1 | Partial | Direct and arbitrary-format payloads, 4/8-byte data trees, zero length, and size mismatch; broad corpus remains. |
+| ATT-04 | By-reference methods 2/3/4 | Partial | Validated property-context HNID/SLBLOCK resolution and explicit unresolved records; broader ID2/reference fixtures remain. |
+| ATT-05 | Embedded message method 5 | Partial | Child attachment and nested-child recovery is bounded; ambiguous, non-email, and broad producer cases remain. |
+| ATT-06 | OLE method 6 | Partial | Direct object bytes and canonical metadata are preserved; broad indirect OLE and output-profile evidence remains. |
 | ATT-07 | Content-ID/inline correlation | Partial | Unique, missing, duplicate, and unmatched CID cases. |
-| ATT-08 | Rendering position/MIME sequence | Gap | Order/position retention and MIME projection. |
+| ATT-08 | Rendering position/MIME sequence | Partial | Canonical fields and MIME-sequence-first ordering are implemented; producer/differential evidence remains. |
 | ATT-09 | Attachment extension filter | Implemented | Case-insensitive filter/status decisions cover every mailbox profile plus MSG/EML projections without mutating canonical attachment records or payloads. |
 | ATT-10 | Synthetic RTF/encrypted body attachments | Gap | Synthetic-source markers and policy tests. |
 | ATT-11 | Nested ownership and recursion limits | Partial | Deterministic parent/child graph and bounded recursion. |
@@ -232,7 +232,7 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | OUT-03 | Recursive folder mbox | Partial | Sanitized folder tree, stable collision suffixes, explicit decisions, and sample-PST repeat run; reduced typed streams remain. |
 | OUT-04 | MH/rfc822 separate files | Partial | Folder-local numbered files with no separator and missing-body negative evidence; full corpus remains. |
 | OUT-05 | Extended `.eml` output | Partial | Header normalization/reconstruction, multipart alternative, attachment projection, and sample-PST repeat run; full MIME differential remains. |
-| OUT-06 | Separate binary attachments | Partial | Resolved non-empty payload files, normalized extension filters, collision-safe names, explicit negative decisions, and deterministic adapter manifest; broad corpus remains. |
+| OUT-06 | Separate binary attachments | Partial | Integrity-validated payload files including zero-length and recovered embedded-message bytes, normalized extension filters, collision-safe names, explicit negative decisions, and deterministic adapter manifest; broad corpus remains. |
 | OUT-07 | KMail layout | Partial | Safe `.<folder>.directory/<folder>.mbox` projection and explicit index policy; KMail import/read test remains. |
 | OUT-08 | Thunderbird `.type`/`.size` sidecars | Partial | Recursive mbox plus canonical-identity `.type`/`.size` sidecars, typed vCard/iCalendar/vJournal/non-mail files, semantic parsing, negative type evidence, and repeat-run equality; exact import compatibility remains. |
 | OUT-09 | vCard/list | Partial | Source-backed contact output and explicit partial/empty profile evidence; full field round trips remain required. |
@@ -313,9 +313,11 @@ differentials remain required for those broader claims.
 That initial slice changed the intermediate ledger to **2 Implemented, 59 Partial,
 and 14 Gap**. The first closure wave brought the maintained ledger to **8
 Implemented, 55 Partial, and 14 Gap**. The attachment metadata closure below brings
-it to **10 Implemented, 53 Partial, and 14 Gap**. The
-RP-M7-03 document remains the historical release decision for its reviewed baseline;
-the current row states above are the maintained ledger after this expansion.
+it to **10 Implemented, 53 Partial, and 14 Gap**. The attachment payload extraction
+wave then moves three attachment capability rows from Gap to Partial, bringing the
+maintained matrix to **10 Implemented, 54 Partial, and 11 Gap**. The RP-M7-03
+document remains the historical release decision for its reviewed baseline; the
+current row states above are the maintained ledger after these expansions.
 
 ## Easiest Partial closure wave — 22 August 2026
 

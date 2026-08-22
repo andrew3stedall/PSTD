@@ -55,14 +55,14 @@ The original fixture publishes these four complete row-aligned records through t
 | Recipient records | 9 |
 | Attachment records | 2 |
 | Attachment payload files / bytes | 2 / 12,315 |
-| EML files / bytes | 2 / 17,488 |
+| EML files / bytes | 2 / deterministic; inline parent carries both recovered payloads |
 | Messages JSONL bytes | 23,865 |
 | Bodies JSONL bytes | 2,922 |
 | Recipients JSONL bytes | 2,708 |
 | Attachments JSONL bytes | 1,240 |
 | Extraction TAR bytes | 234,496 |
 
-All seven top-level messages resolve exactly to `/Début du fichier de données Outlook` through `node_802e` contents-table row keys. The recovered child owns one raw/native recipient, a 23-byte text body, and one explicit unavailable HTML form. It emits an exact 453-byte single-part plain-text EML. The method-`5` record publishes those same bytes as `message/rfc822` at its stable archive path. The existing DOCX and unchanged 17,035-byte parent EML remain separate and byte-identical. No child value is attributed to the parent.
+All seven top-level messages resolve exactly to `/Début du fichier de données Outlook` through `node_802e` contents-table row keys. The recovered child owns one raw/native recipient, a 23-byte text body, and one explicit unavailable HTML form. It emits an exact 453-byte single-part plain-text EML. The method-`5` record publishes those same bytes as `message/rfc822` at its stable archive path. Inline parent EML now carries both the DOCX and recovered child payload; external mode publishes them at manifest-linked paths. No child value is attributed to the parent’s metadata records.
 
 The method-`5` record `att_a9c94a13d70f1cb3` publishes a 453-byte payload with SHA-256 `86ffe5567da7aa505b8be16400889170ca583fd247cc0758f00a43c2a8a99420`, byte-identical to `msg_0ff529af59d373d5.eml`.
 

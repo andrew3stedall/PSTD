@@ -3,8 +3,11 @@ use sha2::{Digest, Sha256};
 use crate::output::ids;
 use crate::output::metadata::AttachmentRecord;
 use crate::pst::mapi::{
-    MapiValue, PR_ATTACHMENT_HIDDEN, PR_ATTACH_CONTENT_ID, PR_ATTACH_DATA_BIN, PR_ATTACH_FILENAME,
-    PR_ATTACH_LONG_FILENAME, PR_ATTACH_METHOD, PR_ATTACH_MIME_TAG, PR_ATTACH_SIZE,
+    MapiValue, PR_ATTACHMENT_HIDDEN, PR_ATTACH_CONTENT_ID, PR_ATTACH_CONTENT_ID_A,
+    PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ, PR_ATTACH_FILENAME, PR_ATTACH_FILENAME_A,
+    PR_ATTACH_LONG_FILENAME, PR_ATTACH_LONG_FILENAME_A, PR_ATTACH_METHOD,
+    PR_ATTACH_MIME_SEQUENCE, PR_ATTACH_MIME_TAG, PR_ATTACH_MIME_TAG_A, PR_ATTACH_SIZE,
+    PR_RENDERING_POSITION,
 };
 use crate::pst::property_context::PropertyContext;
 
@@ -21,9 +24,12 @@ pub struct AttachmentMetadata {
     pub filename_original: Option<String>,
     pub content_type: Option<String>,
     pub is_inline: bool,
+    pub is_hidden: bool,
     pub content_id: Option<String>,
     pub attachment_method: Option<i32>,
     pub declared_size_bytes: Option<u64>,
+    pub rendering_position: Option<u64>,
+    pub mime_sequence: Option<u64>,
 }
 
 pub fn attachment_payload_from_properties(
@@ -31,7 +37,7 @@ pub fn attachment_payload_from_properties(
     ordinal: usize,
     properties: &PropertyContext,
 ) -> Option<AttachmentPayload> {
-    let bytes = binary_property_bytes(properties, PR_ATTACH_DATA_BIN)?;
+    let bytes = attachment_property_bytes(properties)?;
     let metadata = attachment_metadata_from_properties(properties);
 
     Some(attachment_payload(message_key, ordinal, metadata, bytes))
@@ -48,17 +54,25 @@ pub fn unavailable_attachment_record_from_properties(
 }
 
 pub fn attachment_metadata_from_properties(properties: &PropertyContext) -> AttachmentMetadata {
-    let content_id = properties.string_value(PR_ATTACH_CONTENT_ID);
+    let content_id = properties.first_string_value(&[PR_ATTACH_CONTENT_ID, PR_ATTACH_CONTENT_ID_A]);
     let is_hidden = bool_property(properties, PR_ATTACHMENT_HIDDEN).unwrap_or(false);
     AttachmentMetadata {
-        filename_original: properties
-            .string_value(PR_ATTACH_LONG_FILENAME)
-            .or_else(|| properties.string_value(PR_ATTACH_FILENAME)),
-        content_type: properties.string_value(PR_ATTACH_MIME_TAG),
+        filename_original: properties.first_string_value(&[
+            PR_ATTACH_LONG_FILENAME,
+            PR_ATTACH_LONG_FILENAME_A,
+            PR_ATTACH_FILENAME,
+            PR_ATTACH_FILENAME_A,
+        ]),
+        content_type: properties.first_string_value(&[PR_ATTACH_MIME_TAG, PR_ATTACH_MIME_TAG_A]),
         is_inline: is_hidden || content_id.is_some(),
+        is_hidden,
         content_id,
         attachment_method: i32_property(properties, PR_ATTACH_METHOD),
         declared_size_bytes: i32_property(properties, PR_ATTACH_SIZE)
+            .and_then(|value| u64::try_from(value).ok()),
+        rendering_position: i32_property(properties, PR_RENDERING_POSITION)
+            .and_then(|value| u64::try_from(value).ok()),
+        mime_sequence: i32_property(properties, PR_ATTACH_MIME_SEQUENCE)
             .and_then(|value| u64::try_from(value).ok()),
     }
 }
@@ -136,10 +150,12 @@ fn attachment_record(
         size_status,
         sha256,
         is_inline: metadata.is_inline,
+        is_hidden: metadata.is_hidden,
         content_id: metadata.content_id,
         attachment_method: metadata.attachment_method,
         source_ref: attachment_source_ref(metadata.attachment_method),
-        rendering_position: Some(ordinal as u64),
+        rendering_position: metadata.rendering_position.or(Some(ordinal as u64)),
+        mime_sequence: metadata.mime_sequence,
         embedded_message_key: None,
         ordinal: ordinal as u64,
         archive_path,
@@ -199,6 +215,26 @@ fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u
     }
 }
 
+fn attachment_property_bytes(properties: &PropertyContext) -> Option<Vec<u8>> {
+    for tag in [PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ] {
+        let Some(bytes) = binary_property_bytes(properties, tag) else {
+            continue;
+        };
+        if bytes.len() == 4 && indirect_attachment_method(properties) {
+            continue;
+        }
+        return Some(bytes);
+    }
+    None
+}
+
+fn indirect_attachment_method(properties: &PropertyContext) -> bool {
+    matches!(
+        i32_property(properties, PR_ATTACH_METHOD),
+        Some(2..=6)
+    )
+}
+
 fn bool_property(properties: &PropertyContext, tag: u32) -> Option<bool> {
     let value = properties.value(tag)?;
     match value.decoded.as_ref() {
@@ -242,8 +278,9 @@ mod tests {
         AttachmentMetadata, ATTACH_METHOD_EMBEDDED_MESSAGE,
     };
     use crate::pst::mapi::{
-        MapiValue, PR_ATTACH_CONTENT_ID, PR_ATTACH_DATA_BIN, PR_ATTACH_FILENAME,
-        PR_ATTACH_LONG_FILENAME, PR_ATTACH_METHOD, PR_ATTACH_MIME_TAG, PR_ATTACH_SIZE,
+        MapiValue, PR_ATTACH_CONTENT_ID, PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ,
+        PR_ATTACH_FILENAME, PR_ATTACH_LONG_FILENAME, PR_ATTACH_METHOD, PR_ATTACH_MIME_TAG,
+        PR_ATTACH_SIZE,
     };
     use crate::pst::property_context::{PropertyContext, PropertyValue};
 
@@ -324,6 +361,7 @@ mod tests {
                 content_id: None,
                 attachment_method: Some(1),
                 declared_size_bytes: Some(9),
+                ..AttachmentMetadata::default()
             },
             b"pdf bytes".to_vec(),
         );
@@ -430,6 +468,67 @@ mod tests {
     }
 
     #[test]
+    fn extracts_direct_object_payloads_and_four_byte_by_value_payloads() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_ATTACH_DATA_OBJ,
+            PropertyValue {
+                tag: PR_ATTACH_DATA_OBJ,
+                name: "attachment_data_object".to_string(),
+                raw: b"ole-object".to_vec(),
+                decoded: Some(MapiValue::Unknown(b"ole-object".to_vec())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_ATTACH_METHOD,
+            PropertyValue {
+                tag: PR_ATTACH_METHOD,
+                name: "attachment_method".to_string(),
+                raw: 6i32.to_le_bytes().to_vec(),
+                decoded: Some(MapiValue::Integer32(6)),
+                status: "selected".to_string(),
+            },
+        );
+        let payload = attachment_payload_from_properties(
+            "msg_123",
+            0,
+            &PropertyContext { values },
+        )
+        .unwrap();
+        assert_eq!(payload.bytes, b"ole-object");
+
+        let mut values = HashMap::new();
+        values.insert(
+            PR_ATTACH_DATA_BIN,
+            PropertyValue {
+                tag: PR_ATTACH_DATA_BIN,
+                name: "attachment_data".to_string(),
+                raw: [1, 2, 3, 4].to_vec(),
+                decoded: Some(MapiValue::Binary(vec![1, 2, 3, 4])),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_ATTACH_METHOD,
+            PropertyValue {
+                tag: PR_ATTACH_METHOD,
+                name: "attachment_method".to_string(),
+                raw: 1i32.to_le_bytes().to_vec(),
+                decoded: Some(MapiValue::Integer32(1)),
+                status: "selected".to_string(),
+            },
+        );
+        let payload = attachment_payload_from_properties(
+            "msg_123",
+            1,
+            &PropertyContext { values },
+        )
+        .unwrap();
+        assert_eq!(payload.bytes, [1, 2, 3, 4]);
+    }
+
+    #[test]
     fn builds_unavailable_attachment_record() {
         let record = unavailable_attachment_record(
             "msg_123",
@@ -517,6 +616,7 @@ mod tests {
                 content_id: None,
                 attachment_method: Some(1),
                 declared_size_bytes: Some(100),
+                ..AttachmentMetadata::default()
             },
             vec![1, 2, 3],
         );
@@ -538,6 +638,7 @@ mod tests {
                 content_id: Some("cid-1".to_string()),
                 attachment_method: None,
                 declared_size_bytes: None,
+                ..AttachmentMetadata::default()
             },
             vec![1, 2, 3],
         );
