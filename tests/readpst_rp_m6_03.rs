@@ -41,44 +41,45 @@ fn stable_item_view(summary: &pstd::engine::batch::BatchSummary) -> Vec<(String,
         .collect()
 }
 
-fn stable_progress_view(
-    path: &Path,
-) -> Vec<(
-    String,
-    String,
-    Option<String>,
-    Option<String>,
-    u64,
-    u64,
-    u64,
-    u64,
-    u64,
-    u64,
-    u64,
-)> {
+#[derive(Debug, PartialEq, Eq)]
+struct StableProgress {
+    event_type: String,
+    pst_name: String,
+    item_status: Option<String>,
+    message: Option<String>,
+    pst_discovered: u64,
+    pst_attempted: u64,
+    pst_completed: u64,
+    pst_partial: u64,
+    pst_failed: u64,
+    pst_skipped: u64,
+    pst_not_run: u64,
+}
+
+fn stable_progress_view(path: &Path) -> Vec<StableProgress> {
     fs::read_to_string(path)
         .unwrap()
         .lines()
         .map(|line| serde_json::from_str::<BatchProgressEvent>(line).unwrap())
         .map(|event| {
-            (
-                serde_json::to_string(&event.event_type).unwrap(),
-                event
+            StableProgress {
+                event_type: serde_json::to_string(&event.event_type).unwrap(),
+                pst_name: event
                     .pst_path
                     .as_deref()
                     .and_then(|path| Path::new(path).file_name())
                     .map(|name| name.to_string_lossy().into_owned())
                     .unwrap_or_default(),
-                event.item_status,
-                Some(event.message),
-                event.pst_discovered,
-                event.pst_attempted,
-                event.pst_completed,
-                event.pst_partial,
-                event.pst_failed,
-                event.pst_skipped,
-                event.pst_not_run,
-            )
+                item_status: event.item_status,
+                message: Some(event.message),
+                pst_discovered: event.pst_discovered,
+                pst_attempted: event.pst_attempted,
+                pst_completed: event.pst_completed,
+                pst_partial: event.pst_partial,
+                pst_failed: event.pst_failed,
+                pst_skipped: event.pst_skipped,
+                pst_not_run: event.pst_not_run,
+            }
         })
         .collect()
 }
