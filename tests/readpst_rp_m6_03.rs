@@ -61,25 +61,23 @@ fn stable_progress_view(path: &Path) -> Vec<StableProgress> {
         .unwrap()
         .lines()
         .map(|line| serde_json::from_str::<BatchProgressEvent>(line).unwrap())
-        .map(|event| {
-            StableProgress {
-                event_type: serde_json::to_string(&event.event_type).unwrap(),
-                pst_name: event
-                    .pst_path
-                    .as_deref()
-                    .and_then(|path| Path::new(path).file_name())
-                    .map(|name| name.to_string_lossy().into_owned())
-                    .unwrap_or_default(),
-                item_status: event.item_status,
-                message: Some(event.message),
-                pst_discovered: event.pst_discovered,
-                pst_attempted: event.pst_attempted,
-                pst_completed: event.pst_completed,
-                pst_partial: event.pst_partial,
-                pst_failed: event.pst_failed,
-                pst_skipped: event.pst_skipped,
-                pst_not_run: event.pst_not_run,
-            }
+        .map(|event| StableProgress {
+            event_type: serde_json::to_string(&event.event_type).unwrap(),
+            pst_name: event
+                .pst_path
+                .as_deref()
+                .and_then(|path| Path::new(path).file_name())
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            item_status: event.item_status,
+            message: Some(event.message),
+            pst_discovered: event.pst_discovered,
+            pst_attempted: event.pst_attempted,
+            pst_completed: event.pst_completed,
+            pst_partial: event.pst_partial,
+            pst_failed: event.pst_failed,
+            pst_skipped: event.pst_skipped,
+            pst_not_run: event.pst_not_run,
         })
         .collect()
 }
