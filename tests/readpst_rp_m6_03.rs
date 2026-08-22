@@ -41,7 +41,21 @@ fn stable_item_view(summary: &pstd::engine::batch::BatchSummary) -> Vec<(String,
         .collect()
 }
 
-fn stable_progress_view(path: &Path) -> Vec<(String, String, Option<String>, Option<String>, u64, u64, u64, u64, u64, u64, u64)> {
+fn stable_progress_view(
+    path: &Path,
+) -> Vec<(
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    u64,
+    u64,
+    u64,
+    u64,
+    u64,
+    u64,
+    u64,
+)> {
     fs::read_to_string(path)
         .unwrap()
         .lines()

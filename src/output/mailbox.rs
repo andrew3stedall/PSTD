@@ -1449,7 +1449,8 @@ pub(crate) mod tests {
             .expect("mail profile");
             assert_eq!(output.status.filtered_attachment_count, 1, "{profile:?}");
             assert!(output.status.attachment_decisions.iter().any(|decision| {
-                decision.filename == "image.png" && decision.status == "filtered_attachment_extension"
+                decision.filename == "image.png"
+                    && decision.status == "filtered_attachment_extension"
             }));
             assert!(output
                 .artifacts
