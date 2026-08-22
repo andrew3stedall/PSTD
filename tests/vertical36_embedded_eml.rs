@@ -1,6 +1,10 @@
-use pstd::eml::{build_plain_text_eml, materialize_embedded_message_payloads};
+use pstd::eml::{
+    build_inline_eml_with_attachments, build_plain_text_eml, materialize_embedded_message_payloads,
+};
 use pstd::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
-use pstd::pst::attachments::{AttachmentPayload, ATTACH_METHOD_EMBEDDED_MESSAGE};
+use pstd::pst::attachments::{
+    attachment_payload, AttachmentMetadata, AttachmentPayload, ATTACH_METHOD_EMBEDDED_MESSAGE,
+};
 use pstd::pst::messages::{text_body_payload, BodyPayload};
 use sha2::{Digest, Sha256};
 
@@ -149,6 +153,59 @@ fn materializes_exact_shared_eml_bytes_and_updates_record() {
         hex::encode(Sha256::digest(&expected))
     );
     assert_eq!(attachments[0].sha256, payloads[0].record.sha256);
+}
+
+#[test]
+fn materializes_embedded_message_with_child_attachments() {
+    let child_key = "child";
+    let child = message(child_key);
+    let recipients = vec![recipient(child_key)];
+    let bodies = vec![text_body_payload(child_key, "plain body")];
+    let child_attachment = attachment_payload(
+        child_key,
+        0,
+        AttachmentMetadata {
+            filename_original: Some("child.bin".to_string()),
+            attachment_method: Some(1),
+            ..AttachmentMetadata::default()
+        },
+        b"child bytes".to_vec(),
+    );
+    let mut attachments = vec![method5_attachment("att-1", "parent", Some(child_key))];
+    attachments.push(child_attachment.record.clone());
+    let mut payloads = vec![child_attachment.clone()];
+
+    assert_eq!(
+        materialize_embedded_message_payloads(
+            &mut attachments,
+            &mut payloads,
+            std::slice::from_ref(&child),
+            &recipients,
+            &bodies,
+        ),
+        1
+    );
+    let expected = build_inline_eml_with_attachments(
+        &child,
+        &recipients,
+        &bodies[0].bytes,
+        std::slice::from_ref(&child_attachment),
+    )
+    .unwrap();
+    let embedded = payloads
+        .iter()
+        .find(|payload| payload.record.attachment_key == "att-1")
+        .unwrap();
+    assert_eq!(embedded.bytes, expected);
+    assert_eq!(embedded.record.size_bytes, expected.len() as u64);
+    assert_eq!(
+        embedded.record.content_type.as_deref(),
+        Some("message/rfc822")
+    );
+    assert_eq!(
+        embedded.record.extraction_status,
+        "extracted_embedded_message_eml"
+    );
 }
 
 #[test]
