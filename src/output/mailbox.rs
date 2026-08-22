@@ -1401,6 +1401,70 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn mime_tag_and_default_type_are_safe_and_deterministic() {
+        let msg = message("msg-mime-types", "/Inbox", Some("IPM.Note"));
+        let body = text_body_payload("msg-mime-types", "body");
+        let tagged = attachment_payload(
+            "msg-mime-types",
+            1,
+            AttachmentMetadata {
+                filename_original: Some("report.pdf".to_string()),
+                content_type: Some("application/pdf".to_string()),
+                ..AttachmentMetadata::default()
+            },
+            b"pdf-bytes".to_vec(),
+        );
+        let missing = attachment_payload(
+            "msg-mime-types",
+            2,
+            AttachmentMetadata {
+                filename_original: Some("blob.bin".to_string()),
+                ..AttachmentMetadata::default()
+            },
+            b"binary-bytes".to_vec(),
+        );
+        let invalid = attachment_payload(
+            "msg-mime-types",
+            3,
+            AttachmentMetadata {
+                filename_original: Some("unsafe.bin".to_string()),
+                content_type: Some("text/plain\r\nX-Injected: yes".to_string()),
+                ..AttachmentMetadata::default()
+            },
+            b"unsafe-bytes".to_vec(),
+        );
+        let attachments = vec![
+            tagged.record.clone(),
+            missing.record.clone(),
+            invalid.record.clone(),
+        ];
+        let payloads = vec![tagged, missing, invalid];
+        let render = || {
+            render_profile(
+                OutputProfile::Eml,
+                &[],
+                std::slice::from_ref(&msg),
+                &[],
+                &[],
+                std::slice::from_ref(&body.record),
+                std::slice::from_ref(&body),
+                &attachments,
+                &payloads,
+                &[],
+            )
+            .expect("eml profile")
+        };
+        let first = render();
+        let second = render();
+        assert_eq!(first.artifacts[0].bytes, second.artifacts[0].bytes);
+        let eml = String::from_utf8(first.artifacts[0].bytes.clone()).expect("utf8 eml");
+        assert!(eml.contains("Content-Type: application/pdf; name=\"report.pdf\""));
+        assert!(eml.contains("Content-Type: application/octet-stream; name=\"blob.bin\""));
+        assert!(eml.contains("Content-Type: application/octet-stream; name=\"unsafe.bin\""));
+        assert!(!eml.contains("X-Injected: yes"));
+    }
+
+    #[test]
     fn all_mail_profiles_apply_attachment_extension_filters() {
         let msg = message("msg-filtered-eml", "/Inbox", Some("IPM.Note"));
         let body = text_body_payload("msg-filtered-eml", "body");
