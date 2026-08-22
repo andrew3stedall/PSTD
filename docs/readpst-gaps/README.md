@@ -172,7 +172,8 @@ blockers in [`rp-m7-02-e4-report.md`](rp-m7-02-e4-report.md), not a release-wide
 RP-M7-03 has published the final decision in
 [`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md): PSTD was **not
 parity-complete** at the reviewed baseline. The post-decision output expansion has
-since moved five rows to Partial; the maintained ledger is now 2 Implemented, 59
+since moved five rows to Partial, and the easiest-closure wave has promoted six
+policy/projection rows to Implemented; the maintained ledger is now 8 Implemented, 55
 Partial, and 14 Gap rows. Future work must still add admissible corpora and semantic
 differentials before making a full-parity claim.
 

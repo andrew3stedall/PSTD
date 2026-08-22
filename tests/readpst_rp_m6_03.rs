@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use pstd::config::ReadpstPolicy;
-use pstd::engine::batch::{discover_pst_files, run_batch, BatchConfig};
+use pstd::engine::batch::{discover_pst_files, run_batch, BatchConfig, BatchProgressEvent};
 
 fn batch_config(input: &Path, output: &Path, jobs: u16) -> BatchConfig {
     let readpst = ReadpstPolicy {
@@ -41,6 +41,47 @@ fn stable_item_view(summary: &pstd::engine::batch::BatchSummary) -> Vec<(String,
         .collect()
 }
 
+#[derive(Debug, PartialEq, Eq)]
+struct StableProgress {
+    event_type: String,
+    pst_name: String,
+    item_status: Option<String>,
+    message: Option<String>,
+    pst_discovered: u64,
+    pst_attempted: u64,
+    pst_completed: u64,
+    pst_partial: u64,
+    pst_failed: u64,
+    pst_skipped: u64,
+    pst_not_run: u64,
+}
+
+fn stable_progress_view(path: &Path) -> Vec<StableProgress> {
+    fs::read_to_string(path)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str::<BatchProgressEvent>(line).unwrap())
+        .map(|event| StableProgress {
+            event_type: serde_json::to_string(&event.event_type).unwrap(),
+            pst_name: event
+                .pst_path
+                .as_deref()
+                .and_then(|path| Path::new(path).file_name())
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            item_status: event.item_status,
+            message: Some(event.message),
+            pst_discovered: event.pst_discovered,
+            pst_attempted: event.pst_attempted,
+            pst_completed: event.pst_completed,
+            pst_partial: event.pst_partial,
+            pst_failed: event.pst_failed,
+            pst_skipped: event.pst_skipped,
+            pst_not_run: event.pst_not_run,
+        })
+        .collect()
+}
+
 #[test]
 fn bounded_worker_runs_preserve_sorted_batch_results() {
     let temp = tempfile::tempdir().unwrap();
@@ -72,6 +113,10 @@ fn bounded_worker_runs_preserve_sorted_batch_results() {
             "middle.pst".to_string(),
             "zeta.pst".to_string(),
         ]
+    );
+    assert_eq!(
+        stable_progress_view(&temp.path().join("one/batch_progress.jsonl")),
+        stable_progress_view(&temp.path().join("many/batch_progress.jsonl"))
     );
 }
 

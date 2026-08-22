@@ -59,13 +59,15 @@ RP-M6-01 through RP-M6-03 are merged with controlled input, crypto, hardening, a
 determinism evidence. RP-M7-01 reviewed the live matrix, RP-M7-02 recorded the pinned
 oracle and E4 admissibility blockers, and RP-M7-03 published the final decision:
 NOT PARITY-COMPLETE. The reviewed baseline had 2 Implemented, 54 Partial, and 19 Gap
-rows; the maintained matrix is now 2 Implemented, 59 Partial, and 14 Gap after the
-post-RP-M7 output parity expansion.
+rows; the maintained matrix is now 8 Implemented, 55 Partial, and 14 Gap after the
+post-RP-M7 output parity expansion and easiest-closure wave.
 
 The output expansion applies typed `-t[eajc]` routing to named projections, extends
 case-insensitive attachment filtering to generated MIME/MSG output, and adds shared
-RFC 2047/RFC 2231 encoding for generated headers and filename parameters. These rows
-remain Partial pending broad mixed-folder and independent readpst/import evidence.
+RFC 2047/RFC 2231 encoding for generated headers and filename parameters. Six
+policy/projection rows are now Implemented from canonical synthetic evidence; broad
+mixed-folder, input, and independent readpst/import evidence remains open for other
+rows.
 
 ### First controlled Microsoft Purview Unicode export
 

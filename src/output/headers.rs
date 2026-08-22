@@ -233,4 +233,16 @@ mod tests {
         assert!(parameter.contains("filename*1*="));
         assert!(!parameter.contains("%C3% A9"));
     }
+
+    #[test]
+    fn rejects_header_injection_and_repeats_encoding_deterministically() {
+        let injected = "subject\r\nX-Injected: yes";
+        assert_eq!(encode_unstructured_value(injected), "");
+        assert_eq!(encode_display_name(injected), "");
+        assert_eq!(encode_mime_parameter("filename", injected), "filename=\"\"");
+
+        let first = encode_mime_parameter("filename", "résumé final.pdf");
+        let second = encode_mime_parameter("filename", "résumé final.pdf");
+        assert_eq!(first, second);
+    }
 }

@@ -175,16 +175,19 @@ documents stronger-equivalent safety/determinism improvements without overclaimi
 
 ## Post-RP-M7 output parity expansion
 
-The first post-decision delivery closes the missing projection boundary for typed item
+The first post-decision delivery closed the missing projection boundary for typed item
 filters and extends attachment/header output behavior without changing canonical source
 evidence. Routed item identities now drive all named typed/mail projections, normalized
 attachment allow-lists apply to generated MIME and MSG/EML output, and generated
 non-ASCII values use RFC 2047/RFC 2231 serialization. Focused regression tests prove
 ASCII stability, deterministic selection, extension filtering, encoded-word output, and
-long-parameter continuation. These five rows are Partial until broad mixed-folder and
-independent readpst/import evidence is admitted.
+long-parameter continuation. Those five rows moved from Gap to Partial because broad
+mixed-folder and independent readpst/import evidence was not yet admitted. The
+subsequent easiest-closure wave promoted six policy/projection rows—`CLI-01`, `CLI-04`,
+`CLI-10`, `MSG-09`, `MSG-10`, and `ATT-09`—using canonical synthetic positive,
+negative, and determinism evidence. No new parser/input coverage is implied.
 
-The maintained matrix after this slice is **2 Implemented, 59 Partial, and 14 Gap**.
+The maintained matrix after the closure wave is **8 Implemented, 55 Partial, and 14 Gap**.
 
 ## Fixture and differential strategy
 

@@ -98,8 +98,14 @@ remain in the archive, so a projection cannot erase filtered source content.
 The normalized `-a` allow-list is applied to generated MIME parts and Rust-native MSG
 compatibility EML as well as separate binary files. Filtered attachments produce
 explicit adapter decisions; canonical `AttachmentRecord` values and raw payloads are
-unchanged. This is an output-equivalent implementation slice with focused synthetic
-coverage, not a full readpst differential claim.
+unchanged. The policy/projection contract is Implemented with deterministic synthetic
+coverage; this does not make a broader PST input or readpst differential claim.
+
+The help/version surface and bounded batch scheduler are also Implemented. Help exposes
+the canonical path, named profiles, and policy flags; unknown options fail closed. The
+batch contract proves stable item and normalized progress ordering at `jobs=1` and a
+higher bounded worker count without requiring a separate PST corpus for each scheduling
+case.
 
 ## Planned implementation — `RP-01`
 

@@ -7,7 +7,10 @@ use crate::pst::inspect::inspect_pst;
 
 #[derive(Debug, Parser)]
 #[command(name = "pstd")]
-#[command(about = "PST email data extractor")]
+#[command(
+    about = "PST email data extractor",
+    long_about = "PSTD extracts PST/OST content through a bounded canonical TAR/JSONL path and named readpst-compatible output profiles. Use `extract` for one input, `batch` for a folder of inputs, `inspect` for bounded capability diagnostics, and `version` for the installed version."
+)]
 #[command(version)]
 pub struct Cli {
     #[command(subcommand)]
@@ -16,27 +19,37 @@ pub struct Cli {
 
 #[derive(Debug, Clone, Args)]
 pub struct ReadpstArgs {
-    /// Named output family; non-canonical families fail explicitly until their adapter lands.
+    /// Named output profile: canonical, mbox, recursive, mh, eml, separate, kmail, thunderbird, vcard, contact-list, icalendar, vjournal, or msg.
     #[arg(long, default_value = "canonical")]
     output_profile: String,
+    /// Fallback charset for values without an explicit charset declaration.
     #[arg(long)]
     fallback_charset: Option<String>,
+    /// Prefer UTF-8 body representations when both UTF-8 and legacy forms exist.
     #[arg(long, default_value_t = false)]
     prefer_utf8: bool,
+    /// Include deleted item envelopes in the canonical evidence policy.
     #[arg(long, default_value_t = false)]
     include_deleted: bool,
+    /// Include associated item envelopes in the canonical evidence policy.
     #[arg(long, default_value_t = false)]
     include_associated: bool,
+    /// Restrict named projections to one item family: all, email, appointment, journal, or contact.
     #[arg(long, default_value = "all")]
     item_types: String,
+    /// Comma-separated attachment extensions to retain, case-insensitive.
     #[arg(long)]
     attachment_extensions: Option<String>,
+    /// Do not emit the decompressed RTF body as a synthetic attachment projection.
     #[arg(long, default_value_t = false)]
     no_synthetic_rtf: bool,
+    /// Bounded worker count for batch processing (1..=64).
     #[arg(long, default_value_t = 1)]
     jobs: u16,
+    /// Diagnostic severity: errors, info, or debug.
     #[arg(long, default_value = "info")]
     diagnostics: String,
+    /// Collision policy for generated adapter paths: suffix, skip, fail, or replace.
     #[arg(long, default_value = "suffix")]
     collision: String,
 }
@@ -63,6 +76,9 @@ impl ReadpstArgs {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    #[command(
+        about = "Extract one PST/OST input into canonical evidence and an optional named output profile."
+    )]
     Extract {
         #[arg(long)]
         input: std::path::PathBuf,
@@ -89,6 +105,9 @@ pub enum Commands {
         #[command(flatten)]
         readpst: ReadpstArgs,
     },
+    #[command(
+        about = "Process PST/OST inputs from a directory with bounded deterministic scheduling."
+    )]
     Batch {
         #[arg(long)]
         input: std::path::PathBuf,
@@ -117,6 +136,9 @@ pub enum Commands {
         #[command(flatten)]
         readpst: ReadpstArgs,
     },
+    #[command(
+        about = "Inspect input capability and bounded parser diagnostics without extracting content."
+    )]
     Inspect {
         #[arg(long)]
         input: std::path::PathBuf,
@@ -333,5 +355,37 @@ mod tests {
         };
         let policy = readpst.policy(overwrite).expect("msg should be supported");
         assert_eq!(policy.output_profile, OutputProfile::Msg);
+    }
+
+    #[test]
+    fn help_and_version_expose_the_readpst_parity_surface() {
+        let help = Cli::try_parse_from(["pstd", "--help"])
+            .expect_err("--help exits through clap's display error")
+            .to_string();
+        assert!(help.contains("canonical TAR/JSONL"));
+        assert!(help.contains("extract"));
+        assert!(help.contains("batch"));
+        assert!(help.contains("inspect"));
+        assert!(help.contains("version"));
+
+        let extract_help = Cli::try_parse_from(["pstd", "extract", "--help"])
+            .expect_err("extract --help exits through clap's display error")
+            .to_string();
+        assert!(extract_help.contains("--output-profile"));
+        assert!(extract_help.contains("--item-types"));
+        assert!(extract_help.contains("--attachment-extensions"));
+        assert!(extract_help.contains("--jobs"));
+
+        let version = Cli::try_parse_from(["pstd", "--version"])
+            .expect_err("--version exits through clap's display error")
+            .to_string();
+        assert!(version.starts_with("pstd "));
+    }
+
+    #[test]
+    fn unknown_cli_options_fail_closed() {
+        let error = Cli::try_parse_from(["pstd", "extract", "--not-a-readpst-option"])
+            .expect_err("unknown options must be rejected");
+        assert!(error.to_string().contains("unexpected argument"));
     }
 }
