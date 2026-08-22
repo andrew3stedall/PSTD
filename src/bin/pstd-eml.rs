@@ -67,10 +67,8 @@ fn run() -> Result<(), String> {
     let recipients = recipients_by_message(&metadata.recipients);
     let bodies = bodies_by_message(&metadata.body_payloads);
     let attachments = attachments_by_message(&metadata.attachment_payloads);
-    let attachment_records = attachment_records_by_message(
-        &metadata.attachments,
-        &metadata.attachment_payloads,
-    );
+    let attachment_records =
+        attachment_records_by_message(&metadata.attachments, &metadata.attachment_payloads);
     let embedded_messages = embedded_message_keys(&metadata.attachments);
     let mut pending_external_attachments = Vec::new();
     let mut external_manifest = Vec::new();
@@ -90,10 +88,8 @@ fn run() -> Result<(), String> {
             .get(&message.message_key)
             .map(Vec::as_slice)
             .unwrap_or_default();
-        let unavailable_attachment_count = unavailable_attachment_count(
-            message_attachment_records,
-            message_attachments,
-        );
+        let unavailable_attachment_count =
+            unavailable_attachment_count(message_attachment_records, message_attachments);
         let inline_attachments = if attachment_mode == AttachmentMode::Inline {
             message_attachments
         } else {
@@ -249,9 +245,7 @@ fn attachment_records_by_message(
     grouped
 }
 
-fn attachment_order_key(
-    record: &AttachmentRecord,
-) -> (bool, u64, u64, u64, String) {
+fn attachment_order_key(record: &AttachmentRecord) -> (bool, u64, u64, u64, String) {
     (
         record.mime_sequence.is_none(),
         record.mime_sequence.unwrap_or(u64::MAX),
@@ -335,11 +329,7 @@ fn plan_external_attachments(
                     Some(record.archive_path.clone()),
                     Some(payload.bytes.clone()),
                 ),
-                Some(_) => (
-                    "attachment_payload_integrity_failed",
-                    None,
-                    None,
-                ),
+                Some(_) => ("attachment_payload_integrity_failed", None, None),
                 None => ("attachment_payload_unavailable", None, None),
             };
         if let Some(bytes) = payload_bytes {
@@ -1364,13 +1354,7 @@ mod tests {
         embedded.record.content_type = None;
         embedded.record.filename_safe = "child.eml".to_string();
         embedded.record.extension = Some("eml".to_string());
-        let eml = build_eml(
-            &message,
-            &[recipient(0, "to")],
-            &bodies,
-            &[embedded],
-        )
-        .unwrap();
+        let eml = build_eml(&message, &[recipient(0, "to")], &bodies, &[embedded]).unwrap();
         let eml = String::from_utf8(eml).unwrap();
         assert!(eml.contains("Content-Type: message/rfc822; name=\"child.eml\"\r\n"));
         assert!(eml.contains("Y2hpbGQgZW1s\r\n"));
@@ -1386,13 +1370,7 @@ mod tests {
             html: None,
         };
         let empty = attachment(0, &[]);
-        let eml = build_eml(
-            &message,
-            &[recipient(0, "to")],
-            &bodies,
-            &[empty],
-        )
-        .unwrap();
+        let eml = build_eml(&message, &[recipient(0, "to")], &bodies, &[empty]).unwrap();
         let eml = String::from_utf8(eml).unwrap();
         assert!(eml.contains("Content-Disposition: attachment; filename=\"attachment.docx\"\r\n"));
         assert!(eml.contains(

@@ -88,12 +88,14 @@ pub fn load_attachment_data_payload(
             "attachment data tree child array overflow",
         )
     })?;
-    let child_end = XBLOCK_HEADER_BYTES.checked_add(child_bytes).ok_or_else(|| {
-        PstdError::pst_parse(
-            Some(root.block_ref.offset.0),
-            "attachment data tree length overflow",
-        )
-    })?;
+    let child_end = XBLOCK_HEADER_BYTES
+        .checked_add(child_bytes)
+        .ok_or_else(|| {
+            PstdError::pst_parse(
+                Some(root.block_ref.offset.0),
+                "attachment data tree length overflow",
+            )
+        })?;
     if child_end > root.bytes.len() {
         return Err(PstdError::pst_parse(
             Some(root.block_ref.offset.0),
@@ -120,10 +122,7 @@ pub fn load_attachment_data_payload(
         if !seen.insert(child_bid) {
             return Err(PstdError::pst_parse(
                 Some(root.block_ref.offset.0),
-                format!(
-                    "attachment data tree repeats child BID 0x{:x}",
-                    child_bid.0
-                ),
+                format!("attachment data tree repeats child BID 0x{:x}", child_bid.0),
             ));
         }
         append_attachment_data(
@@ -233,12 +232,14 @@ fn append_attachment_data(
                 "nested attachment data tree child array overflow",
             )
         })?;
-        let child_end = XBLOCK_HEADER_BYTES.checked_add(child_bytes).ok_or_else(|| {
-            PstdError::pst_parse(
-                Some(payload.block_ref.offset.0),
-                "nested attachment data tree length overflow",
-            )
-        })?;
+        let child_end = XBLOCK_HEADER_BYTES
+            .checked_add(child_bytes)
+            .ok_or_else(|| {
+                PstdError::pst_parse(
+                    Some(payload.block_ref.offset.0),
+                    "nested attachment data tree length overflow",
+                )
+            })?;
         if child_end > payload.bytes.len() {
             return Err(PstdError::pst_parse(
                 Some(payload.block_ref.offset.0),
@@ -288,9 +289,7 @@ fn append_attachment_data(
     if next_len as u64 > declared_total_bytes {
         return Err(PstdError::pst_parse(
             Some(payload.block_ref.offset.0),
-            format!(
-                "attachment payload exceeds declared total {declared_total_bytes} bytes"
-            ),
+            format!("attachment payload exceeds declared total {declared_total_bytes} bytes"),
         ));
     }
     bytes.extend_from_slice(&payload.bytes);
@@ -317,9 +316,9 @@ fn child_bid_width(bytes: &[u8], child_count: usize, bbt: &BbtIndex) -> Option<u
 
 fn read_child_bid(bytes: &[u8], width: usize) -> BlockId {
     match width {
-        4 => BlockId(u32::from_le_bytes(
-            bytes.try_into().expect("four-byte attachment data BID"),
-        ) as u64),
+        4 => BlockId(
+            u32::from_le_bytes(bytes.try_into().expect("four-byte attachment data BID")) as u64,
+        ),
         8 => BlockId(u64::from_le_bytes(
             bytes.try_into().expect("eight-byte attachment data BID"),
         )),
@@ -331,7 +330,10 @@ fn parse_xblock_header(bytes: &[u8], block_id: BlockId) -> PstdResult<(u16, usiz
     if bytes.len() < XBLOCK_HEADER_BYTES {
         return Err(PstdError::pst_parse(
             None,
-            format!("attachment data tree block 0x{:x} header is truncated", block_id.0),
+            format!(
+                "attachment data tree block 0x{:x} header is truncated",
+                block_id.0
+            ),
         ));
     }
     let header = u16::from_le_bytes([bytes[0], bytes[1]]);
@@ -357,13 +359,7 @@ pub fn load_unicode_xblock_payload(
     expected_size: u64,
     limits: ParserLimits,
 ) -> PstdResult<DataTreePayload> {
-    let payload = load_attachment_data_payload(
-        reader,
-        bbt,
-        root_bid,
-        Some(expected_size),
-        limits,
-    )?;
+    let payload = load_attachment_data_payload(reader, bbt, root_bid, Some(expected_size), limits)?;
     if !payload.bytes.starts_with(DOCX_ZIP_SIGNATURE) {
         return Err(PstdError::pst_parse(
             None,
@@ -374,12 +370,10 @@ pub fn load_unicode_xblock_payload(
         ));
     }
 
-    let status = payload
-        .status
-        .replace(
-            "metadata_size_differs_from_data_tree_total",
-            "metadata_size_differs_from_xblock_total",
-        );
+    let status = payload.status.replace(
+        "metadata_size_differs_from_data_tree_total",
+        "metadata_size_differs_from_xblock_total",
+    );
     Ok(DataTreePayload {
         status: format!("{status}; zip_signature=504b0304"),
         ..payload
@@ -475,11 +469,8 @@ mod tests {
         let first = b"OLE-";
         let second = b"payload";
         let root = xblock_with_header(0x0201, &[0x642], (first.len() + second.len()) as u32);
-        let nested = xblock_with_header(
-            0x0101,
-            &[0x640, 0x644],
-            (first.len() + second.len()) as u32,
-        );
+        let nested =
+            xblock_with_header(0x0101, &[0x640, 0x644], (first.len() + second.len()) as u32);
         let (file, bbt) = fixture(&[
             (0x632, root),
             (0x642, nested),
@@ -497,7 +488,10 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(payload.bytes, [first.as_slice(), second.as_slice()].concat());
+        assert_eq!(
+            payload.bytes,
+            [first.as_slice(), second.as_slice()].concat()
+        );
         assert_eq!(payload.child_bids, vec![BlockId(0x640), BlockId(0x644)]);
         assert!(payload.status.contains("header=0x0201"));
     }

@@ -214,8 +214,7 @@ pub fn render_profile(
                     status: "filtered_attachment_extension".to_string(),
                     extension: attachment.extension.clone(),
                 });
-            } else if let Some(status) =
-                attachment_payload_status(attachment, attachment_payloads)
+            } else if let Some(status) = attachment_payload_status(attachment, attachment_payloads)
             {
                 attachment_unavailable_count += 1;
                 attachment_decisions.push(MailboxAttachmentDecision {
@@ -833,16 +832,13 @@ pub(crate) fn serialize_message_eml(
         if !attachment_payload_matches_record(attachment, payload) {
             continue;
         }
-        let content_type = attachment
-            .content_type
-            .as_deref()
-            .unwrap_or_else(|| {
-                if attachment.attachment_method == Some(5) {
-                    "message/rfc822"
-                } else {
-                    "application/octet-stream"
-                }
-            });
+        let content_type = attachment.content_type.as_deref().unwrap_or_else(|| {
+            if attachment.attachment_method == Some(5) {
+                "message/rfc822"
+            } else {
+                "application/octet-stream"
+            }
+        });
         append_binary_part(
             &mut output,
             &boundary,
@@ -1174,9 +1170,7 @@ fn attachment_payload_status(
     }
 }
 
-fn attachment_order_key(
-    attachment: &AttachmentRecord,
-) -> (bool, u64, u64, u64, String) {
+fn attachment_order_key(attachment: &AttachmentRecord) -> (bool, u64, u64, u64, String) {
     (
         attachment.mime_sequence.is_none(),
         attachment.mime_sequence.unwrap_or(u64::MAX),
@@ -1492,9 +1486,11 @@ pub(crate) mod tests {
             .iter()
             .any(|artifact| artifact.summary.output_kind == "attachment_file"
                 && artifact.summary.size_bytes == 0));
-        assert!(output.status.attachment_decisions.iter().all(|decision| {
-            decision.status == "attachment_file_emitted"
-        }));
+        assert!(output
+            .status
+            .attachment_decisions
+            .iter()
+            .all(|decision| { decision.status == "attachment_file_emitted" }));
     }
 
     #[test]

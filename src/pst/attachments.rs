@@ -5,9 +5,8 @@ use crate::output::metadata::AttachmentRecord;
 use crate::pst::mapi::{
     MapiValue, PR_ATTACHMENT_HIDDEN, PR_ATTACH_CONTENT_ID, PR_ATTACH_CONTENT_ID_A,
     PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ, PR_ATTACH_FILENAME, PR_ATTACH_FILENAME_A,
-    PR_ATTACH_LONG_FILENAME, PR_ATTACH_LONG_FILENAME_A, PR_ATTACH_METHOD,
-    PR_ATTACH_MIME_SEQUENCE, PR_ATTACH_MIME_TAG, PR_ATTACH_MIME_TAG_A, PR_ATTACH_SIZE,
-    PR_RENDERING_POSITION,
+    PR_ATTACH_LONG_FILENAME, PR_ATTACH_LONG_FILENAME_A, PR_ATTACH_METHOD, PR_ATTACH_MIME_SEQUENCE,
+    PR_ATTACH_MIME_TAG, PR_ATTACH_MIME_TAG_A, PR_ATTACH_SIZE, PR_RENDERING_POSITION,
 };
 use crate::pst::property_context::PropertyContext;
 
@@ -229,10 +228,7 @@ fn attachment_property_bytes(properties: &PropertyContext) -> Option<Vec<u8>> {
 }
 
 fn indirect_attachment_method(properties: &PropertyContext) -> bool {
-    matches!(
-        i32_property(properties, PR_ATTACH_METHOD),
-        Some(2..=6)
-    )
+    matches!(i32_property(properties, PR_ATTACH_METHOD), Some(2..=6))
 }
 
 fn bool_property(properties: &PropertyContext, tag: u32) -> Option<bool> {
@@ -490,12 +486,8 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let payload = attachment_payload_from_properties(
-            "msg_123",
-            0,
-            &PropertyContext { values },
-        )
-        .unwrap();
+        let payload =
+            attachment_payload_from_properties("msg_123", 0, &PropertyContext { values }).unwrap();
         assert_eq!(payload.bytes, b"ole-object");
 
         let mut values = HashMap::new();
@@ -519,12 +511,8 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let payload = attachment_payload_from_properties(
-            "msg_123",
-            1,
-            &PropertyContext { values },
-        )
-        .unwrap();
+        let payload =
+            attachment_payload_from_properties("msg_123", 1, &PropertyContext { values }).unwrap();
         assert_eq!(payload.bytes, [1, 2, 3, 4]);
     }
 

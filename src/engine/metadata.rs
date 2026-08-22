@@ -1198,12 +1198,9 @@ fn recover_embedded_message(
 
     for nested_candidate in nested_candidates {
         if depth >= crate::pst::embedded_graph::MAX_EMBEDDED_DEPTH as usize {
-            if let Some(record) = attachments
-                .iter_mut()
-                .find(|record| {
-                    record.attachment_key == nested_candidate.attachment_record.attachment_key
-                })
-            {
+            if let Some(record) = attachments.iter_mut().find(|record| {
+                record.attachment_key == nested_candidate.attachment_record.attachment_key
+            }) {
                 record.extraction_status =
                     "embedded_message_depth_limit; child_message_not_recovered".to_string();
             }

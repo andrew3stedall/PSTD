@@ -624,10 +624,7 @@ fn filename_attachment_record(
         return None;
     }
     record.filename_original = Some(filename.clone());
-    record.filename_safe = crate::pst::attachments::safe_filename(
-        Some(&filename),
-        ordinal,
-    );
+    record.filename_safe = crate::pst::attachments::safe_filename(Some(&filename), ordinal);
     record.extension = crate::pst::attachments::file_extension(&record.filename_safe);
     record.archive_path = format!(
         "attachments/{message_key}/{}_{}",
@@ -660,8 +657,7 @@ fn resolve_attachment_payload(
             reader,
             bbt,
             crate::pst::primitives::BlockId(data_bid),
-            non_negative_integer32_property(properties, PR_ATTACH_SIZE)
-                .map(|size| size as u64),
+            non_negative_integer32_property(properties, PR_ATTACH_SIZE).map(|size| size as u64),
             limits,
         )
         .map_err(|reason| reason.to_string())?;
