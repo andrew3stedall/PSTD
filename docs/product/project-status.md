@@ -22,7 +22,7 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Microsoft Purview Unicode exports | Active corpus target | No approved Purview export fixture is yet committed. Compatibility must be established capability-by-capability on controlled synthetic Purview exports rather than inferred from the existing fixtures. |
 | External PST implementations | Comparison-only tooling | Pinned external tools may generate or independently inventory controlled fixtures, but PSTD acceptance must come from its own Rust implementation and exact deterministic output. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
-| Readpst parity release gate | Easiest Partial closure wave | RP-M7-03 remains NOT PARITY-COMPLETE for its reviewed baseline; the maintained ledger is now 8 Implemented, 55 Partial, and 14 Gap after closing CLI policy, deterministic scheduling, attachment filtering, and RFC-aware generated MIME projection. |
+| Readpst parity release gate | Attachment metadata closure wave | RP-M7-03 remains NOT PARITY-COMPLETE for its reviewed baseline; the maintained ledger is now 10 Implemented, 53 Partial, and 14 Gap after closing CLI policy, deterministic scheduling, attachment filtering, RFC-aware generated MIME projection, filename selection, and MIME type handling. |
 | Pinned semantic differential | RP-M7-02 evidence collected | Run `32512518536` passed the 18-test readpst/PSTD harness for the approved Unicode fixture; release-wide E4 remains not proven because admissible profile/input corpus coverage is incomplete. |
 
 ## Exact Tika baseline

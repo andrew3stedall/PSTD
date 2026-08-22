@@ -173,7 +173,8 @@ RP-M7-03 has published the final decision in
 [`rp-m7-03-parity-decision.md`](rp-m7-03-parity-decision.md): PSTD was **not
 parity-complete** at the reviewed baseline. The post-decision output expansion has
 since moved five rows to Partial, and the easiest-closure wave has promoted six
-policy/projection rows to Implemented; the maintained ledger is now 8 Implemented, 55
+policy/projection rows to Implemented; the attachment metadata closure wave has now
+promoted two additional rows, bringing the maintained ledger to 10 Implemented, 53
 Partial, and 14 Gap rows. Future work must still add admissible corpora and semantic
 differentials before making a full-parity claim.
 

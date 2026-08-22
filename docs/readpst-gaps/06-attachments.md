@@ -13,9 +13,9 @@ The libpst attachment model exposes more than a filename and payload. PSTD alrea
 
 | Field/behaviour | readpst/libpst | PSTD status |
 |---|---|---|
-| Short filename (`PR_ATTACH_FILENAME`) | Fallback 8.3 filename. | **Partial** |
-| Long filename (`PR_ATTACH_LONG_FILENAME`) | Preferred for output names. | **Partial**: preferred in current records; broad encoding not proven. |
-| MIME tag | Used as Content-Type, with octet-stream fallback. | **Partial** |
+| Short filename (`PR_ATTACH_FILENAME`) | Fallback 8.3 filename. | **Implemented**: used when the long filename is absent. |
+| Long filename (`PR_ATTACH_LONG_FILENAME`) | Preferred for output names. | **Implemented**: selected before the short filename and retained separately from the safe output name. |
+| MIME tag | Used as Content-Type, with octet-stream fallback. | **Implemented** for generated EML and canonical MIME projection, including unsafe-value rejection. |
 | Content-ID | Emitted as `Content-ID` when present. | **Partial**: captured and emitted on validated paths; CID correlation is not proven. |
 | Attachment method | 0 none, 1 by value, 2 by reference, 3 by-reference-resolve, 4 by-reference-only, 5 embedded message, 6 OLE. | **Partial**: method 1 and one method 5 layout are validated. |
 | Rendering position | Indicates where an attachment appears in body text. | **Gap** |
@@ -103,6 +103,20 @@ canonical JSONL/payload evidence. MIME filenames additionally use the shared RFC
 encoder, retaining the original canonical filename separately from any ASCII fallback.
 The extension-filter projection is Implemented for all mailbox profiles and MSG/EML;
 broader attachment extraction methods, ownership, and input coverage remain Partial.
+
+## Attachment metadata closure wave — 22 August 2026
+
+`attachment_metadata_from_properties` now has direct regression evidence for the
+readpst-compatible name rule: `PR_ATTACH_LONG_FILENAME` wins when present, while
+`PR_ATTACH_FILENAME` is used as the fallback. `filename_original` remains the source
+candidate and `filename_safe` is derived deterministically for output paths.
+
+Generated EML and canonical `MimePartRecord` projection now share the same safe MIME
+contract: a valid MIME tag is preserved, a missing tag becomes
+`application/octet-stream`, and malformed or CR/LF-bearing values cannot inject a
+header. Repeated rendering is byte-identical and does not mutate attachment records or
+payload bytes. These two metadata/projection rows are Implemented; CID correlation,
+payload methods, reference resolution, and broad input coverage remain open.
 
 ## Planned implementation — `RP-06`
 
