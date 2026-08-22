@@ -11,9 +11,9 @@ _Last reviewed: 21 August 2026._
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI v14/v15 and OST 2013 structural page/index traversal is now integrated with explicit evidence boundaries. |
-| Current milestone | Easiest Partial closure wave | The release decision remains NOT PARITY-COMPLETE; the maintained ledger is now 8 Implemented, 55 Partial, and 14 Gap rows after closing CLI policy, deterministic scheduling, attachment filtering, and generated MIME encoding contracts. |
+| Current milestone | Attachment metadata closure wave | The release decision remains NOT PARITY-COMPLETE; the maintained ledger is now 10 Implemented, 53 Partial, and 14 Gap rows after closing CLI policy, deterministic scheduling, attachment filtering, generated MIME encoding, filename selection, and MIME type contracts. |
 | EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
-| Readpst parity workboard | Easiest Partial closure wave | Canonical typed records feed deterministic output projections; the release decision is still NOT PARITY-COMPLETE with 55 Partial and 14 Gap rows remaining, and broad input/differential/import evidence is still required. |
+| Readpst parity workboard | Attachment metadata closure wave | Canonical typed records feed deterministic output projections; the release decision is still NOT PARITY-COMPLETE with 53 Partial and 14 Gap rows remaining, and broad input/differential/import evidence is still required. |
 
 ### RP-M4-03
 

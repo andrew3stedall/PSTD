@@ -263,6 +263,15 @@ All seven top-level messages belong to `/Début du fichier de données Outlook` 
 - The maintained ledger is now 8 Implemented, 55 Partial, and 14 Gap; no full-parity
   claim is made.
 
+### Attachment metadata closure wave — 22 August 2026
+
+- Promoted `ATT-01` after direct canonical property-context evidence proved long-name
+  preference and short-name fallback with deterministic safe output names.
+- Promoted `ATT-02` after generated EML and canonical MIME projection proved MIME-tag
+  preservation, octet-stream defaults, unsafe-value rejection, and repeat-run equality.
+- The maintained ledger is now 10 Implemented, 53 Partial, and 14 Gap; no full-parity
+  claim is made.
+
 ## RP-M7 release-gate review
 
 - Added the RP-M7-01 conservative matrix promotion report at main commit `57fbcaf1a83e2ddc79fff300be812a23cc66bb53`: 2 Implemented, 54 Partial, and 19 Gap rows remain explicit.

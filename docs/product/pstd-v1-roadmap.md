@@ -59,8 +59,9 @@ RP-M6-01 through RP-M6-03 are merged with controlled input, crypto, hardening, a
 determinism evidence. RP-M7-01 reviewed the live matrix, RP-M7-02 recorded the pinned
 oracle and E4 admissibility blockers, and RP-M7-03 published the final decision:
 NOT PARITY-COMPLETE. The reviewed baseline had 2 Implemented, 54 Partial, and 19 Gap
-rows; the maintained matrix is now 8 Implemented, 55 Partial, and 14 Gap after the
-post-RP-M7 output parity expansion and easiest-closure wave.
+rows; the maintained matrix is now 10 Implemented, 53 Partial, and 14 Gap after the
+post-RP-M7 output parity expansion, easiest-closure wave, and attachment metadata
+closure.
 
 The output expansion applies typed `-t[eajc]` routing to named projections, extends
 case-insensitive attachment filtering to generated MIME/MSG output, and adds shared

@@ -236,13 +236,14 @@ mod tests {
     use std::collections::HashMap;
 
     use super::{
-        attachment_payload, attachment_payload_from_properties, file_extension, safe_filename,
+        attachment_metadata_from_properties, attachment_payload,
+        attachment_payload_from_properties, file_extension, safe_filename,
         unavailable_attachment_record, unavailable_attachment_record_from_properties,
         AttachmentMetadata, ATTACH_METHOD_EMBEDDED_MESSAGE,
     };
     use crate::pst::mapi::{
-        MapiValue, PR_ATTACH_CONTENT_ID, PR_ATTACH_DATA_BIN, PR_ATTACH_LONG_FILENAME,
-        PR_ATTACH_METHOD, PR_ATTACH_MIME_TAG, PR_ATTACH_SIZE,
+        MapiValue, PR_ATTACH_CONTENT_ID, PR_ATTACH_DATA_BIN, PR_ATTACH_FILENAME,
+        PR_ATTACH_LONG_FILENAME, PR_ATTACH_METHOD, PR_ATTACH_MIME_TAG, PR_ATTACH_SIZE,
     };
     use crate::pst::property_context::{PropertyContext, PropertyValue};
 
@@ -261,6 +262,54 @@ mod tests {
     fn extracts_extensions() {
         assert_eq!(file_extension("file.PDF"), Some("pdf".to_string()));
         assert_eq!(file_extension("file"), None);
+    }
+
+    #[test]
+    fn prefers_long_filename_and_falls_back_to_short_filename() {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_ATTACH_LONG_FILENAME,
+            PropertyValue {
+                tag: PR_ATTACH_LONG_FILENAME,
+                name: "attachment_long_filename".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("long report.pdf".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_ATTACH_FILENAME,
+            PropertyValue {
+                tag: PR_ATTACH_FILENAME,
+                name: "attachment_filename".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("short.pdf".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext { values };
+        let metadata = attachment_metadata_from_properties(&properties);
+        assert_eq!(
+            metadata.filename_original.as_deref(),
+            Some("long report.pdf")
+        );
+
+        let mut values = HashMap::new();
+        values.insert(
+            PR_ATTACH_FILENAME,
+            PropertyValue {
+                tag: PR_ATTACH_FILENAME,
+                name: "attachment_filename".to_string(),
+                raw: Vec::new(),
+                decoded: Some(MapiValue::String("short report.pdf".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+        let metadata = attachment_metadata_from_properties(&PropertyContext { values });
+        assert_eq!(
+            metadata.filename_original.as_deref(),
+            Some("short report.pdf")
+        );
     }
 
     #[test]

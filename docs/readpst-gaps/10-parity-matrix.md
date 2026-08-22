@@ -211,8 +211,8 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 
 | ID | Capability | Status | Closure evidence |
 |---|---|---|---|
-| ATT-01 | Long/short filename selection | Partial | Unicode, collision, unsafe-name, and missing-name fixtures. |
-| ATT-02 | MIME tag/default type | Partial | MIME tag and unknown-type output tests. |
+| ATT-01 | Long/short filename selection | Implemented | Canonical property projection prefers `PR_ATTACH_LONG_FILENAME`, falls back to `PR_ATTACH_FILENAME`, preserves the original candidate, and applies deterministic safe-name handling. |
+| ATT-02 | MIME tag/default type | Implemented | Generated EML and canonical MIME parts use the attachment MIME tag, default safely to `application/octet-stream`, reject injected media types, and render deterministically. |
 | ATT-03 | By-value method 1 | Partial | Multiple payloads, large/split data, zero length, and size mismatch. |
 | ATT-04 | By-reference methods 2/3/4 | Gap | ID2/reference-resolution fixture family. |
 | ATT-05 | Embedded message method 5 | Partial | Nested, ambiguous, non-email, and cycle cases. |
@@ -311,8 +311,9 @@ rows from Gap to Partial; broad mixed-folder/input corpus and independent readps
 differentials remain required for those broader claims.
 
 That initial slice changed the intermediate ledger to **2 Implemented, 59 Partial,
-and 14 Gap**. The closure wave below is the maintained ledger at **8 Implemented,
-55 Partial, and 14 Gap**. The
+and 14 Gap**. The first closure wave brought the maintained ledger to **8
+Implemented, 55 Partial, and 14 Gap**. The attachment metadata closure below brings
+it to **10 Implemented, 53 Partial, and 14 Gap**. The
 RP-M7-03 document remains the historical release decision for its reviewed baseline;
 the current row states above are the maintained ledger after this expansion.
 
@@ -335,6 +336,21 @@ The closure evidence is synthetic and canonical-record based where the behaviour
 pure projection policy. This is sufficient for these rows because it does not claim
 new parser/input coverage; input breadth rows remain Partial until their corpus gates
 are satisfied.
+
+## Attachment metadata closure wave — 22 August 2026
+
+The next two rows were promoted from canonical attachment metadata and projection
+evidence:
+
+- `ATT-01`: property-context projection prefers the long filename and falls back to
+  the short filename before deterministic safe-name handling;
+- `ATT-02`: generated EML and canonical MIME parts preserve safe MIME tags, use
+  `application/octet-stream` for missing or unsafe values, and reject header injection.
+
+Focused tests cover positive selection, short-name fallback, missing and invalid MIME
+tags, repeated output equality, and unchanged payload bytes. This remains a metadata
+and output-policy closure only; payload methods, CID correlation, reference resolution,
+and broad PST corpus coverage remain Partial or Gap.
 
 ## Planned implementation — `RP-10`
 

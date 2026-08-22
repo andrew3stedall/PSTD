@@ -364,7 +364,8 @@ pub fn build_mime_parts(
             };
             let media_type = attachment
                 .content_type
-                .clone()
+                .as_deref()
+                .map(safe_media_type)
                 .or_else(|| is_embedded.then(|| "message/rfc822".to_string()))
                 .or_else(|| Some("application/octet-stream".to_string()));
             let authoritative = payload.is_some()
@@ -607,6 +608,15 @@ fn body_order(body_type: &str) -> u8 {
     }
 }
 
+fn safe_media_type(value: &str) -> String {
+    let value = value.trim();
+    if value.contains(';') || value.contains('\r') || value.contains('\n') || !value.contains('/') {
+        "application/octet-stream".to_string()
+    } else {
+        value.to_string()
+    }
+}
+
 fn text_transfer_encoding(bytes: &[u8]) -> String {
     if std::str::from_utf8(bytes).is_ok() && !bytes.contains(&0) {
         "8bit".to_string()
@@ -755,5 +765,67 @@ mod tests {
         assert_eq!(attachment_parts.len(), 2);
         assert_eq!(attachment_parts[0].part_type, "attachment");
         assert_eq!(attachment_parts[1].part_type, "embedded_message");
+    }
+
+    #[test]
+    fn attachment_mime_tags_use_safe_defaults() {
+        let tagged = attachment_payload(
+            "msg",
+            0,
+            AttachmentMetadata {
+                filename_original: Some("report.pdf".to_string()),
+                content_type: Some("application/pdf".to_string()),
+                ..AttachmentMetadata::default()
+            },
+            b"pdf".to_vec(),
+        );
+        let missing = attachment_payload(
+            "msg",
+            1,
+            AttachmentMetadata {
+                filename_original: Some("blob.bin".to_string()),
+                ..AttachmentMetadata::default()
+            },
+            b"binary".to_vec(),
+        );
+        let invalid = attachment_payload(
+            "msg",
+            2,
+            AttachmentMetadata {
+                filename_original: Some("unsafe.bin".to_string()),
+                content_type: Some("text/plain\r\nX-Injected: yes".to_string()),
+                ..AttachmentMetadata::default()
+            },
+            b"unsafe".to_vec(),
+        );
+        let parts = build_mime_parts(
+            &[message(None)],
+            &[text_body_payload("msg", "body").record.clone()],
+            &[text_body_payload("msg", "body")],
+            &[
+                tagged.record.clone(),
+                missing.record.clone(),
+                invalid.record.clone(),
+            ],
+            &[tagged, missing, invalid],
+        );
+        let attachment_parts = parts
+            .iter()
+            .filter(|part| part.part_type == "attachment")
+            .collect::<Vec<_>>();
+        assert_eq!(
+            attachment_parts
+                .iter()
+                .map(|part| part.media_type.as_deref())
+                .collect::<Vec<_>>(),
+            vec![
+                Some("application/pdf"),
+                Some("application/octet-stream"),
+                Some("application/octet-stream"),
+            ]
+        );
+        assert!(attachment_parts
+            .iter()
+            .all(|part| !part.status.contains("Injected")));
     }
 }
