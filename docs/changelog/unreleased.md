@@ -250,8 +250,18 @@ All seven top-level messages belong to `/Début du fichier de données Outlook` 
   projection helpers, including ASCII fallbacks and long-value continuations, and used
   them in generated mailbox, embedded, MSG compatibility, and standalone EML output.
 - Added focused regression tests for typed projection selection, extension filtering,
-  ASCII stability, non-ASCII headers, and long filenames. The ledger is now 2
-  Implemented, 59 Partial, and 14 Gap; no full-parity claim is made.
+  ASCII stability, non-ASCII headers, and long filenames. The intermediate ledger was
+  2 Implemented, 59 Partial, and 14 Gap; no full-parity claim is made.
+
+### Easiest Partial closure wave — 22 August 2026
+
+- Promoted `CLI-01` and `CLI-04` after stable help/version, fail-closed option,
+  bounded-worker, and normalized progress evidence passed.
+- Promoted `CLI-10`, `MSG-09`, `MSG-10`, and `ATT-09` after deterministic canonical
+  projection tests covered normalized attachment filtering, RFC 2047/2231 output,
+  header-injection rejection, compatibility EML, and all mailbox profiles.
+- The maintained ledger is now 8 Implemented, 55 Partial, and 14 Gap; no full-parity
+  claim is made.
 
 ## RP-M7 release-gate review
 

@@ -1176,4 +1176,80 @@ mod tests {
         assert_eq!(windows_filetime("not-a-date"), None);
         assert_eq!(windows_filetime("1601-01-01T00:00:00Z"), Some(0));
     }
+
+    #[test]
+    fn compatibility_eml_and_msg_projection_apply_rfc_encoding_and_filters() {
+        let mut message = crate::output::mailbox::tests::message(
+            "msg-parity-encoding",
+            "/Inbox",
+            Some("IPM.Note"),
+        );
+        message.subject = Some("Résumé — réunion".to_string());
+        message.sender_name = Some("Zoë Example".to_string());
+        let body = crate::pst::messages::text_body_payload("msg-parity-encoding", "body");
+        let pdf = crate::pst::attachments::attachment_payload(
+            "msg-parity-encoding",
+            1,
+            crate::pst::attachments::AttachmentMetadata {
+                filename_original: Some("résumé final.pdf".to_string()),
+                content_type: Some("application/pdf".to_string()),
+                ..Default::default()
+            },
+            b"pdf-bytes".to_vec(),
+        );
+        let image = crate::pst::attachments::attachment_payload(
+            "msg-parity-encoding",
+            2,
+            crate::pst::attachments::AttachmentMetadata {
+                filename_original: Some("image.png".to_string()),
+                content_type: Some("image/png".to_string()),
+                ..Default::default()
+            },
+            b"png-bytes".to_vec(),
+        );
+        let attachments = vec![pdf.record.clone(), image.record.clone()];
+        let payloads = vec![pdf, image];
+
+        let render = || {
+            render_profile(
+                OutputProfile::Msg,
+                &[],
+                std::slice::from_ref(&message),
+                &[],
+                &[],
+                std::slice::from_ref(&body.record),
+                std::slice::from_ref(&body),
+                &attachments,
+                &payloads,
+                &["pdf".to_string()],
+            )
+            .expect("msg profile")
+        };
+        let first = render();
+        let second = render();
+        assert_eq!(first.status.filtered_attachment_count, 1);
+        let first_bytes = first
+            .artifacts
+            .iter()
+            .map(|artifact| (artifact.summary.path.clone(), artifact.bytes.clone()))
+            .collect::<Vec<_>>();
+        let second_bytes = second
+            .artifacts
+            .iter()
+            .map(|artifact| (artifact.summary.path.clone(), artifact.bytes.clone()))
+            .collect::<Vec<_>>();
+        assert_eq!(first_bytes, second_bytes);
+        let eml = first
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.summary.output_kind == "msg_eml")
+            .expect("compatibility eml")
+            .bytes
+            .clone();
+        let eml = String::from_utf8(eml).expect("utf8 compatibility eml");
+        assert!(eml.contains("Subject: =?UTF-8?B?UsOpc3Vtw6kg4oCUIHLDqXVuaW9u?=\r\n"));
+        assert!(eml.contains("From: =?UTF-8?B?Wm/DqyBFeGFtcGxl?= <sender@example.test>\r\n"));
+        assert!(eml.contains("filename*=UTF-8''r%C3%A9sum%C3%A9_final.pdf"));
+        assert!(!eml.contains("image.png"));
+    }
 }

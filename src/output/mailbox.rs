@@ -1145,7 +1145,7 @@ fn sha256_hex(bytes: &[u8]) -> String {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::{mboxrd_escape, render_profile};
     use crate::config::OutputProfile;
     use crate::output::metadata::{BodyRecord, HeaderProjectionRecord, MessageRecord};
@@ -1154,7 +1154,7 @@ mod tests {
     };
     use crate::pst::messages::text_body_payload;
 
-    fn message(key: &str, folder: &str, class: Option<&str>) -> MessageRecord {
+    pub(crate) fn message(key: &str, folder: &str, class: Option<&str>) -> MessageRecord {
         MessageRecord {
             run_id: "run".to_string(),
             pst_id: "pst".to_string(),
@@ -1424,26 +1424,38 @@ mod tests {
             },
             b"png-bytes".to_vec(),
         );
-        let output = render_profile(
+        let attachments = vec![pdf.record.clone(), image.record.clone()];
+        let payloads = vec![pdf, image];
+        for profile in [
+            OutputProfile::Mbox,
+            OutputProfile::RecursiveMbox,
+            OutputProfile::Mh,
             OutputProfile::Eml,
-            &[],
-            &[msg],
-            &[],
-            &[],
-            std::slice::from_ref(&body.record),
-            std::slice::from_ref(&body),
-            &[pdf.record.clone(), image.record.clone()],
-            &[pdf, image],
-            &["PDF".to_ascii_lowercase()],
-        )
-        .expect("eml profile");
-        let eml = String::from_utf8(output.artifacts[0].bytes.clone()).expect("utf8 eml");
-        assert!(eml.contains("filename=\"report.pdf\""));
-        assert!(!eml.contains("filename=\"image.png\""));
-        assert_eq!(output.status.filtered_attachment_count, 1);
-        assert!(output.status.attachment_decisions.iter().any(|decision| {
-            decision.filename == "image.png" && decision.status == "filtered_attachment_extension"
-        }));
+            OutputProfile::Separate,
+            OutputProfile::Kmail,
+        ] {
+            let output = render_profile(
+                profile,
+                &[],
+                std::slice::from_ref(&msg),
+                &[],
+                &[],
+                std::slice::from_ref(&body.record),
+                std::slice::from_ref(&body),
+                &attachments,
+                &payloads,
+                &["PDF".to_ascii_lowercase()],
+            )
+            .expect("mail profile");
+            assert_eq!(output.status.filtered_attachment_count, 1, "{profile:?}");
+            assert!(output.status.attachment_decisions.iter().any(|decision| {
+                decision.filename == "image.png" && decision.status == "filtered_attachment_extension"
+            }));
+            assert!(output
+                .artifacts
+                .iter()
+                .all(|artifact| !String::from_utf8_lossy(&artifact.bytes).contains("image.png")));
+        }
     }
 
     #[test]

@@ -98,8 +98,9 @@ subjects and display names. The same output layer emits RFC 2231 `name`/`filenam
 parameters with ASCII fallbacks and continuation segments for long values. The mailbox,
 MSG compatibility EML, embedded-message EML, and standalone `pstd-eml` projections use
 these helpers; ASCII values retain their existing wire form. Canonical UTF-8 records and
-raw stored headers are not rewritten, and stored-header normalization, folding, and
-independent MIME-reader differentials remain Partial.
+raw stored headers are not rewritten. Generated RFC 2047/2231 projection is Implemented,
+including deterministic output and header-injection rejection; stored-header
+normalization, folding, and independent MIME-reader differentials remain Partial.
 
 ## Date and status policy
 

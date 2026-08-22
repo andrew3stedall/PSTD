@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use pstd::config::ReadpstPolicy;
-use pstd::engine::batch::{discover_pst_files, run_batch, BatchConfig};
+use pstd::engine::batch::{discover_pst_files, run_batch, BatchConfig, BatchProgressEvent};
 
 fn batch_config(input: &Path, output: &Path, jobs: u16) -> BatchConfig {
     let readpst = ReadpstPolicy {
@@ -41,6 +41,34 @@ fn stable_item_view(summary: &pstd::engine::batch::BatchSummary) -> Vec<(String,
         .collect()
 }
 
+fn stable_progress_view(path: &Path) -> Vec<(String, String, Option<String>, Option<String>, u64, u64, u64, u64, u64, u64, u64)> {
+    fs::read_to_string(path)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str::<BatchProgressEvent>(line).unwrap())
+        .map(|event| {
+            (
+                serde_json::to_string(&event.event_type).unwrap(),
+                event
+                    .pst_path
+                    .as_deref()
+                    .and_then(|path| Path::new(path).file_name())
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or_default(),
+                event.item_status,
+                Some(event.message),
+                event.pst_discovered,
+                event.pst_attempted,
+                event.pst_completed,
+                event.pst_partial,
+                event.pst_failed,
+                event.pst_skipped,
+                event.pst_not_run,
+            )
+        })
+        .collect()
+}
+
 #[test]
 fn bounded_worker_runs_preserve_sorted_batch_results() {
     let temp = tempfile::tempdir().unwrap();
@@ -72,6 +100,10 @@ fn bounded_worker_runs_preserve_sorted_batch_results() {
             "middle.pst".to_string(),
             "zeta.pst".to_string(),
         ]
+    );
+    assert_eq!(
+        stable_progress_view(&temp.path().join("one/batch_progress.jsonl")),
+        stable_progress_view(&temp.path().join("many/batch_progress.jsonl"))
     );
 }
 

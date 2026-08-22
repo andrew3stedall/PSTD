@@ -101,6 +101,8 @@ recursive mbox, MH, EML, separate files, KMail, Thunderbird mbox, and the MSG
 compatibility EML/OLE path. Filtered attachments remain visible in adapter decisions and
 canonical JSONL/payload evidence. MIME filenames additionally use the shared RFC 2231
 encoder, retaining the original canonical filename separately from any ASCII fallback.
+The extension-filter projection is Implemented for all mailbox profiles and MSG/EML;
+broader attachment extraction methods, ownership, and input coverage remain Partial.
 
 ## Planned implementation — `RP-06`
 
