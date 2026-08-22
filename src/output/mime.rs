@@ -610,8 +610,7 @@ fn body_order(body_type: &str) -> u8 {
 
 fn safe_media_type(value: &str) -> String {
     let value = value.trim();
-    if value.contains(';') || value.contains('\r') || value.contains('\n') || !value.contains('/')
-    {
+    if value.contains(';') || value.contains('\r') || value.contains('\n') || !value.contains('/') {
         "application/octet-stream".to_string()
     } else {
         value.to_string()
