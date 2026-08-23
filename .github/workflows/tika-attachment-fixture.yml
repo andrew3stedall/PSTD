@@ -868,6 +868,15 @@ jobs:
               record['attachment_key'] for record in attachments
           }:
               raise SystemExit('external manifest attachment ownership changed')
+          external_eml_files = [
+              path for path in external_root.glob('*.eml') if path.is_file()
+          ]
+          external_eml_names = {path.name for path in external_eml_files}
+          if not expected_eml_names.issubset(external_eml_names):
+              raise SystemExit(
+                  f'inline EML outputs are missing from external mode: '
+                  f'{sorted(expected_eml_names - external_eml_names)}'
+              )
           for record in external_records:
               if record['materialization_status'] != 'attachment_file_emitted':
                   raise SystemExit(f'attachment was not materialized: {record!r}')
@@ -881,17 +890,9 @@ jobs:
                   raise SystemExit(f'external payload size mismatch: {record!r}')
               if hashlib.sha256(payload_bytes).hexdigest() != record['sha256']:
                   raise SystemExit(f'external payload hash mismatch: {record!r}')
-              if record['eml_path'] not in expected_eml_names:
+              if record['eml_path'] not in external_eml_names:
                   raise SystemExit(f'external EML link is not owned: {record!r}')
 
-          external_eml_files = [
-              path for path in external_root.glob('*.eml') if path.is_file()
-          ]
-          if {path.name for path in external_eml_files} != expected_eml_names:
-              raise SystemExit(
-                  f'unexpected external EML filenames: '
-                  f'{sorted(path.name for path in external_eml_files)}'
-              )
           for external_eml_path in external_eml_files:
               external_eml_bytes = external_eml_path.read_bytes()
               external_eml = BytesParser(policy=policy.default).parsebytes(
