@@ -209,6 +209,59 @@ fn materializes_embedded_message_with_child_attachments() {
 }
 
 #[test]
+fn emits_canonical_content_ids_for_inline_attachments() {
+    let mut raw = attachment_payload(
+        "message",
+        0,
+        AttachmentMetadata {
+            filename_original: Some("image.png".to_string()),
+            content_type: Some("image/png".to_string()),
+            is_inline: true,
+            content_id: Some("image-1@example.com".to_string()),
+            ..AttachmentMetadata::default()
+        },
+        b"raw image".to_vec(),
+    );
+    let bracketed = attachment_payload(
+        "message",
+        1,
+        AttachmentMetadata {
+            filename_original: Some("logo.png".to_string()),
+            content_type: Some("image/png".to_string()),
+            is_inline: true,
+            content_id: Some("<logo@example.com>".to_string()),
+            ..AttachmentMetadata::default()
+        },
+        b"logo".to_vec(),
+    );
+    let eml = build_inline_eml_with_attachments(
+        &message("message"),
+        &[recipient("message")],
+        b"body",
+        &[raw.clone(), bracketed],
+    )
+    .unwrap();
+    let eml = String::from_utf8(eml).unwrap();
+
+    assert!(eml.contains("Content-Disposition: inline; filename=\"image.png\"\r\n"));
+    assert!(eml.contains("Content-ID: <image-1@example.com>\r\n"));
+    assert!(eml.contains("Content-ID: <logo@example.com>\r\n"));
+    assert_eq!(eml.matches("Content-ID:").count(), 2);
+
+    raw.record.content_id = Some("bad\r\nX-Injected: yes".to_string());
+    let eml = build_inline_eml_with_attachments(
+        &message("message"),
+        &[recipient("message")],
+        b"body",
+        &[raw],
+    )
+    .unwrap();
+    let eml = String::from_utf8(eml).unwrap();
+    assert!(!eml.contains("Content-ID:"));
+    assert!(!eml.contains("X-Injected:"));
+}
+
+#[test]
 fn rejects_missing_and_mismatched_child_links() {
     let child = message("child");
     let recipients = vec![recipient("child")];

@@ -5,6 +5,7 @@ use sha2::{Digest, Sha256};
 
 use crate::output::headers::{
     clean_header_value, encode_display_name, encode_mime_parameter, encode_unstructured_value,
+    normalize_content_id,
 };
 use crate::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
 use crate::pst::attachments::{AttachmentPayload, ATTACH_METHOD_EMBEDDED_MESSAGE};
@@ -272,7 +273,7 @@ fn push_attachment_part(output: &mut String, attachment: &AttachmentPayload) -> 
         .record
         .content_id
         .as_deref()
-        .and_then(clean_header)
+        .and_then(normalize_content_id)
     {
         push_header(output, "Content-ID", &content_id);
     }
