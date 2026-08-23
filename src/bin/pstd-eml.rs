@@ -1533,9 +1533,9 @@ mod tests {
         write_external_attachments(directory.path(), &pending, &manifest).unwrap();
         assert!(!directory.path().join(&invalid.record.archive_path).exists());
         let manifest = fs::read_to_string(directory.path().join("attachments.jsonl")).unwrap();
-        assert!(manifest.contains(
-            "\"materialization_status\":\"attachment_payload_integrity_failed\""
-        ));
+        assert!(
+            manifest.contains("\"materialization_status\":\"attachment_payload_integrity_failed\"")
+        );
         assert!(manifest.contains("\"materialized_path\":null"));
     }
 
@@ -1545,13 +1545,9 @@ mod tests {
         manifest_collision.archive_path = "attachments.jsonl".to_string();
         let mut used_paths = BTreeSet::new();
         used_paths.insert(PathBuf::from("attachments.jsonl"));
-        assert!(plan_external_attachments(
-            None,
-            &[manifest_collision],
-            &[],
-            &mut used_paths,
-        )
-        .is_err());
+        assert!(
+            plan_external_attachments(None, &[manifest_collision], &[], &mut used_paths,).is_err()
+        );
 
         let mut platform_separator = attachment(0, b"bytes").record;
         platform_separator.archive_path = "attachments\\\\outside.bin".to_string();

@@ -224,8 +224,7 @@ fn base64_encode(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        encode_display_name, encode_mime_parameter, encode_unstructured_value,
-        normalize_content_id,
+        encode_display_name, encode_mime_parameter, encode_unstructured_value, normalize_content_id,
     };
 
     #[test]
