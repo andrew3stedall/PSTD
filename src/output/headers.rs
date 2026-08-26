@@ -17,6 +17,31 @@ pub fn clean_header_value(value: &str) -> Option<String> {
     (!cleaned.is_empty()).then(|| cleaned.to_string())
 }
 
+/// Normalize a Content-ID for use in a MIME header.
+///
+/// MAPI stores the identifier with and without RFC angle brackets depending
+/// on the producer. Keep the identifier itself unchanged while ensuring that
+/// generated MIME has exactly one pair of brackets. Reject malformed or
+/// non-ASCII values rather than emitting an unsafe header.
+pub fn normalize_content_id(value: &str) -> Option<String> {
+    let cleaned = clean_header_value(value)?;
+    let identifier = match (cleaned.starts_with('<'), cleaned.ends_with('>')) {
+        (true, true) if cleaned.len() > 2 => &cleaned[1..cleaned.len() - 1],
+        (true, true) => return None,
+        (true, false) | (false, true) => return None,
+        (false, false) => cleaned.as_str(),
+    };
+    if !identifier.is_ascii()
+        || identifier.is_empty()
+        || identifier
+            .chars()
+            .any(|character| character.is_whitespace() || matches!(character, '<' | '>'))
+    {
+        return None;
+    }
+    Some(format!("<{identifier}>"))
+}
+
 /// Encode an unstructured RFC 5322 header value when it contains non-ASCII
 /// characters. ASCII values are returned unchanged after sanitisation.
 pub fn encode_unstructured_value(value: &str) -> String {
@@ -198,7 +223,9 @@ fn base64_encode(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{encode_display_name, encode_mime_parameter, encode_unstructured_value};
+    use super::{
+        encode_display_name, encode_mime_parameter, encode_unstructured_value, normalize_content_id,
+    };
 
     #[test]
     fn keeps_ascii_headers_byte_compact() {
@@ -244,5 +271,32 @@ mod tests {
         let first = encode_mime_parameter("filename", "résumé final.pdf");
         let second = encode_mime_parameter("filename", "résumé final.pdf");
         assert_eq!(first, second);
+    }
+
+    #[test]
+    fn normalizes_content_ids_without_synthesizing_the_identifier() {
+        assert_eq!(
+            normalize_content_id("image-1@example.com").as_deref(),
+            Some("<image-1@example.com>")
+        );
+        assert_eq!(
+            normalize_content_id("<image-1@example.com>").as_deref(),
+            Some("<image-1@example.com>")
+        );
+    }
+
+    #[test]
+    fn rejects_malformed_content_ids() {
+        for value in [
+            "",
+            "<missing-end",
+            "missing-start>",
+            "<>",
+            "image one@example.com",
+        ] {
+            assert!(normalize_content_id(value).is_none(), "accepted {value:?}");
+        }
+        assert!(normalize_content_id("image\r\nX-Injected: yes").is_none());
+        assert!(normalize_content_id("é@example.com").is_none());
     }
 }

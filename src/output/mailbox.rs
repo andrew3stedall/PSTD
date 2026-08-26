@@ -5,6 +5,7 @@ use sha2::{Digest, Sha256};
 use crate::config::OutputProfile;
 use crate::output::headers::{
     clean_header_value, encode_display_name, encode_mime_parameter, encode_unstructured_value,
+    normalize_content_id,
 };
 use crate::output::ids;
 use crate::output::metadata::{
@@ -936,8 +937,8 @@ fn append_binary_part(
             encode_mime_parameter("filename", filename)
         ),
     );
-    if let Some(content_id) = content_id.and_then(clean_header) {
-        push_header(output, "Content-ID", &format!("<{}>", content_id));
+    if let Some(content_id) = content_id.and_then(normalize_content_id) {
+        push_header(output, "Content-ID", &content_id);
     }
     output.extend_from_slice(b"\r\n");
     output.extend_from_slice(base64_encode(bytes).as_bytes());

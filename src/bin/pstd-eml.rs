@@ -6,7 +6,7 @@ use std::path::{Component, Path, PathBuf};
 use chrono::{DateTime, FixedOffset, Utc};
 use pstd::engine::metadata::extract_metadata;
 use pstd::output::headers::{
-    encode_display_name, encode_mime_parameter, encode_unstructured_value,
+    encode_display_name, encode_mime_parameter, encode_unstructured_value, normalize_content_id,
 };
 use pstd::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
 use pstd::pst::attachments::AttachmentPayload;
@@ -372,6 +372,8 @@ fn plan_external_attachments(
 fn relative_attachment_path(record: &AttachmentRecord) -> Result<PathBuf, String> {
     let path = Path::new(&record.archive_path);
     if path.as_os_str().is_empty()
+        || record.archive_path.contains('\\')
+        || record.archive_path.contains('\0')
         || path.is_absolute()
         || path.components().any(|component| {
             matches!(
@@ -668,7 +670,7 @@ fn push_attachment_part(output: &mut String, attachment: &AttachmentPayload) -> 
         .record
         .content_id
         .as_deref()
-        .and_then(clean_header)
+        .and_then(normalize_content_id)
     {
         push_header(output, "Content-ID", &content_id);
     }
@@ -1316,6 +1318,29 @@ mod tests {
     }
 
     #[test]
+    fn emits_inline_content_id_and_preserves_html_reference() {
+        let mut message = message();
+        message.transport_message_headers = None;
+        message.received_at = Some("filetime:132509026800000000".to_string());
+        let bodies = MessageBodies {
+            text: Some(b"plain body".to_vec()),
+            html: Some("<p><img src=\"cid:image-1@example.com\"></p>".to_string()),
+        };
+        let mut inline = attachment(0, b"image bytes");
+        inline.record.filename_safe = "image.png".to_string();
+        inline.record.extension = Some("png".to_string());
+        inline.record.content_type = Some("image/png".to_string());
+        inline.record.is_inline = true;
+        inline.record.content_id = Some("image-1@example.com".to_string());
+
+        let eml = build_eml(&message, &[recipient(0, "to")], &bodies, &[inline]).unwrap();
+        let eml = String::from_utf8(eml).unwrap();
+        assert!(eml.contains("cid:image-1@example.com"));
+        assert!(eml.contains("Content-Disposition: inline; filename=\"image.png\"\r\n"));
+        assert!(eml.contains("Content-ID: <image-1@example.com>\r\n"));
+    }
+
+    #[test]
     fn rejects_mixed_eml_without_date_or_valid_payload() {
         let mut message = message();
         message.transport_message_headers = None;
@@ -1489,6 +1514,44 @@ mod tests {
         let manifest = fs::read_to_string(directory.path().join("attachments.jsonl")).unwrap();
         assert!(manifest.contains("\"materialization_status\":\"attachment_payload_unavailable\""));
         assert!(manifest.contains("\"materialized_path\":null"));
+    }
+
+    #[test]
+    fn external_mode_preserves_integrity_failure_without_materializing_bytes() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut invalid = attachment(0, b"external bytes");
+        invalid.record.sha256 = "wrong-hash".to_string();
+        let records = vec![invalid.record.clone()];
+        let (pending, manifest) = plan_external_attachments(
+            Some("message.eml"),
+            &records,
+            std::slice::from_ref(&invalid),
+            &mut BTreeSet::new(),
+        )
+        .unwrap();
+        assert!(pending.is_empty());
+        write_external_attachments(directory.path(), &pending, &manifest).unwrap();
+        assert!(!directory.path().join(&invalid.record.archive_path).exists());
+        let manifest = fs::read_to_string(directory.path().join("attachments.jsonl")).unwrap();
+        assert!(
+            manifest.contains("\"materialization_status\":\"attachment_payload_integrity_failed\"")
+        );
+        assert!(manifest.contains("\"materialized_path\":null"));
+    }
+
+    #[test]
+    fn external_mode_rejects_manifest_and_platform_separator_collisions() {
+        let mut manifest_collision = attachment(0, b"bytes").record;
+        manifest_collision.archive_path = "attachments.jsonl".to_string();
+        let mut used_paths = BTreeSet::new();
+        used_paths.insert(PathBuf::from("attachments.jsonl"));
+        assert!(
+            plan_external_attachments(None, &[manifest_collision], &[], &mut used_paths,).is_err()
+        );
+
+        let mut platform_separator = attachment(0, b"bytes").record;
+        platform_separator.archive_path = "attachments\\\\outside.bin".to_string();
+        assert!(relative_attachment_path(&platform_separator).is_err());
     }
 
     #[test]

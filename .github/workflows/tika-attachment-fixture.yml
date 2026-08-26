@@ -25,7 +25,8 @@ jobs:
           evidence="/tmp/pstd-tika-attachment"
           output="/tmp/pstd-tika-attachment-output"
           eml_dir="$evidence/eml"
-          mkdir -p "$evidence" "$output" "$eml_dir"
+          external_dir="$evidence/external"
+          mkdir -p "$evidence" "$output" "$eml_dir" "$external_dir"
           (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
 
           set +e
@@ -35,11 +36,19 @@ jobs:
           cargo run --bin pstd-eml -- "$fixture" "$eml_dir" \
             > "$evidence/eml.stdout" 2> "$evidence/eml.stderr"
           eml_status=$?
+          cargo run --bin pstd-eml -- --attachment-mode external "$fixture" "$external_dir" \
+            > "$evidence/external.stdout" 2> "$evidence/external.stderr"
+          external_status=$?
           set -e
           printf '%s\n' "$extract_status" > "$evidence/extract-exit-code.txt"
           printf '%s\n' "$eml_status" > "$evidence/eml-exit-code.txt"
+          printf '%s\n' "$external_status" > "$evidence/external-exit-code.txt"
           if [[ "$extract_status" -ne 0 && "$extract_status" -ne 2 ]]; then
             echo "Unexpected extraction exit code: $extract_status" >&2
+            exit 1
+          fi
+          if [[ "$eml_status" -ne 0 || "$external_status" -ne 0 ]]; then
+            echo "Unexpected EML exit status: inline=$eml_status external=$external_status" >&2
             exit 1
           fi
 
@@ -836,6 +845,72 @@ jobs:
               raise SystemExit('child EML attachment payload differs from extracted bytes')
           if embedded_payload != child_eml_bytes:
               raise SystemExit('method-5 payload differs from standalone child EML')
+
+          external_root = evidence / 'external'
+          external_status = int(
+              evidence.joinpath('external-exit-code.txt').read_text().strip()
+          )
+          if external_status != 0:
+              raise SystemExit(f'unexpected external EML exit code: {external_status}')
+          external_manifest_path = external_root / 'attachments.jsonl'
+          if not external_manifest_path.is_file():
+              raise SystemExit('external attachment manifest is absent')
+          external_records = [
+              json.loads(line)
+              for line in external_manifest_path.read_text(encoding='utf-8').splitlines()
+              if line.strip()
+          ]
+          if len(external_records) != len(attachments):
+              raise SystemExit(
+                  f'unexpected external manifest count: {len(external_records)}'
+              )
+          if {record['attachment_key'] for record in external_records} != {
+              record['attachment_key'] for record in attachments
+          }:
+              raise SystemExit('external manifest attachment ownership changed')
+          external_eml_files = [
+              path for path in external_root.glob('*.eml') if path.is_file()
+          ]
+          external_eml_names = {path.name for path in external_eml_files}
+          if not expected_eml_names.issubset(external_eml_names):
+              raise SystemExit(
+                  f'inline EML outputs are missing from external mode: '
+                  f'{sorted(expected_eml_names - external_eml_names)}'
+              )
+          for record in external_records:
+              if record['materialization_status'] != 'attachment_file_emitted':
+                  raise SystemExit(f'attachment was not materialized: {record!r}')
+              if record['materialized_path'] != record['archive_path']:
+                  raise SystemExit(f'external path link changed: {record!r}')
+              payload_path = external_root / record['materialized_path']
+              if not payload_path.is_file():
+                  raise SystemExit(f'external payload is absent: {payload_path}')
+              payload_bytes = payload_path.read_bytes()
+              if len(payload_bytes) != record['size_bytes']:
+                  raise SystemExit(f'external payload size mismatch: {record!r}')
+              if hashlib.sha256(payload_bytes).hexdigest() != record['sha256']:
+                  raise SystemExit(f'external payload hash mismatch: {record!r}')
+              if record['eml_path'] not in external_eml_names:
+                  raise SystemExit(f'external EML link is not owned: {record!r}')
+
+          for external_eml_path in external_eml_files:
+              external_eml_bytes = external_eml_path.read_bytes()
+              external_eml = BytesParser(policy=policy.default).parsebytes(
+                  external_eml_bytes
+              )
+              if external_eml['X-PSTD-Attachment-Mode'] != 'external':
+                  raise SystemExit('external EML mode header is absent')
+              if external_eml['X-PSTD-Attachment-Manifest'] != 'attachments.jsonl':
+                  raise SystemExit('external EML manifest link is absent')
+              if external_eml.get_content_type() != 'text/plain':
+                  raise SystemExit(
+                      f'external EML unexpectedly contains MIME attachments: '
+                      f'{external_eml.get_content_type()}'
+                  )
+              if list(external_eml.iter_attachments()):
+                  raise SystemExit('external EML contains an inline attachment part')
+              if b'Content-Transfer-Encoding: base64' in external_eml_bytes:
+                  raise SystemExit('external EML unexpectedly embeds attachment base64')
 
           tar_file = next((output / 'archives').glob('*.tar'))
           metrics = {
