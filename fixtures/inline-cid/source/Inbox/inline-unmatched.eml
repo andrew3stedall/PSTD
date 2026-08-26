@@ -6,10 +6,19 @@ MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="mixed-unmatched"
 
 --mixed-unmatched
+Content-Type: multipart/alternative; boundary="alternative-unmatched"
+
+--alternative-unmatched
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+The inline image is missing from the HTML reference.
+--alternative-unmatched
 Content-Type: text/html; charset=utf-8
 Content-Transfer-Encoding: 8bit
 
 <html><body><img src="cid:missing@example.test"></body></html>
+--alternative-unmatched--
 --mixed-unmatched
 Content-Type: image/png
 Content-Transfer-Encoding: base64

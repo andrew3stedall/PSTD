@@ -17,13 +17,14 @@ The PST was generated from the EML files in `source/` with
 [EMLtoPST](https://github.com/igrbtn/EMLtoPST) at commit
 `6fe9025390a96fe0095457b56f12ce241ee4ba53`. EMLtoPST is MIT licensed. The
 small `eml2pst-content-id.patch` adds the published MAPI
-`PR_ATTACH_CONTENT_ID` property to the fixture generator; it is not a PSTD
-runtime or build dependency.
+`PR_ATTACH_CONTENT_ID` and `PR_TRANSPORT_MESSAGE_HEADERS` properties to the
+fixture generator, and fixes its generated store key and timestamps for
+reproducibility. It is not a PSTD runtime or build dependency.
 
 The checked-in generated file is `inline-cid.pst` and must remain exactly
-27,648 bytes with SHA-256:
+29,184 bytes with SHA-256:
 
-`77bd4defe88013f577428c07799a07790c54ca458cbd8c76e281e5e40d9c2ea0`
+`5e3aeaed1276cb0560fb08d5f74cebdcc66c3c28615b01194a3db3cfed00ed7b`
 
 The GitHub Actions fixture workflow recreates the PST from the source EML and
 patch, verifies the byte hash, and then runs both PSTD and `readpst` against

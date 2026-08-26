@@ -30,7 +30,7 @@ jobs:
             "$GITHUB_WORKSPACE/fixtures/inline-cid/source" -o "$generated")
           cmp "$generated" "$GITHUB_WORKSPACE/fixtures/inline-cid/inline-cid.pst"
           printf '%s  %s\n' \
-            77bd4defe88013f577428c07799a07790c54ca458cbd8c76e281e5e40d9c2ea0 \
+            5e3aeaed1276cb0560fb08d5f74cebdcc66c3c28615b01194a3db3cfed00ed7b \
             "$GITHUB_WORKSPACE/fixtures/inline-cid/inline-cid.pst" \
             | sha256sum --check -
       - name: Run Rust unit and static checks
@@ -64,6 +64,7 @@ jobs:
           python3 - <<'PY'
           import hashlib
           import json
+          import mailbox
           from email import policy
           from email.parser import BytesParser
           from pathlib import Path
@@ -127,17 +128,34 @@ jobs:
           def eml_files(root):
               return sorted(path for path in root.rglob('*.eml') if path.is_file())
 
-          readpst_files = eml_files(root / 'readpst-eml')
+          def readpst_messages(root):
+              files = eml_files(root)
+              if files:
+                  return [
+                      BytesParser(policy=policy.default).parsebytes(path.read_bytes())
+                      for path in files
+                  ]
+              mboxes = sorted(path for path in root.rglob('mbox') if path.is_file())
+              if len(mboxes) != 1:
+                  raise SystemExit(f'readpst emitted neither EMLs nor one mbox: {mboxes!r}')
+              box = mailbox.mbox(mboxes[0], factory=None)
+              return [
+                  BytesParser(policy=policy.default).parsebytes(item.as_bytes())
+                  for item in box
+              ]
+
+          readpst_parsed = readpst_messages(root / 'readpst-eml')
           pstd_files = eml_files(root / 'pstd-eml')
-          if len(readpst_files) != 3:
-              raise SystemExit(f'readpst did not emit three EMLs: {readpst_files!r}')
+          if len(readpst_parsed) != 3:
+              raise SystemExit(
+                  f'readpst did not expose three messages: {len(readpst_parsed)}'
+              )
           if len(pstd_files) != 3:
               raise SystemExit(f'PSTD did not emit three EMLs: {pstd_files!r}')
 
-          readpst_attachment_count = 0
-          for path in readpst_files:
-              message = BytesParser(policy=policy.default).parsebytes(path.read_bytes())
-              readpst_attachment_count += len(list(message.iter_attachments()))
+          readpst_attachment_count = sum(
+              len(list(message.iter_attachments())) for message in readpst_parsed
+          )
           if readpst_attachment_count != 5:
               raise SystemExit(
                   f'readpst did not expose all five attachments: {readpst_attachment_count}'

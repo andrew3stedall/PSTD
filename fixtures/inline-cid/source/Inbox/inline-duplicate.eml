@@ -6,10 +6,19 @@ MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="mixed-duplicate"
 
 --mixed-duplicate
+Content-Type: multipart/alternative; boundary="alternative-duplicate"
+
+--alternative-duplicate
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+The HTML reference has duplicate inline identifiers.
+--alternative-duplicate
 Content-Type: text/html; charset=utf-8
 Content-Transfer-Encoding: 8bit
 
 <html><body><img src="cid:duplicate@example.test"></body></html>
+--alternative-duplicate--
 --mixed-duplicate
 Content-Type: image/png
 Content-Transfer-Encoding: base64

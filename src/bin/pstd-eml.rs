@@ -501,8 +501,10 @@ fn build_eml_with_attachment_mode(
         .and_then(clean_header)?;
     let sender_name = message.sender_name.as_deref().and_then(clean_header);
     let from = format_address(sender_name.as_deref(), &sender_address);
-    let to = recipient_header(recipients, "to");
-    let cc = recipient_header(recipients, "cc");
+    let to = recipient_header(recipients, "to")
+        .or_else(|| transport_recipient_header(message, "To"));
+    let cc = recipient_header(recipients, "cc")
+        .or_else(|| transport_recipient_header(message, "Cc"));
     if to.is_none() && cc.is_none() {
         return None;
     }
@@ -1057,6 +1059,42 @@ fn recipient_header(records: &[RecipientRecord], role: &str) -> Option<String> {
     (!values.is_empty()).then(|| values.join(", "))
 }
 
+fn transport_recipient_header(message: &MessageRecord, target: &str) -> Option<String> {
+    let headers = message.transport_message_headers.as_deref()?;
+    let mut values = Vec::new();
+    let mut current_name = None;
+    let mut current_value = String::new();
+
+    for line in headers.lines() {
+        if line.starts_with(' ') || line.starts_with('\t') {
+            if current_name.is_some() {
+                current_value.push(' ');
+                current_value.push_str(line.trim());
+            }
+            continue;
+        }
+
+        if let Some(name) = current_name.take() {
+            if name.eq_ignore_ascii_case(target) {
+                values.push(current_value.trim().to_string());
+            }
+        }
+        let (name, value) = line.split_once(':')?;
+        current_name = Some(name.to_string());
+        current_value = value.trim().to_string();
+    }
+
+    if let Some(name) = current_name {
+        if name.eq_ignore_ascii_case(target) {
+            values.push(current_value.trim().to_string());
+        }
+    }
+
+    (values.len() == 1)
+        .then(|| clean_header(&values[0]))
+        .flatten()
+}
+
 fn format_address(name: Option<&str>, address: &str) -> String {
     match name.filter(|name| !name.is_empty()) {
         Some(name) => format!("{} <{}>", encode_display_name(name), address),
@@ -1338,6 +1376,22 @@ mod tests {
         assert!(eml.contains("cid:image-1@example.com"));
         assert!(eml.contains("Content-Disposition: inline; filename=\"image.png\"\r\n"));
         assert!(eml.contains("Content-ID: <image-1@example.com>\r\n"));
+    }
+
+    #[test]
+    fn falls_back_to_one_validated_transport_recipient_header() {
+        let mut message = message();
+        message.transport_message_headers = Some(
+            "Date: 19 Aug 2015 11:07:26 +0000\r\nTo: raw@example.com\r\n".to_string(),
+        );
+        let bodies = MessageBodies {
+            text: Some(b"plain body".to_vec()),
+            html: Some("<p>rich body</p>".to_string()),
+        };
+
+        let eml = build_eml(&message, &[], &bodies, &[]).unwrap();
+        let eml = String::from_utf8(eml).unwrap();
+        assert!(eml.contains("To: raw@example.com\r\n"));
     }
 
     #[test]

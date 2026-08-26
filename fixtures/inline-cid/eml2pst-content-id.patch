@@ -1,7 +1,17 @@
 diff --git a/eml2pst/eml_parser.py b/eml2pst/eml_parser.py
-index 35f6f95..ddf8998 100644
+index 35f6f95..fdf55b1 100644
 --- a/eml2pst/eml_parser.py
 +++ b/eml2pst/eml_parser.py
+@@ -62,6 +62,9 @@ def _parse_message(msg):
+         'importance': 1,  # Normal
+         'priority': 0,
+         'sensitivity': 0,
+         'has_attachments': False,
++        'transport_message_headers': '\r\n'.join(
++            f'{name}: {value}' for name, value in msg.items()
++        ) + '\r\n',
+         'recipients': [],
+         'attachments': [],
 @@ -195,4 +195,5 @@ def _add_attachment(part, result):
          'data': payload,
          'mime_type': part.get_content_type(),
@@ -12,6 +22,14 @@ diff --git a/eml2pst/mapi/properties.py b/eml2pst/mapi/properties.py
 index 4094a64..15d4423 100644
 --- a/eml2pst/mapi/properties.py
 +++ b/eml2pst/mapi/properties.py
+@@ -89,6 +89,7 @@ PR_CREATION_TIME = prop_tag(0x3007, PT_SYSTIME)
+ PR_CREATION_TIME = prop_tag(0x3007, PT_SYSTIME)
+ PR_LAST_MODIFICATION_TIME = prop_tag(0x3008, PT_SYSTIME)
+ PR_INTERNET_CPID = prop_tag(0x3FDE, PT_LONG)  # Internet code page (65001 = UTF-8)
+ PR_MESSAGE_CODEPAGE = prop_tag(0x3FFD, PT_LONG)  # Message code page
++PR_TRANSPORT_MESSAGE_HEADERS = prop_tag(0x007D, PT_UNICODE)
+ 
+ # --- Sender Properties ---
 @@ -118,6 +118,7 @@ PR_ATTACH_LONG_FILENAME = prop_tag(0x3707, PT_UNICODE)
  PR_ATTACH_SIZE = prop_tag(0x0E20, PT_LONG)
  PR_ATTACH_DATA_BIN = prop_tag(0x3701, PT_BINARY)
@@ -24,6 +42,15 @@ diff --git a/eml2pst/messaging/message.py b/eml2pst/messaging/message.py
 index 125e4d3..4221d28 100644
 --- a/eml2pst/messaging/message.py
 +++ b/eml2pst/messaging/message.py
+@@ -15,7 +15,7 @@ from ..mapi.properties import (
+     NID_TYPE_ATTACHMENT, make_nid,
+     PR_SUBJECT, PR_BODY, PR_HTML, PR_MESSAGE_CLASS,
+     PR_MESSAGE_FLAGS, PR_MESSAGE_SIZE, PR_IMPORTANCE,
+-    PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE,
++    PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE, PR_TRANSPORT_MESSAGE_HEADERS,
+     PR_PRIORITY, PR_SENSITIVITY, PR_HASATTACH,
+     PR_MESSAGE_DELIVERY_TIME, PR_CLIENT_SUBMIT_TIME,
+     PR_CREATION_TIME, PR_LAST_MODIFICATION_TIME,
 @@ -26,7 +26,7 @@ from ..mapi.properties import (
      PR_RECIPIENT_TYPE, PR_ROWID,
      PR_ATTACH_NUM, PR_ATTACH_METHOD, PR_ATTACH_FILENAME,
@@ -33,6 +60,16 @@ index 125e4d3..4221d28 100644
      MSGFLAG_READ, MSGFLAG_HASATTACH, ATTACH_BY_VALUE,
      MAPI_TO, MAPI_CC, MAPI_BCC,
  )
+@@ -51,6 +51,9 @@ def build_message_pc(parsed_eml):
+     subject = parsed_eml.get('subject', '(No Subject)')
+     props.append((PR_SUBJECT, subject))
+     props.append((PR_MESSAGE_CLASS, parsed_eml.get('message_class', 'IPM.Note')))
++    transport_headers = parsed_eml.get('transport_message_headers')
++    if transport_headers:
++        props.append((PR_TRANSPORT_MESSAGE_HEADERS, transport_headers))
+ 
+     flags = MSGFLAG_READ
+     if parsed_eml.get('has_attachments', False):
 @@ -190,6 +190,8 @@ def build_attachments_tc(attachments):
              PR_ATTACH_MIME_TAG: att.get('mime_type', 'application/octet-stream'),
              PR_RENDERING_POSITION: 0xFFFFFFFF,
