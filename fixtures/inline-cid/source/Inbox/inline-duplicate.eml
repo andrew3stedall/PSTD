@@ -1,0 +1,27 @@
+From: fixture@example.test
+To: reader@example.test
+Date: Mon, 03 Aug 2026 10:02:00 +0000
+Subject: Duplicate inline identifiers
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="mixed-duplicate"
+
+--mixed-duplicate
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html><body><img src="cid:duplicate@example.test"></body></html>
+--mixed-duplicate
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-Disposition: inline; filename="first.png"
+Content-ID: <duplicate@example.test>
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=
+--mixed-duplicate
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-Disposition: inline; filename="second.png"
+Content-ID: <duplicate@example.test>
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=
+--mixed-duplicate--

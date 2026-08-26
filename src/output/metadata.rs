@@ -101,6 +101,23 @@ pub struct BodyRecord {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CidReferenceRecord {
+    pub message_key: String,
+    pub reference_key: String,
+    pub reference_kind: String,
+    pub body_key: Option<String>,
+    pub cid: Option<String>,
+    pub normalized_cid: Option<String>,
+    pub attachment_key: Option<String>,
+    pub attachment_keys: Vec<String>,
+    pub byte_offset: u64,
+    pub status: String,
+    pub source: String,
+    pub authoritative: bool,
+    pub synthetic: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MimePartRecord {
     pub message_key: String,
     pub part_key: String,

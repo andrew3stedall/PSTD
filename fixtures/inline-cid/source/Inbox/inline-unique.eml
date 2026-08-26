@@ -1,0 +1,35 @@
+From: fixture@example.test
+To: reader@example.test
+Date: Mon, 03 Aug 2026 10:00:00 +0000
+Subject: Inline image with ordinary attachment
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="mixed-unique"
+
+--mixed-unique
+Content-Type: multipart/alternative; boundary="alternative-unique"
+
+--alternative-unique
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+The logo is inline.
+--alternative-unique
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html><body><p>The logo is inline.</p><img src="cid:cid-logo@example.test"></body></html>
+--alternative-unique--
+--mixed-unique
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-Disposition: inline; filename="logo.png"
+Content-ID: <cid-logo@example.test>
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=
+--mixed-unique
+Content-Type: text/plain; name="report.txt"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="report.txt"
+
+cmVwb3J0IGJ5dGVzCg==
+--mixed-unique--

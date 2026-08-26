@@ -1,0 +1,67 @@
+diff --git a/eml2pst/eml_parser.py b/eml2pst/eml_parser.py
+index 35f6f95..ddf8998 100644
+--- a/eml2pst/eml_parser.py
++++ b/eml2pst/eml_parser.py
+@@ -195,4 +195,5 @@ def _add_attachment(part, result):
+         'data': payload,
+         'mime_type': part.get_content_type(),
+         'size': len(payload),
++        'content_id': part.get('Content-ID'),
+     })
+diff --git a/eml2pst/mapi/properties.py b/eml2pst/mapi/properties.py
+index 4094a64..15d4423 100644
+--- a/eml2pst/mapi/properties.py
++++ b/eml2pst/mapi/properties.py
+@@ -118,6 +118,7 @@ PR_ATTACH_LONG_FILENAME = prop_tag(0x3707, PT_UNICODE)
+ PR_ATTACH_SIZE = prop_tag(0x0E20, PT_LONG)
+ PR_ATTACH_DATA_BIN = prop_tag(0x3701, PT_BINARY)
+ PR_ATTACH_MIME_TAG = prop_tag(0x370E, PT_UNICODE)
++PR_ATTACH_CONTENT_ID = prop_tag(0x3712, PT_UNICODE)
+ PR_RENDERING_POSITION = prop_tag(0x370B, PT_LONG)
+ 
+ # Attachment methods
+diff --git a/eml2pst/messaging/message.py b/eml2pst/messaging/message.py
+index 125e4d3..4221d28 100644
+--- a/eml2pst/messaging/message.py
++++ b/eml2pst/messaging/message.py
+@@ -26,7 +26,7 @@ from ..mapi.properties import (
+     PR_RECIPIENT_TYPE, PR_ROWID,
+     PR_ATTACH_NUM, PR_ATTACH_METHOD, PR_ATTACH_FILENAME,
+     PR_ATTACH_LONG_FILENAME, PR_ATTACH_SIZE, PR_ATTACH_DATA_BIN,
+-    PR_ATTACH_MIME_TAG, PR_RENDERING_POSITION,
++    PR_ATTACH_MIME_TAG, PR_ATTACH_CONTENT_ID, PR_RENDERING_POSITION,
+     MSGFLAG_READ, MSGFLAG_HASATTACH, ATTACH_BY_VALUE,
+     MAPI_TO, MAPI_CC, MAPI_BCC,
+ )
+@@ -190,6 +190,8 @@ def build_attachments_tc(attachments):
+             PR_ATTACH_MIME_TAG: att.get('mime_type', 'application/octet-stream'),
+             PR_RENDERING_POSITION: 0xFFFFFFFF,
+         }
++        if att.get('content_id'):
++            row[PR_ATTACH_CONTENT_ID] = att['content_id']
+         rows.append(row)
+ 
+     return build_tc_node(column_tags, rows)
+@@ -241,6 +243,8 @@ def build_attachment_pc(attachment, attach_num):
+         (PR_ATTACH_MIME_TAG, attachment.get('mime_type', 'application/octet-stream')),
+         (PR_RENDERING_POSITION, 0xFFFFFFFF),
+     ]
++    if attachment.get('content_id'):
++        props.append((PR_ATTACH_CONTENT_ID, attachment['content_id']))
+     if attachment.get('data'):
+         props.append((PR_ATTACH_DATA_BIN, attachment['data']))
+ 
+     return build_pc_node(props)
+diff --git a/eml2pst/utils.py b/eml2pst/utils.py
+index 34ce251..039bac6 100644
+--- a/eml2pst/utils.py
++++ b/eml2pst/utils.py
+@@ -21,7 +21,7 @@ def datetime_to_filetime(dt: datetime) -> int:
+ 
+ def filetime_now() -> int:
+     """Return current time as a Windows FILETIME."""
+-    return datetime_to_filetime(datetime.now(timezone.utc))
++    return datetime_to_filetime(datetime(2026, 8, 3, tzinfo=timezone.utc))
+ 
+ 
+ def pack_filetime(ft: int) -> bytes:
