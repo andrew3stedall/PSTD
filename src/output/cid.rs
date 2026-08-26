@@ -15,16 +15,19 @@ pub fn build_cid_references(
     attachments: &[AttachmentRecord],
 ) -> Vec<CidReferenceRecord> {
     let mut output = Vec::new();
-    let mut ordered_bodies = body_payloads
+    let mut message_bodies = BTreeMap::<String, Vec<&BodyPayload>>::new();
+    for body in body_payloads
         .iter()
         .filter(|payload| payload.record.body_type == "html")
-        .collect::<Vec<_>>();
-    ordered_bodies.sort_by_key(|payload| {
-        (
-            payload.record.message_key.clone(),
-            payload.record.body_key.clone(),
-        )
-    });
+    {
+        message_bodies
+            .entry(body.record.message_key.clone())
+            .or_default()
+            .push(body);
+    }
+    for bodies in message_bodies.values_mut() {
+        bodies.sort_by_key(|body| body.record.body_key.clone());
+    }
 
     let mut message_attachments = BTreeMap::<String, Vec<&AttachmentRecord>>::new();
     for attachment in attachments {
@@ -42,11 +45,17 @@ pub fn build_cid_references(
         });
     }
 
-    for body in ordered_bodies {
-        let candidates = message_attachments
-            .get(&body.record.message_key)
+    let mut message_keys = message_bodies.keys().cloned().collect::<BTreeSet<_>>();
+    message_keys.extend(message_attachments.keys().cloned());
+    for message_key in message_keys {
+        let bodies = message_bodies
+            .get(&message_key)
             .map(Vec::as_slice)
-            .unwrap_or_default();
+            .unwrap_or(&[]);
+        let candidates = message_attachments
+            .get(&message_key)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
         let mut by_content_id = BTreeMap::<String, Vec<&AttachmentRecord>>::new();
         for attachment in candidates {
             if let Some(content_id) = attachment.content_id.as_deref() {
@@ -60,59 +69,64 @@ pub fn build_cid_references(
         }
 
         let mut referenced_attachment_keys = BTreeSet::new();
-        for (reference_ordinal, (offset, raw_cid)) in extract_cid_references(&body.bytes)
-            .into_iter()
-            .enumerate()
-        {
-            let normalized_cid = normalize_cid(&raw_cid);
-            let matches = normalized_cid
-                .as_ref()
-                .and_then(|cid| by_content_id.get(cid))
-                .cloned()
-                .unwrap_or_default();
-            for attachment in &matches {
-                referenced_attachment_keys.insert(attachment.attachment_key.clone());
+        for body in bodies {
+            for (reference_ordinal, (offset, raw_cid)) in extract_cid_references(&body.bytes)
+                .into_iter()
+                .enumerate()
+            {
+                let normalized_cid = normalize_cid(&raw_cid);
+                let matches = normalized_cid
+                    .as_ref()
+                    .and_then(|cid| by_content_id.get(cid))
+                    .cloned()
+                    .unwrap_or_default();
+                for attachment in &matches {
+                    referenced_attachment_keys.insert(attachment.attachment_key.clone());
+                }
+                let status = match normalized_cid.as_ref() {
+                    None => "invalid_html_cid_reference",
+                    Some(_) if matches.is_empty() => "unmatched_html_cid_reference",
+                    Some(_) if matches.len() > 1 => "duplicate_attachment_content_id",
+                    Some(_) => "matched_unique_attachment",
+                };
+                let attachment_key =
+                    (matches.len() == 1).then(|| matches[0].attachment_key.clone());
+                let attachment_keys = matches
+                    .iter()
+                    .map(|attachment| attachment.attachment_key.clone())
+                    .collect::<Vec<_>>();
+                let reference_key = ids::stable_id(
+                    "cid",
+                    &[
+                        &body.record.message_key,
+                        &body.record.body_key,
+                        "html",
+                        &reference_ordinal.to_string(),
+                        &raw_cid,
+                    ],
+                );
+                output.push(CidReferenceRecord {
+                    message_key: body.record.message_key.clone(),
+                    reference_key,
+                    reference_kind: "html_cid".to_string(),
+                    body_key: Some(body.record.body_key.clone()),
+                    cid: Some(raw_cid),
+                    normalized_cid,
+                    attachment_key,
+                    attachment_keys,
+                    byte_offset: offset as u64,
+                    status: status.to_string(),
+                    source: format!("body:{}:byte:{offset}", body.record.body_key),
+                    authoritative: body.record.status == "extracted",
+                    synthetic: false,
+                });
             }
-            let status = match normalized_cid.as_ref() {
-                None => "invalid_html_cid_reference",
-                Some(_) if matches.is_empty() => "unmatched_html_cid_reference",
-                Some(_) if matches.len() > 1 => "duplicate_attachment_content_id",
-                Some(_) => "matched_unique_attachment",
-            };
-            let attachment_key = (matches.len() == 1).then(|| matches[0].attachment_key.clone());
-            let attachment_keys = matches
-                .iter()
-                .map(|attachment| attachment.attachment_key.clone())
-                .collect::<Vec<_>>();
-            let reference_key = ids::stable_id(
-                "cid",
-                &[
-                    &body.record.message_key,
-                    &body.record.body_key,
-                    "html",
-                    &reference_ordinal.to_string(),
-                    &raw_cid,
-                ],
-            );
-            output.push(CidReferenceRecord {
-                message_key: body.record.message_key.clone(),
-                reference_key,
-                reference_kind: "html_cid".to_string(),
-                body_key: Some(body.record.body_key.clone()),
-                cid: Some(raw_cid),
-                normalized_cid,
-                attachment_key,
-                attachment_keys,
-                byte_offset: offset as u64,
-                status: status.to_string(),
-                source: format!("body:{}:byte:{offset}", body.record.body_key),
-                authoritative: body.record.status == "extracted",
-                synthetic: false,
-            });
         }
 
         for attachment in candidates {
-            if !attachment.is_inline || referenced_attachment_keys.contains(&attachment.attachment_key) {
+            if !attachment.is_inline
+                || referenced_attachment_keys.contains(&attachment.attachment_key)
+            {
                 continue;
             }
             let (normalized_cid, status) = match attachment.content_id.as_deref() {
@@ -311,8 +325,17 @@ mod tests {
     #[test]
     fn ignores_cid_text_embedded_in_a_larger_token() {
         let body = html_body_payload("msg", b"notcid:ignored@example.test");
-        let attachment = attachment("msg", 0, Some("ignored@example.test"), true);
+        let attachment = attachment("msg", 0, Some("ignored@example.test"), false);
         assert!(build_cid_references(&[body], &[attachment]).is_empty());
+    }
+
+    #[test]
+    fn retains_inline_attachment_without_html_body() {
+        let attachment = attachment("msg", 0, Some("orphan@example.test"), true);
+        let records = build_cid_references(&[], &[attachment]);
+
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].status, "unmatched_inline_attachment");
     }
 
 }
