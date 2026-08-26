@@ -50,6 +50,13 @@ _Last reviewed: 21 August 2026._
 - Added a deterministic KMail `.<folder>.directory/<folder>.mbox` profile with explicit parent-index invalidation policy and no mutable index output.
 - Added repeated-profile, path-safety, positive payload, and negative attachment/KMail evidence workflow coverage; Thunderbird sidecars and MSG remain downstream.
 
+### RP-M5-04
+
+- Added a deterministic synthetic Unicode PST with three messages and five attachments, generated from pinned MIT-licensed EMLtoPST tooling without private mailbox data.
+- Added `data/cid_references.jsonl` evidence for unique, duplicate, unmatched, invalid, and orphan inline-CID relationships, with explicit attachment ownership and authoritative extracted-payload status.
+- Added byte-for-byte fixture reproduction and readpst comparison coverage for attachment counts, payload materialization, direct HTML bodies, and inline EML Content-ID output.
+- Added validated transport-header recipient fallback and direct extracted HTML support to the EML assembly adapter while retaining fail-closed admission rules.
+
 ### RP-M5-03
 
 - Added a deterministic Thunderbird profile with recursive mbox output, canonical-identity `.type` and readpst-compatible `.size` sidecars, and explicit unavailable folder-type evidence instead of guessed numeric values.

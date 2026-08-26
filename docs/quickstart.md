@@ -108,6 +108,12 @@ raw files beside it, use external mode:
   /path/to/mailbox.pst ./eml-output
 ```
 
+When HTML bodies contain `cid:` references, the canonical extraction also writes
+`data/cid_references.jsonl` with unique, duplicate, unmatched, and invalid
+relationship outcomes. Inline EML preserves validated HTML and emits matching
+attachment `Content-ID` headers; ambiguous relationships remain explicit evidence
+and are never resolved by filename similarity.
+
 External mode writes each recovered payload at its validated relative
 `AttachmentRecord.archive_path`, writes `attachments.jsonl` with the attachment
 record plus `eml_path`, `materialized_path`, and `materialization_status`, and adds

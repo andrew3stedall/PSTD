@@ -69,6 +69,7 @@ data/
   message_references.jsonl
   bodies.jsonl
   attachments.jsonl
+  cid_references.jsonl
   selected_mapi_properties.jsonl
 
 bodies/
@@ -130,6 +131,16 @@ Body records should identify body type, archive path, encoding, size, hash, and 
 ### Attachments
 
 Attachment records should preserve known metadata even when payload bytes are unavailable, empty, unsupported, or deferred. Raw extracted bytes belong in TAR entries, not base64 JSON. A method-`5` record may carry `embedded_message_key` to link a separately emitted child; that optional field does not imply that an EML payload exists at `archive_path`.
+
+### CID references
+
+`cid_references.jsonl` records the relationship between extracted HTML `cid:`
+references and explicit attachment `content_id` values. Each record retains the
+message/body source, normalized CID, candidate attachment keys, and a fail-closed
+status such as `matched_unique_attachment`, `duplicate_attachment_content_id`,
+`unmatched_html_cid_reference`, or `unmatched_inline_attachment`. A unique match
+may carry one `attachment_key`; ambiguous or unresolved relationships retain the
+full candidate set without guessing from filenames or ordinals.
 
 ### Errors and completeness
 

@@ -145,6 +145,8 @@ On `main`, these values are published as four complete row-aligned recipient rec
 
 The Tika attachment fixture emits seven top-level messages assigned by exact contents-table rows to `/Début du fichier de données Outlook`, plus one separately linked embedded child, nine directly owned recipient records, ten body records, six valid body payloads totalling 271 bytes, two explicit unresolved HTML forms, two attachment records, two exact attachment payloads totalling 12,315 bytes, and two deterministic EML files. The method-`5` payload is byte-identical to the 453-byte standalone child EML and uses `message/rfc822`; inline assembly now includes both recovered payloads in the parent MIME tree, while external assembly writes them at manifest-linked paths.
 
+The dedicated inline-CID fixture adds a deterministic Unicode PST with three messages and five attachment payloads. It validates one unique HTML `cid:` match, duplicate and unmatched relationships, direct HTML-body preservation, and inline EML `Content-ID`/disposition output against `readpst`; the fixture is synthetic, uses only `example.test` addresses, and is documented under `fixtures/inline-cid/`.
+
 The java-libpst comparison fixture remains a deterministic fail-closed baseline: 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised attachment payloads, 0 validated `IPM.Note*` classes, and 0 EML files. It is comparison evidence rather than an email capability milestone.
 
 ## Progress over time
@@ -196,7 +198,7 @@ PSTD must not add java-libpst, libpst, libpff, Apache Tika, Outlook, or another 
 
 ## Important limitations
 
-PSTD is not yet a general-purpose or absolute-coverage PST-to-EML converter. Current evidence is fixture-limited. No approved Microsoft Purview export fixture is committed. The Tika sender remains a raw native Exchange distinguished name rather than resolved SMTP; one method-`5` layout is exact, but nested child attachments, broader Unicode producers, inline attachments, real ANSI traversal, and uncommon/corrupt layouts remain incomplete. Do not infer broad compatibility from the milestone count.
+PSTD is not yet a general-purpose or absolute-coverage PST-to-EML converter. Current evidence is fixture-limited. No approved Microsoft Purview export fixture is committed. The Tika sender remains a raw native Exchange distinguished name rather than resolved SMTP; one method-`5` layout is exact, but nested child attachments, broader Unicode producers, inline attachments outside the validated fixture, real ANSI traversal, and uncommon/corrupt layouts remain incomplete. Do not infer broad compatibility from the milestone count.
 
 ## Validation gate
 
