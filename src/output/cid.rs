@@ -37,12 +37,7 @@ pub fn build_cid_references(
             .push(attachment);
     }
     for records in message_attachments.values_mut() {
-        records.sort_by_key(|attachment| {
-            (
-                attachment.ordinal,
-                attachment.attachment_key.clone(),
-            )
-        });
+        records.sort_by_key(|attachment| (attachment.ordinal, attachment.attachment_key.clone()));
     }
 
     let mut message_keys = message_bodies.keys().cloned().collect::<BTreeSet<_>>();
@@ -70,9 +65,8 @@ pub fn build_cid_references(
 
         let mut referenced_attachment_keys = BTreeSet::new();
         for body in bodies {
-            for (reference_ordinal, (offset, raw_cid)) in extract_cid_references(&body.bytes)
-                .into_iter()
-                .enumerate()
+            for (reference_ordinal, (offset, raw_cid)) in
+                extract_cid_references(&body.bytes).into_iter().enumerate()
             {
                 let normalized_cid = normalize_cid(&raw_cid);
                 let matches = normalized_cid
@@ -124,9 +118,7 @@ pub fn build_cid_references(
         }
 
         for attachment in candidates {
-            if !attachment.is_inline
-                || referenced_attachment_keys.contains(&attachment.attachment_key)
-            {
+            if !attachment.is_inline || referenced_attachment_keys.contains(&attachment.attachment_key) {
                 continue;
             }
             let (normalized_cid, status) = match attachment.content_id.as_deref() {
@@ -193,7 +185,21 @@ fn is_cid_token_character(byte: u8) -> bool {
 
 fn is_cid_delimiter(byte: u8) -> bool {
     byte.is_ascii_whitespace()
-        || matches!(byte, b'"' | b'\'' | b'<' | b'>' | b'(' | b')' | b'[' | b']' | b'{' | b'}' | b',' | b';' | b'#')
+        || matches!(
+            byte,
+            b'"' | b'\''
+                | b'<'
+                | b'>'
+                | b'('
+                | b')'
+                | b'['
+                | b']'
+                | b'{'
+                | b'}'
+                | b','
+                | b';'
+                | b'#'
+        )
 }
 
 fn normalize_cid(value: &str) -> Option<String> {
@@ -337,5 +343,4 @@ mod tests {
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].status, "unmatched_inline_attachment");
     }
-
 }
