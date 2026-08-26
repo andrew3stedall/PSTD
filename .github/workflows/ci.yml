@@ -61,7 +61,7 @@ jobs:
       - name: Find fixture
         id: fixture
         run: |
-          fixture=$(find . -type f -iname '*.pst' | sort | head -n 1 || true)
+          fixture=$(find tests/fixtures -type f -iname '*.pst' | sort | head -n 1 || true)
           echo "fixture=$fixture" >> "$GITHUB_OUTPUT"
       - name: Public PST progress fixture
         if: steps.fixture.outputs.fixture != ''

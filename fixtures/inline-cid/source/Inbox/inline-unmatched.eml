@@ -1,0 +1,29 @@
+From: fixture@example.test
+To: reader@example.test
+Date: Mon, 03 Aug 2026 10:01:00 +0000
+Subject: Unmatched inline references
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="mixed-unmatched"
+
+--mixed-unmatched
+Content-Type: multipart/alternative; boundary="alternative-unmatched"
+
+--alternative-unmatched
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+The inline image is missing from the HTML reference.
+--alternative-unmatched
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html><body><img src="cid:missing@example.test"></body></html>
+--alternative-unmatched--
+--mixed-unmatched
+Content-Type: image/png
+Content-Transfer-Encoding: base64
+Content-Disposition: inline; filename="orphan.png"
+Content-ID: <orphan@example.test>
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=
+--mixed-unmatched--

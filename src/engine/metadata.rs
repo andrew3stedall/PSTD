@@ -4,13 +4,14 @@ use crate::eml::materialize_embedded_message_payloads;
 use crate::engine::message_folder_ownership::resolve_folder_ownership;
 use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::calendar::build_calendar_records;
+use crate::output::cid::build_cid_references;
 use crate::output::contact::build_contact_records;
 use crate::output::ids;
 use crate::output::metadata::{
-    AttachmentRecord, BodyRecord, CalendarRecord, ContactRecord, EmbeddedGraphRecord,
-    EvidenceRecord, FolderRecord, HeaderProjectionRecord, ItemEnvelope, ItemRoutingCountRecord,
-    ManifestRecord, MessageRecord, MessageReferenceRecord, MimePartRecord, NonMailRecord,
-    RecipientRecord, SpecialItemRecord,
+    AttachmentRecord, BodyRecord, CalendarRecord, CidReferenceRecord, ContactRecord,
+    EmbeddedGraphRecord, EvidenceRecord, FolderRecord, HeaderProjectionRecord, ItemEnvelope,
+    ItemRoutingCountRecord, ManifestRecord, MessageRecord, MessageReferenceRecord, MimePartRecord,
+    NonMailRecord, RecipientRecord, SpecialItemRecord,
 };
 use crate::output::mime::build_mime_parts;
 use crate::output::non_mail::build_non_mail_records;
@@ -72,6 +73,7 @@ pub struct MetadataExtractionOutput {
     pub body_payloads: Vec<BodyPayload>,
     pub embedded_graph: Vec<EmbeddedGraphRecord>,
     pub mime_parts: Vec<MimePartRecord>,
+    pub cid_references: Vec<CidReferenceRecord>,
     pub special_items: Vec<SpecialItemRecord>,
     pub contacts: Vec<ContactRecord>,
     pub calendars: Vec<CalendarRecord>,
@@ -697,6 +699,7 @@ pub fn extract_metadata(
         &attachments,
         &attachment_payloads,
     );
+    let cid_references = build_cid_references(&body_payloads, &attachments);
     let embedded_graph = build_embedded_graph(
         &messages,
         &attachments,
@@ -781,6 +784,16 @@ pub fn extract_metadata(
             "data/mime_parts.jsonl",
             None,
             &mime_part.status,
+        ));
+    }
+    for cid_reference in &cid_references {
+        evidence.push(crate::pst::evidence::payload_record(
+            &cid_reference.message_key,
+            "cid_reference",
+            format!("cid:{}", cid_reference.reference_key),
+            "data/cid_references.jsonl",
+            None,
+            &cid_reference.status,
         ));
     }
     for edge in &embedded_graph {
@@ -974,6 +987,7 @@ pub fn extract_metadata(
         body_payloads,
         embedded_graph,
         mime_parts,
+        cid_references,
         special_items,
         contacts,
         calendars,
@@ -1564,6 +1578,7 @@ pub fn fallback_metadata(
         body_payloads: Vec::new(),
         embedded_graph: Vec::new(),
         mime_parts: Vec::new(),
+        cid_references: Vec::new(),
         special_items: Vec::new(),
         contacts: Vec::new(),
         calendars: Vec::new(),

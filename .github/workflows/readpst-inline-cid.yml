@@ -1,0 +1,200 @@
+name: Readpst inline Content-ID fixture
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  inline-cid:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install readpst oracle
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes pst-utils
+      - name: Recreate the pinned fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          generator="${RUNNER_TEMP}/eml2pst"
+          generated="${RUNNER_TEMP}/inline-cid.pst"
+          git clone --quiet https://github.com/igrbtn/EMLtoPST.git "$generator"
+          git -C "$generator" checkout --quiet 6fe9025390a96fe0095457b56f12ce241ee4ba53
+          git -C "$generator" apply "$GITHUB_WORKSPACE/fixtures/inline-cid/eml2pst-content-id.patch"
+          (cd "$generator" && python3 -m eml2pst \
+            "$GITHUB_WORKSPACE/fixtures/inline-cid/source" -o "$generated")
+          cmp "$generated" "$GITHUB_WORKSPACE/fixtures/inline-cid/inline-cid.pst"
+          printf '%s  %s\n' \
+            5e3aeaed1276cb0560fb08d5f74cebdcc66c3c28615b01194a3db3cfed00ed7b \
+            "$GITHUB_WORKSPACE/fixtures/inline-cid/inline-cid.pst" \
+            | sha256sum --check -
+      - name: Run Rust unit and static checks
+        run: |
+          cargo test cid
+          cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+          cargo fmt --check
+      - name: Compare readpst and PSTD attachment evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="fixtures/inline-cid/inline-cid.pst"
+          evidence="${RUNNER_TEMP}/pstd-inline-cid"
+          output="$evidence/output"
+          pstd_eml="$evidence/pstd-eml"
+          readpst_eml="$evidence/readpst-eml"
+          mkdir -p "$evidence" "$output" "$pstd_eml" "$readpst_eml"
+
+          readpst -e -r -o "$readpst_eml" "$fixture" \
+            > "$evidence/readpst.stdout" 2> "$evidence/readpst.stderr"
+          cargo run --quiet -- extract --input "$fixture" --output "$output" --overwrite \
+            > "$evidence/pstd.stdout" 2> "$evidence/pstd.stderr"
+          cargo run --quiet --bin pstd-eml -- "$fixture" "$pstd_eml" \
+            > "$evidence/pstd-eml.stdout" 2> "$evidence/pstd-eml.stderr"
+
+          tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+          mkdir -p "$evidence/archive"
+          tar -xf "$tar_file" -C "$evidence/archive"
+          cp "$output/run_summary.json" "$evidence/run_summary.json"
+
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import mailbox
+          from email import policy
+          from email.parser import BytesParser
+          from pathlib import Path
+
+          root = Path(__import__('os').environ['RUNNER_TEMP']) / 'pstd-inline-cid'
+          archive = root / 'archive' / 'data'
+          fixture = Path('fixtures/inline-cid/inline-cid.pst')
+
+          def records(name):
+              path = archive / name
+              return [
+                  json.loads(line)
+                  for line in path.read_text(encoding='utf-8').splitlines()
+                  if line.strip()
+              ]
+
+          messages = records('messages.jsonl')
+          attachments = records('attachments.jsonl')
+          cid_records = records('cid_references.jsonl')
+          if len(messages) != 3:
+              raise SystemExit(f'unexpected PSTD message count: {len(messages)}')
+          if len(attachments) != 5:
+              raise SystemExit(f'unexpected PSTD attachment count: {len(attachments)}')
+          payload_paths = [
+              root / 'archive' / record['archive_path']
+              for record in attachments
+              if record['extraction_status'] == 'extracted'
+              or record['extraction_status'].startswith('attachment_payload_extracted')
+          ]
+          if len(payload_paths) != 5 or not all(path.is_file() for path in payload_paths):
+              raise SystemExit('PSTD did not materialize all five attachment payloads')
+          if {path.stat().st_size for path in payload_paths} != {13, 68}:
+              raise SystemExit(
+                  f'unexpected synthetic image/text payload sizes: '
+                  f'{sorted(path.stat().st_size for path in payload_paths)}'
+              )
+
+          statuses = sorted(record['status'] for record in cid_records)
+          expected_statuses = sorted([
+              'matched_unique_attachment',
+              'unmatched_html_cid_reference',
+              'duplicate_attachment_content_id',
+              'unmatched_inline_attachment',
+          ])
+          if statuses != expected_statuses:
+              raise SystemExit(f'unexpected CID statuses: {statuses!r}')
+          unique = next(
+              record for record in cid_records
+              if record['status'] == 'matched_unique_attachment'
+          )
+          if unique['normalized_cid'] != 'cid-logo@example.test':
+              raise SystemExit(f'unexpected unique CID: {unique!r}')
+          if not unique['attachment_key'] or unique['attachment_keys'] != [unique['attachment_key']]:
+              raise SystemExit(f'unique CID ownership is not singular: {unique!r}')
+          duplicate = next(
+              record for record in cid_records
+              if record['status'] == 'duplicate_attachment_content_id'
+          )
+          if len(duplicate['attachment_keys']) != 2 or duplicate['attachment_key'] is not None:
+              raise SystemExit(f'duplicate CID was resolved instead of retained: {duplicate!r}')
+
+          def eml_files(root):
+              return sorted(path for path in root.rglob('*.eml') if path.is_file())
+
+          def readpst_messages(root):
+              files = eml_files(root)
+              if files:
+                  return [
+                      BytesParser(policy=policy.default).parsebytes(path.read_bytes())
+                      for path in files
+                  ]
+              mboxes = sorted(path for path in root.rglob('mbox') if path.is_file())
+              if len(mboxes) != 1:
+                  raise SystemExit(f'readpst emitted neither EMLs nor one mbox: {mboxes!r}')
+              box = mailbox.mbox(mboxes[0], factory=None)
+              return [
+                  BytesParser(policy=policy.default).parsebytes(item.as_bytes())
+                  for item in box
+              ]
+
+          readpst_parsed = readpst_messages(root / 'readpst-eml')
+          pstd_files = eml_files(root / 'pstd-eml')
+          if len(readpst_parsed) != 3:
+              raise SystemExit(
+                  f'readpst did not expose three messages: {len(readpst_parsed)}'
+              )
+          if len(pstd_files) != 3:
+              raise SystemExit(f'PSTD did not emit three EMLs: {pstd_files!r}')
+
+          readpst_attachment_count = sum(
+              len(list(message.iter_attachments())) for message in readpst_parsed
+          )
+          if readpst_attachment_count != 5:
+              raise SystemExit(
+                  f'readpst did not expose all five attachments: {readpst_attachment_count}'
+              )
+
+          pstd_by_subject = {}
+          for path in pstd_files:
+              message = BytesParser(policy=policy.default).parsebytes(path.read_bytes())
+              pstd_by_subject[message['Subject']] = message
+          if set(pstd_by_subject) != {
+              'Inline image with ordinary attachment',
+              'Unmatched inline references',
+              'Duplicate inline identifiers',
+          }:
+              raise SystemExit(f'unexpected PSTD EML subjects: {sorted(pstd_by_subject)}')
+          unique_message = pstd_by_subject['Inline image with ordinary attachment']
+          if len(list(unique_message.iter_attachments())) != 2:
+              raise SystemExit('PSTD unique message lost an attachment')
+          unique_bytes = unique_message.as_bytes()
+          if b'cid:cid-logo@example.test' not in unique_bytes:
+              raise SystemExit('PSTD unique HTML cid reference is absent')
+          if b'Content-ID: <cid-logo@example.test>' not in unique_bytes:
+              raise SystemExit('PSTD unique attachment Content-ID is absent')
+          if b'Content-Disposition: inline; filename="logo.png"' not in unique_bytes:
+              raise SystemExit('PSTD unique inline disposition is absent')
+          duplicate_message = pstd_by_subject['Duplicate inline identifiers']
+          if len(list(duplicate_message.iter_attachments())) != 2:
+              raise SystemExit('PSTD duplicate-CID message lost an attachment')
+          print(json.dumps({
+              'fixture_sha256': hashlib.sha256(fixture.read_bytes()).hexdigest(),
+              'messages': len(messages),
+              'pstd_attachments': len(attachments),
+              'readpst_attachments': readpst_attachment_count,
+              'cid_statuses': statuses,
+          }, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: readpst-inline-cid
+          path: ${{ runner.temp }}/pstd-inline-cid

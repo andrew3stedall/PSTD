@@ -153,6 +153,10 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     for record in &metadata.mime_parts {
         mime_parts.write_record(record)?;
     }
+    let mut cid_references = JsonlBuffer::new();
+    for record in &metadata.cid_references {
+        cid_references.write_record(record)?;
+    }
     let mut embedded_graph = JsonlBuffer::new();
     for record in &metadata.embedded_graph {
         embedded_graph.write_record(record)?;
@@ -245,6 +249,12 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     )?;
     tar.append_bytes(&["data", "bodies.jsonl"], &bodies.into_bytes())?;
     tar.append_bytes(&["data", "mime_parts.jsonl"], &mime_parts.into_bytes())?;
+    if !metadata.cid_references.is_empty() {
+        tar.append_bytes(
+            &["data", "cid_references.jsonl"],
+            &cid_references.into_bytes(),
+        )?;
+    }
     tar.append_bytes(
         &["data", "embedded_graph.jsonl"],
         &embedded_graph.into_bytes(),

@@ -1,4 +1,5 @@
 pub mod calendar;
+pub mod cid;
 pub mod contact;
 pub mod headers;
 pub mod ids;

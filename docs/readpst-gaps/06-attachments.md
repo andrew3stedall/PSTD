@@ -16,11 +16,11 @@ The libpst attachment model exposes more than a filename and payload. PSTD alrea
 | Short filename (`PR_ATTACH_FILENAME`) | Fallback 8.3 filename. | **Implemented**: used when the long filename is absent. |
 | Long filename (`PR_ATTACH_LONG_FILENAME`) | Preferred for output names. | **Implemented**: selected before the short filename and retained separately from the safe output name. |
 | MIME tag | Used as Content-Type, with octet-stream fallback. | **Implemented** for generated EML and canonical MIME projection, including unsafe-value rejection. |
-| Content-ID | Emitted as `Content-ID` when present. | **Partial**: captured and emitted on validated paths; CID correlation is not proven. |
+| Content-ID | Emitted as `Content-ID` when present. | **Implemented for the validated Unicode fixture**: captured, normalized, emitted, and correlated to HTML references with explicit ambiguity/unmatched statuses; broad producer coverage remains Partial. |
 | Attachment method | 0 none, 1 by value, 2 by reference, 3 by-reference-resolve, 4 by-reference-only, 5 embedded message, 6 OLE. | **Partial**: method 1 and one method 5 layout are validated. |
 | Rendering position | Indicates where an attachment appears in body text. | **Implemented**: selected and retained in canonical records, with ordinal fallback. |
 | MIME sequence | Preserves MIME ordering. | **Implemented**: selected and used before rendering position in MIME ordering. |
-| Hidden flag | Can imply inline content. | **Partial**: captured independently and contributes to inline evidence; CID/HTML correlation remains open. |
+| Hidden flag | Can imply inline content. | **Partial**: captured independently and contributes to inline evidence; broad producer/layout coverage remains open. |
 | Declared size | Used for diagnostics and payload checks. | **Partial** |
 | Exact payload bytes | Reads direct, subnode, reference, and multi-block data. | **Partial**: generic direct/4-or-8-byte XBLOCK/XXBLOCK resolution is implemented, but broad producer and reference corpus coverage remains open. |
 
@@ -56,13 +56,20 @@ readpst treats non-embedded attachment data as a file/MIME payload when bytes or
 
 ## Inline and CID behaviour
 
-readpst emits `Content-ID` but does not itself prove a full HTML `cid:` relationship model. PSTD should provide the stronger structured behaviour:
+readpst emits `Content-ID` but does not itself prove a full HTML `cid:` relationship model. PSTD now provides the stronger structured behaviour for the pinned Unicode fixture:
 
 - preserve `content_id` exactly after safe normalization;
 - retain `is_inline` from hidden/Content-ID evidence separately from disposition choice;
 - expose HTML references and their matched attachment keys when correlation is unique;
 - retain unmatched HTML CIDs and unmatched inline attachments as explicit diagnostics;
+- retain duplicate Content-ID candidates as ambiguous rather than selecting one;
 - never mark a CID as resolved merely because a filename looks similar.
+
+The canonical `data/cid_references.jsonl` record preserves the message/body source,
+normalized CID, candidate attachment keys, and a fail-closed status. The dedicated
+fixture contains one unique match, one unmatched HTML reference, one unmatched
+inline attachment, and one duplicate-CID case; broader producer and ANSI evidence
+remains required before this is promoted to universal parity.
 
 ## Attachment filtering
 
