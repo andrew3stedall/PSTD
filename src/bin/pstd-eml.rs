@@ -435,6 +435,11 @@ fn bodies_by_message(payloads: &[BodyPayload]) -> BTreeMap<String, MessageBodies
             "text" if !payload.bytes.is_empty() && entry.text.is_none() => {
                 entry.text = Some(payload.bytes.clone());
             }
+            "html" if entry.html.is_none() => {
+                entry.html = String::from_utf8(payload.bytes.clone())
+                    .ok()
+                    .filter(|value| !value.is_empty());
+            }
             "rtf" if entry.html.is_none() => {
                 entry.html = validated_rtf(&payload.bytes)
                     .and_then(|rtf| String::from_utf8(rtf).ok())
@@ -1269,6 +1274,23 @@ mod tests {
         assert!(grouped.get("message").unwrap().html.is_some());
         assert!(grouped.contains_key("other"));
         assert!(grouped.get("other").unwrap().html.is_none());
+    }
+
+    #[test]
+    fn accepts_extracted_html_body_payload() {
+        let payloads = vec![body_payload(
+            "message",
+            "html",
+            b"<p>direct HTML</p>".to_vec(),
+            None,
+        )];
+
+        let grouped = bodies_by_message(&payloads);
+
+        assert_eq!(
+            grouped.get("message").and_then(|body| body.html.as_deref()),
+            Some("<p>direct HTML</p>")
+        );
     }
 
     #[test]
