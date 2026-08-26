@@ -52,6 +52,19 @@ index 125e4d3..4221d28 100644
          props.append((PR_ATTACH_DATA_BIN, attachment['data']))
  
      return build_pc_node(props)
+diff --git a/eml2pst/messaging/store.py b/eml2pst/messaging/store.py
+index 8c05ec6..c394cf2 100644
+--- a/eml2pst/messaging/store.py
++++ b/eml2pst/messaging/store.py
+@@ -38,7 +38,7 @@ def build_message_store(display_name="Personal Folders"):
+         Tuple of (raw_bytes, record_key) where record_key is the
+         16-byte store UID used in entry IDs.
+     """
+-    record_key = os.urandom(16)
++    record_key = bytes.fromhex('00112233445566778899aabbccddeeff')
+ 
+     properties = [
+         (PR_RECORD_KEY, record_key),
 diff --git a/eml2pst/utils.py b/eml2pst/utils.py
 index 34ce251..039bac6 100644
 --- a/eml2pst/utils.py

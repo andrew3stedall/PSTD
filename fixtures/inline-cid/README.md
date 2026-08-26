@@ -23,7 +23,7 @@ runtime or build dependency.
 The checked-in generated file is `inline-cid.pst` and must remain exactly
 27,648 bytes with SHA-256:
 
-`de7c775a7b92b560de5a60d79d7f3b863b764bd248cc0819e4ecf424d4063743`
+`77bd4defe88013f577428c07799a07790c54ca458cbd8c76e281e5e40d9c2ea0`
 
 The GitHub Actions fixture workflow recreates the PST from the source EML and
 patch, verifies the byte hash, and then runs both PSTD and `readpst` against

@@ -30,7 +30,7 @@ jobs:
             "$GITHUB_WORKSPACE/fixtures/inline-cid/source" -o "$generated")
           cmp "$generated" "$GITHUB_WORKSPACE/fixtures/inline-cid/inline-cid.pst"
           printf '%s  %s\n' \
-            de7c775a7b92b560de5a60d79d7f3b863b764bd248cc0819e4ecf424d4063743 \
+            77bd4defe88013f577428c07799a07790c54ca458cbd8c76e281e5e40d9c2ea0 \
             "$GITHUB_WORKSPACE/fixtures/inline-cid/inline-cid.pst" \
             | sha256sum --check -
       - name: Run Rust unit and static checks
