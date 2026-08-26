@@ -118,7 +118,9 @@ pub fn build_cid_references(
         }
 
         for attachment in candidates {
-            if !attachment.is_inline || referenced_attachment_keys.contains(&attachment.attachment_key) {
+            if !attachment.is_inline
+                || referenced_attachment_keys.contains(&attachment.attachment_key)
+            {
                 continue;
             }
             let (normalized_cid, status) = match attachment.content_id.as_deref() {
@@ -170,7 +172,10 @@ fn extract_cid_references(bytes: &[u8]) -> Vec<(usize, String)> {
             while end < bytes.len() && !is_cid_delimiter(bytes[end]) {
                 end += 1;
             }
-            references.push((cursor, String::from_utf8_lossy(&bytes[start..end]).into_owned()));
+            references.push((
+                cursor,
+                String::from_utf8_lossy(&bytes[start..end]).into_owned(),
+            ));
             cursor = end.max(cursor + 4);
         } else {
             cursor += 1;
