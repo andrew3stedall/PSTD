@@ -501,10 +501,10 @@ fn build_eml_with_attachment_mode(
         .and_then(clean_header)?;
     let sender_name = message.sender_name.as_deref().and_then(clean_header);
     let from = format_address(sender_name.as_deref(), &sender_address);
-    let to = recipient_header(recipients, "to")
-        .or_else(|| transport_recipient_header(message, "To"));
-    let cc = recipient_header(recipients, "cc")
-        .or_else(|| transport_recipient_header(message, "Cc"));
+    let to =
+        recipient_header(recipients, "to").or_else(|| transport_recipient_header(message, "To"));
+    let cc =
+        recipient_header(recipients, "cc").or_else(|| transport_recipient_header(message, "Cc"));
     if to.is_none() && cc.is_none() {
         return None;
     }
@@ -1381,9 +1381,8 @@ mod tests {
     #[test]
     fn falls_back_to_one_validated_transport_recipient_header() {
         let mut message = message();
-        message.transport_message_headers = Some(
-            "Date: 19 Aug 2015 11:07:26 +0000\r\nTo: raw@example.com\r\n".to_string(),
-        );
+        message.transport_message_headers =
+            Some("Date: 19 Aug 2015 11:07:26 +0000\r\nTo: raw@example.com\r\n".to_string());
         let bodies = MessageBodies {
             text: Some(b"plain body".to_vec()),
             html: Some("<p>rich body</p>".to_string()),
