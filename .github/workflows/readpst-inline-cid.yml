@@ -92,6 +92,7 @@ jobs:
               root / 'archive' / record['archive_path']
               for record in attachments
               if record['extraction_status'] == 'extracted'
+              or record['extraction_status'].startswith('attachment_payload_extracted')
           ]
           if len(payload_paths) != 5 or not all(path.is_file() for path in payload_paths):
               raise SystemExit('PSTD did not materialize all five attachment payloads')

@@ -150,7 +150,7 @@ pub fn build_cid_references(
                 byte_offset: 0,
                 status: status.to_string(),
                 source: format!("attachment:{}", attachment.attachment_key),
-                authoritative: attachment.extraction_status == "extracted",
+                authoritative: attachment_payload_is_authoritative(&attachment.extraction_status),
                 synthetic: false,
             });
         }
@@ -158,6 +158,10 @@ pub fn build_cid_references(
 
     output.sort_by_key(|record| record.reference_key.clone());
     output
+}
+
+fn attachment_payload_is_authoritative(status: &str) -> bool {
+    status == "extracted" || status.starts_with("attachment_payload_extracted")
 }
 
 fn extract_cid_references(bytes: &[u8]) -> Vec<(usize, String)> {
@@ -347,5 +351,16 @@ mod tests {
 
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].status, "unmatched_inline_attachment");
+    }
+
+    #[test]
+    fn marks_descriptive_extracted_payload_status_authoritative() {
+        let mut attachment = attachment("msg", 0, Some("orphan@example.test"), true);
+        attachment.extraction_status =
+            "attachment_payload_extracted_data_tree; data_nid=0x1".to_string();
+
+        let records = build_cid_references(&[], &[attachment]);
+
+        assert!(records[0].authoritative);
     }
 }
