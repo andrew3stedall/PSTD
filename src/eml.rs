@@ -3,17 +3,21 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::{DateTime, FixedOffset, Utc};
 use sha2::{Digest, Sha256};
 
-use crate::output::headers::{clean_header_value, encode_display_name, encode_unstructured_value};
+use crate::output::headers::{
+    clean_header_value, encode_display_name, encode_mime_parameter, encode_unstructured_value,
+};
 use crate::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
 use crate::pst::attachments::{AttachmentPayload, ATTACH_METHOD_EMBEDDED_MESSAGE};
 use crate::pst::messages::BodyPayload;
 
 const FILETIME_UNIX_EPOCH_TICKS: u64 = 116_444_736_000_000_000;
+const MIXED_BOUNDARY: &str = "pstd-mixed-3e2b1a9c";
 
-pub fn build_plain_text_eml(
+pub fn build_inline_eml_with_attachments(
     message: &MessageRecord,
     recipients: &[RecipientRecord],
     text_bytes: &[u8],
+    attachments: &[AttachmentPayload],
 ) -> Option<Vec<u8>> {
     let subject = clean_header(message.subject.as_deref()?)?;
     let sender_address = message
@@ -30,6 +34,9 @@ pub fn build_plain_text_eml(
     }
     let date = validated_message_date(message)?;
     let text = std::str::from_utf8(text_bytes).ok()?;
+    if text.contains(MIXED_BOUNDARY) || !attachment_payloads_are_valid(attachments) {
+        return None;
+    }
 
     let mut eml = String::new();
     push_header(&mut eml, "From", &from);
@@ -49,14 +56,47 @@ pub fn build_plain_text_eml(
         push_header(&mut eml, "Message-ID", &message_id);
     }
     push_header(&mut eml, "MIME-Version", "1.0");
-    push_header(&mut eml, "Content-Type", "text/plain; charset=utf-8");
-    push_header(&mut eml, "Content-Transfer-Encoding", "8bit");
-    eml.push_str("\r\n");
-    eml.push_str(&normalize_crlf(text));
-    if !eml.ends_with("\r\n") {
+
+    if attachments.is_empty() {
+        push_header(&mut eml, "Content-Type", "text/plain; charset=utf-8");
+        push_header(&mut eml, "Content-Transfer-Encoding", "8bit");
         eml.push_str("\r\n");
+        eml.push_str(&normalize_crlf(text));
+        if !eml.ends_with("\r\n") {
+            eml.push_str("\r\n");
+        }
+    } else {
+        push_header(
+            &mut eml,
+            "Content-Type",
+            &format!("multipart/mixed; boundary=\"{MIXED_BOUNDARY}\""),
+        );
+        eml.push_str("\r\n--");
+        eml.push_str(MIXED_BOUNDARY);
+        eml.push_str("\r\n");
+        push_header(&mut eml, "Content-Type", "text/plain; charset=utf-8");
+        push_header(&mut eml, "Content-Transfer-Encoding", "8bit");
+        eml.push_str("\r\n");
+        eml.push_str(&normalize_crlf(text));
+        if !eml.ends_with("\r\n") {
+            eml.push_str("\r\n");
+        }
+        for attachment in attachments {
+            push_attachment_part(&mut eml, attachment)?;
+        }
+        eml.push_str("--");
+        eml.push_str(MIXED_BOUNDARY);
+        eml.push_str("--\r\n");
     }
     Some(eml.into_bytes())
+}
+
+pub fn build_plain_text_eml(
+    message: &MessageRecord,
+    recipients: &[RecipientRecord],
+    text_bytes: &[u8],
+) -> Option<Vec<u8>> {
+    build_inline_eml_with_attachments(message, recipients, text_bytes, &[])
 }
 
 pub fn materialize_embedded_message_payloads(
@@ -84,11 +124,7 @@ pub fn materialize_embedded_message_payloads(
             .then_some(attachment.embedded_message_key.clone())
             .flatten()
     }));
-    let child_messages_with_attachments = attachments
-        .iter()
-        .map(|attachment| attachment.message_key.clone())
-        .collect::<BTreeSet<_>>();
-
+    let attachment_records = attachments.to_vec();
     let mut materialized = 0usize;
     for attachment in attachments.iter_mut() {
         if attachment.attachment_method != Some(ATTACH_METHOD_EMBEDDED_MESSAGE)
@@ -102,7 +138,6 @@ pub fn materialize_embedded_message_payloads(
         if duplicate_embedded_keys.contains(child_key)
             || message_counts.get(child_key) != Some(&1)
             || body_counts.get(child_key) != Some(&1)
-            || child_messages_with_attachments.contains(child_key)
         {
             continue;
         }
@@ -123,7 +158,35 @@ pub fn materialize_embedded_message_payloads(
         else {
             continue;
         };
-        let Some(bytes) = build_plain_text_eml(message, &child_recipients, &body.bytes) else {
+        let child_attachment_records = attachment_records
+            .iter()
+            .filter(|candidate| candidate.message_key == child_key)
+            .collect::<Vec<_>>();
+        if child_attachment_records
+            .iter()
+            .any(|candidate| candidate.attachment_method == Some(ATTACH_METHOD_EMBEDDED_MESSAGE))
+        {
+            continue;
+        }
+        let mut child_payloads = child_attachment_records
+            .iter()
+            .filter_map(|candidate| {
+                payloads
+                    .iter()
+                    .find(|payload| payload.record.attachment_key == candidate.attachment_key)
+                    .cloned()
+            })
+            .collect::<Vec<_>>();
+        if child_payloads.len() != child_attachment_records.len() {
+            continue;
+        }
+        child_payloads.sort_by_key(|payload| attachment_order_key(&payload.record));
+        let Some(bytes) = build_inline_eml_with_attachments(
+            message,
+            &child_recipients,
+            &body.bytes,
+            &child_payloads,
+        ) else {
             continue;
         };
         attachment.content_type = Some("message/rfc822".to_string());
@@ -153,6 +216,117 @@ fn duplicate_values(values: impl Iterator<Item = String>) -> BTreeSet<String> {
         }
     }
     duplicates
+}
+
+fn attachment_order_key(record: &AttachmentRecord) -> (bool, u64, u64, u64, String) {
+    (
+        record.mime_sequence.is_none(),
+        record.mime_sequence.unwrap_or(u64::MAX),
+        record.rendering_position.unwrap_or(u64::MAX),
+        record.ordinal,
+        record.attachment_key.clone(),
+    )
+}
+
+fn attachment_payloads_are_valid(attachments: &[AttachmentPayload]) -> bool {
+    let mut attachment_keys = BTreeSet::new();
+    let mut ordinals = BTreeSet::new();
+    attachments.iter().all(|attachment| {
+        attachment.record.size_bytes == attachment.bytes.len() as u64
+            && attachment.record.sha256 == sha256_hex(&attachment.bytes)
+            && attachment_keys.insert(attachment.record.attachment_key.clone())
+            && ordinals.insert(attachment.record.ordinal)
+    })
+}
+
+fn push_attachment_part(output: &mut String, attachment: &AttachmentPayload) -> Option<()> {
+    let filename = clean_header(&attachment.record.filename_safe)?;
+    let content_type = attachment_content_type(attachment);
+    let disposition = if attachment.record.is_inline {
+        "inline"
+    } else {
+        "attachment"
+    };
+
+    output.push_str("--");
+    output.push_str(MIXED_BOUNDARY);
+    output.push_str("\r\n");
+    push_header(
+        output,
+        "Content-Type",
+        &format!(
+            "{content_type}; {}",
+            encode_mime_parameter("name", &filename)
+        ),
+    );
+    push_header(output, "Content-Transfer-Encoding", "base64");
+    push_header(
+        output,
+        "Content-Disposition",
+        &format!(
+            "{disposition}; {}",
+            encode_mime_parameter("filename", &filename)
+        ),
+    );
+    if let Some(content_id) = attachment
+        .record
+        .content_id
+        .as_deref()
+        .and_then(clean_header)
+    {
+        push_header(output, "Content-ID", &content_id);
+    }
+    output.push_str("\r\n");
+    output.push_str(&base64_lines(&attachment.bytes));
+    Some(())
+}
+
+fn attachment_content_type(attachment: &AttachmentPayload) -> String {
+    attachment
+        .record
+        .content_type
+        .as_deref()
+        .and_then(clean_header)
+        .or_else(|| match attachment.record.extension.as_deref() {
+            _ if attachment.record.attachment_method == Some(5) => {
+                Some("message/rfc822".to_string())
+            }
+            Some("docx") => Some(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    .to_string(),
+            ),
+            _ => None,
+        })
+        .unwrap_or_else(|| "application/octet-stream".to_string())
+}
+
+fn base64_lines(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut encoded = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let first = chunk[0];
+        let second = chunk.get(1).copied().unwrap_or(0);
+        let third = chunk.get(2).copied().unwrap_or(0);
+        encoded.push(ALPHABET[(first >> 2) as usize] as char);
+        encoded.push(ALPHABET[(((first & 0x03) << 4) | (second >> 4)) as usize] as char);
+        encoded.push(if chunk.len() > 1 {
+            ALPHABET[(((second & 0x0f) << 2) | (third >> 6)) as usize] as char
+        } else {
+            '='
+        });
+        encoded.push(if chunk.len() > 2 {
+            ALPHABET[(third & 0x3f) as usize] as char
+        } else {
+            '='
+        });
+    }
+
+    let mut lines = String::with_capacity(encoded.len() + encoded.len() / 76 * 2 + 2);
+    for line in encoded.as_bytes().chunks(76) {
+        lines.push_str(std::str::from_utf8(line).expect("base64 is ASCII"));
+        lines.push_str("\r\n");
+    }
+    lines
 }
 
 fn validated_message_date(message: &MessageRecord) -> Option<String> {

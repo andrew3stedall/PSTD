@@ -243,10 +243,14 @@ pub struct AttachmentRecord {
     pub size_status: String,
     pub sha256: String,
     pub is_inline: bool,
+    #[serde(default)]
+    pub is_hidden: bool,
     pub content_id: Option<String>,
     pub attachment_method: Option<i32>,
     pub source_ref: String,
     pub rendering_position: Option<u64>,
+    #[serde(default)]
+    pub mime_sequence: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedded_message_key: Option<String>,
     pub ordinal: u64,

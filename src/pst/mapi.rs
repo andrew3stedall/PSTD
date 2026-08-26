@@ -92,8 +92,10 @@ pub const PR_ATTACH_FILENAME_A: u32 = 0x3704_001e;
 pub const PR_ATTACH_METHOD: u32 = 0x3705_0003;
 pub const PR_ATTACH_LONG_FILENAME: u32 = 0x3707_001f;
 pub const PR_ATTACH_LONG_FILENAME_A: u32 = 0x3707_001e;
+pub const PR_RENDERING_POSITION: u32 = 0x370b_0003;
 pub const PR_ATTACH_MIME_TAG: u32 = 0x370e_001f;
 pub const PR_ATTACH_MIME_TAG_A: u32 = 0x370e_001e;
+pub const PR_ATTACH_MIME_SEQUENCE: u32 = 0x3710_0003;
 pub const PR_ATTACH_CONTENT_ID: u32 = 0x3712_001f;
 pub const PR_ATTACH_CONTENT_ID_A: u32 = 0x3712_001e;
 pub const PR_ATTACH_SIZE: u32 = 0x0e20_0003;
@@ -361,9 +363,19 @@ pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
         value_type: MapiValueType::String,
     },
     MapiPropertyDef {
+        tag: PR_RENDERING_POSITION,
+        name: "attachment_rendering_position",
+        value_type: MapiValueType::Integer32,
+    },
+    MapiPropertyDef {
         tag: PR_ATTACH_MIME_TAG,
         name: "attachment_mime_tag",
         value_type: MapiValueType::String,
+    },
+    MapiPropertyDef {
+        tag: PR_ATTACH_MIME_SEQUENCE,
+        name: "attachment_mime_sequence",
+        value_type: MapiValueType::Integer32,
     },
     MapiPropertyDef {
         tag: PR_ATTACH_CONTENT_ID,

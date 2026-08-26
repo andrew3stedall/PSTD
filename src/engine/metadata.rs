@@ -93,11 +93,13 @@ pub struct MetadataExtractionOutput {
 
 #[derive(Debug, Clone)]
 struct EmbeddedMessageExtractionOutput {
-    message: MessageRecord,
-    header: HeaderProjectionRecord,
+    messages: Vec<MessageRecord>,
+    headers: Vec<HeaderProjectionRecord>,
     recipients: Vec<RecipientRecord>,
     bodies: Vec<BodyRecord>,
     body_payloads: Vec<BodyPayload>,
+    attachments: Vec<AttachmentRecord>,
+    attachment_payloads: Vec<AttachmentPayload>,
 }
 
 #[derive(Debug, Clone)]
@@ -479,6 +481,10 @@ pub fn extract_metadata(
                                     &root_folder.folder_path,
                                     candidate,
                                     &mut table_probe_collector,
+                                    &reader,
+                                    &bbt,
+                                    limits,
+                                    1,
                                 ));
                             }
                             subnode_decoded_blocks += loaded_subnodes.report.decoded_block_count;
@@ -657,13 +663,18 @@ pub fn extract_metadata(
         }
     }
 
-    let embedded_message_count = embedded_message_outputs.len();
+    let embedded_message_count = embedded_message_outputs
+        .iter()
+        .map(|output| output.messages.len())
+        .sum::<usize>();
     for mut output in embedded_message_outputs {
-        headers.push(output.header);
-        messages.push(output.message);
+        headers.append(&mut output.headers);
+        messages.append(&mut output.messages);
         recipients.append(&mut output.recipients);
         bodies.append(&mut output.bodies);
         body_payloads.append(&mut output.body_payloads);
+        attachments.append(&mut output.attachments);
+        attachment_payloads.append(&mut output.attachment_payloads);
     }
     let embedded_message_payload_count = materialize_embedded_message_payloads(
         &mut attachments,
@@ -1080,6 +1091,10 @@ fn recover_embedded_message(
     folder_path: &str,
     candidate: EmbeddedMessageCandidate,
     table_probe_collector: &mut TcRunProbeCollector,
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    limits: ParserLimits,
+    depth: usize,
 ) -> EmbeddedMessageExtractionOutput {
     let mut message = message_from_properties(
         run_id,
@@ -1157,19 +1172,90 @@ fn recover_embedded_message(
         }
     }
 
-    if message.has_attachments {
-        message.attachment_status = "embedded_message_nested_attachments_deferred".to_string();
-    } else {
-        message.attachment_status = "attachment_payload_property_absent".to_string();
+    let mut attachments = Vec::new();
+    let mut attachment_payloads = Vec::new();
+    let mut nested_candidates = Vec::new();
+    let mut attachment_status = None;
+    let mut nested_messages = Vec::new();
+    let mut nested_headers = Vec::new();
+    if !candidate.subnode_payloads.is_empty() {
+        let (mut payloads, mut records, candidates, report) =
+            attachment_payloads_from_property_context_subnodes(
+                &message.message_key,
+                &candidate.subnode_payloads,
+                reader,
+                bbt,
+                limits,
+            );
+        attachment_status = Some(report.status);
+        for payload in &payloads {
+            records.push(payload.record.clone());
+        }
+        attachments.append(&mut records);
+        attachment_payloads.append(&mut payloads);
+        nested_candidates = candidates;
     }
-    message.attachment_count = 0;
+
+    for nested_candidate in nested_candidates {
+        if depth >= crate::pst::embedded_graph::MAX_EMBEDDED_DEPTH as usize {
+            if let Some(record) = attachments.iter_mut().find(|record| {
+                record.attachment_key == nested_candidate.attachment_record.attachment_key
+            }) {
+                record.extraction_status =
+                    "embedded_message_depth_limit; child_message_not_recovered".to_string();
+            }
+            continue;
+        }
+        let nested_output = recover_embedded_message(
+            run_id,
+            pst_id,
+            folder_key,
+            folder_path,
+            nested_candidate,
+            table_probe_collector,
+            reader,
+            bbt,
+            limits,
+            depth + 1,
+        );
+        attachments.extend(nested_output.attachments);
+        attachment_payloads.extend(nested_output.attachment_payloads);
+        nested_messages.extend(nested_output.messages);
+        nested_headers.extend(nested_output.headers);
+        recipients.extend(nested_output.recipients);
+        bodies.extend(nested_output.bodies);
+        body_payloads.extend(nested_output.body_payloads);
+    }
+
+    message.has_attachments = message.has_attachments || !attachments.is_empty();
+    message.attachment_count = attachments.len() as u64;
+    message.attachment_status = if attachments.is_empty() {
+        if message.has_attachments {
+            "embedded_message_nested_attachments_unavailable".to_string()
+        } else {
+            "attachment_payload_property_absent".to_string()
+        }
+    } else {
+        format!(
+            "{}; attachment_records={}; embedded_depth={depth}",
+            attachment_status
+                .unwrap_or_else(|| "embedded_attachment_records_recovered".to_string()),
+            attachments.len()
+        )
+    };
+    let mut messages = vec![message];
+    messages.extend(nested_messages);
+    let mut headers = vec![header];
+    headers.extend(nested_headers);
 
     EmbeddedMessageExtractionOutput {
-        message,
-        header,
+        messages,
+        headers,
         recipients,
         bodies,
         body_payloads,
+        attachments,
+        attachment_payloads,
     }
 }
 

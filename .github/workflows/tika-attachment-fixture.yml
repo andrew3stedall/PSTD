@@ -51,6 +51,7 @@ jobs:
 
           python - <<'PY'
           import hashlib
+          import base64
           import json
           import zipfile
           from email import policy
@@ -400,7 +401,7 @@ jobs:
           ]
           if recipients != expected_recipients:
               raise SystemExit(f'unexpected recipients: {recipients!r}')
-          if len(attachments) != 2:
+          if len(attachments) != 3:
               raise SystemExit(f'unexpected attachment record count: {len(attachments)}')
           if len(items) < len(folders) + len(messages):
               raise SystemExit(
@@ -507,7 +508,12 @@ jobs:
               'rendering_position': 0,
               'ordinal': 0,
               'archive_path': 'attachments/msg_c6163b9157944cc9/att_0695091e19397627_attachment.docx',
-              'extraction_status': 'attachment_payload_extracted_unicode_xblock; data_nid=0x0000833f; data_bid=0x632; child_blocks=2; zip_signature=504b0304',
+              'extraction_status': (
+                  'attachment_payload_extracted_data_tree; data_nid=0x0000833f; '
+                  'data_bid=0x632; child_blocks=2; '
+                  'attachment_data_tree_loaded__root_bid_0x632__header_0x0101__'
+                  'child_blocks_2__total_bytes_11862__metadata_size_differs_fro'
+              ),
           }
           for name, value in expected.items():
               if attachment.get(name) != value:
@@ -523,15 +529,17 @@ jobs:
               'filename_safe': 'attachment_1.eml',
               'content_type': 'message/rfc822',
               'extension': 'eml',
-              'size_bytes': 453,
+              'size_bytes': 17032,
               'declared_size_bytes': 24308,
               'size_status': 'size_mismatch',
-              'sha256': '86ffe5567da7aa505b8be16400889170ca583fd247cc0758f00a43c2a8a99420',
+              'sha256': '44f7e7bd7d8fbb8a8b7c506ffd6283024a86721f27870dd7dfb9da62065588db',
               'is_inline': False,
+              'is_hidden': False,
               'content_id': None,
               'attachment_method': 5,
               'source_ref': 'mapi:PR_ATTACH_DATA_OBJ/embedded_message',
               'rendering_position': 1,
+              'mime_sequence': None,
               'embedded_message_key': 'msg_0ff529af59d373d5',
               'ordinal': 1,
               'archive_path': (
@@ -548,7 +556,7 @@ jobs:
           if not embedded_payload_path.is_file():
               raise SystemExit('embedded message EML payload file is absent')
           embedded_payload = embedded_payload_path.read_bytes()
-          if len(embedded_payload) != 453:
+          if len(embedded_payload) != 17032:
               raise SystemExit(f'unexpected embedded payload size: {len(embedded_payload)}')
           if hashlib.sha256(embedded_payload).hexdigest() != embedded_attachment['sha256']:
               raise SystemExit('embedded payload checksum mismatch')
@@ -568,6 +576,43 @@ jobs:
               document_xml = document.read('word/document.xml').decode('utf-8')
           if 'This is a docx attachment.' not in document_xml:
               raise SystemExit('expected DOCX text is absent')
+
+          child_attachment = attachments[2]
+          expected_child_attachment = {
+              'message_key': 'msg_0ff529af59d373d5',
+              'attachment_key': 'att_cd792b3e3dd1e12b',
+              'filename_original': 'attachment.docx',
+              'filename_safe': 'attachment.docx',
+              'extension': 'docx',
+              'size_bytes': 11862,
+              'declared_size_bytes': 15503,
+              'size_status': 'size_mismatch',
+              'sha256': '0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0',
+              'attachment_method': 1,
+              'source_ref': 'mapi:PR_ATTACH_DATA_BIN/by_value',
+              'rendering_position': 0,
+              'ordinal': 0,
+              'archive_path': (
+                  'attachments/msg_0ff529af59d373d5/'
+                  'att_cd792b3e3dd1e12b_attachment.docx'
+              ),
+              'extraction_status': (
+                  'attachment_payload_extracted_data_tree; data_nid=0x0000833f; '
+                  'data_bid=0x632; child_blocks=2; '
+                  'attachment_data_tree_loaded__root_bid_0x632__header_0x0101__'
+                  'child_blocks_2__total_bytes_11862__metadata_size_differs_fro'
+              ),
+          }
+          for name, value in expected_child_attachment.items():
+              if child_attachment.get(name) != value:
+                  raise SystemExit(
+                      f'child attachment {name} mismatch: '
+                      f'{child_attachment.get(name)!r} != {value!r}'
+                  )
+          child_payload_path = archive / child_attachment['archive_path']
+          child_payload = child_payload_path.read_bytes()
+          if hashlib.sha256(child_payload).hexdigest() != child_attachment['sha256']:
+              raise SystemExit('child attachment payload checksum mismatch')
 
           owner = next(
               message for message in messages
@@ -611,8 +656,8 @@ jobs:
               'normalized_subject': '\u0001\u0001first email',
               'has_text_body': True,
               'has_html_body': False,
-              'has_attachments': False,
-              'attachment_count': 0,
+              'has_attachments': True,
+              'attachment_count': 1,
               'metadata_status': (
                   'embedded_property_context_loaded; data_bid=0x670; '
                   'property_count=58; selected_properties=22; '
@@ -623,7 +668,10 @@ jobs:
                   'supported_body_properties=2; body_types=text; '
                   'preferred_body_type=text; unresolved_body_types=html'
               ),
-              'attachment_status': 'attachment_payload_property_absent',
+              'attachment_status': (
+                  'attachment_property_context_payloads_extracted; '
+                  'attachment_records=1; embedded_depth=1'
+              ),
               'extraction_status': 'metadata_and_payload',
           }
           for name, value in expected_embedded_message.items():
@@ -689,8 +737,11 @@ jobs:
               raise SystemExit(f'unexpected EML filenames: {sorted(eml_by_name)}')
           eml_path = eml_by_name['msg_c6163b9157944cc9.eml']
           eml_bytes = eml_path.read_bytes()
-          if len(eml_bytes) != 17035:
-              raise SystemExit(f'unexpected EML size: {len(eml_bytes)}')
+          if len(eml_bytes) <= 17035:
+              raise SystemExit(
+                  f'inline EML did not grow to include the recovered method-5 payload: '
+                  f'{len(eml_bytes)}'
+              )
           if b'\n' in eml_bytes.replace(b'\r\n', b'') or b'\r' in eml_bytes.replace(b'\r\n', b''):
               raise SystemExit('EML contains non-CRLF line endings')
           parsed_eml = BytesParser(policy=policy.default).parsebytes(eml_bytes)
@@ -710,9 +761,17 @@ jobs:
           if body is None or body.get_content() != 'Forwarding mail…\r\n':
               raise SystemExit(f'unexpected EML plain body: {body!r}')
           eml_attachments = list(parsed_eml.iter_attachments())
-          if len(eml_attachments) != 1:
+          if len(eml_attachments) != 2:
               raise SystemExit(f'unexpected EML attachment count: {len(eml_attachments)}')
-          eml_attachment = eml_attachments[0]
+          eml_attachments_by_name = {
+              attachment.get_filename(): attachment for attachment in eml_attachments
+          }
+          if set(eml_attachments_by_name) != {'attachment.docx', 'attachment_1.eml'}:
+              raise SystemExit(
+                  f'unexpected EML attachment filenames: '
+                  f'{sorted(eml_attachments_by_name)}'
+              )
+          eml_attachment = eml_attachments_by_name['attachment.docx']
           if eml_attachment.get_filename() != 'attachment.docx':
               raise SystemExit(f'unexpected EML attachment filename: {eml_attachment.get_filename()!r}')
           if eml_attachment.get_content_type() != (
@@ -723,20 +782,29 @@ jobs:
               )
           if eml_attachment.get_payload(decode=True) != payload:
               raise SystemExit('EML attachment payload differs from extracted DOCX bytes')
+          eml_embedded_attachment = eml_attachments_by_name['attachment_1.eml']
+          if eml_embedded_attachment.get_content_type() != 'message/rfc822':
+              raise SystemExit(
+                  f'unexpected embedded EML content type: '
+                  f'{eml_embedded_attachment.get_content_type()}'
+              )
+          compact_eml = b''.join(eml_bytes.splitlines())
+          if base64.b64encode(embedded_payload) not in compact_eml:
+              raise SystemExit('EML embedded-message base64 differs from extracted bytes')
 
 
           child_eml_path = eml_by_name['msg_0ff529af59d373d5.eml']
           child_eml_bytes = child_eml_path.read_bytes()
-          if len(child_eml_bytes) != 453:
+          if len(child_eml_bytes) != 17032:
               raise SystemExit(f'unexpected child EML size: {len(child_eml_bytes)}')
           if hashlib.sha256(child_eml_bytes).hexdigest() != (
-              '86ffe5567da7aa505b8be16400889170ca583fd247cc0758f00a43c2a8a99420'
+              '44f7e7bd7d8fbb8a8b7c506ffd6283024a86721f27870dd7dfb9da62065588db'
           ):
               raise SystemExit('child EML checksum mismatch')
           if b'\n' in child_eml_bytes.replace(b'\r\n', b'') or b'\r' in child_eml_bytes.replace(b'\r\n', b''):
               raise SystemExit('child EML contains non-CRLF line endings')
           child_eml = BytesParser(policy=policy.default).parsebytes(child_eml_bytes)
-          if child_eml.get_content_type() != 'text/plain' or child_eml.is_multipart():
+          if child_eml.get_content_type() != 'multipart/mixed' or not child_eml.is_multipart():
               raise SystemExit(f'unexpected child EML MIME shape: {child_eml.get_content_type()}')
           if child_eml['Subject'] != 'First email':
               raise SystemExit(f'unexpected child EML subject: {child_eml["Subject"]!r}')
@@ -748,12 +816,24 @@ jobs:
               raise SystemExit(f'unexpected child EML Message-ID: {child_eml["Message-ID"]!r}')
           if b'From: Luis Filipe da Cruz Nassif </o=PF/' not in child_eml_bytes:
               raise SystemExit('child native Exchange sender address was not preserved')
-          if not child_eml_bytes.endswith(b'\r\n\r\nDocx file attached.\r\n\r\n'):
+          child_body = child_eml.get_body(preferencelist=('plain',))
+          if child_body is None or child_body.get_content() != 'Docx file attached.\r\n':
               raise SystemExit('child EML plain body changed')
           if b'Content-Type: text/html' in child_eml_bytes or b'\x7f\x83\x00\x00' in child_eml_bytes:
               raise SystemExit('child raw HTML evidence leaked into MIME output')
-          if b'multipart/' in child_eml_bytes or b'pstd-alternative-' in child_eml_bytes:
-              raise SystemExit('child EML must remain single-part plain text')
+          child_eml_attachments = list(child_eml.iter_attachments())
+          if len(child_eml_attachments) != 1:
+              raise SystemExit(
+                  f'unexpected child EML attachment count: {len(child_eml_attachments)}'
+              )
+          child_eml_attachment = child_eml_attachments[0]
+          if child_eml_attachment.get_filename() != 'attachment.docx':
+              raise SystemExit(
+                  f'unexpected child EML attachment filename: '
+                  f'{child_eml_attachment.get_filename()!r}'
+              )
+          if child_eml_attachment.get_payload(decode=True) != child_payload:
+              raise SystemExit('child EML attachment payload differs from extracted bytes')
           if embedded_payload != child_eml_bytes:
               raise SystemExit('method-5 payload differs from standalone child EML')
 
@@ -790,23 +870,24 @@ jobs:
               'messages': 8,
               'body_records': 10,
               'recipient_records': 9,
-              'attachment_records': 2,
+              'attachment_records': 3,
               'body_payload_files': 6,
               'body_payload_bytes': 271,
-              'attachment_payload_files': 2,
-              'attachment_payload_bytes': 12315,
+              'attachment_payload_files': 3,
+              'attachment_payload_bytes': 40756,
               'eml_files': 2,
-              'eml_bytes': 17488,
-              'messages_jsonl_bytes': 28727,
+              'messages_jsonl_bytes': 28778,
               'bodies_jsonl_bytes': 2922,
               'recipients_jsonl_bytes': 2708,
-              'attachments_jsonl_bytes': 1390,
+              'attachments_jsonl_bytes': 2409,
               'headers_jsonl_bytes': 4596,
-              'tar_bytes': 550912,
-              'stable_archive_bytes': 550912,
+              'tar_bytes': 641536,
+              'stable_archive_bytes': 641536,
           }
           stable_metrics = {
-              key: value for key, value in metrics.items() if key != 'output_total_bytes'
+              key: value
+              for key, value in metrics.items()
+              if key not in {'output_total_bytes', 'eml_bytes'}
           }
           if stable_metrics != expected_metrics:
               raise SystemExit(

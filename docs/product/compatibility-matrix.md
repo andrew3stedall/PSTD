@@ -41,7 +41,7 @@ Track compatibility by independently testable capability and approved fixture. P
 | Multipart alternative EML | Exact: 956 bytes | Not exercised on current Tika message | Not admitted | Purview messages with independently valid plain and HTML forms |
 | By-value attachment metadata | Not exercised | Exact for one DOCX | Not admitted | Purview messages with zero, one, and multiple attachments |
 | By-value attachment payload | Not exercised | Exact: 11,862-byte DOCX with hash and ZIP/CRC evidence | Not admitted | Multiple Purview attachments, formats, non-ASCII filenames, and larger payloads |
-| Multipart mixed EML | Not exercised | Exact: 17,035-byte parent EML | Not admitted | Multiple Purview attachments and mixed HTML body |
+| Multipart mixed EML | Not exercised | Deterministic parent EML with DOCX and recovered `message/rfc822` parts | Not admitted | Multiple Purview attachments and mixed HTML body |
 | Method-5 embedded-message link | Not exercised | Exact: one separately owned child with exact standalone EML and payload | Not admitted | Additional Purview producer/layout evidence |
 | Embedded-message attachment payload | Not exercised | Exact: 453-byte `message/rfc822`, byte-identical to standalone child EML | Not admitted | Additional Purview layouts and bounded recursion |
 | Nested embedded messages | Not exercised | Not exercised | Not admitted | Controlled Purview recursive fixture and depth limit |
@@ -53,13 +53,13 @@ Track compatibility by independently testable capability and approved fixture. P
 | Malformed or truncated PST handling | Partial bounded parser tests | Partial bounded parser tests | Not admitted | Deterministic derivatives of approved Purview synthetic bytes |
 | Ambiguous ownership rejection | Exact focused tests | Exact for duplicate embedded-child rejection | Not admitted | Purview duplicate, cross-scope, and conflicting ownership cases |
 | Encrypted or unsupported exports | Partial diagnostic boundaries | Partial diagnostic boundaries | Not admitted | Controlled Purview unsupported/encrypted evidence where safely reproducible |
-| Deterministic output | Exact | Exact for the 17,035-byte parent and 453-byte child EMLs | Not admitted | Two byte-identical PSTD runs for every admitted Purview fixture |
+| Deterministic output | Exact | Exact for the 956-byte original and 453-byte child EMLs; inline/external attachment assembly is deterministic | Not admitted | Two byte-identical PSTD runs for every admitted Purview fixture |
 | Completeness accounting | Partial fixture-specific counts | Exact fixture-specific counts | Not admitted | Exact Purview counts plus explicit unavailable, unsupported, ambiguous, corrupt, and incomplete statuses |
 | Large-file performance and memory | Unknown | Unknown | Not admitted | Purview benchmarks with documented parser and resource limits |
 
 ## Current release interpretation
 
-PSTD currently demonstrates a material Unicode email extraction path, including recipients, bodies, one by-value DOCX attachment, one attachment-bearing parent EML, and one separately recovered child whose exact EML is also published as a method-`5` `message/rfc822` payload. These fixtures are useful parser and EML evidence, but neither is a controlled Microsoft Purview export.
+PSTD currently demonstrates a material Unicode email extraction path, including recipients, bodies, one by-value DOCX attachment, one recovered method-`5` `message/rfc822` payload, an inline parent EML carrying both payloads, an external manifest-linked attachment layout, and one separately recovered child whose exact EML is also published as the method-`5` payload. These fixtures are useful parser and EML evidence, but neither is a controlled Microsoft Purview export.
 
 Microsoft Purview is the primary producer target. Every Purview capability remains **Not admitted** until immutable synthetic export bytes, provenance, redistribution basis, exact hashes, an independent inventory, repeated PSTD output, and explicit completeness statuses are committed. No single `Purview supported` state is permitted.
 

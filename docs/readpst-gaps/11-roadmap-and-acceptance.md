@@ -187,8 +187,8 @@ subsequent easiest-closure wave promoted six policy/projection rows—`CLI-01`, 
 `CLI-10`, `MSG-09`, `MSG-10`, and `ATT-09`—using canonical synthetic positive,
 negative, and determinism evidence. No new parser/input coverage is implied.
 
-The maintained matrix after the attachment metadata closure wave is **10 Implemented,
-53 Partial, and 14 Gap**.
+The maintained matrix after the attachment payload extraction wave is **10 Implemented,
+54 Partial, and 11 Gap**.
 
 ## Fixture and differential strategy
 

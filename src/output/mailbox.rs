@@ -214,6 +214,17 @@ pub fn render_profile(
                     status: "filtered_attachment_extension".to_string(),
                     extension: attachment.extension.clone(),
                 });
+            } else if let Some(status) = attachment_payload_status(attachment, attachment_payloads)
+            {
+                attachment_unavailable_count += 1;
+                attachment_decisions.push(MailboxAttachmentDecision {
+                    attachment_key: attachment.attachment_key.clone(),
+                    message_key: attachment.message_key.clone(),
+                    filename: sanitize_segment(&attachment.filename_safe),
+                    path: None,
+                    status: status.to_string(),
+                    extension: attachment.extension.clone(),
+                });
             }
         }
     }
@@ -575,11 +586,7 @@ fn append_separate_attachments(
         .iter()
         .filter(|attachment| attachment.message_key == message.message_key)
         .collect::<Vec<_>>();
-    selected.sort_by(|left, right| {
-        left.ordinal
-            .cmp(&right.ordinal)
-            .then(left.attachment_key.cmp(&right.attachment_key))
-    });
+    selected.sort_by_key(|attachment| attachment_order_key(attachment));
 
     for attachment in selected {
         *attachment_count += 1;
@@ -592,20 +599,6 @@ fn append_separate_attachments(
                 filename,
                 path: None,
                 status: "filtered_attachment_extension".to_string(),
-                extension: attachment.extension.clone(),
-            });
-            continue;
-        }
-        if attachment.attachment_method
-            == Some(crate::pst::attachments::ATTACH_METHOD_EMBEDDED_MESSAGE)
-        {
-            *attachment_unavailable_count += 1;
-            decisions.push(MailboxAttachmentDecision {
-                attachment_key: attachment.attachment_key.clone(),
-                message_key: message.message_key.clone(),
-                filename,
-                path: None,
-                status: "skipped_embedded_message_attachment".to_string(),
                 extension: attachment.extension.clone(),
             });
             continue;
@@ -625,14 +618,14 @@ fn append_separate_attachments(
             });
             continue;
         };
-        if payload.bytes.is_empty() {
+        if !attachment_payload_matches_record(attachment, payload) {
             *attachment_unavailable_count += 1;
             decisions.push(MailboxAttachmentDecision {
                 attachment_key: attachment.attachment_key.clone(),
                 message_key: message.message_key.clone(),
                 filename,
                 path: None,
-                status: "unavailable_zero_length_attachment".to_string(),
+                status: "attachment_payload_integrity_failed".to_string(),
                 extension: attachment.extension.clone(),
             });
             continue;
@@ -818,14 +811,15 @@ pub(crate) fn serialize_message_eml(
         );
     }
 
-    for attachment in attachments
+    let mut selected_attachments = attachments
         .iter()
         .filter(|attachment| {
             attachment.message_key == message.message_key
                 && attachment_extension_allowed(attachment, attachment_extensions)
         })
-        .collect::<Vec<_>>()
-    {
+        .collect::<Vec<_>>();
+    selected_attachments.sort_by_key(|attachment| attachment_order_key(attachment));
+    for attachment in selected_attachments {
         if separate_attachments {
             continue;
         }
@@ -835,13 +829,20 @@ pub(crate) fn serialize_message_eml(
         else {
             continue;
         };
+        if !attachment_payload_matches_record(attachment, payload) {
+            continue;
+        }
+        let content_type = attachment.content_type.as_deref().unwrap_or_else(|| {
+            if attachment.attachment_method == Some(5) {
+                "message/rfc822"
+            } else {
+                "application/octet-stream"
+            }
+        });
         append_binary_part(
             &mut output,
             &boundary,
-            attachment
-                .content_type
-                .as_deref()
-                .unwrap_or("application/octet-stream"),
+            content_type,
             &attachment.filename_safe,
             &payload.bytes,
             attachment.is_inline,
@@ -1140,6 +1141,45 @@ fn artifact_sha256(bytes: &[u8]) -> String {
     hex::encode(hasher.finalize())
 }
 
+fn attachment_payload_matches_record(
+    record: &AttachmentRecord,
+    payload: &AttachmentPayload,
+) -> bool {
+    record.message_key == payload.record.message_key
+        && record.attachment_key == payload.record.attachment_key
+        && record.archive_path == payload.record.archive_path
+        && record.size_bytes == payload.bytes.len() as u64
+        && record.sha256 == artifact_sha256(&payload.bytes)
+        && payload.record.size_bytes == payload.bytes.len() as u64
+        && payload.record.sha256 == artifact_sha256(&payload.bytes)
+}
+
+fn attachment_payload_status(
+    record: &AttachmentRecord,
+    payloads: &[AttachmentPayload],
+) -> Option<&'static str> {
+    match payloads
+        .iter()
+        .find(|payload| payload.record.attachment_key == record.attachment_key)
+    {
+        None => Some("unavailable_attachment_payload"),
+        Some(payload) if !attachment_payload_matches_record(record, payload) => {
+            Some("attachment_payload_integrity_failed")
+        }
+        Some(_) => None,
+    }
+}
+
+fn attachment_order_key(attachment: &AttachmentRecord) -> (bool, u64, u64, u64, String) {
+    (
+        attachment.mime_sequence.is_none(),
+        attachment.mime_sequence.unwrap_or(u64::MAX),
+        attachment.rendering_position.unwrap_or(u64::MAX),
+        attachment.ordinal,
+        attachment.attachment_key.clone(),
+    )
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     artifact_sha256(bytes)
 }
@@ -1398,6 +1438,59 @@ pub(crate) mod tests {
             decision.status == "unavailable_attachment_payload"
                 && decision.filename == "missing.pdf"
         }));
+    }
+
+    #[test]
+    fn separate_profile_emits_zero_length_and_recovered_embedded_payloads() {
+        let msg = message("msg-all-attachments", "/Inbox", Some("IPM.Note"));
+        let body = text_body_payload("msg-all-attachments", "body");
+        let empty = attachment_payload(
+            "msg-all-attachments",
+            1,
+            AttachmentMetadata {
+                filename_original: Some("empty.bin".to_string()),
+                ..AttachmentMetadata::default()
+            },
+            Vec::new(),
+        );
+        let embedded = attachment_payload(
+            "msg-all-attachments",
+            2,
+            AttachmentMetadata {
+                filename_original: Some("child.eml".to_string()),
+                attachment_method: Some(5),
+                content_type: Some("message/rfc822".to_string()),
+                ..AttachmentMetadata::default()
+            },
+            b"child eml".to_vec(),
+        );
+        let attachments = vec![empty.record.clone(), embedded.record.clone()];
+        let output = render_profile(
+            OutputProfile::Separate,
+            &[],
+            &[msg],
+            &[],
+            &[],
+            std::slice::from_ref(&body.record),
+            std::slice::from_ref(&body),
+            &attachments,
+            &[empty, embedded],
+            &[],
+        )
+        .expect("separate profile");
+
+        assert_eq!(output.status.emitted_attachment_count, 2);
+        assert_eq!(output.status.attachment_unavailable_count, 0);
+        assert!(output
+            .artifacts
+            .iter()
+            .any(|artifact| artifact.summary.output_kind == "attachment_file"
+                && artifact.summary.size_bytes == 0));
+        assert!(output
+            .status
+            .attachment_decisions
+            .iter()
+            .all(|decision| { decision.status == "attachment_file_emitted" }));
     }
 
     #[test]

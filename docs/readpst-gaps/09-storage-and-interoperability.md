@@ -161,8 +161,9 @@ the remaining promotion work is differential and broad-corpus validation.
 RP-M5-02 extends the same projection with separate binary attachment files and KMail.
 The separate profile follows readpst’s `<message-file>-<filename>` shape, prefers the
 canonical safe filename, applies the normalized `-a` allow-list, and records filtered,
-embedded, unavailable, unsafe, and zero-length decisions without publishing empty or
-guessed payloads. KMail emits `.<folder>.directory/<folder>.mbox` paths and records that
+unavailable, unsafe, and integrity-failed decisions while publishing every validated
+payload, including empty and recovered embedded-message bytes. KMail emits
+`.<folder>.directory/<folder>.mbox` paths and records that
 the mutable parent index is logically invalidated; it does not emit an index file. The
 attachment/KMail workflow proves repeated output equality and archive path safety.
 

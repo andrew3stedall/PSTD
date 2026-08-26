@@ -1,6 +1,6 @@
 # PSTD Roadmap
 
-_Last reviewed: 21 August 2026._
+_Last reviewed: 22 August 2026._
 
 ## Objective
 
@@ -38,7 +38,8 @@ Complete through Vertical 38:
 - eight exact folders and seven exact top-level physical message owners;
 - six valid body payloads totalling 271 bytes and two explicit unavailable HTML forms;
 - one exact 11,862-byte DOCX by-value attachment;
-- one deterministic 17,035-byte parent `multipart/mixed` EML;
+- one deterministic parent `multipart/mixed` EML carrying the DOCX and recovered
+  `message/rfc822` payloads in inline mode;
 - one deterministic 453-byte child `text/plain` EML;
 - one byte-identical 453-byte method-5 `message/rfc822` payload;
 - fail-closed rejection of missing, mismatched, duplicate, nested, ambiguous, and unsafe child candidates.
@@ -52,6 +53,15 @@ Vertical 39 decodes version-14/15 header roots and crypt-method fields for diagn
 PR #491 records the java-libpst fixture's deterministic fail-closed result: 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised payloads, 0 validated `IPM.Note*` classes, and 0 EML files.
 
 ## Current milestone
+
+### Attachment payload extraction wave
+
+The attachment path now resolves arbitrary direct bytes and bounded 0x0101/0x0201
+data trees without assuming DOCX, retains attachment method/hidden/position/sequence
+metadata, and recursively recovers attachments owned by embedded child messages under
+the existing depth budget. This is a material extraction improvement, but the release
+gate remains NOT PARITY-COMPLETE until broad method-2/3/4/6, ANSI/OST, CID, and
+differential fixture coverage is admitted.
 
 ### Readpst parity release gate
 

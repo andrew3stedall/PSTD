@@ -18,11 +18,11 @@ The libpst attachment model exposes more than a filename and payload. PSTD alrea
 | MIME tag | Used as Content-Type, with octet-stream fallback. | **Implemented** for generated EML and canonical MIME projection, including unsafe-value rejection. |
 | Content-ID | Emitted as `Content-ID` when present. | **Partial**: captured and emitted on validated paths; CID correlation is not proven. |
 | Attachment method | 0 none, 1 by value, 2 by reference, 3 by-reference-resolve, 4 by-reference-only, 5 embedded message, 6 OLE. | **Partial**: method 1 and one method 5 layout are validated. |
-| Rendering position | Indicates where an attachment appears in body text. | **Gap** |
-| MIME sequence | Preserves MIME ordering. | **Gap** |
-| Hidden flag | Can imply inline content. | **Partial** |
+| Rendering position | Indicates where an attachment appears in body text. | **Implemented**: selected and retained in canonical records, with ordinal fallback. |
+| MIME sequence | Preserves MIME ordering. | **Implemented**: selected and used before rendering position in MIME ordering. |
+| Hidden flag | Can imply inline content. | **Partial**: captured independently and contributes to inline evidence; CID/HTML correlation remains open. |
 | Declared size | Used for diagnostics and payload checks. | **Partial** |
-| Exact payload bytes | Reads direct, subnode, reference, and multi-block data. | **Partial**: one Unicode XBLOCK DOCX path is exact. |
+| Exact payload bytes | Reads direct, subnode, reference, and multi-block data. | **Partial**: generic direct/4-or-8-byte XBLOCK/XXBLOCK resolution is implemented, but broad producer and reference corpus coverage remains open. |
 
 ## Attachment methods
 
@@ -48,11 +48,11 @@ An unresolved reference is not an empty attachment. It is metadata plus `unavail
 
 The child message needs a separate stable message identity and a parent attachment link. A valid child can be emitted as `message/rfc822`; its own body, recipients, headers, attachments, and nested children must be processed under an explicit recursion limit. Ambiguous or non-email embedded objects must remain linked metadata with a scoped skip status.
 
-PSTD currently materializes one method-5 child EML layout and deliberately defers broader nesting. This is Partial, not complete parity.
+PSTD materializes method-5 child EML layouts and now walks child property-context subnodes for the child’s own attachments and nested method-5 children under the bounded embedded-graph depth limit. Broad producer/layout and non-email embedded-object coverage remains Partial, not complete parity.
 
 ### OLE (`6`)
 
-readpst treats non-embedded attachment data as a file/MIME payload when bytes or a resolvable ID exist. PSTD must preserve OLE bytes and metadata without attempting to reinterpret the object as a normal email attachment. A later typed OLE decoder is optional; lossless extraction is not.
+readpst treats non-embedded attachment data as a file/MIME payload when bytes or a resolvable ID exist. PSTD now preserves direct OLE/object bytes and metadata through the canonical payload path, and uses the same bounded data-tree resolver for validated references. A later typed OLE decoder is optional; broad OLE reference fixtures and lossless output-profile coverage remain Partial.
 
 ## Inline and CID behaviour
 
@@ -117,6 +117,24 @@ contract: a valid MIME tag is preserved, a missing tag becomes
 header. Repeated rendering is byte-identical and does not mutate attachment records or
 payload bytes. These two metadata/projection rows are Implemented; CID correlation,
 payload methods, reference resolution, and broad input coverage remain open.
+
+## Attachment payload resolver wave — 22 August 2026
+
+The prior attachment loader admitted only one Unicode XBLOCK layout and rejected
+otherwise valid payloads unless they began with the DOCX ZIP signature. The resolver
+now accepts arbitrary attachment bytes, direct external data blocks, and bounded
+0x0101/0x0201 data trees. It infers 4-byte versus 8-byte child BIDs from validated BBT
+references so the same path can handle legacy and Unicode data trees, preserves exact
+resolved bytes and declared-size differences, and rejects cycles, repeated blocks,
+truncated child arrays, invalid internal/direct edges, and budget overflows.
+
+Property-context extraction now admits unnamed and zero-length attachment rows as
+metadata, reads direct `PR_ATTACH_DATA_BIN`/`PR_ATTACH_DATA_OBJ` values, resolves
+validated subnode references for method 1 and reference methods, and retains hidden,
+rendering-position, and MIME-sequence facts. Embedded-message recovery walks child
+attachment subnodes recursively under the existing depth limit. These changes close the
+format-specific DOCX gate, but do not promote full readpst parity: broad ANSI/OST,
+reference-only, OLE, CID correlation, and differential fixture evidence remain open.
 
 ## Planned implementation — `RP-06`
 

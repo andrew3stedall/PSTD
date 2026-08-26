@@ -140,7 +140,7 @@ Snowflake, search, UI, tagging, graph, and LLM/RAG systems consume PSTD output. 
 
 The original public fixture validates 50 BBT entries, 63 NBT entries, 11 folders, one extracted message, two body payloads, four complete recipient records and one deterministic 956-byte plain/HTML EML.
 
-The Tika attachment fixture validates eight messages: seven top-level messages with exact folder ownership plus one linked embedded child. It emits nine directly owned recipient records, ten body records, six valid body payloads totalling 271 bytes, two explicit unresolved HTML forms, one exact 11,862-byte method-`1` DOCX payload, one exact 453-byte method-`5` `message/rfc822` payload, the unchanged 17,035-byte parent EML and a separately emitted byte-identical 453-byte child EML.
+The Tika attachment fixture validates eight messages: seven top-level messages with exact folder ownership plus one linked embedded child. It emits nine directly owned recipient records, ten body records, six valid body payloads totalling 271 bytes, two explicit unresolved HTML forms, one exact 11,862-byte method-`1` DOCX payload, one exact 453-byte method-`5` `message/rfc822` payload, an inline parent EML carrying both payloads, and a separately emitted byte-identical 453-byte child EML.
 
 Current approved fixture evidence does not demonstrate a second by-value attachment layout, multiple by-value attachments on one message, or an inline attachment with matching HTML `cid:` evidence. Do not implement those paths speculatively.
 

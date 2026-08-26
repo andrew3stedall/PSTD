@@ -4,16 +4,16 @@ PSTD is a Rust-first tool for extracting email data from Microsoft Outlook PST f
 
 ## Current position
 
-_Last reviewed: 21 August 2026._
+_Last reviewed: 22 August 2026._
 
 | Area | State on `main` | Current result |
 |---|---|---|
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI v14/v15 and OST 2013 structural page/index traversal is now integrated with explicit evidence boundaries. |
-| Current milestone | Attachment metadata closure wave | The release decision remains NOT PARITY-COMPLETE; the maintained ledger is now 10 Implemented, 53 Partial, and 14 Gap rows after closing CLI policy, deterministic scheduling, attachment filtering, generated MIME encoding, filename selection, and MIME type contracts. |
-| EML reconstruction | Three deterministic outputs across two fixtures | The original fixture emits one 956-byte plain/HTML EML; Tika emits the unchanged 17,035-byte plain-text/DOCX parent and one exact 453-byte plain-text child. |
-| Readpst parity workboard | Attachment metadata closure wave | Canonical typed records feed deterministic output projections; the release decision is still NOT PARITY-COMPLETE with 53 Partial and 14 Gap rows remaining, and broad input/differential/import evidence is still required. |
+| Current milestone | Attachment payload extraction wave | The release decision remains NOT PARITY-COMPLETE; generic direct/data-tree attachment extraction, method-aware metadata, MIME sequence ordering, and bounded nested-child recovery are now implemented while broad producer and differential evidence remains Partial. |
+| EML reconstruction | Deterministic inline and external assembly | The original fixture emits one 956-byte plain/HTML EML; Tika emits the plain-text parent with both recovered payloads in inline mode and one exact 453-byte plain-text child. External mode writes the same payloads beside linked EML records. |
+| Readpst parity workboard | Attachment payload extraction wave | Canonical typed records feed deterministic output projections; the release decision is still NOT PARITY-COMPLETE and broad input/differential/import evidence is still required. |
 
 ### RP-M4-03
 
@@ -31,17 +31,18 @@ PSTD-owned MIME fields are added; mbox streams use mboxrd escaping and message f
 the separator. Missing body evidence and non-mail classes remain explicit unavailable or
 skipped decisions, and each emitted archive path is recorded in the adapter manifest.
 KMail now uses a deterministic `.<folder>.directory/<folder>.mbox` projection with an
-explicit index-invalidation policy. Separate profiles publish only resolved, non-empty
-binary payloads, retain filtered/unavailable decisions, and apply normalized extension
-allow-lists and collision-safe names. Thunderbird sidecars, and MSG remain downstream
-work units.
+explicit index-invalidation policy. Separate profiles publish every resolved binary
+payload, including zero-length and recovered embedded-message payloads, retain
+filtered/unavailable/integrity decisions, and apply normalized extension allow-lists and
+collision-safe names. Thunderbird sidecars, and MSG remain downstream work units.
 
 ### RP-M5-02
 
 The attachment/KMail slice is integrated over canonical `AttachmentRecord` evidence.
 The `separate` profile emits readpst-shaped `<message-file>-<filename>` binary files
-only for resolved non-empty payloads; filtered, embedded, missing, unsafe, and zero-length
-cases remain explicit decisions. The `kmail` profile emits safe relative
+for every resolved payload, including zero-length and recovered embedded-message bytes;
+filtered, missing, unsafe, and integrity-failed cases remain explicit decisions. The
+`kmail` profile emits safe relative
 `.<folder>.directory/<folder>.mbox` paths and records the readpst index invalidation
 policy without producing a mutable index. Repeated profile output and the adapter
 manifest are deterministic.
@@ -142,7 +143,7 @@ The Table Context path validates four 52-byte rows. The fixture has separately p
 
 On `main`, these values are published as four complete row-aligned recipient records and assembled into the original fixture's readable EML.
 
-The Tika attachment fixture emits seven top-level messages assigned by exact contents-table rows to `/Début du fichier de données Outlook`, plus one separately linked embedded child, nine directly owned recipient records, ten body records, six valid body payloads totalling 271 bytes, two explicit unresolved HTML forms, two attachment records, two exact attachment payloads totalling 12,315 bytes, and two deterministic EML files. The method-`5` payload is byte-identical to the 453-byte standalone child EML and uses `message/rfc822`. The attachment owner retains its 17,035-byte `multipart/mixed` EML and byte-identical DOCX; method `5` is deliberately not inserted into the parent MIME tree.
+The Tika attachment fixture emits seven top-level messages assigned by exact contents-table rows to `/Début du fichier de données Outlook`, plus one separately linked embedded child, nine directly owned recipient records, ten body records, six valid body payloads totalling 271 bytes, two explicit unresolved HTML forms, two attachment records, two exact attachment payloads totalling 12,315 bytes, and two deterministic EML files. The method-`5` payload is byte-identical to the 453-byte standalone child EML and uses `message/rfc822`; inline assembly now includes both recovered payloads in the parent MIME tree, while external assembly writes them at manifest-linked paths.
 
 The java-libpst comparison fixture remains a deterministic fail-closed baseline: 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised attachment payloads, 0 validated `IPM.Note*` classes, and 0 EML files. It is comparison evidence rather than an email capability milestone.
 

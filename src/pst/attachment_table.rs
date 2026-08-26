@@ -244,6 +244,7 @@ fn decode_compact_attachment_table(
             content_id: None,
             attachment_method: None,
             declared_size_bytes: Some(data_len as u64),
+            ..AttachmentMetadata::default()
         };
 
         if data.is_empty() {
@@ -354,6 +355,7 @@ fn decode_utf16_compact_attachment_table(
             content_id: None,
             attachment_method: None,
             declared_size_bytes: Some(data_len as u64),
+            ..AttachmentMetadata::default()
         };
 
         if data.is_empty() {
