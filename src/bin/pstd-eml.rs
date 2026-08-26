@@ -1278,12 +1278,10 @@ mod tests {
 
     #[test]
     fn accepts_extracted_html_body_payload() {
-        let payloads = vec![body_payload(
-            "message",
-            "html",
-            b"<p>direct HTML</p>".to_vec(),
-            None,
-        )];
+        let payloads = vec![
+            body_payload("message", "html", b"<p>direct HTML</p>".to_vec(), None),
+            body_payload("message", "text", b"plain text".to_vec(), None),
+        ];
 
         let grouped = bodies_by_message(&payloads);
 
