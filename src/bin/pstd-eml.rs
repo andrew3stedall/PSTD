@@ -1062,7 +1062,7 @@ fn recipient_header(records: &[RecipientRecord], role: &str) -> Option<String> {
 fn transport_recipient_header(message: &MessageRecord, target: &str) -> Option<String> {
     let headers = message.transport_message_headers.as_deref()?;
     let mut values = Vec::new();
-    let mut current_name = None;
+    let mut current_name: Option<String> = None;
     let mut current_value = String::new();
 
     for line in headers.lines() {
