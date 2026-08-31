@@ -707,10 +707,7 @@ pub fn decode_value_with_fallback(
 /// Decode a NUL-terminated legacy String8 value and report whether the selected
 /// codec had to replace malformed input. Raw bytes remain available in the
 /// owning property record when `had_errors` is true.
-pub fn decode_string8_with_status(
-    raw: &[u8],
-    fallback_charset: Option<&str>,
-) -> (String, bool) {
+pub fn decode_string8_with_status(raw: &[u8], fallback_charset: Option<&str>) -> (String, bool) {
     let nul_index = raw.iter().position(|byte| *byte == 0).unwrap_or(raw.len());
     let raw = &raw[..nul_index];
 

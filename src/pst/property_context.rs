@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use crate::error::PstdResult;
 use crate::pst::bth::BthMap;
 use crate::pst::mapi::{
-    byte_swapped_tag, decode_string8_with_status, decode_value_with_fallback, has_known_value_type,
-    property_def, resolve_string8_charset, value_summary, MapiValue, MapiValueType,
-    PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE,
+    byte_swapped_tag, decode_string8_with_status, decode_value_with_fallback,
+    has_known_value_type, property_def, resolve_string8_charset, value_summary, MapiValue,
+    MapiValueType, PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE,
 };
 
 const PQ10_TRAVERSAL_STATUS_TAG: u32 = 0xffff_fffe;

@@ -7,8 +7,8 @@ use crate::pst::attachments::{
     AttachmentMetadata, AttachmentPayload,
 };
 use crate::pst::mapi::{
-    decode_string8_with_status, decode_value_with_fallback, property_def, resolve_string8_charset,
-    MapiValueType, PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE,
+    decode_string8_with_status, decode_value_with_fallback, property_def,
+    resolve_string8_charset, MapiValueType, PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE,
 };
 use crate::pst::payload::PayloadBlock;
 use crate::pst::property_context::{PropertyContext, PropertyValue};
@@ -489,7 +489,11 @@ pub fn property_context_from_table_row_with_fallback_charset(
             )
             .ok();
             let conversion_error = def.value_type == MapiValueType::String8
-                && decode_string8_with_status(raw, Some(charset_resolution.charset.as_str())).1;
+                && decode_string8_with_status(
+                    raw,
+                    Some(charset_resolution.charset.as_str()),
+                )
+                .1;
             let status = if conversion_error {
                 "selected_charset_conversion_error"
             } else {
