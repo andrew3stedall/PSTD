@@ -14,7 +14,9 @@ fn put_u32(bytes: &mut [u8], offset: usize, value: u32) {
 }
 
 fn crc32(bytes: &[u8]) -> u32 {
-    let mut crc = 0xffff_ffffu32;
+    // MS-PST and libpff use the weak CRC-32 form for header and page fields:
+    // reflected polynomial, initial value zero, with no final complement.
+    let mut crc = 0u32;
     for &byte in bytes {
         crc ^= u32::from(byte);
         for _ in 0..8 {
@@ -25,7 +27,7 @@ fn crc32(bytes: &[u8]) -> u32 {
             };
         }
     }
-    !crc
+    crc
 }
 
 fn block_signature(file_offset: u32, bid: u32) -> u16 {
