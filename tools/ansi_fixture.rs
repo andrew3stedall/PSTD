@@ -1,4 +1,4 @@
-use std::{env, fs, io};
+use std::{env, fs, io, path::Path};
 
 const PAGE_SIZE: usize = 512;
 const BBT_OFFSET: usize = 1024;
@@ -93,13 +93,35 @@ fn make_fixture(crypt_method: u8) -> Vec<u8> {
 
 fn main() -> io::Result<()> {
     let args = env::args().collect::<Vec<_>>();
-    if !(2..=3).contains(&args.len()) {
-        eprintln!("usage: ansi_fixture <output-path> [crypt-method]");
+    if !(2..=4).contains(&args.len()) {
+        eprintln!("usage: ansi_fixture <output-path> [crypt-method] [--force]");
         std::process::exit(2);
     }
-    let crypt_method = args
-        .get(2)
-        .map(|value| value.parse::<u8>().expect("crypt method must be an integer"))
-        .unwrap_or(0);
+
+    let mut crypt_method = 0u8;
+    let mut crypt_method_set = false;
+    let mut force = false;
+    for argument in args.iter().skip(2) {
+        if argument == "--force" {
+            force = true;
+        } else if crypt_method_set {
+            eprintln!("unexpected argument: {argument}");
+            std::process::exit(2);
+        } else {
+            crypt_method = argument
+                .parse::<u8>()
+                .expect("crypt method must be an integer");
+            crypt_method_set = true;
+        }
+    }
+
+    if Path::new(&args[1]).exists() && !force {
+        eprintln!(
+            "refusing to overwrite existing fixture {}; pass --force to replace it",
+            args[1]
+        );
+        std::process::exit(2);
+    }
+
     fs::write(&args[1], make_fixture(crypt_method))
 }
