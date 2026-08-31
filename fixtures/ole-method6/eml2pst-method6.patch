@@ -1,53 +1,47 @@
 diff --git a/eml2pst/mapi/properties.py b/eml2pst/mapi/properties.py
-index 0000000..0000000 100644
 --- a/eml2pst/mapi/properties.py
 +++ b/eml2pst/mapi/properties.py
-@@ -10,6 +10,7 @@ PT_STRING8 = 0x001E  # 8-bit string (null-terminated)
+@@ -10,6 +10,7 @@
  PT_UNICODE = 0x001F  # UTF-16LE string (null-terminated)
  PT_BINARY = 0x0102  # Binary blob
 +PT_OBJECT = 0x000D  # OLE/object value
  PT_LONG_LONG = 0x0014  # 64-bit integer
  PT_GUID = 0x0048  # 16-byte GUID
  PT_MV_BINARY = 0x1102  # Multi-valued binary
-@@ -117,6 +118,7 @@ PR_ATTACH_SIZE = prop_tag(0x0E20, PT_LONG)
+@@ -117,4 +118,5 @@
+ PR_ATTACH_SIZE = prop_tag(0x0E20, PT_LONG)
  PR_ATTACH_DATA_BIN = prop_tag(0x3701, PT_BINARY)
 +PR_ATTACH_DATA_OBJ = prop_tag(0x3701, PT_OBJECT)
  PR_ATTACH_MIME_TAG = prop_tag(0x370E, PT_UNICODE)
  PR_RENDERING_POSITION = prop_tag(0x370B, PT_LONG)
 
 diff --git a/eml2pst/messaging/message.py b/eml2pst/messaging/message.py
-index 0000000..0000000 100644
 --- a/eml2pst/messaging/message.py
 +++ b/eml2pst/messaging/message.py
-@@ -25,10 +25,13 @@ from ..mapi.properties import (
+@@ -25,3 +25,4 @@
      PR_RECIPIENT_TYPE, PR_ROWID,
      PR_ATTACH_NUM, PR_ATTACH_METHOD, PR_ATTACH_FILENAME,
--    PR_ATTACH_LONG_FILENAME, PR_ATTACH_SIZE, PR_ATTACH_DATA_BIN,
-+    PR_ATTACH_LONG_FILENAME, PR_ATTACH_SIZE, PR_ATTACH_DATA_BIN,
+     PR_ATTACH_LONG_FILENAME, PR_ATTACH_SIZE, PR_ATTACH_DATA_BIN,
 +    PR_ATTACH_DATA_OBJ,
      PR_ATTACH_MIME_TAG, PR_RENDERING_POSITION,
-     MSGFLAG_READ, MSGFLAG_HASATTACH, ATTACH_BY_VALUE,
-     MAPI_TO, MAPI_CC, MAPI_BCC,
+@@ -32,3 +32,5 @@
  )
  from ..utils import filetime_now
-
+ 
 +ATTACH_OLE = 6
 +
- 
- def build_message_pc(parsed_eml):
-@@ -158,6 +161,12 @@ def build_recipients_tc(recipients):
+@@ -158,4 +158,11 @@
      return build_tc_node(column_tags, rows)
 
- 
+
 +def attachment_method(attachment):
 +    """Use method 6 only for the fixture's OLE MIME marker."""
 +    if attachment.get('mime_type') == 'application/vnd.ms-ole-storage':
 +        return ATTACH_OLE
 +    return ATTACH_BY_VALUE
 +
-+
  def build_attachments_tc(attachments):
-@@ -183,7 +192,7 @@ def build_attachments_tc(attachments):
+@@ -183,7 +183,7 @@
          row = {
              '_nid': attachment_subnode_nid(i),
              PR_ATTACH_NUM: i,
@@ -56,7 +50,7 @@ index 0000000..0000000 100644
              PR_ATTACH_LONG_FILENAME: att.get('filename', f'attachment_{i}'),
              PR_ATTACH_SIZE: att.get('size', len(att.get('data', b''))),
              PR_ATTACH_MIME_TAG: att.get('mime_type', 'application/octet-stream'),
-@@ -235,11 +244,12 @@ def build_attachment_pc(attachment, attach_num):
+@@ -235,12 +235,13 @@
      props = [
          (PR_ATTACH_NUM, attach_num),
 -        (PR_ATTACH_METHOD, ATTACH_BY_VALUE),
