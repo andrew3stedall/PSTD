@@ -7,8 +7,8 @@ use crate::pst::attachments::{
     AttachmentMetadata, AttachmentPayload,
 };
 use crate::pst::mapi::{
-    decode_value_with_fallback, property_def, resolve_string8_charset, PR_INTERNET_CPID,
-    PR_MESSAGE_CODEPAGE,
+    decode_string8_with_status, decode_value_with_fallback, property_def,
+    resolve_string8_charset, MapiValueType, PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE,
 };
 use crate::pst::payload::PayloadBlock;
 use crate::pst::property_context::{PropertyContext, PropertyValue};
@@ -482,16 +482,24 @@ pub fn property_context_from_table_row_with_fallback_charset(
 
     for (tag, raw) in &row.values {
         let (name, decoded, status) = if let Some(def) = property_def(*tag) {
-            (
-                def.name.to_string(),
-                decode_value_with_fallback(
-                    def.value_type,
+            let decoded = decode_value_with_fallback(
+                def.value_type,
+                raw,
+                Some(charset_resolution.charset.as_str()),
+            )
+            .ok();
+            let conversion_error = def.value_type == MapiValueType::String8
+                && decode_string8_with_status(
                     raw,
                     Some(charset_resolution.charset.as_str()),
                 )
-                .ok(),
-                "selected".to_string(),
-            )
+                .1;
+            let status = if conversion_error {
+                "selected_charset_conversion_error"
+            } else {
+                "selected"
+            };
+            (def.name.to_string(), decoded, status.to_string())
         } else {
             (
                 format!("unknown_0x{tag:08x}"),

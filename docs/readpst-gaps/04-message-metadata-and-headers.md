@@ -38,7 +38,10 @@ encodings non-authoritative without dropping their evidence. `-C`/`-8` remain an
 explicit adapter-policy boundary; the current String8 decoder records supported
 message-code-page/Internet-CPID selection, raw evidence, conflict/fallback status,
 and authoritative override provenance rather than silently claiming broad code-page
-equivalence.
+equivalence. Supported mappings include UTF-8, Windows-1252, ISO-8859-1,
+Shift-JIS/932, GBK/936, EUC-KR/949, and Big5/950. The multibyte mappings use
+the pinned `encoding_rs` implementation; malformed sequences remain raw-backed
+and increment an explicit conversion-error count.
 
 ## Transport headers
 

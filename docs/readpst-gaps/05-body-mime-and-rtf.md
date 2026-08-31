@@ -50,8 +50,11 @@ assembly. Stored Unicode and String8 header values retain raw-property evidence;
 invalid or lossy values are explicitly non-authoritative. The current String8
 projection selects supported message code-page/Internet CPID metadata per property
 context, records conflicts and fallback provenance, and honours `-C` as an
-authoritative override. The later MIME adapter still needs broader item/code-page
-and `-8` corpus evidence without silently changing the default output.
+authoritative override. The supported code-page set now includes UTF-8,
+Windows-1252, ISO-8859-1, Shift-JIS/932, GBK/936, EUC-KR/949, and Big5/950;
+malformed multibyte input is reported while its raw property bytes remain
+available. The later MIME adapter still needs broader item/code-page and `-8`
+corpus evidence without silently changing the default output.
 
 RP-M2-03 keeps attachment source references, rendering positions, CID values,
 method-specific status, and raw payload hashes in the canonical record before any

@@ -1,4 +1,5 @@
 use crate::error::{PstdError, PstdResult};
+use encoding_rs::{BIG5, EUC_KR, GBK, SHIFT_JIS, UTF_8};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum MapiValueType {
@@ -485,6 +486,21 @@ pub fn canonical_fallback_charset(value: &str) -> Option<&'static str> {
         Some("iso-8859-1")
     } else if value.eq_ignore_ascii_case("windows-1252") || value.eq_ignore_ascii_case("cp1252") {
         Some("windows-1252")
+    } else if value.eq_ignore_ascii_case("shift-jis")
+        || value.eq_ignore_ascii_case("shift_jis")
+        || value.eq_ignore_ascii_case("cp932")
+        || value.eq_ignore_ascii_case("windows-31j")
+    {
+        Some("shift-jis")
+    } else if value.eq_ignore_ascii_case("gbk") || value.eq_ignore_ascii_case("cp936") {
+        Some("gbk")
+    } else if value.eq_ignore_ascii_case("euc-kr")
+        || value.eq_ignore_ascii_case("euc_kr")
+        || value.eq_ignore_ascii_case("cp949")
+    {
+        Some("euc-kr")
+    } else if value.eq_ignore_ascii_case("big5") || value.eq_ignore_ascii_case("cp950") {
+        Some("big5")
     } else if value.eq_ignore_ascii_case("utf-8") || value.eq_ignore_ascii_case("utf8") {
         Some("utf-8")
     } else {
@@ -507,6 +523,10 @@ pub fn charset_for_code_page(code_page: i32) -> Option<&'static str> {
         65001 => Some("utf-8"),
         1252 => Some("windows-1252"),
         28591 => Some("iso-8859-1"),
+        932 => Some("shift-jis"),
+        936 => Some("gbk"),
+        949 => Some("euc-kr"),
+        950 => Some("big5"),
         _ => None,
     }
 }
@@ -650,7 +670,9 @@ pub fn decode_value_with_fallback(
                 .collect();
             Ok(MapiValue::String(String::from_utf16_lossy(&utf16)))
         }
-        MapiValueType::String8 => Ok(MapiValue::String(decode_string8(raw, fallback_charset))),
+        MapiValueType::String8 => Ok(MapiValue::String(
+            decode_string8_with_status(raw, fallback_charset).0,
+        )),
         MapiValueType::Integer32 => {
             if raw.len() < 4 {
                 return Err(PstdError::pst_parse(None, "i32 value too short"));
@@ -682,20 +704,38 @@ pub fn decode_value_with_fallback(
     }
 }
 
-fn decode_string8(raw: &[u8], fallback_charset: Option<&str>) -> String {
+/// Decode a NUL-terminated legacy String8 value and report whether the selected
+/// codec had to replace malformed input. Raw bytes remain available in the
+/// owning property record when `had_errors` is true.
+pub fn decode_string8_with_status(
+    raw: &[u8],
+    fallback_charset: Option<&str>,
+) -> (String, bool) {
     let nul_index = raw.iter().position(|byte| *byte == 0).unwrap_or(raw.len());
     let raw = &raw[..nul_index];
 
     match fallback_charset.and_then(canonical_fallback_charset) {
-        Some("utf-8") => String::from_utf8_lossy(raw).to_string(),
-        Some("windows-1252") => raw.iter().map(|byte| windows_1252_char(*byte)).collect(),
+        Some("utf-8") => decode_with_encoding(UTF_8, raw),
+        Some("windows-1252") => (
+            raw.iter().map(|byte| windows_1252_char(*byte)).collect(),
+            false,
+        ),
+        Some("shift-jis") => decode_with_encoding(SHIFT_JIS, raw),
+        Some("gbk") => decode_with_encoding(GBK, raw),
+        Some("euc-kr") => decode_with_encoding(EUC_KR, raw),
+        Some("big5") => decode_with_encoding(BIG5, raw),
         _ => {
             // String8 is a byte-oriented MAPI value. The parser's documented
             // default charset is ISO-8859-1, whose code points map one-to-one
             // to these bytes.
-            raw.iter().map(|byte| char::from(*byte)).collect()
+            (raw.iter().map(|byte| char::from(*byte)).collect(), false)
         }
     }
+}
+
+fn decode_with_encoding(encoding: &'static encoding_rs::Encoding, raw: &[u8]) -> (String, bool) {
+    let (decoded, _, had_errors) = encoding.decode(raw);
+    (decoded.into_owned(), had_errors)
 }
 
 fn windows_1252_char(byte: u8) -> char {
@@ -746,10 +786,10 @@ pub fn value_summary(value: &MapiValue) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        byte_swapped_tag, canonical_fallback_charset, decode_value, decode_value_with_fallback,
-        has_known_value_type, property_def, resolve_string8_charset, MapiValue, MapiValueType,
-        PR_ATTACH_DATA_OBJ, PR_BODY_A, PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE, PR_SUBJECT,
-        PR_SUBJECT_A,
+        byte_swapped_tag, canonical_fallback_charset, decode_string8_with_status, decode_value,
+        decode_value_with_fallback, has_known_value_type, property_def, resolve_string8_charset,
+        MapiValue, MapiValueType, PR_ATTACH_DATA_OBJ, PR_BODY_A, PR_INTERNET_CPID,
+        PR_MESSAGE_CODEPAGE, PR_SUBJECT, PR_SUBJECT_A,
     };
 
     #[test]
@@ -825,7 +865,42 @@ mod tests {
             Some("windows-1252")
         );
         assert_eq!(canonical_fallback_charset("utf8"), Some("utf-8"));
+        assert_eq!(canonical_fallback_charset("cp932"), Some("shift-jis"));
+        assert_eq!(canonical_fallback_charset("936"), None);
+        assert_eq!(canonical_fallback_charset("cp949"), Some("euc-kr"));
+        assert_eq!(canonical_fallback_charset("cp950"), Some("big5"));
         assert_eq!(canonical_fallback_charset("koi8-r"), None);
+    }
+
+    #[test]
+    fn decodes_common_non_western_string8_code_pages() {
+        let cases = [
+            ("shift-jis", &[0x93, 0xfa, 0x96, 0x7b, 0x8c, 0xea][..], "日本語"),
+            ("gbk", &[0xd6, 0xd0, 0xce, 0xc4][..], "中文"),
+            ("euc-kr", &[0xc7, 0xd1, 0xb1, 0xdb][..], "한글"),
+            ("big5", &[0xa4, 0xa4, 0xa4, 0xe5][..], "中文"),
+        ];
+
+        for (charset, raw, expected) in cases {
+            let (decoded, had_errors) = decode_string8_with_status(raw, Some(charset));
+            assert_eq!(decoded, expected, "charset={charset}");
+            assert!(!had_errors, "charset={charset}");
+        }
+    }
+
+    #[test]
+    fn reports_malformed_non_western_string8_without_dropping_raw_contract() {
+        let (decoded, had_errors) = decode_string8_with_status(&[0x82, 0x20], Some("shift-jis"));
+        assert!(had_errors);
+        assert!(decoded.contains('\u{fffd}'));
+
+        let value = decode_value_with_fallback(
+            MapiValueType::String8,
+            &[0x82, 0x20],
+            Some("shift-jis"),
+        )
+        .unwrap();
+        assert_eq!(value, MapiValue::String(decoded));
     }
 
     #[test]
@@ -853,12 +928,27 @@ mod tests {
         assert_eq!(resolution.source, "fallback");
         assert!(resolution.status.contains("charset_metadata_conflict"));
 
-        let unsupported = 932i32.to_le_bytes();
+        let unsupported = 9500i32.to_le_bytes();
         let resolution = resolve_string8_charset(Some(&unsupported), None, None);
         assert_eq!(resolution.charset, "iso-8859-1");
         assert!(resolution
             .status
-            .contains("message_codepage_unsupported=932"));
+            .contains("message_codepage_unsupported=9500"));
+    }
+
+    #[test]
+    fn selects_common_non_western_message_code_pages() {
+        for (code_page, charset) in [
+            (932i32, "shift-jis"),
+            (936i32, "gbk"),
+            (949i32, "euc-kr"),
+            (950i32, "big5"),
+        ] {
+            let raw = code_page.to_le_bytes();
+            let resolution = resolve_string8_charset(Some(&raw), None, None);
+            assert_eq!(resolution.charset, charset, "code_page={code_page}");
+            assert_eq!(resolution.source, "message_codepage");
+        }
     }
 
     #[test]
