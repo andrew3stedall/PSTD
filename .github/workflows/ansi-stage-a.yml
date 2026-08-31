@@ -26,6 +26,13 @@ jobs:
           /tmp/ansi-fixture /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-strong-crypt.pst 2
           /tmp/ansi-fixture /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-unknown-crypt.pst 7
           cmp /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-repeat.pst
+          if /tmp/ansi-fixture /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst 0 > /tmp/pstd-ansi-stage-a/evidence/overwrite.stdout 2> /tmp/pstd-ansi-stage-a/evidence/overwrite.stderr; then
+            echo "fixture emitter unexpectedly overwrote an existing output" >&2
+            exit 1
+          fi
+          grep -F "refusing to overwrite existing fixture" /tmp/pstd-ansi-stage-a/evidence/overwrite.stderr
+          /tmp/ansi-fixture /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst 0 --force
+          cmp /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-repeat.pst
           sha256sum /tmp/pstd-ansi-stage-a/fixtures/*.pst | tee /tmp/pstd-ansi-stage-a/evidence/fixture-sha256.txt
           test "$(sha256sum /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst | cut -d' ' -f1)" = \
             "b5de1ce4cebacc2ea4cefddb4ab9c4d32e5fed04b81cd681e8831faf1323c765"
