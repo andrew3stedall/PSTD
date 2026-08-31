@@ -360,7 +360,6 @@ mod tests {
         assert_eq!(policy.output_profile, OutputProfile::Msg);
     }
 
-    
     #[test]
     fn rejects_unsupported_fallback_charset() {
         let cli = Cli::try_parse_from([
@@ -374,10 +373,15 @@ mod tests {
             "koi8-r",
         ])
         .expect("CLI should parse before policy validation");
-        let super::Commands::Extract { readpst, overwrite, .. } = cli.command else {
+        let super::Commands::Extract {
+            readpst, overwrite, ..
+        } = cli.command
+        else {
             panic!("expected extract command");
         };
-        let error = readpst.policy(overwrite).expect_err("unsupported charset must fail closed");
+        let error = readpst
+            .policy(overwrite)
+            .expect_err("unsupported charset must fail closed");
         assert!(error.contains("RPCLI_INVALID_FALLBACK_CHARSET"));
     }
     #[test]
