@@ -124,18 +124,17 @@ impl PropertyContext {
             if interpreted.was_byte_swapped {
                 byte_swapped_selected_property_count += 1;
             }
-            let decoded =
-                match decode_value_with_fallback(
-                    def.value_type,
-                    &entry.value,
-                    Some(charset_resolution.charset.as_str()),
-                ) {
-                    Ok(value) => Some(value),
-                    Err(_) => {
-                        decode_error_count += 1;
-                        None
-                    }
-                };
+            let decoded = match decode_value_with_fallback(
+                def.value_type,
+                &entry.value,
+                Some(charset_resolution.charset.as_str()),
+            ) {
+                Ok(value) => Some(value),
+                Err(_) => {
+                    decode_error_count += 1;
+                    None
+                }
+            };
             selected_property_count += 1;
             values.insert(
                 interpreted.tag,
