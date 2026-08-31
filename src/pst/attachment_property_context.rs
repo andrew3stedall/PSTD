@@ -59,7 +59,7 @@ struct EmbeddedObjectReference {
     subnode_payloads: Vec<PayloadBlock>,
 }
 
-/// Extracts only filename-bearing attachment metadata from validated heap Property Contexts.
+/// Extracts validated attachment metadata from heap Property Contexts, including unnamed rows.
 pub fn attachment_records_from_property_context_subnodes(
     message_key: &str,
     blocks: &[PayloadBlock],
@@ -602,7 +602,7 @@ fn filename_attachment_record(
             PR_ATTACH_FILENAME,
             PR_ATTACH_FILENAME_A,
         ],
-    )?;
+    );
     let method = positive_integer32_property(properties, PR_ATTACH_METHOD)?;
     let declared_size = non_negative_integer32_property(properties, PR_ATTACH_SIZE)?;
 
@@ -623,8 +623,8 @@ fn filename_attachment_record(
     {
         return None;
     }
-    record.filename_original = Some(filename.clone());
-    record.filename_safe = crate::pst::attachments::safe_filename(Some(&filename), ordinal);
+    record.filename_original = filename.clone();
+    record.filename_safe = crate::pst::attachments::safe_filename(filename.as_deref(), ordinal);
     record.extension = crate::pst::attachments::file_extension(&record.filename_safe);
     record.archive_path = format!(
         "attachments/{message_key}/{}_{}",
@@ -1061,7 +1061,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_blank_incomplete_or_wrongly_typed_attachment_contexts() {
+    fn preserves_unnamed_but_rejects_incomplete_or_wrongly_typed_attachment_contexts() {
         let mut blank = HashMap::new();
         blank.insert(
             PR_ATTACH_LONG_FILENAME,
@@ -1083,9 +1083,37 @@ mod tests {
             PR_ATTACH_SIZE,
             property(PR_ATTACH_SIZE, "attachment_size", MapiValue::Integer32(1)),
         );
-        assert!(
-            filename_attachment_record("msg", 0, &PropertyContext { values: blank }, &[]).is_none()
+        let record = filename_attachment_record("msg", 0, &PropertyContext { values: blank }, &[])
+            .expect("method and size validate an unnamed attachment");
+        assert_eq!(record.filename_original, None);
+        assert_eq!(record.filename_safe, "attachment_0");
+        assert_eq!(record.extension, None);
+        assert_eq!(record.size_bytes, 0);
+
+        let mut missing_filename = HashMap::new();
+        missing_filename.insert(
+            PR_ATTACH_METHOD,
+            property(
+                PR_ATTACH_METHOD,
+                "attachment_method",
+                MapiValue::Integer32(1),
+            ),
         );
+        missing_filename.insert(
+            PR_ATTACH_SIZE,
+            property(PR_ATTACH_SIZE, "attachment_size", MapiValue::Integer32(3)),
+        );
+        let record = filename_attachment_record(
+            "msg",
+            1,
+            &PropertyContext {
+                values: missing_filename,
+            },
+            &[],
+        )
+        .expect("missing filename must use the deterministic fallback");
+        assert_eq!(record.filename_original, None);
+        assert_eq!(record.filename_safe, "attachment_1");
 
         let mut incomplete = HashMap::new();
         incomplete.insert(
