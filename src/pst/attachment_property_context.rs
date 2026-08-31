@@ -765,9 +765,11 @@ fn inline_object_heap_bytes(
         if bth.lookup(&object_tag) != Some(value.raw.as_slice()) {
             continue;
         }
-        let Some(bytes) =
-            heap.try_allocation_by_hnid(&block.bytes, hnid, block.block_ref.offset.0)
-        else {
+        let Some(bytes) = heap.try_allocation_by_hnid(
+            &block.bytes,
+            hnid,
+            block.block_ref.offset.0,
+        ) else {
             continue;
         };
         matches.push(bytes.to_vec());
@@ -1242,8 +1244,7 @@ mod tests {
 
     #[test]
     fn recovers_heap_backed_method_six_ole_payload() {
-        let ole_bytes =
-            b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1compound-file".to_vec();
+        let ole_bytes = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1compound-file".to_vec();
         let object_hid = 0x60;
         let property_block = object_property_context_heap(object_hid, &ole_bytes);
         let blocks = vec![payload(0x6c6, property_block.clone())];
