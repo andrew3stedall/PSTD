@@ -813,6 +813,7 @@ mod tests {
     use super::{
         embedded_attachment_record, embedded_message_nid_from_object_allocation,
         embedded_object_reference, filename_attachment_record, slblock_data_bid_for_nid,
+        COMPACT_SLENTRY_BYTES, UNICODE_SLBLOCK_LEAF_LEVEL, UNICODE_SLBLOCK_TYPE,
     };
     use crate::pst::mapi::{
         MapiValue, PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ, PR_ATTACH_LONG_FILENAME,
