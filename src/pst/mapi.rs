@@ -601,9 +601,7 @@ struct CodePageEvidence {
 }
 
 fn code_page_evidence(name: &str, raw: Option<&[u8]>) -> Option<CodePageEvidence> {
-    let Some(raw) = raw else {
-        return None;
-    };
+    let raw = raw?;
     if raw.len() != 4 {
         return Some(CodePageEvidence {
             code_page: None,
