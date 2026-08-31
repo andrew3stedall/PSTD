@@ -25,14 +25,13 @@ def main() -> None:
     replace_once(
         properties,
         "PT_BINARY = 0x0102  # Binary blob\n",
-        "PT_BINARY = 0x0102  # Binary blob\n"
-        "PT_OBJECT = 0x000D  # OLE/object value\n",
+        "PT_BINARY = 0x0102  # Binary blob\n",
     )
     replace_once(
         properties,
         "PR_ATTACH_DATA_BIN = prop_tag(0x3701, PT_BINARY)\n",
         "PR_ATTACH_DATA_BIN = prop_tag(0x3701, PT_BINARY)\n"
-        "PR_ATTACH_DATA_OBJ = prop_tag(0x3701, PT_OBJECT)\n",
+        "PR_ATTACH_DATA_OBJ = prop_tag(0x3701, PT_BINARY)\n",
     )
     replace_once(
         message,
@@ -80,26 +79,6 @@ def main() -> None:
         "            else PR_ATTACH_DATA_BIN\n"
         "        )\n"
         "        props.append((data_tag, attachment['data']))\n",
-    )
-
-    pc = root / "eml2pst/ltp/pc.py"
-    replace_once(
-        pc,
-        "    PT_LONG, PT_SHORT, PT_BOOLEAN, PT_SYSTIME, PT_LONG_LONG,\n"
-        "    PT_STRING8, PT_UNICODE, PT_BINARY, PT_GUID,\n",
-        "    PT_LONG, PT_SHORT, PT_BOOLEAN, PT_SYSTIME, PT_LONG_LONG,\n"
-        "    PT_STRING8, PT_UNICODE, PT_BINARY, PT_GUID,\n"
-        "    PT_OBJECT,\n",
-    )
-    replace_once(
-        pc,
-        "        elif is_variable_type(ptype):\n",
-        "        elif ptype == PT_OBJECT:\n"
-        "            encoded = value if isinstance(value, bytes) else bytes(value)\n"
-        "            nid = (pid << 5) | _NID_TYPE_LTP\n"
-        "            subnodes.append((nid, encoded))\n"
-        "            data = struct.pack('<H I', ptype, nid)\n"
-        "        elif is_variable_type(ptype):\n",
     )
 
     store = root / "eml2pst/messaging/store.py"
