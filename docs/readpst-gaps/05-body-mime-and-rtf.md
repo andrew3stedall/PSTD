@@ -48,9 +48,10 @@ readpst chooses a default charset from item metadata, code page, internet CPID, 
 RP-M2-02 now publishes the header authority and charset decision before MIME
 assembly. Stored Unicode and String8 header values retain raw-property evidence;
 invalid or lossy values are explicitly non-authoritative. The current String8
-projection records its UTF-8-lossy decoder and ISO-8859-1 fallback policy so the
-later MIME adapter can implement readpst's item/code-page/`-C`/`-8` precedence
-without silently changing the default output.
+projection selects supported message code-page/Internet CPID metadata per property
+context, records conflicts and fallback provenance, and honours `-C` as an
+authoritative override. The later MIME adapter still needs broader item/code-page
+and `-8` corpus evidence without silently changing the default output.
 
 RP-M2-03 keeps attachment source references, rendering positions, CID values,
 method-specific status, and raw payload hashes in the canonical record before any

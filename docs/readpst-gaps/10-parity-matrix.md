@@ -51,7 +51,10 @@ lossy header inputs. Unit evidence covers folded fields, body-fragment rejection
 String8 loss reporting, decode failure, raw retention, and stable identifiers; the
 Tika fixture gates verify message-key coverage and authority safety. This advances
 the header evidence boundary but does not claim final MIME adapter or code-page
-conversion parity. The MAPI String8 decoder now has deterministic ISO-8859-1 fallback coverage for high-bit bytes; broader producer code-page parity remains Partial.
+conversion parity. The MAPI String8 decoder now selects supported message code-page/Internet CPID
+metadata per property context, preserves raw code-page evidence and resolution provenance, rejects
+conflicts/unsupported declarations, and honours `-C` as authoritative; broader producer code-page
+parity remains Partial.
 
 ## RP-M2-03 delivery
 
@@ -143,7 +146,7 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | CLI-03 | Debug file, level, quiet mode | Partial | Bounded structured logs with severity filtering and deterministic paths. |
 | CLI-04 | Parallel jobs | Implemented | Bounded batch scheduling preserves sorted item results and normalized progress semantics at `jobs=1` and a higher worker count; scheduling evidence is independent of PST content. |
 | CLI-05 | Overwrite/unique output policy | Partial | Explicit policy in run config and adapter tests. |
-| CLI-06 | Fallback charset (`-C`) | Partial | Validated `iso-8859-1`, `windows-1252`/`cp1252`, and `utf-8` fallbacks reach message, folder, table-row attachment, and embedded-message property contexts; unsupported names fail closed. Broader iconv/code-page discovery, per-item selection, and provenance remain open. |
+| CLI-06 | Fallback charset (`-C`) | Partial | Validated `iso-8859-1`, `windows-1252`/`cp1252`, and `utf-8` fallbacks reach message, folder, table-row attachment, and embedded-message property contexts; supported per-context `PR_MESSAGE_CODEPAGE`/`PR_INTERNET_CPID` values now select String8 decoding, with raw evidence/provenance and fail-closed conflicts. Broader iconv/item-code-page coverage remains open. |
 | CLI-07 | Prefer UTF-8 (`-8`) | Partial | Explicit body/output encoding policy with raw-byte retention. |
 | CLI-08 | Include deleted items (`-D`) | Gap | Deleted traversal, filter, counts, and scoped records. |
 | CLI-09 | Item-type filter (`-t`) | Partial | Applied to every named mail/typed output projection through routed source identities; broad mixed-folder differential evidence remains. |
