@@ -6,7 +6,6 @@ from __future__ import annotations
 import json
 import struct
 import sys
-import zlib
 from pathlib import Path
 
 PAGE_SIZE = 512
@@ -15,6 +14,13 @@ NBT_OFFSET = 1536
 FILE_SIZE = 2048
 
 
+def weak_crc32(data: bytes) -> int:
+    crc = 0
+    for byte in data:
+        crc ^= byte
+        for _ in range(8):
+            crc = (crc >> 1) ^ 0xEDB88320 if crc & 1 else crc >> 1
+    return crc
 def u16(data: bytes, offset: int) -> int:
     return struct.unpack_from("<H", data, offset)[0]
 
@@ -43,7 +49,7 @@ def validate(path: Path, expected_crypt: int = 0) -> dict[str, object]:
     assert data[204:460] == b"\xff" * 256
     assert data[460] == 0x80
     assert data[461] == expected_crypt
-    assert u32(data, 4) == zlib.crc32(data[8:479]) & 0xFFFFFFFF
+    assert u32(data, 4) == weak_crc32(data[8:479])
 
     pages = []
     for offset, ptype, bid in ((BBT_OFFSET, 0x80, 0x22), (NBT_OFFSET, 0x81, 0x61)):
@@ -54,7 +60,7 @@ def validate(path: Path, expected_crypt: int = 0) -> dict[str, object]:
         assert page[501] == ptype
         assert u16(page, 502) == page_signature(offset, bid)
         assert u32(page, 504) == bid
-        assert u32(page, 508) == zlib.crc32(page[:500]) & 0xFFFFFFFF
+        assert u32(page, 508) == weak_crc32(page[:500])
         pages.append({"offset": offset, "type": hex(ptype), "bid": hex(bid), "entries": 0})
 
     return {
