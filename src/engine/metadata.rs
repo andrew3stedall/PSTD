@@ -1035,6 +1035,7 @@ fn discover_folder_hierarchy(
     run_id: &str,
     pst_id: &str,
     root_folder_key: &str,
+    fallback_charset: Option<&str>,
 ) -> FolderDiscoveryOutput {
     let mut folders = Vec::new();
     let mut inventory = Vec::new();
