@@ -4,6 +4,11 @@ _Last reviewed: 21 August 2026._
 
 ## Added
 
+### ATT-03 unnamed attachments
+
+- Preserve validated property-context attachments without usable filename properties.
+- Keep the original filename absent and use deterministic safe fallback names while retaining strict method, size, and type validation.
+
 ### BODY-01 charset fallback
 
 - Decode legacy MAPI String8 values using the documented ISO-8859-1 byte mapping instead of UTF-8 replacement decoding.
