@@ -769,7 +769,7 @@ fn resolved_subnode_data_reference(
         .filter(|block| block.block_id.0 == data_bid)
         .count()
         == 1)
-    .then_some((data_nid, data_bid))
+        .then_some((data_nid, data_bid))
 }
 
 fn attachment_data_nid(properties: &PropertyContext) -> Option<u32> {
@@ -786,15 +786,6 @@ fn attachment_data_nid(properties: &PropertyContext) -> Option<u32> {
         }
     }
     None
-}
-
-fn slblock_data_bid_for_nid(bytes: &[u8], target_nid: u32) -> Option<u64> {
-    let bids = slblock_data_bids_for_nid(bytes, target_nid);
-    if bids.len() == 1 {
-        bids.into_iter().next()
-    } else {
-        None
-    }
 }
 
 fn slblock_data_bids_for_nid(bytes: &[u8], target_nid: u32) -> Vec<u64> {
@@ -882,7 +873,7 @@ mod tests {
     use super::{
         embedded_attachment_record, embedded_message_nid_from_object_allocation,
         embedded_object_reference, filename_attachment_record, resolve_attachment_payload,
-        slblock_data_bid_for_nid, COMPACT_SLENTRY_BYTES, UNICODE_SLBLOCK_LEAF_LEVEL,
+        slblock_data_bids_for_nid, COMPACT_SLENTRY_BYTES, UNICODE_SLBLOCK_LEAF_LEVEL,
         UNICODE_SLBLOCK_TYPE,
     };
     use crate::pst::bbt::{BbtEntry, BbtIndex};
@@ -1151,23 +1142,20 @@ mod tests {
     #[test]
     fn resolves_compact_four_byte_slblocks_and_rejects_truncation() {
         assert_eq!(
-            slblock_data_bid_for_nid(&compact_slblock(0x833f, 0x650), 0x833f),
-            Some(0x650)
+            slblock_data_bids_for_nid(&compact_slblock(0x833f, 0x650), 0x833f),
+            vec![0x650]
         );
 
         let mut truncated = compact_slblock(0x833f, 0x650);
         truncated[2..4].copy_from_slice(&2u16.to_le_bytes());
-        assert_eq!(slblock_data_bid_for_nid(&truncated, 0x833f), None);
+        assert_eq!(slblock_data_bids_for_nid(&truncated, 0x833f), Vec::<u64>::new());
     }
 
     #[test]
     fn resolves_method_six_ole_payload_through_wide_and_compact_references() {
         let ole_bytes = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1compound-file".to_vec();
 
-        for slblock_bytes in [
-            slblock(0x833f, 0x632),
-            compact_slblock(0x833f, 0x632),
-        ] {
+        for slblock_bytes in [slblock(0x833f, 0x632), compact_slblock(0x833f, 0x632)] {
             let first = ole_bytes[..8].to_vec();
             let second = ole_bytes[8..].to_vec();
             let root = xblock(&[0x640, 0x644], ole_bytes.len() as u32);
@@ -1250,16 +1238,19 @@ mod tests {
     #[test]
     fn rejects_truncated_or_mismatched_unicode_slblocks() {
         assert_eq!(
-            slblock_data_bid_for_nid(&slblock(0x833f, 0x650), 0x833f),
-            Some(0x650)
+            slblock_data_bids_for_nid(&slblock(0x833f, 0x650), 0x833f),
+            vec![0x650]
         );
         assert_eq!(
-            slblock_data_bid_for_nid(&slblock(0x833f, 0x650), 0x835f),
-            None
+            slblock_data_bids_for_nid(&slblock(0x833f, 0x650), 0x835f),
+            Vec::<u64>::new()
         );
         let mut truncated = slblock(0x833f, 0x650);
         truncated[2..4].copy_from_slice(&2u16.to_le_bytes());
-        assert_eq!(slblock_data_bid_for_nid(&truncated, 0x833f), None);
+        assert_eq!(
+            slblock_data_bids_for_nid(&truncated, 0x833f),
+            Vec::<u64>::new()
+        );
     }
 
     fn method_six_properties(size: usize, data_nid: u32) -> PropertyContext {
