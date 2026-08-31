@@ -489,11 +489,7 @@ pub fn property_context_from_table_row_with_fallback_charset(
             )
             .ok();
             let conversion_error = def.value_type == MapiValueType::String8
-                && decode_string8_with_status(
-                    raw,
-                    Some(charset_resolution.charset.as_str()),
-                )
-                .1;
+                && decode_string8_with_status(raw, Some(charset_resolution.charset.as_str())).1;
             let status = if conversion_error {
                 "selected_charset_conversion_error"
             } else {
