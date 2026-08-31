@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use crate::error::{PstdError, PstdResult};
 use crate::pst::item_routing::{ItemRoutingPolicy, ItemTypeFilter};
+use crate::pst::mapi::canonical_fallback_charset;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -203,10 +204,13 @@ impl ReadpstPolicy {
             )));
         }
         if let Some(charset) = &self.fallback_charset {
-            if charset.len() > 64 || !charset.is_ascii() || charset.chars().any(char::is_whitespace)
+            if charset.len() > 64
+                || !charset.is_ascii()
+                || charset.chars().any(char::is_whitespace)
+                || canonical_fallback_charset(charset).is_none()
             {
                 return Err(PstdError::InvalidConfig(
-                    "RPCLI_INVALID_FALLBACK_CHARSET: expected a short ASCII charset name"
+                    "RPCLI_INVALID_FALLBACK_CHARSET: expected iso-8859-1, windows-1252, or utf-8"
                         .to_string(),
                 ));
             }

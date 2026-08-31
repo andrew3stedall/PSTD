@@ -54,6 +54,8 @@ Validated property-context attachments now survive missing or blank filename pro
 
 The MAPI String8 conversion boundary now preserves legacy high-bit bytes through the documented ISO-8859-1 fallback, with NUL-termination and non-replacement regression coverage. This improves BODY-01/MSG-02 fallback fidelity; broader producer-specific charset parity remains open.
 
+The CLI fallback charset override is now effective across message, folder, attachment table/property-context, and nested embedded-message decoding. Supported names are `iso-8859-1`, `windows-1252`/`cp1252`, and `utf-8`; unsupported values fail closed during policy validation.
+
 The java-libpst comparison fixture has a deterministic fail-closed baseline: 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised attachment payloads, 0 validated `IPM.Note*` classes, and 0 EML files. It is comparison evidence, not an email capability milestone.
 
 ## Next evidence-based milestone

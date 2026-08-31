@@ -464,8 +464,32 @@ fn string8_property_def(tag: u32) -> Option<MapiPropertyDef> {
     })
 }
 
-#[allow(clippy::chunks_exact_to_as_chunks)]
+pub fn canonical_fallback_charset(value: &str) -> Option<&'static str> {
+    let value = value.trim();
+    if value.eq_ignore_ascii_case("iso-8859-1")
+        || value.eq_ignore_ascii_case("latin-1")
+        || value.eq_ignore_ascii_case("latin1")
+    {
+        Some("iso-8859-1")
+    } else if value.eq_ignore_ascii_case("windows-1252") || value.eq_ignore_ascii_case("cp1252") {
+        Some("windows-1252")
+    } else if value.eq_ignore_ascii_case("utf-8") || value.eq_ignore_ascii_case("utf8") {
+        Some("utf-8")
+    } else {
+        None
+    }
+}
+
 pub fn decode_value(value_type: MapiValueType, raw: &[u8]) -> PstdResult<MapiValue> {
+    decode_value_with_fallback(value_type, raw, None)
+}
+
+#[allow(clippy::chunks_exact_to_as_chunks)]
+pub fn decode_value_with_fallback(
+    value_type: MapiValueType,
+    raw: &[u8],
+    fallback_charset: Option<&str>,
+) -> PstdResult<MapiValue> {
     match value_type {
         MapiValueType::String => {
             let utf16: Vec<u16> = raw
@@ -475,7 +499,7 @@ pub fn decode_value(value_type: MapiValueType, raw: &[u8]) -> PstdResult<MapiVal
                 .collect();
             Ok(MapiValue::String(String::from_utf16_lossy(&utf16)))
         }
-        MapiValueType::String8 => Ok(MapiValue::String(decode_string8(raw))),
+        MapiValueType::String8 => Ok(MapiValue::String(decode_string8(raw, fallback_charset))),
         MapiValueType::Integer32 => {
             if raw.len() < 4 {
                 return Err(PstdError::pst_parse(None, "i32 value too short"));
@@ -507,15 +531,53 @@ pub fn decode_value(value_type: MapiValueType, raw: &[u8]) -> PstdResult<MapiVal
     }
 }
 
-fn decode_string8(raw: &[u8]) -> String {
+fn decode_string8(raw: &[u8], fallback_charset: Option<&str>) -> String {
     let nul_index = raw.iter().position(|byte| *byte == 0).unwrap_or(raw.len());
+    let raw = &raw[..nul_index];
 
-    // String8 is a byte-oriented MAPI value. The parser's documented default
-    // charset is ISO-8859-1, whose code points map one-to-one to these bytes.
-    raw[..nul_index]
-        .iter()
-        .map(|byte| char::from(*byte))
-        .collect()
+    match fallback_charset.and_then(canonical_fallback_charset) {
+        Some("utf-8") => String::from_utf8_lossy(raw).to_string(),
+        Some("windows-1252") => raw.iter().map(|byte| windows_1252_char(*byte)).collect(),
+        _ => {
+            // String8 is a byte-oriented MAPI value. The parser's documented
+            // default charset is ISO-8859-1, whose code points map one-to-one
+            // to these bytes.
+            raw.iter().map(|byte| char::from(*byte)).collect()
+        }
+    }
+}
+
+fn windows_1252_char(byte: u8) -> char {
+    match byte {
+        0x80 => '\u{20ac}',
+        0x82 => '\u{201a}',
+        0x83 => '\u{192}',
+        0x84 => '\u{201e}',
+        0x85 => '\u{2026}',
+        0x86 => '\u{2020}',
+        0x87 => '\u{2021}',
+        0x88 => '\u{2c6}',
+        0x89 => '\u{2030}',
+        0x8a => '\u{160}',
+        0x8b => '\u{2039}',
+        0x8c => '\u{152}',
+        0x8e => '\u{17d}',
+        0x91 => '\u{2018}',
+        0x92 => '\u{2019}',
+        0x93 => '\u{201c}',
+        0x94 => '\u{201d}',
+        0x95 => '\u{2022}',
+        0x96 => '\u{2013}',
+        0x97 => '\u{2014}',
+        0x98 => '\u{2dc}',
+        0x99 => '\u{2122}',
+        0x9a => '\u{161}',
+        0x9b => '\u{203a}',
+        0x9c => '\u{153}',
+        0x9e => '\u{17e}',
+        0x9f => '\u{178}',
+        _ => char::from(byte),
+    }
 }
 
 pub fn value_summary(value: &MapiValue) -> String {
@@ -533,8 +595,9 @@ pub fn value_summary(value: &MapiValue) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        byte_swapped_tag, decode_value, has_known_value_type, property_def, MapiValue,
-        MapiValueType, PR_ATTACH_DATA_OBJ, PR_BODY_A, PR_SUBJECT, PR_SUBJECT_A,
+        byte_swapped_tag, canonical_fallback_charset, decode_value, decode_value_with_fallback,
+        has_known_value_type, property_def, MapiValue, MapiValueType, PR_ATTACH_DATA_OBJ,
+        PR_BODY_A, PR_SUBJECT, PR_SUBJECT_A,
     };
 
     #[test]
@@ -578,5 +641,38 @@ mod tests {
             MapiValue::String(value) => assert_eq!(value, "\u{80}\u{ff}"),
             other => panic!("unexpected decoded value: {other:?}"),
         }
+    }
+
+    #[test]
+    fn applies_explicit_fallback_charset_to_string8_values() {
+        let value =
+            decode_value_with_fallback(MapiValueType::String8, &[0x80, 0x93, 0x94], Some("cp1252"))
+                .unwrap();
+        match value {
+            MapiValue::String(value) => assert_eq!(value, "€“”"),
+            other => panic!("unexpected decoded value: {other:?}"),
+        }
+
+        let value = decode_value_with_fallback(
+            MapiValueType::String8,
+            &[b'c', b'a', b'f', 0xc3, 0xa9],
+            Some("utf-8"),
+        )
+        .unwrap();
+        match value {
+            MapiValue::String(value) => assert_eq!(value, "café"),
+            other => panic!("unexpected decoded value: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn canonicalizes_supported_fallback_charset_aliases() {
+        assert_eq!(canonical_fallback_charset("Latin1"), Some("iso-8859-1"));
+        assert_eq!(
+            canonical_fallback_charset("WINDOWS-1252"),
+            Some("windows-1252")
+        );
+        assert_eq!(canonical_fallback_charset("utf8"), Some("utf-8"));
+        assert_eq!(canonical_fallback_charset("koi8-r"), None);
     }
 }

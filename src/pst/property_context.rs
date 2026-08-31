@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use crate::error::PstdResult;
 use crate::pst::bth::BthMap;
 use crate::pst::mapi::{
-    byte_swapped_tag, decode_value, has_known_value_type, property_def, value_summary, MapiValue,
+    byte_swapped_tag, decode_value_with_fallback, has_known_value_type, property_def,
+    value_summary, MapiValue,
 };
 
 const PQ10_TRAVERSAL_STATUS_TAG: u32 = 0xffff_fffe;
@@ -56,6 +57,13 @@ impl PropertyContext {
     }
 
     pub fn from_bth_with_report(bth: &BthMap) -> PstdResult<PropertyContextParseReport> {
+        Self::from_bth_with_fallback_charset(bth, None)
+    }
+
+    pub fn from_bth_with_fallback_charset(
+        bth: &BthMap,
+        fallback_charset: Option<&str>,
+    ) -> PstdResult<PropertyContextParseReport> {
         let mut values = HashMap::new();
         let mut selected_property_count = 0usize;
         let mut unknown_property_count = 0usize;
@@ -98,13 +106,14 @@ impl PropertyContext {
             if interpreted.was_byte_swapped {
                 byte_swapped_selected_property_count += 1;
             }
-            let decoded = match decode_value(def.value_type, &entry.value) {
-                Ok(value) => Some(value),
-                Err(_) => {
-                    decode_error_count += 1;
-                    None
-                }
-            };
+            let decoded =
+                match decode_value_with_fallback(def.value_type, &entry.value, fallback_charset) {
+                    Ok(value) => Some(value),
+                    Err(_) => {
+                        decode_error_count += 1;
+                        None
+                    }
+                };
             selected_property_count += 1;
             values.insert(
                 interpreted.tag,
@@ -378,6 +387,29 @@ mod tests {
         assert_eq!(
             report.context.string_value(PR_SUBJECT_A).as_deref(),
             Some("Hi")
+        );
+    }
+
+    #[test]
+    fn applies_explicit_fallback_charset_to_property_contexts() {
+        let bth = BthMap {
+            header: BthHeader {
+                key_size: 4,
+                value_size: 4,
+                entry_count: 1,
+                root_allocation: 0,
+            },
+            entries: vec![BthEntry {
+                key: PR_SUBJECT_A.to_le_bytes().to_vec(),
+                value: vec![0x80, 0],
+            }],
+        };
+
+        let report =
+            PropertyContext::from_bth_with_fallback_charset(&bth, Some("windows-1252")).unwrap();
+        assert_eq!(
+            report.context.string_value(PR_SUBJECT_A).as_deref(),
+            Some("€")
         );
     }
 

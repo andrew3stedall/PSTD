@@ -23,7 +23,7 @@ pub struct ReadpstArgs {
     #[arg(long, default_value = "canonical")]
     output_profile: String,
     /// Fallback charset for values without an explicit charset declaration.
-    #[arg(long)]
+    #[arg(short = 'C', long)]
     fallback_charset: Option<String>,
     /// Prefer UTF-8 body representations when both UTF-8 and legacy forms exist.
     #[arg(long, default_value_t = false)]
@@ -300,6 +300,8 @@ mod tests {
             "out",
             "--include-deleted",
             "--include-associated",
+            "-C",
+            "windows-1252",
             "--item-types",
             "c",
             "--attachment-extensions",
@@ -322,6 +324,7 @@ mod tests {
         let policy = readpst.policy(overwrite).expect("policy should validate");
         assert!(policy.include_deleted);
         assert!(policy.include_associated);
+        assert_eq!(policy.fallback_charset.as_deref(), Some("windows-1252"));
         assert_eq!(
             policy.item_type_filter,
             crate::pst::item_routing::ItemTypeFilter::Contact
@@ -357,6 +360,30 @@ mod tests {
         assert_eq!(policy.output_profile, OutputProfile::Msg);
     }
 
+    #[test]
+    fn rejects_unsupported_fallback_charset() {
+        let cli = Cli::try_parse_from([
+            "pstd",
+            "extract",
+            "--input",
+            "fixture.pst",
+            "--output",
+            "out",
+            "--fallback-charset",
+            "koi8-r",
+        ])
+        .expect("CLI should parse before policy validation");
+        let super::Commands::Extract {
+            readpst, overwrite, ..
+        } = cli.command
+        else {
+            panic!("expected extract command");
+        };
+        let error = readpst
+            .policy(overwrite)
+            .expect_err("unsupported charset must fail closed");
+        assert!(error.contains("RPCLI_INVALID_FALLBACK_CHARSET"));
+    }
     #[test]
     fn help_and_version_expose_the_readpst_parity_surface() {
         let help = Cli::try_parse_from(["pstd", "--help"])

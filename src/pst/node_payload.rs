@@ -34,6 +34,16 @@ pub fn load_node_property_context(
     entry: &NbtEntry,
     limits: ParserLimits,
 ) -> PstdResult<LoadedNodePayload> {
+    load_node_property_context_with_fallback_charset(reader, bbt, entry, limits, None)
+}
+
+pub fn load_node_property_context_with_fallback_charset(
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    entry: &NbtEntry,
+    limits: ParserLimits,
+    fallback_charset: Option<&str>,
+) -> PstdResult<LoadedNodePayload> {
     let payload = load_payload_block(reader, bbt, entry.data_block_id, limits)?;
     let payload_base_offset = payload.block_ref.offset.0;
     let (bth, traversal_status) =
@@ -44,7 +54,7 @@ pub fn load_node_property_context(
                 format!("legacy_flat_bth_property_context; pq11_heap_probe={reason}"),
             ),
         };
-    let property_report = PropertyContext::from_bth_with_report(&bth)?;
+    let property_report = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset)?;
     let properties = property_report
         .context
         .clone()

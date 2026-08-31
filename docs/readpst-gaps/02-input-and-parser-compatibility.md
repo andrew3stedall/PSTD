@@ -17,7 +17,7 @@
 PSTD now projects a bounded `InputCapability` at the parser boundary. It classifies the libpst index types for Unicode, ANSI, and OST 2013, records crypt method and root-pointer readiness, preserves the ISO-8859-1 default charset policy, and exposes file/read/candidate/property/diagnostic/depth budgets. Unsupported families and unsupported crypt methods, short headers, invalid roots, and budget violations are explicit statuses; they do not become an empty folder tree. Inspect JSON and canonical extraction archives carry the capability record.
 ## RP-02D charset slice
 
-The MAPI decoder now applies the documented ISO-8859-1 fallback to typed String8 values. NUL-terminated legacy bytes, including the full high-bit range, are preserved without UTF-8 replacement characters. This is a bounded conversion improvement: producer-specific Windows code pages, per-item charset selection, and the run-level `-C` override remain open until corpus and provenance evidence supports them.
+The MAPI decoder now applies the documented ISO-8859-1 fallback to typed String8 values and accepts the validated run-level `-C` override (`iso-8859-1`, `windows-1252`/`cp1252`, or `utf-8`). The selected fallback reaches message and folder property contexts, table-row attachment contexts, and recursively recovered embedded messages; unsupported names fail closed before extraction. NUL-terminated legacy bytes, including high-bit values, remain explicit and deterministic. Broader iconv/code-page discovery, per-item charset provenance, and corpus evidence remain open.
 
 ## RP-M1-04 provenance boundary
 

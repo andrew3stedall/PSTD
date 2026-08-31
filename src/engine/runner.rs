@@ -5,7 +5,7 @@ use std::time::Instant;
 use sha2::{Digest, Sha256};
 
 use crate::config::ExtractConfig;
-use crate::engine::metadata::{extract_metadata, fallback_metadata};
+use crate::engine::metadata::{extract_metadata_with_fallback_charset, fallback_metadata};
 use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::calendar::serialize_icalendar;
 use crate::output::contact::{serialize_contact_list, serialize_vcards};
@@ -49,7 +49,12 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
 
     let capability = InputCapability::probe(&config.input, InputLimits::default());
     let mut metadata = if capability.allows_extraction {
-        match extract_metadata(&input_display, &run_id, &pst_id) {
+        match extract_metadata_with_fallback_charset(
+            &input_display,
+            &run_id,
+            &pst_id,
+            config.readpst.fallback_charset.as_deref(),
+        ) {
             Ok(value) => value,
             Err(reason) if config.continue_on_error => fallback_metadata(&run_id, &pst_id, &reason),
             Err(reason) => return Err(reason),

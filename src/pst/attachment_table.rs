@@ -6,7 +6,7 @@ use crate::pst::attachments::{
     unavailable_attachment_record_from_metadata, unavailable_attachment_record_from_properties,
     AttachmentMetadata, AttachmentPayload,
 };
-use crate::pst::mapi::{decode_value, property_def};
+use crate::pst::mapi::{decode_value_with_fallback, property_def};
 use crate::pst::payload::PayloadBlock;
 use crate::pst::property_context::{PropertyContext, PropertyValue};
 use crate::pst::table_context::{TableContext, TableRow};
@@ -44,12 +44,25 @@ pub fn attachment_payloads_from_table(
     Vec<AttachmentRecord>,
     AttachmentTableWiringReport,
 ) {
+    attachment_payloads_from_table_with_fallback_charset(message_key, table, None)
+}
+
+pub fn attachment_payloads_from_table_with_fallback_charset(
+    message_key: &str,
+    table: &TableContext,
+    fallback_charset: Option<&str>,
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    AttachmentTableWiringReport,
+) {
     let mut payloads = Vec::new();
     let mut unavailable_records = Vec::new();
     let mut missing_payload_count = 0usize;
 
     for (ordinal, row) in table.rows.iter().enumerate() {
-        let properties = property_context_from_table_row(row);
+        let properties =
+            property_context_from_table_row_with_fallback_charset(row, fallback_charset);
         if let Some(payload) = attachment_payload_from_properties(message_key, ordinal, &properties)
         {
             payloads.push(payload);
@@ -90,6 +103,18 @@ pub fn attachment_payloads_from_subnode_blocks(
     Vec<AttachmentRecord>,
     AttachmentSubnodeWiringReport,
 ) {
+    attachment_payloads_from_subnode_blocks_with_fallback_charset(message_key, blocks, None)
+}
+
+pub fn attachment_payloads_from_subnode_blocks_with_fallback_charset(
+    message_key: &str,
+    blocks: &[PayloadBlock],
+    fallback_charset: Option<&str>,
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    AttachmentSubnodeWiringReport,
+) {
     let mut payloads = Vec::new();
     let mut unavailable_records = Vec::new();
     let mut parsed_table_count = 0usize;
@@ -102,7 +127,7 @@ pub fn attachment_payloads_from_subnode_blocks(
     let mut next_ordinal = 0usize;
 
     for block in blocks {
-        match decode_attachment_block(message_key, block, next_ordinal) {
+        match decode_attachment_block(message_key, block, next_ordinal, fallback_charset) {
             Ok((mut block_payloads, mut block_unavailable_records, report)) => {
                 parsed_table_count += 1;
                 table_statuses.push(report.status);
@@ -152,6 +177,7 @@ fn decode_attachment_block(
     message_key: &str,
     block: &PayloadBlock,
     start_ordinal: usize,
+    fallback_charset: Option<&str>,
 ) -> Result<
     (
         Vec<AttachmentPayload>,
@@ -173,7 +199,11 @@ fn decode_attachment_block(
     match TableContext::parse_with_report(&block.bytes, block.block_ref.offset.0) {
         Ok(table_report) => {
             let (payloads, unavailable_records, mut report) =
-                attachment_payloads_from_table(message_key, &table_report.context);
+                attachment_payloads_from_table_with_fallback_charset(
+                    message_key,
+                    &table_report.context,
+                    fallback_charset,
+                );
             report.status = table_report.status;
             Ok((payloads, unavailable_records, report))
         }
@@ -427,13 +457,20 @@ fn decode_utf16_field(bytes: &[u8]) -> Option<String> {
 }
 
 pub fn property_context_from_table_row(row: &TableRow) -> PropertyContext {
+    property_context_from_table_row_with_fallback_charset(row, None)
+}
+
+pub fn property_context_from_table_row_with_fallback_charset(
+    row: &TableRow,
+    fallback_charset: Option<&str>,
+) -> PropertyContext {
     let mut values = HashMap::new();
 
     for (tag, raw) in &row.values {
         let (name, decoded, status) = if let Some(def) = property_def(*tag) {
             (
                 def.name.to_string(),
-                decode_value(def.value_type, raw).ok(),
+                decode_value_with_fallback(def.value_type, raw, fallback_charset).ok(),
                 "selected".to_string(),
             )
         } else {

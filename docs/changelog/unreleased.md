@@ -19,6 +19,11 @@ _Last reviewed: 21 August 2026._
 - Decode legacy MAPI String8 values using the documented ISO-8859-1 byte mapping instead of UTF-8 replacement decoding.
 - Add regression coverage for high-bit bytes and NUL-terminated values; broader producer-specific code-page selection remains Partial.
 
+### CLI-06 fallback charset
+
+- Make `--fallback-charset`/`-C` effective across message, folder, attachment table/property-context, and recursively recovered embedded-message decoding.
+- Support `iso-8859-1`, `windows-1252`/`cp1252`, and `utf-8`; reject unsupported names before extraction and retain the default ISO-8859-1 behavior when omitted.
+
 ### Compatibility analysis
 
 - A pinned `libpst`/`readpst` parity gap register under `docs/readpst-gaps/`, covering CLI modes, PST/OST and encryption inputs, item classes, metadata, MIME and RTF bodies, attachment methods, contacts, calendar/journal outputs, storage formats, and acceptance fixtures.

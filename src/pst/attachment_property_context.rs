@@ -65,6 +65,18 @@ pub fn attachment_records_from_property_context_subnodes(
     message_key: &str,
     blocks: &[PayloadBlock],
 ) -> (Vec<AttachmentRecord>, AttachmentPropertyContextReport) {
+    attachment_records_from_property_context_subnodes_with_fallback_charset(
+        message_key,
+        blocks,
+        None,
+    )
+}
+
+pub fn attachment_records_from_property_context_subnodes_with_fallback_charset(
+    message_key: &str,
+    blocks: &[PayloadBlock],
+    fallback_charset: Option<&str>,
+) -> (Vec<AttachmentRecord>, AttachmentPropertyContextReport) {
     let mut records = Vec::new();
     let mut property_context_count = 0usize;
     let mut rejected_context_count = 0usize;
@@ -86,7 +98,8 @@ pub fn attachment_records_from_property_context_subnodes(
             rejected_context_count += 1;
             continue;
         };
-        let Ok(report) = PropertyContext::from_bth_with_report(&bth) else {
+        let Ok(report) = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset)
+        else {
             rejected_context_count += 1;
             continue;
         };
@@ -163,6 +176,29 @@ pub fn attachment_payloads_from_property_context_subnodes(
     Vec<EmbeddedMessageCandidate>,
     AttachmentPropertyContextReport,
 ) {
+    attachment_payloads_from_property_context_subnodes_with_fallback_charset(
+        message_key,
+        blocks,
+        reader,
+        bbt,
+        limits,
+        None,
+    )
+}
+
+pub fn attachment_payloads_from_property_context_subnodes_with_fallback_charset(
+    message_key: &str,
+    blocks: &[PayloadBlock],
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    limits: ParserLimits,
+    fallback_charset: Option<&str>,
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    Vec<EmbeddedMessageCandidate>,
+    AttachmentPropertyContextReport,
+) {
     let mut payloads = Vec::new();
     let mut records = Vec::new();
     let mut embedded_messages = Vec::new();
@@ -187,7 +223,8 @@ pub fn attachment_payloads_from_property_context_subnodes(
             rejected_context_count += 1;
             continue;
         };
-        let Ok(report) = PropertyContext::from_bth_with_report(&bth) else {
+        let Ok(report) = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset)
+        else {
             rejected_context_count += 1;
             continue;
         };
@@ -237,7 +274,14 @@ pub fn attachment_payloads_from_property_context_subnodes(
 
     for (block, properties) in embedded_contexts {
         let ordinal = payloads.len() + records.len();
-        match embedded_message_candidate(message_key, ordinal, block, &properties, blocks) {
+        match embedded_message_candidate(
+            message_key,
+            ordinal,
+            block,
+            &properties,
+            blocks,
+            fallback_charset,
+        ) {
             Ok(candidate) => {
                 records.push(candidate.attachment_record.clone());
                 embedded_messages.push(candidate);
@@ -335,6 +379,7 @@ fn embedded_message_candidate(
     attachment_block: &PayloadBlock,
     attachment_properties: &PropertyContext,
     blocks: &[PayloadBlock],
+    fallback_charset: Option<&str>,
 ) -> Result<EmbeddedMessageCandidate, String> {
     let object = embedded_object_reference(attachment_block, attachment_properties, blocks)?;
     let property_matches = blocks
@@ -378,7 +423,8 @@ fn embedded_message_candidate(
             object.data_nid, object.data_bid
         )
     })?;
-    let property_report = PropertyContext::from_bth_with_report(&bth).map_err(|_| {
+    let property_report = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset)
+        .map_err(|_| {
         format!(
             "stage=property_context; data_nid=0x{:08x}; data_bid=0x{:x}",
             object.data_nid, object.data_bid
