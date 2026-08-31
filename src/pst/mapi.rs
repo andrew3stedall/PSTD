@@ -475,12 +475,7 @@ pub fn decode_value(value_type: MapiValueType, raw: &[u8]) -> PstdResult<MapiVal
                 .collect();
             Ok(MapiValue::String(String::from_utf16_lossy(&utf16)))
         }
-        MapiValueType::String8 => {
-            let nul_index = raw.iter().position(|byte| *byte == 0).unwrap_or(raw.len());
-            Ok(MapiValue::String(
-                String::from_utf8_lossy(&raw[..nul_index]).to_string(),
-            ))
-        }
+        MapiValueType::String8 => Ok(MapiValue::String(decode_string8(raw))),
         MapiValueType::Integer32 => {
             if raw.len() < 4 {
                 return Err(PstdError::pst_parse(None, "i32 value too short"));
@@ -510,6 +505,17 @@ pub fn decode_value(value_type: MapiValueType, raw: &[u8]) -> PstdResult<MapiVal
         MapiValueType::Binary => Ok(MapiValue::Binary(raw.to_vec())),
         MapiValueType::Unknown => Ok(MapiValue::Unknown(raw.to_vec())),
     }
+}
+
+fn decode_string8(raw: &[u8]) -> String {
+    let nul_index = raw.iter().position(|byte| *byte == 0).unwrap_or(raw.len());
+
+    // String8 is a byte-oriented MAPI value. The parser's documented default
+    // charset is ISO-8859-1, whose code points map one-to-one to these bytes.
+    raw[..nul_index]
+        .iter()
+        .map(|byte| char::from(*byte))
+        .collect()
 }
 
 pub fn value_summary(value: &MapiValue) -> String {
@@ -555,6 +561,21 @@ mod tests {
         let value = decode_value(MapiValueType::String8, b"Hello\0ignored").unwrap();
         match value {
             MapiValue::String(value) => assert_eq!(value, "Hello"),
+            other => panic!("unexpected decoded value: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn decodes_string8_high_bit_bytes_without_replacement() {
+        let value = decode_value(MapiValueType::String8, &[b'c', b'a', b'f', 0xe9, 0]).unwrap();
+        match value {
+            MapiValue::String(value) => assert_eq!(value, "café"),
+            other => panic!("unexpected decoded value: {other:?}"),
+        }
+
+        let value = decode_value(MapiValueType::String8, &[0x80, 0xff]).unwrap();
+        match value {
+            MapiValue::String(value) => assert_eq!(value, "\u{80}\u{ff}"),
             other => panic!("unexpected decoded value: {other:?}"),
         }
     }
