@@ -1,8 +1,21 @@
 # Unreleased
 
-_Last reviewed: 21 August 2026._
+_Last reviewed: 31 August 2026._
 
 ## Added
+
+### RP-M6-01 ANSI Stage-A fixture
+
+- Added a standalone Linux Rust emitter at `tools/ansi_fixture.rs` for a controlled
+  2,048-byte version-14 ANSI PST with empty BBT/NBT leaf roots, ANSI page trailers,
+  signatures, weak CRC-32 values, and deterministic crypt-method variants.
+- Added an independent byte validator and a dedicated workflow that pins the baseline
+  SHA-256 `b5de1ce4cebacc2ea4cefddb4ab9c4d32e5fed04b81cd681e8831faf1323c765`,
+  verifies repeat-run equality, checks PSTD's fail-closed empty traversal, and
+  validates acceptance by libpff `pffinfo 20180714`.
+- Recorded the fixture manifest and preserved the scope boundary: Stage A proves only
+  ANSI container structure; ANSI email, folder, item, body, attachment, and EML
+  compatibility remain unclaimed.
 
 ### ATT-04 compact reference entries
 

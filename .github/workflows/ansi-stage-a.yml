@@ -1,0 +1,147 @@
+name: ANSI Stage-A fixture
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ansi-stage-a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Generate deterministic ANSI fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pstd-ansi-stage-a/fixtures /tmp/pstd-ansi-stage-a/evidence
+          rustc --edition=2021 --deny warnings tools/ansi_fixture.rs -o /tmp/ansi-fixture
+          /tmp/ansi-fixture /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst 0
+          /tmp/ansi-fixture /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-repeat.pst 0
+          /tmp/ansi-fixture /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-strong-crypt.pst 2
+          /tmp/ansi-fixture /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-unknown-crypt.pst 7
+          cmp /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-repeat.pst
+          if /tmp/ansi-fixture /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst 0 > /tmp/pstd-ansi-stage-a/evidence/overwrite.stdout 2> /tmp/pstd-ansi-stage-a/evidence/overwrite.stderr; then
+            echo "fixture emitter unexpectedly overwrote an existing output" >&2
+            exit 1
+          fi
+          grep -F "refusing to overwrite existing fixture" /tmp/pstd-ansi-stage-a/evidence/overwrite.stderr
+          /tmp/ansi-fixture /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst 0 --force
+          cmp /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-repeat.pst
+          sha256sum /tmp/pstd-ansi-stage-a/fixtures/*.pst | tee /tmp/pstd-ansi-stage-a/evidence/fixture-sha256.txt
+          test "$(sha256sum /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst | cut -d' ' -f1)" = \
+            "b5de1ce4cebacc2ea4cefddb4ab9c4d32e5fed04b81cd681e8831faf1323c765"
+
+      - name: Independently validate ANSI structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_ansi_stage_a.py             /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst 0             | tee /tmp/pstd-ansi-stage-a/evidence/independent-validation.json
+          python3 scripts/validate_ansi_stage_a.py             /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-strong-crypt.pst 2             > /tmp/pstd-ansi-stage-a/evidence/strong-crypt-validation.json
+          python3 scripts/validate_ansi_stage_a.py             /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-unknown-crypt.pst 7             > /tmp/pstd-ansi-stage-a/evidence/unknown-crypt-validation.json
+
+      - name: Run PSTD ANSI parser and extraction checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --test readpst_rp_m6_01 -- --nocapture
+          cargo test --test input_capability -- --nocapture
+          cargo run --quiet -- inspect             --input /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst --json             > /tmp/pstd-ansi-stage-a/evidence/pstd-inspect.json
+          cargo run --quiet -- inspect             --input /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst --json             > /tmp/pstd-ansi-stage-a/evidence/pstd-inspect-repeat.json
+          cmp /tmp/pstd-ansi-stage-a/evidence/pstd-inspect.json             /tmp/pstd-ansi-stage-a/evidence/pstd-inspect-repeat.json
+          cargo run --quiet -- inspect             --input /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-strong-crypt.pst --json             > /tmp/pstd-ansi-stage-a/evidence/pstd-strong-crypt.json
+          cargo run --quiet -- inspect             --input /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-unknown-crypt.pst --json             > /tmp/pstd-ansi-stage-a/evidence/pstd-unknown-crypt.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('/tmp/pstd-ansi-stage-a/evidence')
+          admitted = json.loads((root / 'pstd-inspect.json').read_text())
+          assert admitted['capability']['family'] == 'ansi_pst', admitted
+          assert admitted['capability']['status'] == 'partial', admitted
+          assert admitted['capability']['allows_extraction'] is False, admitted
+          assert admitted['bbt_entries'] == 0, admitted
+          assert admitted['nbt_entries'] == 0, admitted
+          assert admitted['header']['root_diagnostics']['condition'] == 'root_pages_in_bounds', admitted
+          assert admitted['bbt_status'].startswith('tree_traversed;'), admitted
+          assert admitted['nbt_status'].startswith('tree_traversed;'), admitted
+
+          strong = json.loads((root / 'pstd-strong-crypt.json').read_text())
+          assert strong['capability']['family'] == 'ansi_pst', strong
+          assert strong['capability']['status'] == 'partial', strong
+          assert strong['capability']['allows_extraction'] is False, strong
+
+          unknown = json.loads((root / 'pstd-unknown-crypt.json').read_text())
+          assert unknown['capability']['status'] == 'unsupported', unknown
+          assert unknown['capability']['allows_extraction'] is False, unknown
+          assert unknown['capability']['index_status'] == 'unsupported_crypt_method:7', unknown
+          PY
+
+      - name: Install pinned independent libpff reader
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y pff-tools
+
+      - name: Validate empty store with libpff
+        shell: bash
+        run: |
+          set -euo pipefail
+          pffinfo -V | tee /tmp/pstd-ansi-stage-a/evidence/libpff-version.txt
+          pffinfo /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst             > /tmp/pstd-ansi-stage-a/evidence/libpff-info.txt             2> /tmp/pstd-ansi-stage-a/evidence/libpff-info.stderr
+          status=$?
+          printf 'pffinfo_exit=%s\\n' "$status" | tee /tmp/pstd-ansi-stage-a/evidence/libpff-status.txt
+          cat /tmp/pstd-ansi-stage-a/evidence/libpff-info.txt
+          cat /tmp/pstd-ansi-stage-a/evidence/libpff-info.stderr >&2
+          test "$status" -eq 0
+
+      - name: Write ANSI Stage-A evidence report
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          fixture = Path('/tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst')
+          report = {
+              'work_unit': 'RP-M6-01/RP-M6-02',
+              'issue': 475,
+              'fixture_provenance': 'deterministic Rust emitter in tools/ansi_fixture.rs; no external PST bytes',
+              'fixture': fixture.name,
+              'byte_length': fixture.stat().st_size,
+              'sha256': hashlib.sha256(fixture.read_bytes()).hexdigest(),
+              'independent_validator': 'scripts/validate_ansi_stage_a.py',
+              'production_reader': 'PSTD inspect/extract path',
+              'independent_reader': 'libpff pffinfo (Ubuntu package pff-tools)',
+              'independent_reader_result': 'accepted; pffinfo exit 0',
+              'expected_store': {
+                  'family': 'ansi_pst',
+                  'bbt_entries': 0,
+                  'nbt_entries': 0,
+                  'messages': 0,
+                  'attachments': 0,
+                  'eml': 0,
+              },
+              'determinism': 'generator repeat output and repeated PSTD inspect JSON are byte-identical',
+              'scope': 'Stage A structural baseline only; no ANSI email compatibility claim',
+          }
+          Path('/tmp/pstd-ansi-stage-a/evidence/report.json').write_text(
+              json.dumps(report, indent=2) + '\n'
+          )
+          PY
+
+      - name: Upload ANSI Stage-A evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-ansi-stage-a-evidence
+          path: /tmp/pstd-ansi-stage-a
+          if-no-files-found: error
