@@ -1,6 +1,6 @@
 # PSTD Project Status
 
-_Last reviewed: 22 August 2026._
+_Last reviewed: 31 August 2026._
 
 ## Purpose
 
@@ -18,7 +18,7 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Embedded message | Partial bounded recovery | One separately linked child remains exact for the approved layout; child attachment subnodes and nested method-5 children are now walked under the depth budget, while additional producer layouts remain unproven. |
 | Folder/message ownership | Exact on the Tika fixture | Eight folders and seven top-level physical message owners resolved from authoritative contents-table rows; the embedded child remains isolated. |
 | Independent body forms | Exact on approved fixtures | Four-byte Property Context body locators remain explicit unavailable forms; valid plain-text siblings are retained independently. |
-| ANSI header diagnostics | Diagnostic only | Version-14/15 field offsets are decoded with variant-correct widths. ANSI traversal and email extraction remain unsupported and are not the active product priority. |
+| ANSI input baseline | Stage A structural baseline exact | A deterministic 2,048-byte Linux Rust v14 fixture is independently byte-validated, accepted by libpff pffinfo 20180714, and fail-closed in PSTD with zero BBT/NBT entries. ANSI email/folder/item extraction remains unproven. |
 | Microsoft Purview Unicode exports | Active corpus target | No approved Purview export fixture is yet committed. Compatibility must be established capability-by-capability on controlled synthetic Purview exports rather than inferred from the existing fixtures. |
 | External PST implementations | Comparison-only tooling | Pinned external tools may generate or independently inventory controlled fixtures, but PSTD acceptance must come from its own Rust implementation and exact deterministic output. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
@@ -56,6 +56,8 @@ The MAPI String8 conversion boundary now preserves legacy high-bit bytes through
 
 The CLI fallback charset override is now effective across message, folder, attachment table/property-context, and nested embedded-message decoding. Supported names are `iso-8859-1`, `windows-1252`/`cp1252`, and `utf-8`; unsupported values fail closed during policy validation.
 
+The ANSI Stage-A structural fixture is now admitted from `tools/ansi_fixture.rs`: exact 2,048-byte length, SHA-256 `b5de1ce4cebacc2ea4cefddb4ab9c4d32e5fed04b81cd681e8831faf1323c765`, independent weak-CRC/page-trailer validation, repeat-run equality, PSTD fail-closed empty traversal, and libpff acceptance. This is Stage A evidence only; no ANSI email compatibility claim is made.
+
 The java-libpst comparison fixture has a deterministic fail-closed baseline: 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised attachment payloads, 0 validated `IPM.Note*` classes, and 0 EML files. It is comparison evidence, not an email capability milestone.
 
 ## Next evidence-based milestone
@@ -72,7 +74,7 @@ The first fixture should expose the smallest capability not already proven by cu
 
 The complete admission and fixture-family plan is in `docs/operations/purview-unicode-corpus-plan.md`.
 
-ANSI Stage A remains a valid later research lane, but an empty ANSI container would add no observable email or EML behaviour and therefore does not outrank representative Purview Unicode coverage.
+ANSI Stage A is complete as a structural baseline. It intentionally adds no email or EML behaviour; the next ANSI work would be a separate Stage B one-folder/one-message fixture and remains below representative Purview Unicode coverage.
 
 ## Validation expectations
 
