@@ -875,7 +875,11 @@ mod tests {
     #[test]
     fn decodes_common_non_western_string8_code_pages() {
         let cases = [
-            ("shift-jis", &[0x93, 0xfa, 0x96, 0x7b, 0x8c, 0xea][..], "日本語"),
+            (
+                "shift-jis",
+                &[0x93, 0xfa, 0x96, 0x7b, 0x8c, 0xea][..],
+                "日本語",
+            ),
             ("gbk", &[0xd6, 0xd0, 0xce, 0xc4][..], "中文"),
             ("euc-kr", &[0xc7, 0xd1, 0xb1, 0xdb][..], "한글"),
             ("big5", &[0xa4, 0xa4, 0xa4, 0xe5][..], "中文"),
@@ -894,12 +898,9 @@ mod tests {
         assert!(had_errors);
         assert!(decoded.contains('\u{fffd}'));
 
-        let value = decode_value_with_fallback(
-            MapiValueType::String8,
-            &[0x82, 0x20],
-            Some("shift-jis"),
-        )
-        .unwrap();
+        let value =
+            decode_value_with_fallback(MapiValueType::String8, &[0x82, 0x20], Some("shift-jis"))
+                .unwrap();
         match value {
             MapiValue::String(value) => assert_eq!(value, decoded),
             other => panic!("unexpected decoded value: {other:?}"),
