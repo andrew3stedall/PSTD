@@ -765,11 +765,8 @@ fn inline_object_heap_bytes(
         if bth.lookup(&object_tag) != Some(value.raw.as_slice()) {
             continue;
         }
-        let Some(bytes) = heap.try_allocation_by_hnid(
-            &block.bytes,
-            hnid,
-            block.block_ref.offset.0,
-        ) else {
+        let Some(bytes) = heap.try_allocation_by_hnid(&block.bytes, hnid, block.block_ref.offset.0)
+        else {
             continue;
         };
         matches.push(bytes.to_vec());
