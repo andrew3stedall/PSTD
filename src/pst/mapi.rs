@@ -858,7 +858,9 @@ mod tests {
         let unsupported = 932i32.to_le_bytes();
         let resolution = resolve_string8_charset(Some(&unsupported), None, None);
         assert_eq!(resolution.charset, "iso-8859-1");
-        assert!(resolution.status.contains("message_codepage_unsupported=932"));
+        assert!(resolution
+            .status
+            .contains("message_codepage_unsupported=932"));
     }
 
     #[test]

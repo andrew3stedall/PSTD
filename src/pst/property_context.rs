@@ -338,9 +338,7 @@ fn unknown_tag_sample(tags: &[u32]) -> String {
 mod tests {
     use super::PropertyContext;
     use crate::pst::bth::{BthEntry, BthHeader, BthMap};
-    use crate::pst::mapi::{
-        PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE, PR_SUBJECT, PR_SUBJECT_A,
-    };
+    use crate::pst::mapi::{PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE, PR_SUBJECT, PR_SUBJECT_A};
 
     #[test]
     fn reports_selected_unknown_and_skipped_properties() {
@@ -561,9 +559,7 @@ mod tests {
             report.context.string_value(PR_SUBJECT_A).as_deref(),
             Some("€")
         );
-        assert!(report
-            .status
-            .contains("charset_override_authoritative"));
+        assert!(report.status.contains("charset_override_authoritative"));
     }
 
     #[test]

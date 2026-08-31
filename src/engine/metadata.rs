@@ -1139,7 +1139,13 @@ fn recover_embedded_message(
     limits: ParserLimits,
     depth: usize,
 ) -> EmbeddedMessageExtractionOutput {
-    let selected_charset = Some(candidate.property_report.charset_resolution.charset.as_str());
+    let selected_charset = Some(
+        candidate
+            .property_report
+            .charset_resolution
+            .charset
+            .as_str(),
+    );
     let mut message = message_from_properties(
         run_id,
         pst_id,
