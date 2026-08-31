@@ -471,9 +471,7 @@ pub fn canonical_fallback_charset(value: &str) -> Option<&'static str> {
         || value.eq_ignore_ascii_case("latin1")
     {
         Some("iso-8859-1")
-    } else if value.eq_ignore_ascii_case("windows-1252")
-        || value.eq_ignore_ascii_case("cp1252")
-    {
+    } else if value.eq_ignore_ascii_case("windows-1252") || value.eq_ignore_ascii_case("cp1252") {
         Some("windows-1252")
     } else if value.eq_ignore_ascii_case("utf-8") || value.eq_ignore_ascii_case("utf8") {
         Some("utf-8")
@@ -501,10 +499,7 @@ pub fn decode_value_with_fallback(
                 .collect();
             Ok(MapiValue::String(String::from_utf16_lossy(&utf16)))
         }
-        MapiValueType::String8 => Ok(MapiValue::String(decode_string8(
-            raw,
-            fallback_charset,
-        ))),
+        MapiValueType::String8 => Ok(MapiValue::String(decode_string8(raw, fallback_charset))),
         MapiValueType::Integer32 => {
             if raw.len() < 4 {
                 return Err(PstdError::pst_parse(None, "i32 value too short"));
@@ -601,8 +596,8 @@ pub fn value_summary(value: &MapiValue) -> String {
 mod tests {
     use super::{
         byte_swapped_tag, canonical_fallback_charset, decode_value, decode_value_with_fallback,
-        has_known_value_type, property_def, MapiValue, MapiValueType, PR_ATTACH_DATA_OBJ, PR_BODY_A,
-        PR_SUBJECT, PR_SUBJECT_A,
+        has_known_value_type, property_def, MapiValue, MapiValueType, PR_ATTACH_DATA_OBJ,
+        PR_BODY_A, PR_SUBJECT, PR_SUBJECT_A,
     };
 
     #[test]
@@ -673,7 +668,10 @@ mod tests {
     #[test]
     fn canonicalizes_supported_fallback_charset_aliases() {
         assert_eq!(canonical_fallback_charset("Latin1"), Some("iso-8859-1"));
-        assert_eq!(canonical_fallback_charset("WINDOWS-1252"), Some("windows-1252"));
+        assert_eq!(
+            canonical_fallback_charset("WINDOWS-1252"),
+            Some("windows-1252")
+        );
         assert_eq!(canonical_fallback_charset("utf8"), Some("utf-8"));
         assert_eq!(canonical_fallback_charset("koi8-r"), None);
     }
