@@ -54,8 +54,8 @@ jobs:
           root = Path('/tmp/pstd-ansi-stage-a/evidence')
           admitted = json.loads((root / 'pstd-inspect.json').read_text())
           assert admitted['capability']['family'] == 'ansi_pst', admitted
-          assert admitted['capability']['status'] == 'ready', admitted
-          assert admitted['capability']['allows_extraction'] is True, admitted
+          assert admitted['capability']['status'] == 'partial', admitted
+          assert admitted['capability']['allows_extraction'] is False, admitted
           assert admitted['bbt_entries'] == 0, admitted
           assert admitted['nbt_entries'] == 0, admitted
           assert admitted['header']['root_diagnostics']['condition'] == 'root_pages_in_bounds', admitted
@@ -64,8 +64,8 @@ jobs:
 
           strong = json.loads((root / 'pstd-strong-crypt.json').read_text())
           assert strong['capability']['family'] == 'ansi_pst', strong
-          assert strong['capability']['status'] == 'ready', strong
-          assert strong['capability']['allows_extraction'] is True, strong
+          assert strong['capability']['status'] == 'partial', strong
+          assert strong['capability']['allows_extraction'] is False, strong
 
           unknown = json.loads((root / 'pstd-unknown-crypt.json').read_text())
           assert unknown['capability']['status'] == 'unsupported', unknown
