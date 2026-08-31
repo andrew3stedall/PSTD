@@ -1,3 +1,652 @@
+name: Tika attachment fixture
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  attachment-payload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo test data_tree
+      - run: cargo test attachment_property_context
+      - run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - run: cargo fmt --check
+      - name: Extract Tika attachment evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/upstream/tika-testPST.pst"
+          evidence="/tmp/pstd-tika-attachment"
+          output="/tmp/pstd-tika-attachment-output"
+          eml_dir="$evidence/eml"
+          external_dir="$evidence/external"
+          mkdir -p "$evidence" "$output" "$eml_dir" "$external_dir"
+          (cd tests/fixtures/upstream && sha256sum --check SHA256SUMS)
+
+          set +e
+          cargo run -- extract --input "$fixture" --output "$output" --overwrite \
+            > "$evidence/extract.stdout" 2> "$evidence/extract.stderr"
+          extract_status=$?
+          cargo run --bin pstd-eml -- "$fixture" "$eml_dir" \
+            > "$evidence/eml.stdout" 2> "$evidence/eml.stderr"
+          eml_status=$?
+          cargo run --bin pstd-eml -- --attachment-mode external "$fixture" "$external_dir" \
+            > "$evidence/external.stdout" 2> "$evidence/external.stderr"
+          external_status=$?
+          set -e
+          printf '%s\n' "$extract_status" > "$evidence/extract-exit-code.txt"
+          printf '%s\n' "$eml_status" > "$evidence/eml-exit-code.txt"
+          printf '%s\n' "$external_status" > "$evidence/external-exit-code.txt"
+          if [[ "$extract_status" -ne 0 && "$extract_status" -ne 2 ]]; then
+            echo "Unexpected extraction exit code: $extract_status" >&2
+            exit 1
+          fi
+          if [[ "$eml_status" -ne 0 || "$external_status" -ne 0 ]]; then
+            echo "Unexpected EML exit status: inline=$eml_status external=$external_status" >&2
+            exit 1
+          fi
+
+          tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+          mkdir -p "$evidence/archive"
+          tar -xf "$tar_file" -C "$evidence/archive"
+          cp "$output/run_summary.json" "$evidence/run_summary.json"
+          find "$output" -type f -printf '%p\t%s\n' | sort > "$evidence/output-files.tsv"
+
+          python - <<'PY'
+          import hashlib
+          import base64
+          import json
+          import zipfile
+          from email import policy
+          from email.parser import BytesParser
+          from pathlib import Path
+
+          evidence = Path('/tmp/pstd-tika-attachment')
+          archive = evidence / 'archive'
+          data = archive / 'data'
+          output = Path('/tmp/pstd-tika-attachment-output')
+          capability_path = data / 'input_capability.json'
+          capability = json.loads(capability_path.read_text(encoding='utf-8'))
+          required_capability_fields = {
+              'input_path',
+              'file_size',
+              'family',
+              'version',
+              'index_type',
+              'crypt_method',
+              'header_status',
+              'index_status',
+              'extended_attributes_status',
+              'default_charset',
+              'root_condition',
+              'budget_status',
+              'status',
+              'allows_extraction',
+              'limits',
+              'diagnostics',
+          }
+          if not required_capability_fields.issubset(capability):
+              raise SystemExit(
+                  f'input capability fields missing: '
+                  f'{sorted(required_capability_fields - set(capability))}'
+              )
+          if capability['family'] != 'unicode_pst':
+              raise SystemExit(f'unexpected input family: {capability["family"]!r}')
+          if capability['status'] != 'ready' or capability['allows_extraction'] is not True:
+              raise SystemExit(f'input capability is not ready: {capability!r}')
+          if capability['crypt_method'] != 1:
+              raise SystemExit(
+                  f'unexpected fixture crypt method: {capability["crypt_method"]!r}'
+              )
+          if capability['default_charset'] != 'iso-8859-1':
+              raise SystemExit(
+                  f'unexpected default charset: {capability["default_charset"]!r}'
+              )
+
+          def records(name):
+              path = data / name
+              return [
+                  json.loads(line)
+                  for line in path.read_text(encoding='utf-8').splitlines()
+                  if line.strip()
+              ]
+
+          messages = records('messages.jsonl')
+          folders = records('folders.jsonl')
+          bodies = records('bodies.jsonl')
+          recipients = records('recipients.jsonl')
+          attachments = records('attachments.jsonl')
+          items = records('items.jsonl')
+          routing_counts = records('item_routing_counts.jsonl')
+          evidence_records = records('evidence.jsonl')
+          headers = records('headers.jsonl')
+          if len(messages) != 8:
+              raise SystemExit(f'unexpected message count: {len(messages)}')
+          if len(headers) != len(messages):
+              raise SystemExit(
+                  f'header projection count mismatch: {len(headers)} != {len(messages)}'
+              )
+          message_keys = {message['message_key'] for message in messages}
+          if {header['message_key'] for header in headers} != message_keys:
+              raise SystemExit('header projections do not cover the message keys')
+          if any(
+              header['authoritative']
+              and header['validation_status'].startswith('stored_header_invalid')
+              for header in headers
+          ):
+              raise SystemExit('invalid stored headers became authoritative')
+          for header in headers:
+              if header['raw_header_size_bytes'] and not header['raw_evidence_key']:
+                  raise SystemExit('raw header bytes are missing their evidence link')
+          folder_fields = (
+              'folder_key',
+              'parent_folder_key',
+              'folder_node_id',
+              'folder_name',
+              'folder_path',
+              'item_count_total',
+              'child_folder_count',
+          )
+          actual_folders = [
+              {name: folder.get(name) for name in folder_fields}
+              for folder in folders
+          ]
+          expected_folders = [
+              {
+                  'folder_key': 'folder_0235fadc0c8f7958',
+                  'parent_folder_key': None,
+                  'folder_node_id': None,
+                  'folder_name': 'root',
+                  'folder_path': '/',
+                  'item_count_total': None,
+                  'child_folder_count': 7,
+              },
+              {
+                  'folder_key': 'folder_65667efd8c5a5a02',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_122',
+                  'folder_name': 'node_122',
+                  'folder_path': '/node_122',
+                  'item_count_total': 0,
+                  'child_folder_count': None,
+              },
+              {
+                  'folder_key': 'folder_f65c580d3cda4ace',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_2223',
+                  'folder_name': 'SPAM Search Folder 2',
+                  'folder_path': '/SPAM Search Folder 2',
+                  'item_count_total': 0,
+                  'child_folder_count': None,
+              },
+              {
+                  'folder_key': 'folder_b6721eebbda60057',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_8022',
+                  'folder_name': 'Début du fichier de données Outlook',
+                  'folder_path': '/Début du fichier de données Outlook',
+                  'item_count_total': 7,
+                  'child_folder_count': None,
+              },
+              {
+                  'folder_key': 'folder_5769a9840120442c',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_8042',
+                  'folder_name': 'Racine (pour la recherche)',
+                  'folder_path': '/Racine (pour la recherche)',
+                  'item_count_total': 0,
+                  'child_folder_count': None,
+              },
+              {
+                  'folder_key': 'folder_e04c6c42560935fe',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_8062',
+                  'folder_name': 'Éléments supprimés',
+                  'folder_path': '/Éléments supprimés',
+                  'item_count_total': 0,
+                  'child_folder_count': None,
+              },
+              {
+                  'folder_key': 'folder_dcc9052e2b2f88d3',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_8082',
+                  'folder_name': 'IPM_COMMON_VIEWS',
+                  'folder_path': '/IPM_COMMON_VIEWS',
+                  'item_count_total': 0,
+                  'child_folder_count': None,
+              },
+              {
+                  'folder_key': 'folder_04676627187d2114',
+                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'folder_node_id': 'node_80023',
+                  'folder_name': 'ItemProcSearch',
+                  'folder_path': '/ItemProcSearch',
+                  'item_count_total': 0,
+                  'child_folder_count': None,
+              },
+          ]
+          if actual_folders != expected_folders:
+              raise SystemExit(f'unexpected folder hierarchy: {actual_folders!r}')
+
+          expected_top_level_subjects = {
+              'msg_2a24cb244caffb52': '\u0001\u0005Re: Feature Generators',
+              'msg_d7325f9579306ba3': None,
+              'msg_ce73d10db9eceadb': '\u0001\u0001Feature Generators',
+              'msg_33144a866cb58408': (
+                  '\u0001\u0001[jira] [Resolved] (TIKA-1249) Vcard files detection'
+              ),
+              'msg_5e70ad45c1c42472': (
+                  '\u0001\u0001[jira] [Commented] (TIKA-1250) '
+                  'Process loops infintely processing a CHM file'
+              ),
+              'msg_4bc9d7bd77cbe661': None,
+              'msg_c6163b9157944cc9': '\u0001\u0005FW: First email',
+          }
+          top_level_messages = {
+              message['message_key']: message
+              for message in messages
+              if message['item_type'] != 'embedded_message_metadata'
+          }
+          if set(top_level_messages) != set(expected_top_level_subjects):
+              raise SystemExit(
+                  f'unexpected top-level message keys: {sorted(top_level_messages)}'
+              )
+          for message_key, expected_subject in expected_top_level_subjects.items():
+              message = top_level_messages[message_key]
+              if message['subject'] != expected_subject:
+                  raise SystemExit(
+                      f'{message_key} subject mismatch: {message["subject"]!r}'
+                  )
+              if message['folder_key'] != 'folder_b6721eebbda60057':
+                  raise SystemExit(
+                      f'{message_key} owner key mismatch: {message["folder_key"]!r}'
+                  )
+              if message['folder_path'] != '/Début du fichier de données Outlook':
+                  raise SystemExit(
+                      f'{message_key} owner path mismatch: {message["folder_path"]!r}'
+                  )
+              if not message['metadata_status'].endswith(
+                  'message_table_membership_exact; table_type=contents_table'
+              ):
+                  raise SystemExit(
+                      f'{message_key} ownership status mismatch: '
+                      f'{message["metadata_status"]!r}'
+                  )
+          child = next(
+              message for message in messages
+              if message['message_key'] == 'msg_0ff529af59d373d5'
+          )
+          if (
+              child['item_type'] != 'embedded_message_metadata'
+              or child['folder_key'] != 'folder_0235fadc0c8f7958'
+              or child['folder_path'] != '/'
+          ):
+              raise SystemExit(f'embedded child ownership changed: {child!r}')
+          if len(bodies) != 10:
+              raise SystemExit(f'unexpected body record count: {len(bodies)}')
+          unresolved_html = sorted(
+              body['message_key']
+              for body in bodies
+              if body['body_type'] == 'html'
+              and body['size_bytes'] == 0
+              and body['status'] == (
+                  'body_payload_property_present_but_unresolved; body_type=html'
+              )
+              and not (archive / body['archive_path']).exists()
+          )
+          if unresolved_html != [
+              'msg_0ff529af59d373d5',
+              'msg_c6163b9157944cc9',
+          ]:
+              raise SystemExit(
+                  f'unexpected unresolved HTML body evidence: {unresolved_html!r}'
+              )
+          expected_recipients = [
+              {
+                  'recipient_key': 'rcpt_379c07577f6a2435',
+                  'message_key': 'msg_2a24cb244caffb52',
+                  'recipient_type': 'to',
+                  'display_name': 'users@opennlp.apache.org',
+                  'address_type': 'SMTP',
+                  'smtp_address': 'users@opennlp.apache.org',
+                  'raw_address': 'users@opennlp.apache.org',
+                  'resolution_status': 'smtp_available',
+                  'ordinal': 0,
+              },
+              {
+                  'recipient_key': 'rcpt_0f0aa7896608e4db',
+                  'message_key': 'msg_d7325f9579306ba3',
+                  'recipient_type': 'to',
+                  'display_name': 'kottmann@gmail.com',
+                  'address_type': 'SMTP',
+                  'smtp_address': 'kottmann@gmail.com',
+                  'raw_address': 'kottmann@gmail.com',
+                  'resolution_status': 'smtp_available',
+                  'ordinal': 0,
+              },
+              {
+                  'recipient_key': 'rcpt_688870b4d701b905',
+                  'message_key': 'msg_d7325f9579306ba3',
+                  'recipient_type': 'to',
+                  'display_name': 'users@opennlp.apache.org',
+                  'address_type': 'SMTP',
+                  'smtp_address': 'users@opennlp.apache.org',
+                  'raw_address': 'users@opennlp.apache.org',
+                  'resolution_status': 'smtp_available',
+                  'ordinal': 1,
+              },
+              {
+                  'recipient_key': 'rcpt_e6506de5e0a2e4cb',
+                  'message_key': 'msg_ce73d10db9eceadb',
+                  'recipient_type': 'to',
+                  'display_name': 'users@opennlp.apache.org',
+                  'address_type': 'SMTP',
+                  'smtp_address': 'users@opennlp.apache.org',
+                  'raw_address': 'users@opennlp.apache.org',
+                  'resolution_status': 'smtp_available',
+                  'ordinal': 0,
+              },
+              {
+                  'recipient_key': 'rcpt_fafe37d564978a11',
+                  'message_key': 'msg_33144a866cb58408',
+                  'recipient_type': 'to',
+                  'display_name': 'dev@tika.apache.org',
+                  'address_type': 'SMTP',
+                  'smtp_address': 'dev@tika.apache.org',
+                  'raw_address': 'dev@tika.apache.org',
+                  'resolution_status': 'smtp_available',
+                  'ordinal': 0,
+              },
+              {
+                  'recipient_key': 'rcpt_28fe22645637e0eb',
+                  'message_key': 'msg_5e70ad45c1c42472',
+                  'recipient_type': 'to',
+                  'display_name': 'dev@tika.apache.org',
+                  'address_type': 'SMTP',
+                  'smtp_address': 'dev@tika.apache.org',
+                  'raw_address': 'dev@tika.apache.org',
+                  'resolution_status': 'smtp_available',
+                  'ordinal': 0,
+              },
+              {
+                  'recipient_key': 'rcpt_73867f2f12bdd1e2',
+                  'message_key': 'msg_4bc9d7bd77cbe661',
+                  'recipient_type': 'to',
+                  'display_name': 'Hong-Thai Nguyen',
+                  'address_type': 'native_email_address',
+                  'smtp_address': None,
+                  'raw_address': '/o=ExchangeLabs/ou=Exchange Administrative Group (FYDIBOHF23SPDLT)/cn=Recipients/cn=polyspot1.onmicrosoft.com-50609-Hong-Thai.Ng',
+                  'resolution_status': 'raw_address_preserved',
+                  'ordinal': 0,
+              },
+              {
+                  'recipient_key': 'rcpt_68933279ead844e0',
+                  'message_key': 'msg_c6163b9157944cc9',
+                  'recipient_type': 'to',
+                  'display_name': "'lfcnassif@gmail.com'",
+                  'address_type': 'native_email_address',
+                  'smtp_address': None,
+                  'raw_address': 'lfcnassif@gmail.com',
+                  'resolution_status': 'raw_address_preserved',
+                  'ordinal': 0,
+              },
+              {
+                  'recipient_key': 'rcpt_7e197f67c89bfd58',
+                  'message_key': 'msg_0ff529af59d373d5',
+                  'recipient_type': 'to',
+                  'display_name': "'lfcnassif@gmail.com'",
+                  'address_type': 'native_email_address',
+                  'smtp_address': None,
+                  'raw_address': 'lfcnassif@gmail.com',
+                  'resolution_status': 'raw_address_preserved',
+                  'ordinal': 0,
+              },
+          ]
+          if recipients != expected_recipients:
+              raise SystemExit(f'unexpected recipients: {recipients!r}')
+          if len(attachments) != 3:
+              raise SystemExit(f'unexpected attachment record count: {len(attachments)}')
+          if len(items) < len(folders) + len(messages):
+              raise SystemExit(
+                  f'item envelope stream is incomplete: {len(items)} '
+                  f'for {len(folders)} folders and {len(messages)} messages'
+              )
+          if any('routing_status' not in item for item in items):
+              raise SystemExit('item envelope routing status is missing')
+          if any('message_class' not in message for message in messages):
+              raise SystemExit('message class evidence field is missing')
+          metadata_fields = (
+              'sent_representing_email',
+              'received_by_email',
+              'received_by_address_type',
+              'sent_at',
+              'received_at',
+              'created_at',
+              'modified_at',
+              'importance',
+              'message_flags',
+              'priority',
+              'sensitivity',
+              'read_receipt_requested',
+              'reply_requested',
+              'delivery_report_requested',
+              'delete_after_submit',
+          )
+          if any(
+              field not in message
+              for message in messages
+              for field in metadata_fields
+          ):
+              raise SystemExit('complete metadata projection fields are missing')
+          if any(
+              message['sender_email'] is not None
+              and message['sender_raw_address'] != message['sender_email']
+              for message in messages
+          ):
+              raise SystemExit('native sender address evidence was rewritten')
+          if not evidence_records:
+              raise SystemExit('canonical evidence graph is empty')
+          if len({row['evidence_key'] for row in evidence_records}) != len(evidence_records):
+              raise SystemExit('canonical evidence keys are not unique')
+          if not any(row['evidence_kind'] == 'property' for row in evidence_records):
+              raise SystemExit('property provenance evidence is missing')
+          if not any(row['evidence_kind'] == 'attachment_payload' for row in evidence_records):
+              raise SystemExit('attachment provenance evidence is missing')
+          if any(row['raw_size_bytes'] > 65536 for row in evidence_records):
+              raise SystemExit('raw evidence exceeded its bounded retention limit')
+          item_rows = [item for item in items if item['record_kind'] == 'item']
+          if sum(count['item_count'] for count in routing_counts) != len(item_rows):
+              raise SystemExit('routing counts do not reconcile item envelopes')
+          for count in routing_counts:
+              classified = sum(
+                  count[name]
+                  for name in (
+                      'emitted_count',
+                      'filtered_count',
+                      'skipped_count',
+                      'unavailable_count',
+                      'failed_count',
+                  )
+              )
+              if classified != count['item_count']:
+                  raise SystemExit(f'routing count bucket mismatch: {count!r}')
+          envelope_by_key = {item['envelope_key']: item for item in items}
+          for folder in folders:
+              envelope = envelope_by_key.get(folder['folder_key'])
+              if envelope is None or envelope['record_kind'] != 'folder':
+                  raise SystemExit(
+                      f'missing folder envelope: {folder["folder_key"]!r}'
+                  )
+              if envelope['folder_path'] != folder['folder_path']:
+                  raise SystemExit(
+                      f'folder envelope path mismatch: {envelope!r}'
+                  )
+          for message in messages:
+              envelope = envelope_by_key.get(message['message_key'])
+              if envelope is None or envelope['record_kind'] != 'item':
+                  raise SystemExit(
+                      f'missing message envelope: {message["message_key"]!r}'
+                  )
+              if envelope['source']['pst_id'] != message['pst_id']:
+                  raise SystemExit(
+                      f'message envelope source mismatch: {envelope!r}'
+                  )
+              if envelope['extraction_status'] == 'failed_duplicate_source_identity':
+                  raise SystemExit(
+                      f'message envelope unexpectedly duplicated: {envelope!r}'
+                  )
+
+          attachment = attachments[0]
+          expected = {
+              'message_key': 'msg_c6163b9157944cc9',
+              'filename_original': 'attachment.docx',
+              'filename_safe': 'attachment.docx',
+              'extension': 'docx',
+              'size_bytes': 11862,
+              'declared_size_bytes': 15503,
+              'size_status': 'size_mismatch',
+              'sha256': '0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0',
+              'attachment_method': 1,
+              'source_ref': 'mapi:PR_ATTACH_DATA_BIN/by_value',
+              'rendering_position': 0,
+              'ordinal': 0,
+              'archive_path': 'attachments/msg_c6163b9157944cc9/att_0695091e19397627_attachment.docx',
+              'extraction_status': (
+                  'attachment_payload_extracted_data_tree; data_nid=0x0000833f; '
+                  'data_bid=0x632; child_blocks=2; '
+                  'attachment_data_tree_loaded__root_bid_0x632__header_0x0101__'
+                  'child_blocks_2__total_bytes_11862__metadata_size_differs_fro'
+              ),
+          }
+          for name, value in expected.items():
+              if attachment.get(name) != value:
+                  raise SystemExit(
+                      f'attachment {name} mismatch: {attachment.get(name)!r} != {value!r}'
+                  )
+
+          embedded_attachment = attachments[1]
+          expected_embedded_attachment = {
+              'message_key': 'msg_c6163b9157944cc9',
+              'attachment_key': 'att_a9c94a13d70f1cb3',
+              'filename_original': None,
+              'filename_safe': 'attachment_1.eml',
+              'content_type': 'message/rfc822',
+              'extension': 'eml',
+              'size_bytes': 17032,
+              'declared_size_bytes': 24308,
+              'size_status': 'size_mismatch',
+              'sha256': '44f7e7bd7d8fbb8a8b7c506ffd6283024a86721f27870dd7dfb9da62065588db',
+              'is_inline': False,
+              'is_hidden': False,
+              'content_id': None,
+              'attachment_method': 5,
+              'source_ref': 'mapi:PR_ATTACH_DATA_OBJ/embedded_message',
+              'rendering_position': 1,
+              'mime_sequence': None,
+              'embedded_message_key': 'msg_0ff529af59d373d5',
+              'ordinal': 1,
+              'archive_path': (
+                  'attachments/msg_c6163b9157944cc9/'
+                  'att_a9c94a13d70f1cb3_attachment_1.eml'
+              ),
+              'extraction_status': 'extracted_embedded_message_eml',
+          }
+          if embedded_attachment != expected_embedded_attachment:
+              raise SystemExit(
+                  f'unexpected embedded attachment: {embedded_attachment!r}'
+              )
+          embedded_payload_path = archive / embedded_attachment['archive_path']
+          if not embedded_payload_path.is_file():
+              raise SystemExit('embedded message EML payload file is absent')
+          embedded_payload = embedded_payload_path.read_bytes()
+          if len(embedded_payload) != 17032:
+              raise SystemExit(f'unexpected embedded payload size: {len(embedded_payload)}')
+          if hashlib.sha256(embedded_payload).hexdigest() != embedded_attachment['sha256']:
+              raise SystemExit('embedded payload checksum mismatch')
+
+          payload_path = archive / attachment['archive_path']
+          payload = payload_path.read_bytes()
+          if len(payload) != 11862:
+              raise SystemExit(f'unexpected attachment payload size: {len(payload)}')
+          if payload[:4] != b'PK\x03\x04':
+              raise SystemExit(f'unexpected attachment signature: {payload[:4].hex()}')
+          if hashlib.sha256(payload).hexdigest() != attachment['sha256']:
+              raise SystemExit('attachment payload checksum mismatch')
+          with zipfile.ZipFile(payload_path) as document:
+              failed_member = document.testzip()
+              if failed_member is not None:
+                  raise SystemExit(f'DOCX CRC failure: {failed_member}')
+              document_xml = document.read('word/document.xml').decode('utf-8')
+          if 'This is a docx attachment.' not in document_xml:
+              raise SystemExit('expected DOCX text is absent')
+
+          child_attachment = attachments[2]
+          expected_child_attachment = {
+              'message_key': 'msg_0ff529af59d373d5',
+              'attachment_key': 'att_cd792b3e3dd1e12b',
+              'filename_original': 'attachment.docx',
+              'filename_safe': 'attachment.docx',
+              'extension': 'docx',
+              'size_bytes': 11862,
+              'declared_size_bytes': 15503,
+              'size_status': 'size_mismatch',
+              'sha256': '0c87a742c970907d3b08c73e7834768abadd00fe4f4995a7dd98a206d4c494c0',
+              'attachment_method': 1,
+              'source_ref': 'mapi:PR_ATTACH_DATA_BIN/by_value',
+              'rendering_position': 0,
+              'ordinal': 0,
+              'archive_path': (
+                  'attachments/msg_0ff529af59d373d5/'
+                  'att_cd792b3e3dd1e12b_attachment.docx'
+              ),
+              'extraction_status': (
+                  'attachment_payload_extracted_data_tree; data_nid=0x0000833f; '
+                  'data_bid=0x632; child_blocks=2; '
+                  'attachment_data_tree_loaded__root_bid_0x632__header_0x0101__'
+                  'child_blocks_2__total_bytes_11862__metadata_size_differs_fro'
+              ),
+          }
+          for name, value in expected_child_attachment.items():
+              if child_attachment.get(name) != value:
+                  raise SystemExit(
+                      f'child attachment {name} mismatch: '
+                      f'{child_attachment.get(name)!r} != {value!r}'
+                  )
+          child_payload_path = archive / child_attachment['archive_path']
+          child_payload = child_payload_path.read_bytes()
+          if hashlib.sha256(child_payload).hexdigest() != child_attachment['sha256']:
+              raise SystemExit('child attachment payload checksum mismatch')
+
+          owner = next(
+              message for message in messages
+              if message['message_key'] == 'msg_c6163b9157944cc9'
+          )
+          if owner['has_attachments'] is not True or owner['attachment_count'] != 2:
+              raise SystemExit(f'owner attachment state mismatch: {owner!r}')
+          if owner['extraction_status'] != 'metadata_and_payload':
+              raise SystemExit(f'owner extraction status mismatch: {owner["extraction_status"]!r}')
+          if (
+              'attachment_property_context_payloads_and_embedded_messages_extracted'
+              not in owner['attachment_status']
+          ):
+              raise SystemExit(f'owner attachment status mismatch: {owner["attachment_status"]!r}')
+
+          embedded_messages = [
+              message for message in messages
+              if message['item_type'] == 'embedded_message_metadata'
+          ]
+          if len(embedded_messages) != 1:
+              raise SystemExit(f'unexpected embedded messages: {embedded_messages!r}')
+          embedded_message = embedded_messages[0]
+          expected_embedded_message = {
+              'message_key': 'msg_0ff529af59d373d5',
+              'message_node_id': 'embedded_nid_00200104',
               'subject': '\u0001\u0001First email',
               'sender_name': 'Luis Filipe da Cruz Nassif',
               'sender_email': (
@@ -34,3 +683,347 @@
               ),
               'extraction_status': 'metadata_and_payload',
           }
+          for name, value in expected_embedded_message.items():
+              if embedded_message.get(name) != value:
+                  raise SystemExit(
+                      f'embedded message {name} mismatch: '
+                      f'{embedded_message.get(name)!r} != {value!r}'
+                  )
+
+          embedded_bodies = [
+              body for body in bodies
+              if body['message_key'] == embedded_message['message_key']
+          ]
+          expected_embedded_bodies = [
+              {
+                  'message_key': 'msg_0ff529af59d373d5',
+                  'body_key': 'body_1dc71707c7b7489b',
+                  'body_type': 'text',
+                  'archive_path': 'bodies/msg_0ff529af59d373d5.txt',
+                  'encoding': 'utf-8',
+                  'size_bytes': 23,
+                  'sha256': '96edf36f997edf3d54d2f4b4934e8c171d699cf51c85e891183227fc5ab6af8f',
+                  'status': 'extracted',
+              },
+              {
+                  'message_key': 'msg_0ff529af59d373d5',
+                  'body_key': 'body_727903ecdbed746c',
+                  'body_type': 'html',
+                  'archive_path': 'bodies/msg_0ff529af59d373d5.html',
+                  'encoding': None,
+                  'size_bytes': 0,
+                  'sha256': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+                  'status': (
+                      'body_payload_property_present_but_unresolved; body_type=html'
+                  ),
+              },
+          ]
+          if embedded_bodies != expected_embedded_bodies:
+              raise SystemExit(f'unexpected embedded bodies: {embedded_bodies!r}')
+          if (archive / embedded_bodies[0]['archive_path']).read_bytes() != (
+              b'Docx file attached.\r\n\r\n'
+          ):
+              raise SystemExit('embedded plain body bytes changed')
+          if (archive / embedded_bodies[1]['archive_path']).exists():
+              raise SystemExit('embedded raw HTML reference was materialized')
+
+          body_payloads = [path for path in (archive / 'bodies').rglob('*') if path.is_file()]
+          attachment_payloads = [
+              path for path in (archive / 'attachments').rglob('*') if path.is_file()
+          ]
+          eml_files = [path for path in (evidence / 'eml').rglob('*.eml') if path.is_file()]
+          eml_status = int(evidence.joinpath('eml-exit-code.txt').read_text().strip())
+          if eml_status != 0:
+              raise SystemExit(f'unexpected EML exit code: {eml_status}')
+          if len(eml_files) != 2:
+              raise SystemExit(f'unexpected EML file count: {len(eml_files)}')
+          eml_by_name = {path.name: path for path in eml_files}
+          expected_eml_names = {
+              'msg_c6163b9157944cc9.eml',
+              'msg_0ff529af59d373d5.eml',
+          }
+          if set(eml_by_name) != expected_eml_names:
+              raise SystemExit(f'unexpected EML filenames: {sorted(eml_by_name)}')
+          eml_path = eml_by_name['msg_c6163b9157944cc9.eml']
+          eml_bytes = eml_path.read_bytes()
+          if len(eml_bytes) <= 17035:
+              raise SystemExit(
+                  f'inline EML did not grow to include the recovered method-5 payload: '
+                  f'{len(eml_bytes)}'
+              )
+          if b'\n' in eml_bytes.replace(b'\r\n', b'') or b'\r' in eml_bytes.replace(b'\r\n', b''):
+              raise SystemExit('EML contains non-CRLF line endings')
+          parsed_eml = BytesParser(policy=policy.default).parsebytes(eml_bytes)
+          if parsed_eml.get_content_type() != 'multipart/mixed':
+              raise SystemExit(f'unexpected EML content type: {parsed_eml.get_content_type()}')
+          if parsed_eml['Subject'] != 'FW: First email':
+              raise SystemExit(f'unexpected EML subject: {parsed_eml["Subject"]!r}')
+          if str(parsed_eml['To']) != '"\'lfcnassif@gmail.com\'" <lfcnassif@gmail.com>':
+              raise SystemExit(f'unexpected EML recipient: {parsed_eml["To"]!r}')
+          if parsed_eml['Date'].datetime.isoformat() != '2020-11-26T22:18:29+00:00':
+              raise SystemExit(f'unexpected EML Date: {parsed_eml["Date"]!r}')
+          if b'From: Luis Filipe da Cruz Nassif </o=PF/' not in eml_bytes:
+              raise SystemExit('native Exchange sender address was not preserved')
+          if b'Content-Type: text/html' in eml_bytes:
+              raise SystemExit('unusable four-byte HTML payload must not be emitted')
+          body = parsed_eml.get_body(preferencelist=('plain',))
+          if body is None or body.get_content() != 'Forwarding mail…\r\n':
+              raise SystemExit(f'unexpected EML plain body: {body!r}')
+          eml_attachments = list(parsed_eml.iter_attachments())
+          if len(eml_attachments) != 2:
+              raise SystemExit(f'unexpected EML attachment count: {len(eml_attachments)}')
+          eml_attachments_by_name = {
+              attachment.get_filename(): attachment for attachment in eml_attachments
+          }
+          if set(eml_attachments_by_name) != {'attachment.docx', 'attachment_1.eml'}:
+              raise SystemExit(
+                  f'unexpected EML attachment filenames: '
+                  f'{sorted(eml_attachments_by_name)}'
+              )
+          eml_attachment = eml_attachments_by_name['attachment.docx']
+          if eml_attachment.get_filename() != 'attachment.docx':
+              raise SystemExit(f'unexpected EML attachment filename: {eml_attachment.get_filename()!r}')
+          if eml_attachment.get_content_type() != (
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+          ):
+              raise SystemExit(
+                  f'unexpected EML attachment content type: {eml_attachment.get_content_type()}'
+              )
+          if eml_attachment.get_payload(decode=True) != payload:
+              raise SystemExit('EML attachment payload differs from extracted DOCX bytes')
+          eml_embedded_attachment = eml_attachments_by_name['attachment_1.eml']
+          if eml_embedded_attachment.get_content_type() != 'message/rfc822':
+              raise SystemExit(
+                  f'unexpected embedded EML content type: '
+                  f'{eml_embedded_attachment.get_content_type()}'
+              )
+          compact_eml = b''.join(eml_bytes.splitlines())
+          if base64.b64encode(embedded_payload) not in compact_eml:
+              raise SystemExit('EML embedded-message base64 differs from extracted bytes')
+
+
+          child_eml_path = eml_by_name['msg_0ff529af59d373d5.eml']
+          child_eml_bytes = child_eml_path.read_bytes()
+          if len(child_eml_bytes) != 17032:
+              raise SystemExit(f'unexpected child EML size: {len(child_eml_bytes)}')
+          if hashlib.sha256(child_eml_bytes).hexdigest() != (
+              '44f7e7bd7d8fbb8a8b7c506ffd6283024a86721f27870dd7dfb9da62065588db'
+          ):
+              raise SystemExit('child EML checksum mismatch')
+          if b'\n' in child_eml_bytes.replace(b'\r\n', b'') or b'\r' in child_eml_bytes.replace(b'\r\n', b''):
+              raise SystemExit('child EML contains non-CRLF line endings')
+          child_eml = BytesParser(policy=policy.default).parsebytes(child_eml_bytes)
+          if child_eml.get_content_type() != 'multipart/mixed' or not child_eml.is_multipart():
+              raise SystemExit(f'unexpected child EML MIME shape: {child_eml.get_content_type()}')
+          if child_eml['Subject'] != 'First email':
+              raise SystemExit(f'unexpected child EML subject: {child_eml["Subject"]!r}')
+          if str(child_eml['To']) != '"\'lfcnassif@gmail.com\'" <lfcnassif@gmail.com>':
+              raise SystemExit(f'unexpected child EML recipient: {child_eml["To"]!r}')
+          if child_eml['Date'].datetime.isoformat() != '2020-11-26T22:18:00+00:00':
+              raise SystemExit(f'unexpected child EML Date: {child_eml["Date"]!r}')
+          if child_eml['Message-ID'] != '<3148510c2360443396a78d35e0888de9@pf.gov.br>':
+              raise SystemExit(f'unexpected child EML Message-ID: {child_eml["Message-ID"]!r}')
+          if b'From: Luis Filipe da Cruz Nassif </o=PF/' not in child_eml_bytes:
+              raise SystemExit('child native Exchange sender address was not preserved')
+          child_body = child_eml.get_body(preferencelist=('plain',))
+          if child_body is None or child_body.get_content() != 'Docx file attached.\r\n':
+              raise SystemExit('child EML plain body changed')
+          if b'Content-Type: text/html' in child_eml_bytes or b'\x7f\x83\x00\x00' in child_eml_bytes:
+              raise SystemExit('child raw HTML evidence leaked into MIME output')
+          child_eml_attachments = list(child_eml.iter_attachments())
+          if len(child_eml_attachments) != 1:
+              raise SystemExit(
+                  f'unexpected child EML attachment count: {len(child_eml_attachments)}'
+              )
+          child_eml_attachment = child_eml_attachments[0]
+          if child_eml_attachment.get_filename() != 'attachment.docx':
+              raise SystemExit(
+                  f'unexpected child EML attachment filename: '
+                  f'{child_eml_attachment.get_filename()!r}'
+              )
+          if child_eml_attachment.get_payload(decode=True) != child_payload:
+              raise SystemExit('child EML attachment payload differs from extracted bytes')
+          if embedded_payload != child_eml_bytes:
+              raise SystemExit('method-5 payload differs from standalone child EML')
+
+          external_root = evidence / 'external'
+          external_status = int(
+              evidence.joinpath('external-exit-code.txt').read_text().strip()
+          )
+          if external_status != 0:
+              raise SystemExit(f'unexpected external EML exit code: {external_status}')
+          external_manifest_path = external_root / 'attachments.jsonl'
+          if not external_manifest_path.is_file():
+              raise SystemExit('external attachment manifest is absent')
+          external_records = [
+              json.loads(line)
+              for line in external_manifest_path.read_text(encoding='utf-8').splitlines()
+              if line.strip()
+          ]
+          if len(external_records) != len(attachments):
+              raise SystemExit(
+                  f'unexpected external manifest count: {len(external_records)}'
+              )
+          if {record['attachment_key'] for record in external_records} != {
+              record['attachment_key'] for record in attachments
+          }:
+              raise SystemExit('external manifest attachment ownership changed')
+          external_eml_files = [
+              path for path in external_root.glob('*.eml') if path.is_file()
+          ]
+          external_eml_names = {path.name for path in external_eml_files}
+          if not expected_eml_names.issubset(external_eml_names):
+              raise SystemExit(
+                  f'inline EML outputs are missing from external mode: '
+                  f'{sorted(expected_eml_names - external_eml_names)}'
+              )
+          for record in external_records:
+              if record['materialization_status'] != 'attachment_file_emitted':
+                  raise SystemExit(f'attachment was not materialized: {record!r}')
+              if record['materialized_path'] != record['archive_path']:
+                  raise SystemExit(f'external path link changed: {record!r}')
+              payload_path = external_root / record['materialized_path']
+              if not payload_path.is_file():
+                  raise SystemExit(f'external payload is absent: {payload_path}')
+              payload_bytes = payload_path.read_bytes()
+              if len(payload_bytes) != record['size_bytes']:
+                  raise SystemExit(f'external payload size mismatch: {record!r}')
+              if hashlib.sha256(payload_bytes).hexdigest() != record['sha256']:
+                  raise SystemExit(f'external payload hash mismatch: {record!r}')
+              if record['eml_path'] not in external_eml_names:
+                  raise SystemExit(f'external EML link is not owned: {record!r}')
+
+          for external_eml_path in external_eml_files:
+              external_eml_bytes = external_eml_path.read_bytes()
+              external_eml = BytesParser(policy=policy.default).parsebytes(
+                  external_eml_bytes
+              )
+              if external_eml['X-PSTD-Attachment-Mode'] != 'external':
+                  raise SystemExit('external EML mode header is absent')
+              if external_eml['X-PSTD-Attachment-Manifest'] != 'attachments.jsonl':
+                  raise SystemExit('external EML manifest link is absent')
+              if external_eml.get_content_type() != 'text/plain':
+                  raise SystemExit(
+                      f'external EML unexpectedly contains MIME attachments: '
+                      f'{external_eml.get_content_type()}'
+                  )
+              if list(external_eml.iter_attachments()):
+                  raise SystemExit('external EML contains an inline attachment part')
+              if b'Content-Transfer-Encoding: base64' in external_eml_bytes:
+                  raise SystemExit('external EML unexpectedly embeds attachment base64')
+
+          tar_file = next((output / 'archives').glob('*.tar'))
+          metrics = {
+              'messages': len(messages),
+              'body_records': len(bodies),
+              'recipient_records': len(recipients),
+              'attachment_records': len(attachments),
+              'body_payload_files': len(body_payloads),
+              'body_payload_bytes': sum(path.stat().st_size for path in body_payloads),
+              'attachment_payload_files': len(attachment_payloads),
+              'attachment_payload_bytes': sum(path.stat().st_size for path in attachment_payloads),
+              'eml_files': len(eml_files),
+              'eml_bytes': sum(path.stat().st_size for path in eml_files),
+              'messages_jsonl_bytes': (data / 'messages.jsonl').stat().st_size,
+              'bodies_jsonl_bytes': (data / 'bodies.jsonl').stat().st_size,
+              'recipients_jsonl_bytes': (data / 'recipients.jsonl').stat().st_size,
+              'attachments_jsonl_bytes': (data / 'attachments.jsonl').stat().st_size,
+              'headers_jsonl_bytes': (data / 'headers.jsonl').stat().st_size,
+              'tar_bytes': tar_file.stat().st_size,
+              # run_summary.json carries wall-clock timestamps and duration;
+              # compare the stable archive payload separately from that
+              # intentionally volatile runtime metadata.
+              'stable_archive_bytes': sum(
+                  path.stat().st_size
+                  for path in (output / 'archives').glob('*.tar')
+              ),
+              'output_total_bytes': sum(
+                  path.stat().st_size for path in output.rglob('*') if path.is_file()
+              ),
+          }
+          expected_metrics = {
+              'messages': 8,
+              'body_records': 10,
+              'recipient_records': 9,
+              'attachment_records': 3,
+              'body_payload_files': 6,
+              'body_payload_bytes': 271,
+              'attachment_payload_files': 3,
+              'attachment_payload_bytes': 40756,
+              'eml_files': 2,
+              'messages_jsonl_bytes': 28778,
+              'bodies_jsonl_bytes': 2922,
+              'recipients_jsonl_bytes': 2708,
+              'attachments_jsonl_bytes': 2409,
+              'headers_jsonl_bytes': 4596,
+              'tar_bytes': 641536,
+              'stable_archive_bytes': 641536,
+          }
+          stable_metrics = {
+              key: value
+              for key, value in metrics.items()
+              if key not in {'output_total_bytes', 'eml_bytes'}
+          }
+          if stable_metrics != expected_metrics:
+              raise SystemExit(
+                  f'fixture stable metrics mismatch: {stable_metrics!r}; '
+                  f'volatile output_total_bytes={metrics["output_total_bytes"]}'
+              )
+          evidence.joinpath('metrics.json').write_text(
+              json.dumps(metrics, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          evidence.joinpath('attachment.json').write_text(
+              json.dumps(attachment, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          evidence.joinpath('embedded-attachment.json').write_text(
+              json.dumps(embedded_attachment, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          evidence.joinpath('embedded-message.json').write_text(
+              json.dumps(embedded_message, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          evidence.joinpath('owner-message.json').write_text(
+              json.dumps(owner, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          evidence.joinpath('message-ownership.json').write_text(
+              json.dumps(
+                  {
+                      'folder': expected_folders[3],
+                      'top_level_messages': [
+                          {
+                              'message_key': message['message_key'],
+                              'folder_key': message['folder_key'],
+                              'folder_path': message['folder_path'],
+                              'subject': message['subject'],
+                              'metadata_status': message['metadata_status'],
+                          }
+                          for message in top_level_messages.values()
+                      ],
+                      'embedded_child': {
+                          'message_key': child['message_key'],
+                          'folder_key': child['folder_key'],
+                          'folder_path': child['folder_path'],
+                      },
+                  },
+                  ensure_ascii=False,
+                  indent=2,
+                  sort_keys=True,
+              ) + '\n',
+              encoding='utf-8',
+          )
+          evidence.joinpath('docx-sha256.txt').write_text(
+              attachment['sha256'] + '\n',
+              encoding='utf-8',
+          )
+          PY
+      - name: Upload Tika attachment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tika-attachment-payload-evidence
+          path: /tmp/pstd-tika-attachment
+          if-no-files-found: error
