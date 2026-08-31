@@ -166,6 +166,7 @@ fn attachment_source_ref(attachment_method: Option<i32>) -> String {
     match attachment_method {
         Some(1) => "mapi:PR_ATTACH_DATA_BIN/by_value".to_string(),
         Some(5) => "mapi:PR_ATTACH_DATA_OBJ/embedded_message".to_string(),
+        Some(6) => "mapi:PR_ATTACH_DATA_OBJ/ole".to_string(),
         Some(method) => format!("mapi:PR_ATTACH_METHOD={method}"),
         None => "attachment_table_or_property_context:method_absent".to_string(),
     }
