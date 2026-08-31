@@ -51,7 +51,8 @@ fn make_page(file_offset: usize, ptype: u8, bid: u32) -> [u8; PAGE_SIZE] {
         block_signature(file_offset as u32, bid),
     );
     put_u32(&mut page, 504, bid);
-    put_u32(&mut page, 508, crc32(&page[..500]));
+    let page_crc = crc32(&page[..500]);
+    put_u32(&mut page, 508, page_crc);
     page
 }
 
@@ -83,7 +84,8 @@ fn make_fixture(crypt_method: u8) -> Vec<u8> {
     bytes[BBT_OFFSET..BBT_OFFSET + PAGE_SIZE].copy_from_slice(&bbt);
     bytes[NBT_OFFSET..NBT_OFFSET + PAGE_SIZE].copy_from_slice(&nbt);
 
-    put_u32(&mut bytes, 4, crc32(&bytes[8..479]));
+    let header_crc = crc32(&bytes[8..479]);
+    put_u32(&mut bytes, 4, header_crc);
     bytes
 }
 
