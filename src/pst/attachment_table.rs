@@ -6,7 +6,10 @@ use crate::pst::attachments::{
     unavailable_attachment_record_from_metadata, unavailable_attachment_record_from_properties,
     AttachmentMetadata, AttachmentPayload,
 };
-use crate::pst::mapi::{decode_value_with_fallback, property_def};
+use crate::pst::mapi::{
+    decode_value_with_fallback, property_def, resolve_string8_charset, PR_INTERNET_CPID,
+    PR_MESSAGE_CODEPAGE,
+};
 use crate::pst::payload::PayloadBlock;
 use crate::pst::property_context::{PropertyContext, PropertyValue};
 use crate::pst::table_context::{TableContext, TableRow};
@@ -465,12 +468,28 @@ pub fn property_context_from_table_row_with_fallback_charset(
     fallback_charset: Option<&str>,
 ) -> PropertyContext {
     let mut values = HashMap::new();
+    let charset_resolution = resolve_string8_charset(
+        row.values
+            .iter()
+            .find(|(tag, _)| *tag == PR_MESSAGE_CODEPAGE)
+            .map(|(_, raw)| raw.as_slice()),
+        row.values
+            .iter()
+            .find(|(tag, _)| *tag == PR_INTERNET_CPID)
+            .map(|(_, raw)| raw.as_slice()),
+        fallback_charset,
+    );
 
     for (tag, raw) in &row.values {
         let (name, decoded, status) = if let Some(def) = property_def(*tag) {
             (
                 def.name.to_string(),
-                decode_value_with_fallback(def.value_type, raw, fallback_charset).ok(),
+                decode_value_with_fallback(
+                    def.value_type,
+                    raw,
+                    Some(charset_resolution.charset.as_str()),
+                )
+                .ok(),
                 "selected".to_string(),
             )
         } else {
@@ -498,14 +517,30 @@ pub fn property_context_from_table_row_with_fallback_charset(
 
 #[cfg(test)]
 mod tests {
-    use super::{attachment_payloads_from_subnode_blocks, attachment_payloads_from_table};
+    use super::{
+        attachment_payloads_from_subnode_blocks, attachment_payloads_from_table,
+        property_context_from_table_row_with_fallback_charset,
+    };
     use crate::pst::mapi::{
         PR_ATTACH_DATA_BIN, PR_ATTACH_LONG_FILENAME, PR_ATTACH_METHOD, PR_ATTACH_MIME_TAG,
-        PR_ATTACH_SIZE,
+        PR_ATTACH_SIZE, PR_MESSAGE_CODEPAGE, PR_SUBJECT_A,
     };
     use crate::pst::payload::PayloadBlock;
     use crate::pst::primitives::{BlockId, BlockRef, ByteOffset};
     use crate::pst::table_context::{TableContext, TableRow};
+
+    #[test]
+    fn applies_row_codepage_to_string8_attachment_metadata() {
+        let row = TableRow {
+            row_id: 0,
+            values: vec![
+                (PR_MESSAGE_CODEPAGE, 1252i32.to_le_bytes().to_vec()),
+                (PR_SUBJECT_A, vec![0x80, 0]),
+            ],
+        };
+        let context = property_context_from_table_row_with_fallback_charset(&row, None);
+        assert_eq!(context.string_value(PR_SUBJECT_A).as_deref(), Some("€"));
+    }
 
     #[test]
     fn wires_attachment_payloads_from_table_rows() {

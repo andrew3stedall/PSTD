@@ -30,13 +30,14 @@ canonical evidence stream; no native address is rewritten as SMTP.
 The canonical extraction path now emits `data/headers.jsonl` for every extracted
 message, including embedded messages and unavailable property contexts. Each record
 keeps the exact decoded stored header value, a deterministic LF-normalized header
-projection, the selected Unicode/String8/default-charset policy, and a stable link
+projection, the selected Unicode/String8/code-page/default-charset policy, and a stable link
 to the raw property evidence. The validator accepts folded RFC fields and fields
 without a space after the colon, keeps valid stored headers authoritative, and marks
 body fragments, malformed names, bare line endings, decode failures, and lossy raw
 encodings non-authoritative without dropping their evidence. `-C`/`-8` remain an
-explicit adapter-policy boundary; the current String8 decoder records its UTF-8
-lossy status and ISO-8859-1 fallback policy rather than silently claiming code-page
+explicit adapter-policy boundary; the current String8 decoder records supported
+message-code-page/Internet-CPID selection, raw evidence, conflict/fallback status,
+and authoritative override provenance rather than silently claiming broad code-page
 equivalence.
 
 ## Transport headers

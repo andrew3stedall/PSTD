@@ -50,6 +50,8 @@ pub const PR_PRIORITY: u32 = 0x0026_0003;
 pub const PR_SENSITIVITY: u32 = 0x0036_0003;
 pub const PR_MESSAGE_FLAGS: u32 = 0x0e07_0003;
 pub const PR_MESSAGE_SIZE: u32 = 0x0e08_0003;
+pub const PR_MESSAGE_CODEPAGE: u32 = 0x3ffd_0003;
+pub const PR_INTERNET_CPID: u32 = 0x3fde_0003;
 pub const PR_HASATTACH: u32 = 0x0e1b_000b;
 pub const PR_DELETE_AFTER_SUBMIT: u32 = 0x0e01_000b;
 pub const PR_ORIGINATOR_DELIVERY_REPORT_REQUESTED: u32 = 0x0023_000b;
@@ -220,6 +222,16 @@ pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
     MapiPropertyDef {
         tag: PR_MESSAGE_SIZE,
         name: "message_size",
+        value_type: MapiValueType::Integer32,
+    },
+    MapiPropertyDef {
+        tag: PR_MESSAGE_CODEPAGE,
+        name: "message_codepage",
+        value_type: MapiValueType::Integer32,
+    },
+    MapiPropertyDef {
+        tag: PR_INTERNET_CPID,
+        name: "internet_cpid",
         value_type: MapiValueType::Integer32,
     },
     MapiPropertyDef {
@@ -480,6 +492,145 @@ pub fn canonical_fallback_charset(value: &str) -> Option<&'static str> {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct CharsetResolution {
+    pub charset: String,
+    pub source: String,
+    pub status: String,
+}
+
+/// Maps the small set of code pages that PSTD can decode without guessing.
+/// Unknown pages deliberately return None so callers can retain raw bytes and
+/// use their configured fallback instead of silently corrupting text.
+pub fn charset_for_code_page(code_page: i32) -> Option<&'static str> {
+    match code_page {
+        65001 => Some("utf-8"),
+        1252 => Some("windows-1252"),
+        28591 => Some("iso-8859-1"),
+        _ => None,
+    }
+}
+
+pub fn resolve_string8_charset(
+    message_codepage: Option<&[u8]>,
+    internet_cpid: Option<&[u8]>,
+    fallback_charset: Option<&str>,
+) -> CharsetResolution {
+    let fallback = canonical_fallback_charset(fallback_charset.unwrap_or("iso-8859-1"))
+        .unwrap_or("iso-8859-1");
+
+    if let Some(charset) = fallback_charset.and_then(canonical_fallback_charset) {
+        return CharsetResolution {
+            charset: charset.to_string(),
+            source: "explicit_override".to_string(),
+            status: format!(
+                "charset_override_authoritative; charset={charset}; code_page_metadata=ignored"
+            ),
+        };
+    }
+
+    let message = code_page_evidence("message_codepage", message_codepage);
+    let internet = code_page_evidence("internet_cpid", internet_cpid);
+    let evidence = [message.as_ref(), internet.as_ref()];
+    let valid = evidence
+        .iter()
+        .filter_map(|item| item.as_ref().and_then(|item| item.charset))
+        .collect::<Vec<_>>();
+    let issues = evidence
+        .iter()
+        .filter_map(|item| item.as_ref().and_then(|item| item.issue.as_deref()))
+        .collect::<Vec<_>>();
+
+    if !issues.is_empty() {
+        return CharsetResolution {
+            charset: fallback.to_string(),
+            source: "fallback".to_string(),
+            status: format!(
+                "charset_metadata_rejected; {}; fallback_charset={fallback}",
+                issues.join(",")
+            ),
+        };
+    }
+
+    if valid.len() == 2 && valid[0] != valid[1] {
+        return CharsetResolution {
+            charset: fallback.to_string(),
+            source: "fallback".to_string(),
+            status: format!(
+                "charset_metadata_conflict; message_codepage_charset={}; internet_cpid_charset={}; fallback_charset={fallback}",
+                valid[0], valid[1]
+            ),
+        };
+    }
+
+    if let Some(charset) = valid.first() {
+        let source = match (message_codepage.is_some(), internet_cpid.is_some()) {
+            (true, true) => "message_codepage+internet_cpid",
+            (true, false) => "message_codepage",
+            (false, true) => "internet_cpid",
+            (false, false) => "fallback",
+        };
+        let code_pages = [message, internet]
+            .into_iter()
+            .flatten()
+            .filter_map(|item| item.code_page)
+            .map(|value| value.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        return CharsetResolution {
+            charset: (*charset).to_string(),
+            source: source.to_string(),
+            status: format!(
+                "charset_metadata_selected; source={source}; code_pages={code_pages}; charset={charset}"
+            ),
+        };
+    }
+
+    CharsetResolution {
+        charset: fallback.to_string(),
+        source: "default_fallback".to_string(),
+        status: format!("charset_metadata_absent; fallback_charset={fallback}"),
+    }
+}
+
+#[derive(Debug, Clone)]
+struct CodePageEvidence {
+    code_page: Option<i32>,
+    charset: Option<&'static str>,
+    issue: Option<String>,
+}
+
+fn code_page_evidence(name: &str, raw: Option<&[u8]>) -> Option<CodePageEvidence> {
+    let raw = raw?;
+    if raw.len() != 4 {
+        return Some(CodePageEvidence {
+            code_page: None,
+            charset: None,
+            issue: Some(format!("{name}_invalid_length={}", raw.len())),
+        });
+    }
+    let code_page = i32::from_le_bytes([raw[0], raw[1], raw[2], raw[3]]);
+    if !(1..=65535).contains(&code_page) {
+        return Some(CodePageEvidence {
+            code_page: Some(code_page),
+            charset: None,
+            issue: Some(format!("{name}_out_of_range={code_page}")),
+        });
+    }
+    let Some(charset) = charset_for_code_page(code_page) else {
+        return Some(CodePageEvidence {
+            code_page: Some(code_page),
+            charset: None,
+            issue: Some(format!("{name}_unsupported={code_page}")),
+        });
+    };
+    Some(CodePageEvidence {
+        code_page: Some(code_page),
+        charset: Some(charset),
+        issue: None,
+    })
+}
+
 pub fn decode_value(value_type: MapiValueType, raw: &[u8]) -> PstdResult<MapiValue> {
     decode_value_with_fallback(value_type, raw, None)
 }
@@ -596,8 +747,9 @@ pub fn value_summary(value: &MapiValue) -> String {
 mod tests {
     use super::{
         byte_swapped_tag, canonical_fallback_charset, decode_value, decode_value_with_fallback,
-        has_known_value_type, property_def, MapiValue, MapiValueType, PR_ATTACH_DATA_OBJ,
-        PR_BODY_A, PR_SUBJECT, PR_SUBJECT_A,
+        has_known_value_type, property_def, resolve_string8_charset, MapiValue, MapiValueType,
+        PR_ATTACH_DATA_OBJ, PR_BODY_A, PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE, PR_SUBJECT,
+        PR_SUBJECT_A,
     };
 
     #[test]
@@ -674,5 +826,47 @@ mod tests {
         );
         assert_eq!(canonical_fallback_charset("utf8"), Some("utf-8"));
         assert_eq!(canonical_fallback_charset("koi8-r"), None);
+    }
+
+    #[test]
+    fn selects_supported_message_code_pages() {
+        let cp1252 = 1252i32.to_le_bytes();
+        let resolution = resolve_string8_charset(Some(&cp1252), None, None);
+        assert_eq!(resolution.charset, "windows-1252");
+        assert_eq!(resolution.source, "message_codepage");
+        assert!(resolution.status.contains("code_pages=1252"));
+
+        let cpid = 65001i32.to_le_bytes();
+        let resolution = resolve_string8_charset(None, Some(&cpid), None);
+        assert_eq!(resolution.charset, "utf-8");
+        assert_eq!(resolution.source, "internet_cpid");
+        assert!(property_def(PR_MESSAGE_CODEPAGE).is_some());
+        assert!(property_def(PR_INTERNET_CPID).is_some());
+    }
+
+    #[test]
+    fn rejects_conflicting_or_unsupported_code_page_evidence() {
+        let cp1252 = 1252i32.to_le_bytes();
+        let cp65001 = 65001i32.to_le_bytes();
+        let resolution = resolve_string8_charset(Some(&cp1252), Some(&cp65001), None);
+        assert_eq!(resolution.charset, "iso-8859-1");
+        assert_eq!(resolution.source, "fallback");
+        assert!(resolution.status.contains("charset_metadata_conflict"));
+
+        let unsupported = 932i32.to_le_bytes();
+        let resolution = resolve_string8_charset(Some(&unsupported), None, None);
+        assert_eq!(resolution.charset, "iso-8859-1");
+        assert!(resolution
+            .status
+            .contains("message_codepage_unsupported=932"));
+    }
+
+    #[test]
+    fn explicit_fallback_overrides_code_page_metadata() {
+        let cp1252 = 1252i32.to_le_bytes();
+        let resolution = resolve_string8_charset(Some(&cp1252), None, Some("utf8"));
+        assert_eq!(resolution.charset, "utf-8");
+        assert_eq!(resolution.source, "explicit_override");
+        assert!(resolution.status.contains("authoritative"));
     }
 }

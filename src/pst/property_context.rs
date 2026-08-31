@@ -4,7 +4,7 @@ use crate::error::PstdResult;
 use crate::pst::bth::BthMap;
 use crate::pst::mapi::{
     byte_swapped_tag, decode_value_with_fallback, has_known_value_type, property_def,
-    value_summary, MapiValue,
+    resolve_string8_charset, value_summary, MapiValue, PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE,
 };
 
 const PQ10_TRAVERSAL_STATUS_TAG: u32 = 0xffff_fffe;
@@ -37,6 +37,7 @@ pub struct PropertyContextParseReport {
     pub byte_swapped_selected_property_count: usize,
     pub skipped_key_count: usize,
     pub decode_error_count: usize,
+    pub charset_resolution: crate::pst::mapi::CharsetResolution,
     pub status: String,
 }
 
@@ -64,6 +65,23 @@ impl PropertyContext {
         bth: &BthMap,
         fallback_charset: Option<&str>,
     ) -> PstdResult<PropertyContextParseReport> {
+        let mut message_codepage = None;
+        let mut internet_cpid = None;
+        for entry in &bth.entries {
+            if entry.key.len() < 4 {
+                continue;
+            }
+            let raw_tag =
+                u32::from_le_bytes([entry.key[0], entry.key[1], entry.key[2], entry.key[3]]);
+            let interpreted = interpret_property_tag(raw_tag);
+            match interpreted.tag {
+                PR_MESSAGE_CODEPAGE => message_codepage = Some(entry.value.as_slice()),
+                PR_INTERNET_CPID => internet_cpid = Some(entry.value.as_slice()),
+                _ => {}
+            }
+        }
+        let charset_resolution =
+            resolve_string8_charset(message_codepage, internet_cpid, fallback_charset);
         let mut values = HashMap::new();
         let mut selected_property_count = 0usize;
         let mut unknown_property_count = 0usize;
@@ -106,14 +124,17 @@ impl PropertyContext {
             if interpreted.was_byte_swapped {
                 byte_swapped_selected_property_count += 1;
             }
-            let decoded =
-                match decode_value_with_fallback(def.value_type, &entry.value, fallback_charset) {
-                    Ok(value) => Some(value),
-                    Err(_) => {
-                        decode_error_count += 1;
-                        None
-                    }
-                };
+            let decoded = match decode_value_with_fallback(
+                def.value_type,
+                &entry.value,
+                Some(charset_resolution.charset.as_str()),
+            ) {
+                Ok(value) => Some(value),
+                Err(_) => {
+                    decode_error_count += 1;
+                    None
+                }
+            };
             selected_property_count += 1;
             values.insert(
                 interpreted.tag,
@@ -148,6 +169,7 @@ impl PropertyContext {
                 unknown_tag_sample(&unknown_property_tags)
             )
         };
+        let status = format!("{status}; {}", charset_resolution.status);
 
         Ok(PropertyContextParseReport {
             context: Self { values },
@@ -161,6 +183,7 @@ impl PropertyContext {
             byte_swapped_selected_property_count,
             skipped_key_count,
             decode_error_count,
+            charset_resolution,
             status,
         })
     }
@@ -314,7 +337,7 @@ fn unknown_tag_sample(tags: &[u32]) -> String {
 mod tests {
     use super::PropertyContext;
     use crate::pst::bth::{BthEntry, BthHeader, BthMap};
-    use crate::pst::mapi::{PR_SUBJECT, PR_SUBJECT_A};
+    use crate::pst::mapi::{PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE, PR_SUBJECT, PR_SUBJECT_A};
 
     #[test]
     fn reports_selected_unknown_and_skipped_properties() {
@@ -411,6 +434,131 @@ mod tests {
             report.context.string_value(PR_SUBJECT_A).as_deref(),
             Some("€")
         );
+    }
+
+    #[test]
+    fn selects_message_codepage_before_decoding_string8_values() {
+        let bth = BthMap {
+            header: BthHeader {
+                key_size: 4,
+                value_size: 4,
+                entry_count: 2,
+                root_allocation: 0,
+            },
+            entries: vec![
+                BthEntry {
+                    key: PR_MESSAGE_CODEPAGE.to_le_bytes().to_vec(),
+                    value: 1252i32.to_le_bytes().to_vec(),
+                },
+                BthEntry {
+                    key: PR_SUBJECT_A.to_le_bytes().to_vec(),
+                    value: vec![0x80, 0],
+                },
+            ],
+        };
+
+        let report = PropertyContext::from_bth_with_report(&bth).unwrap();
+        assert_eq!(
+            report.context.string_value(PR_SUBJECT_A).as_deref(),
+            Some("€")
+        );
+        assert_eq!(report.charset_resolution.charset, "windows-1252");
+        assert_eq!(report.charset_resolution.source, "message_codepage");
+        assert!(report.status.contains("charset_metadata_selected"));
+        assert_eq!(
+            report.context.string_value(PR_MESSAGE_CODEPAGE).as_deref(),
+            Some("1252")
+        );
+    }
+
+    #[test]
+    fn selects_internet_cpid_and_rejects_conflicting_evidence() {
+        let bth = BthMap {
+            header: BthHeader {
+                key_size: 4,
+                value_size: 4,
+                entry_count: 2,
+                root_allocation: 0,
+            },
+            entries: vec![
+                BthEntry {
+                    key: PR_INTERNET_CPID.to_le_bytes().to_vec(),
+                    value: 65001i32.to_le_bytes().to_vec(),
+                },
+                BthEntry {
+                    key: PR_SUBJECT_A.to_le_bytes().to_vec(),
+                    value: vec![0xc3, 0xa9, 0],
+                },
+            ],
+        };
+        let report = PropertyContext::from_bth_with_report(&bth).unwrap();
+        assert_eq!(
+            report.context.string_value(PR_SUBJECT_A).as_deref(),
+            Some("é")
+        );
+        assert_eq!(report.charset_resolution.source, "internet_cpid");
+
+        let conflicting = BthMap {
+            header: BthHeader {
+                key_size: 4,
+                value_size: 4,
+                entry_count: 3,
+                root_allocation: 0,
+            },
+            entries: vec![
+                BthEntry {
+                    key: PR_MESSAGE_CODEPAGE.to_le_bytes().to_vec(),
+                    value: 1252i32.to_le_bytes().to_vec(),
+                },
+                BthEntry {
+                    key: PR_INTERNET_CPID.to_le_bytes().to_vec(),
+                    value: 65001i32.to_le_bytes().to_vec(),
+                },
+                BthEntry {
+                    key: PR_SUBJECT_A.to_le_bytes().to_vec(),
+                    value: vec![0x80, 0],
+                },
+            ],
+        };
+        let report = PropertyContext::from_bth_with_report(&conflicting).unwrap();
+        assert_eq!(report.charset_resolution.charset, "iso-8859-1");
+        assert_eq!(report.charset_resolution.source, "fallback");
+        assert!(report.status.contains("charset_metadata_conflict"));
+        assert_eq!(
+            report.context.string_value(PR_SUBJECT_A).as_deref(),
+            Some("\u{80}")
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_code_page_evidence_and_keeps_explicit_override_authoritative() {
+        let invalid = BthMap {
+            header: BthHeader {
+                key_size: 4,
+                value_size: 4,
+                entry_count: 2,
+                root_allocation: 0,
+            },
+            entries: vec![
+                BthEntry {
+                    key: PR_MESSAGE_CODEPAGE.to_le_bytes().to_vec(),
+                    value: 932i32.to_le_bytes().to_vec(),
+                },
+                BthEntry {
+                    key: PR_SUBJECT_A.to_le_bytes().to_vec(),
+                    value: vec![0x80, 0],
+                },
+            ],
+        };
+        let report =
+            PropertyContext::from_bth_with_fallback_charset(&invalid, Some("windows-1252"))
+                .unwrap();
+        assert_eq!(report.charset_resolution.source, "explicit_override");
+        assert_eq!(
+            report.context.string_value(PR_SUBJECT_A).as_deref(),
+            Some("€")
+        );
+        assert!(report.status.contains("charset_override_authoritative"));
     }
 
     #[test]

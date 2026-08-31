@@ -18,7 +18,8 @@ use crate::output::non_mail::build_non_mail_records;
 use crate::output::special::build_special_items;
 use crate::pst::attachment_property_context::{
     attachment_payloads_from_property_context_subnodes_with_fallback_charset,
-    attachment_records_from_property_context_subnodes, EmbeddedMessageCandidate,
+    attachment_records_from_property_context_subnodes_with_fallback_charset,
+    EmbeddedMessageCandidate,
 };
 use crate::pst::attachment_table::attachment_payloads_from_subnode_blocks_with_fallback_charset;
 use crate::pst::attachments::{unavailable_attachment_record, AttachmentPayload};
@@ -320,6 +321,8 @@ pub fn extract_metadata_with_fallback_charset(
                     pq6_selected_property_count += loaded.property_report.selected_property_count;
                     pq6_unknown_property_count += loaded.property_report.unknown_property_count;
                     pq6_decode_error_count += loaded.property_report.decode_error_count;
+                    let selected_charset =
+                        Some(loaded.property_report.charset_resolution.charset.as_str());
 
                     let mut message = message_from_properties(
                         run_id,
@@ -411,9 +414,10 @@ pub fn extract_metadata_with_fallback_charset(
                             }
                             recipient_probe_completed = true;
                             let (property_context_attachments, attachment_property_report) =
-                                attachment_records_from_property_context_subnodes(
+                                attachment_records_from_property_context_subnodes_with_fallback_charset(
                                     &message.message_key,
                                     &loaded_subnodes.payloads,
+                                    selected_charset,
                                 );
                             if !property_context_attachments.is_empty() {
                                 message.has_attachments = true;
@@ -490,7 +494,7 @@ pub fn extract_metadata_with_fallback_charset(
                                 &reader,
                                 &bbt,
                                 limits,
-                                fallback_charset,
+                                selected_charset,
                             );
                             for candidate in embedded_message_candidates.drain(..) {
                                 embedded_message_outputs.push(recover_embedded_message(
@@ -504,7 +508,6 @@ pub fn extract_metadata_with_fallback_charset(
                                     &bbt,
                                     limits,
                                     1,
-                                    fallback_charset,
                                 ));
                             }
                             subnode_decoded_blocks += loaded_subnodes.report.decoded_block_count;
@@ -521,7 +524,7 @@ pub fn extract_metadata_with_fallback_charset(
                             ) = attachment_payloads_from_subnode_blocks_with_fallback_charset(
                                 &message.message_key,
                                 &loaded_subnodes.payloads,
-                                fallback_charset,
+                                selected_charset,
                             );
                             attachment_table_parse_errors += attachment_report.parse_error_count;
                             if attachment_property_report.filename_record_count > 0
@@ -1135,8 +1138,14 @@ fn recover_embedded_message(
     bbt: &BbtIndex,
     limits: ParserLimits,
     depth: usize,
-    fallback_charset: Option<&str>,
 ) -> EmbeddedMessageExtractionOutput {
+    let selected_charset = Some(
+        candidate
+            .property_report
+            .charset_resolution
+            .charset
+            .as_str(),
+    );
     let mut message = message_from_properties(
         run_id,
         pst_id,
@@ -1227,7 +1236,7 @@ fn recover_embedded_message(
                 reader,
                 bbt,
                 limits,
-                fallback_charset,
+                selected_charset,
             );
         attachment_status = Some(report.status);
         for payload in &payloads {
@@ -1259,7 +1268,6 @@ fn recover_embedded_message(
             bbt,
             limits,
             depth + 1,
-            fallback_charset,
         );
         attachments.extend(nested_output.attachments);
         attachment_payloads.extend(nested_output.attachment_payloads);

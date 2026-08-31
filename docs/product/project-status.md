@@ -52,7 +52,7 @@ Attachment reference resolution now accepts the validated compact 4-byte SLENTRY
 
 Validated property-context attachments now survive missing or blank filename properties, retaining metadata and using deterministic fallback archive names while keeping method/size validation strict. Broader attachment methods and producer coverage remain Partial.
 
-The MAPI String8 conversion boundary now preserves legacy high-bit bytes through the documented ISO-8859-1 fallback, with NUL-termination and non-replacement regression coverage. This improves BODY-01/MSG-02 fallback fidelity; broader producer-specific charset parity remains open.
+The MAPI String8 conversion boundary now preserves legacy high-bit bytes through the documented ISO-8859-1 fallback and selects supported per-context `PR_MESSAGE_CODEPAGE`/`PR_INTERNET_CPID` declarations for UTF-8, Windows-1252, or ISO-8859-1. Raw declarations and charset provenance are retained; malformed, unsupported, and conflicting metadata fails closed to the configured fallback, and `-C` remains authoritative. Broader producer-specific charset parity remains open.
 
 The CLI fallback charset override is now effective across message, folder, attachment table/property-context, and nested embedded-message decoding. Supported names are `iso-8859-1`, `windows-1252`/`cp1252`, and `utf-8`; unsupported values fail closed during policy validation.
 

@@ -35,7 +35,8 @@ _Last reviewed: 31 August 2026._
 ### BODY-01 charset fallback
 
 - Decode legacy MAPI String8 values using the documented ISO-8859-1 byte mapping instead of UTF-8 replacement decoding.
-- Add regression coverage for high-bit bytes and NUL-terminated values; broader producer-specific code-page selection remains Partial.
+- Select a validated per-context charset from supported `PR_MESSAGE_CODEPAGE` and `PR_INTERNET_CPID` values (UTF-8, Windows-1252, and ISO-8859-1), preserve raw code-page properties and resolution provenance, and reject conflicting or unsupported declarations in favour of the configured fallback.
+- Add regression coverage for high-bit bytes, NUL-terminated values, code-page selection, conflicts, malformed values, attachment table rows, and authoritative `-C` overrides; broader producer-specific code-page coverage remains Partial.
 
 ### CLI-06 fallback charset
 
