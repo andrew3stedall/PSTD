@@ -900,7 +900,10 @@ mod tests {
             Some("shift-jis"),
         )
         .unwrap();
-        assert_eq!(value, MapiValue::String(decoded));
+        match value {
+            MapiValue::String(value) => assert_eq!(value, decoded),
+            other => panic!("unexpected decoded value: {other:?}"),
+        }
     }
 
     #[test]
