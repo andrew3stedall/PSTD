@@ -1241,6 +1241,30 @@ mod tests {
     }
 
     #[test]
+    fn recovers_heap_backed_method_six_ole_payload() {
+        let ole_bytes =
+            b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1compound-file".to_vec();
+        let object_hid = 0x60;
+        let property_block = object_property_context_heap(object_hid, &ole_bytes);
+        let blocks = vec![payload(0x6c6, property_block.clone())];
+        let (file, bbt) = fixture(&[(0x6c6, property_block)]);
+        let reader = PstByteReader::open(file.path()).unwrap();
+        let properties = method_six_properties(ole_bytes.len(), object_hid);
+
+        let (bytes, status) = resolve_attachment_payload(
+            &properties,
+            &blocks,
+            &reader,
+            &bbt,
+            ParserLimits::default(),
+        )
+        .expect("heap-backed method-six object");
+
+        assert_eq!(bytes, ole_bytes);
+        assert_eq!(status, "attachment_payload_extracted_inline_object_heap");
+    }
+
+    #[test]
     fn rejects_missing_and_ambiguous_method_six_references() {
         let properties = method_six_properties(4, 0x833f);
         let missing_blocks = vec![payload(0x6c6, slblock(0x833f, 0x632))];
@@ -1341,6 +1365,32 @@ mod tests {
             },
         );
         PropertyContext { values }
+    }
+
+    fn object_property_context_heap(object_hid: u32, object_bytes: &[u8]) -> Vec<u8> {
+        let object_start = 32usize;
+        let object_end = object_start + object_bytes.len();
+        let page_map_offset = 64usize;
+        let mut bytes = vec![0; page_map_offset + 12];
+
+        bytes[0..2].copy_from_slice(&(page_map_offset as u16).to_le_bytes());
+        bytes[2] = 0xec;
+        bytes[3] = 0xbc;
+        bytes[4..8].copy_from_slice(&0x20u32.to_le_bytes());
+
+        bytes[16..24].copy_from_slice(&[0xb5, 2, 6, 0, 0x40, 0, 0, 0]);
+        bytes[24..26].copy_from_slice(&0x3701u16.to_le_bytes());
+        bytes[26..28].copy_from_slice(&0x000du16.to_le_bytes());
+        bytes[28..32].copy_from_slice(&object_hid.to_le_bytes());
+        bytes[object_start..object_end].copy_from_slice(object_bytes);
+
+        bytes[page_map_offset..page_map_offset + 2].copy_from_slice(&3u16.to_le_bytes());
+        bytes[page_map_offset + 2..page_map_offset + 4].copy_from_slice(&0u16.to_le_bytes());
+        for (index, offset) in [16u16, 24, 32, object_end as u16].iter().enumerate() {
+            let start = page_map_offset + 4 + index * 2;
+            bytes[start..start + 2].copy_from_slice(&offset.to_le_bytes());
+        }
+        bytes
     }
 
     fn xblock(child_bids: &[u64], total: u32) -> Vec<u8> {
