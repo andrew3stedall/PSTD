@@ -718,6 +718,13 @@ fn resolve_attachment_payload(
         ));
     }
 
+    if let Some(bytes) = inline_object_heap_bytes(properties, blocks) {
+        return Ok((
+            bytes,
+            "attachment_payload_extracted_inline_object_heap".to_string(),
+        ));
+    }
+
     if let Some(bytes) = inline_attachment_bytes(properties) {
         return Ok((
             bytes,
@@ -726,6 +733,47 @@ fn resolve_attachment_payload(
     }
 
     Err("attachment_payload_reference_unresolved".to_string())
+}
+
+fn inline_object_heap_bytes(
+    properties: &PropertyContext,
+    blocks: &[PayloadBlock],
+) -> Option<Vec<u8>> {
+    let value = properties.value(PR_ATTACH_DATA_OBJ)?;
+    if value.raw.len() != 4 {
+        return None;
+    }
+    let hnid = u32::from_le_bytes(value.raw.as_slice().try_into().ok()?);
+    if hnid == 0 || hnid & HNID_TYPE_MASK != 0 {
+        return None;
+    }
+
+    let object_tag = PR_ATTACH_DATA_OBJ.to_le_bytes();
+    let mut matches = Vec::new();
+    for block in blocks {
+        let Ok(heap) = HeapOnNode::parse(&block.bytes, block.block_ref.offset.0) else {
+            continue;
+        };
+        if heap.header.client_signature != HEAP_CLIENT_PROPERTY_CONTEXT {
+            continue;
+        }
+        let Ok(bth) =
+            BthMap::parse_property_context_from_heap(&heap, &block.bytes, block.block_ref.offset.0)
+        else {
+            continue;
+        };
+        if bth.lookup(&object_tag) != Some(value.raw.as_slice()) {
+            continue;
+        }
+        let Some(bytes) =
+            heap.try_allocation_by_hnid(&block.bytes, hnid, block.block_ref.offset.0)
+        else {
+            continue;
+        };
+        matches.push(bytes.to_vec());
+    }
+
+    (matches.len() == 1).then(|| matches.remove(0))
 }
 
 fn inline_attachment_bytes(properties: &PropertyContext) -> Option<Vec<u8>> {
