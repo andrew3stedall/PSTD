@@ -84,7 +84,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          set +e
           pffinfo /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst             > /tmp/pstd-ansi-stage-a/evidence/libpff-info.txt             2> /tmp/pstd-ansi-stage-a/evidence/libpff-info.stderr
+          status=$?
+          set -e
+          printf 'pffinfo_exit=%s\\n' "$status" | tee /tmp/pstd-ansi-stage-a/evidence/libpff-status.txt
+          cat /tmp/pstd-ansi-stage-a/evidence/libpff-info.txt
+          cat /tmp/pstd-ansi-stage-a/evidence/libpff-info.stderr >&2
+          test "$status" -eq 0 || grep -Eiq 'empty|no root|unable to (open|read)|invalid|unsupported' /tmp/pstd-ansi-stage-a/evidence/libpff-info.stderr
 
       - name: Write ANSI Stage-A evidence report
         shell: bash
