@@ -7,8 +7,8 @@ use crate::pst::attachments::{
     AttachmentMetadata, AttachmentPayload,
 };
 use crate::pst::mapi::{
-    decode_string8_with_status, decode_value_with_fallback, property_def,
-    resolve_string8_charset, MapiValueType, PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE,
+    decode_string8_with_status, decode_value_with_fallback, property_def, resolve_string8_charset,
+    MapiValueType, PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE,
 };
 use crate::pst::payload::PayloadBlock;
 use crate::pst::property_context::{PropertyContext, PropertyValue};
