@@ -790,7 +790,11 @@ fn attachment_data_nid(properties: &PropertyContext) -> Option<u32> {
 
 fn slblock_data_bid_for_nid(bytes: &[u8], target_nid: u32) -> Option<u64> {
     let bids = slblock_data_bids_for_nid(bytes, target_nid);
-    (bids.len() == 1).then_some(bids[0])
+    if bids.len() == 1 {
+        bids.into_iter().next()
+    } else {
+        None
+    }
 }
 
 fn slblock_data_bids_for_nid(bytes: &[u8], target_nid: u32) -> Vec<u64> {
