@@ -65,7 +65,11 @@ pub fn attachment_records_from_property_context_subnodes(
     message_key: &str,
     blocks: &[PayloadBlock],
 ) -> (Vec<AttachmentRecord>, AttachmentPropertyContextReport) {
-    attachment_records_from_property_context_subnodes_with_fallback_charset(message_key, blocks, None)
+    attachment_records_from_property_context_subnodes_with_fallback_charset(
+        message_key,
+        blocks,
+        None,
+    )
 }
 
 pub fn attachment_records_from_property_context_subnodes_with_fallback_charset(
