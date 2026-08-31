@@ -17,10 +17,10 @@ use crate::output::mime::build_mime_parts;
 use crate::output::non_mail::build_non_mail_records;
 use crate::output::special::build_special_items;
 use crate::pst::attachment_property_context::{
-    attachment_payloads_from_property_context_subnodes,
+    attachment_payloads_from_property_context_subnodes_with_fallback_charset,
     attachment_records_from_property_context_subnodes, EmbeddedMessageCandidate,
 };
-use crate::pst::attachment_table::attachment_payloads_from_subnode_blocks;
+use crate::pst::attachment_table::attachment_payloads_from_subnode_blocks_with_fallback_charset;
 use crate::pst::attachments::{unavailable_attachment_record, AttachmentPayload};
 use crate::pst::bbt::BbtIndex;
 use crate::pst::compatibility::{
@@ -45,7 +45,7 @@ use crate::pst::messages::{
     unresolved_body_records, BodyPayload,
 };
 use crate::pst::nbt::{NbtEntry, NbtIndex};
-use crate::pst::node_payload::load_node_property_context;
+use crate::pst::node_payload::load_node_property_context_with_fallback_charset;
 use crate::pst::reader::PstByteReader;
 use crate::pst::subnodes::{
     load_recursive_subnode_blocks, subnode_decode_plans, subnode_references_from_index,
@@ -120,6 +120,15 @@ pub fn extract_metadata(
     input_path: &str,
     run_id: &str,
     pst_id: &str,
+) -> PstdResult<MetadataExtractionOutput> {
+    extract_metadata_with_fallback_charset(input_path, run_id, pst_id, None)
+}
+
+pub fn extract_metadata_with_fallback_charset(
+    input_path: &str,
+    run_id: &str,
+    pst_id: &str,
+    fallback_charset: Option<&str>,
 ) -> PstdResult<MetadataExtractionOutput> {
     let reader = PstByteReader::open(input_path)?;
     let header = PstHeader::parse(&reader)?;
@@ -197,6 +206,7 @@ pub fn extract_metadata(
         run_id,
         pst_id,
         &root_folder.folder_key,
+        fallback_charset,
     );
     issues.extend(folder_discovery.issues.clone());
     let discovered_child_folders = folder_discovery.folders.len() as u64;
@@ -298,7 +308,13 @@ pub fn extract_metadata(
                     )
                 })
                 .unwrap_or_else(|| format!("{}; {}", message_membership_status, ownership_status));
-            match load_node_property_context(&reader, &bbt, entry, limits) {
+            match load_node_property_context_with_fallback_charset(
+                &reader,
+                &bbt,
+                entry,
+                limits,
+                fallback_charset,
+            ) {
                 Ok(loaded) => {
                     pq6_property_loaded_messages += 1;
                     pq6_selected_property_count += loaded.property_report.selected_property_count;
@@ -468,12 +484,13 @@ pub fn extract_metadata(
                                 mut property_context_attachments,
                                 mut embedded_message_candidates,
                                 attachment_property_report,
-                            ) = attachment_payloads_from_property_context_subnodes(
+                            ) = attachment_payloads_from_property_context_subnodes_with_fallback_charset(
                                 &message.message_key,
                                 &loaded_subnodes.payloads,
                                 &reader,
                                 &bbt,
                                 limits,
+                                fallback_charset,
                             );
                             for candidate in embedded_message_candidates.drain(..) {
                                 embedded_message_outputs.push(recover_embedded_message(
@@ -487,6 +504,7 @@ pub fn extract_metadata(
                                     &bbt,
                                     limits,
                                     1,
+                                    fallback_charset,
                                 ));
                             }
                             subnode_decoded_blocks += loaded_subnodes.report.decoded_block_count;
@@ -500,9 +518,10 @@ pub fn extract_metadata(
                                 mut loaded_attachments,
                                 mut unavailable_attachment_records,
                                 attachment_report,
-                            ) = attachment_payloads_from_subnode_blocks(
+                            ) = attachment_payloads_from_subnode_blocks_with_fallback_charset(
                                 &message.message_key,
                                 &loaded_subnodes.payloads,
+                                fallback_charset,
                             );
                             attachment_table_parse_errors += attachment_report.parse_error_count;
                             if attachment_property_report.filename_record_count > 0
@@ -1032,7 +1051,13 @@ fn discover_folder_hierarchy(
         .take(1000)
     {
         candidate_count += 1;
-        match load_node_property_context(reader, bbt, entry, limits) {
+        match load_node_property_context_with_fallback_charset(
+            reader,
+            bbt,
+            entry,
+            limits,
+            fallback_charset,
+        ) {
             Ok(loaded) => {
                 property_loaded_count += 1;
                 let (folder, record) = folder_from_nbt_candidate(
@@ -1109,6 +1134,7 @@ fn recover_embedded_message(
     bbt: &BbtIndex,
     limits: ParserLimits,
     depth: usize,
+    fallback_charset: Option<&str>,
 ) -> EmbeddedMessageExtractionOutput {
     let mut message = message_from_properties(
         run_id,
@@ -1194,12 +1220,13 @@ fn recover_embedded_message(
     let mut nested_headers = Vec::new();
     if !candidate.subnode_payloads.is_empty() {
         let (mut payloads, mut records, candidates, report) =
-            attachment_payloads_from_property_context_subnodes(
+            attachment_payloads_from_property_context_subnodes_with_fallback_charset(
                 &message.message_key,
                 &candidate.subnode_payloads,
                 reader,
                 bbt,
                 limits,
+                fallback_charset,
             );
         attachment_status = Some(report.status);
         for payload in &payloads {
@@ -1231,6 +1258,7 @@ fn recover_embedded_message(
             bbt,
             limits,
             depth + 1,
+            fallback_charset,
         );
         attachments.extend(nested_output.attachments);
         attachment_payloads.extend(nested_output.attachment_payloads);
