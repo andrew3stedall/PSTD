@@ -51,7 +51,7 @@ lossy header inputs. Unit evidence covers folded fields, body-fragment rejection
 String8 loss reporting, decode failure, raw retention, and stable identifiers; the
 Tika fixture gates verify message-key coverage and authority safety. This advances
 the header evidence boundary but does not claim final MIME adapter or code-page
-conversion parity.
+conversion parity. The MAPI String8 decoder now has deterministic ISO-8859-1 fallback coverage for high-bit bytes; broader producer code-page parity remains Partial.
 
 ## RP-M2-03 delivery
 
