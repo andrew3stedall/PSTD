@@ -27,6 +27,8 @@ jobs:
           /tmp/ansi-fixture /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-unknown-crypt.pst 7
           cmp /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst /tmp/pstd-ansi-stage-a/fixtures/ansi-v14-repeat.pst
           sha256sum /tmp/pstd-ansi-stage-a/fixtures/*.pst | tee /tmp/pstd-ansi-stage-a/evidence/fixture-sha256.txt
+          test "$(sha256sum /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst | cut -d' ' -f1)" = \
+            "b5de1ce4cebacc2ea4cefddb4ab9c4d32e5fed04b81cd681e8831faf1323c765"
 
       - name: Independently validate ANSI structure
         shell: bash
@@ -84,14 +86,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          set +e
+          pffinfo --version | tee /tmp/pstd-ansi-stage-a/evidence/libpff-version.txt
           pffinfo /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst             > /tmp/pstd-ansi-stage-a/evidence/libpff-info.txt             2> /tmp/pstd-ansi-stage-a/evidence/libpff-info.stderr
           status=$?
-          set -e
           printf 'pffinfo_exit=%s\\n' "$status" | tee /tmp/pstd-ansi-stage-a/evidence/libpff-status.txt
           cat /tmp/pstd-ansi-stage-a/evidence/libpff-info.txt
           cat /tmp/pstd-ansi-stage-a/evidence/libpff-info.stderr >&2
-          test "$status" -eq 0 || grep -Eiq 'empty|no root|unable to (open|read)|invalid|unsupported' /tmp/pstd-ansi-stage-a/evidence/libpff-info.stderr
+          test "$status" -eq 0
 
       - name: Write ANSI Stage-A evidence report
         shell: bash
@@ -112,7 +113,8 @@ jobs:
               'sha256': hashlib.sha256(fixture.read_bytes()).hexdigest(),
               'independent_validator': 'scripts/validate_ansi_stage_a.py',
               'production_reader': 'PSTD inspect/extract path',
-              'independent_reader': 'libpff pffinfo',
+              'independent_reader': 'libpff pffinfo (Ubuntu package pff-tools)',
+              'independent_reader_result': 'accepted; pffinfo exit 0',
               'expected_store': {
                   'family': 'ansi_pst',
                   'bbt_entries': 0,
