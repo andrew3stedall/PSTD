@@ -512,7 +512,10 @@ fn decode_string8(raw: &[u8]) -> String {
 
     // String8 is a byte-oriented MAPI value. The parser's documented default
     // charset is ISO-8859-1, whose code points map one-to-one to these bytes.
-    raw[..nul_index].iter().map(|byte| char::from(*byte)).collect()
+    raw[..nul_index]
+        .iter()
+        .map(|byte| char::from(*byte))
+        .collect()
 }
 
 pub fn value_summary(value: &MapiValue) -> String {
