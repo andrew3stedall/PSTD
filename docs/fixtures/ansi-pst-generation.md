@@ -84,7 +84,7 @@ The emitter must pin every field that can vary between runs:
 - padding bytes;
 - CRC and signature inputs.
 
-Generation must refuse to overwrite an existing fixture unless an explicit output flag is supplied. CI must regenerate into a temporary directory and compare byte-for-byte with the committed fixture.
+Generation refuses to overwrite an existing fixture unless the explicit `--force` flag is supplied. CI tests that refusal and then compares repeated fresh and forced outputs byte-for-byte.
 
 ## Independent validation
 
@@ -106,7 +106,7 @@ format: Microsoft Outlook PST ANSI
 ndb_version: 14
 generator:
   crate_or_binary: tools/ansi_fixture.rs
-  repository_commit: 9ec2b40b28b02465bc7cbcd3ff8bd6404280a91d
+  repository_commit: 8ab19f0d67b4a9ae9a546777d918569f16d909f6
 content: controlled synthetic empty store only
 licence: CC0-1.0
 byte_length: 2048
