@@ -29,7 +29,7 @@ jobs:
           second="${RUNNER_TEMP}/ole-method6-second.pst"
           git clone --quiet https://github.com/igrbtn/EMLtoPST.git "$generator"
           git -C "$generator" checkout --quiet 6fe9025390a96fe0095457b56f12ce241ee4ba53
-          git -C "$generator" apply "$GITHUB_WORKSPACE/fixtures/ole-method6/eml2pst-method6.patch"
+          python3 "$GITHUB_WORKSPACE/fixtures/ole-method6/prepare_generator.py" "$generator"
           (cd "$generator" && python3 -m eml2pst "$GITHUB_WORKSPACE/fixtures/ole-method6/source" -o "$first")
           (cd "$generator" && python3 -m eml2pst "$GITHUB_WORKSPACE/fixtures/ole-method6/source" -o "$second")
           cmp "$first" "$second"
