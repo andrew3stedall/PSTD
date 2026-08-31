@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Vertical 40 requires a deterministic version-14 or version-15 PST before ANSI BBT/NBT traversal can be enabled. The fixture must contain only controlled synthetic data, have an explicit redistribution basis, and be reproducible on Linux.
+Vertical 40 now has its first deterministic version-14 ANSI structural baseline. The fixture contains only controlled synthetic data, has an explicit redistribution basis, and is reproducible and independently readable on Linux.
 
 The selected approach is a **fixture-only Rust emitter**, not a general PST writer. It exists solely to produce one small, immutable ANSI compatibility fixture whose exact bytes can be independently validated and pinned. It must not become part of PSTD's public extraction API.
 
@@ -26,25 +26,26 @@ The emitter must not share parsing code with the reader for validation-critical 
 
 ## Staged implementation
 
-### Stage A: structural ANSI baseline
+### Stage A: structural ANSI baseline — complete
 
-Create a small Rust binary under `tools/` that emits a deterministic version-14 PST containing:
+The Linux-only fixture emitter `tools/ansi_fixture.rs` emits a deterministic 2,048-byte
+version-14 ANSI PST containing one empty NBT leaf root page and one empty BBT leaf root
+page. It constructs the ANSI page trailers, signatures, weak CRC-32 values, header
+fields, root offsets, sentinel, and crypt-method variants directly. The independent
+validator is `scripts/validate_ansi_stage_a.py`; the complete gate is
+`.github/workflows/ansi-stage-a.yml`.
 
-- a valid ANSI header;
-- one empty NBT leaf root page;
-- one empty BBT leaf root page;
-- valid page trailers, signatures and CRC values;
-- no allocated message blocks and no extracted objects.
+The admitted baseline is pinned in `fixtures/ansi-stage-a/README.md`:
 
-Acceptance requires:
+- SHA-256: `b5de1ce4cebacc2ea4cefddb4ab9c4d32e5fed04b81cd681e8831faf1323c765`;
+- byte length: 2,048;
+- PSTD: `ansi_pst`, `partial`, `allows_extraction=false`, zero BBT/NBT entries;
+- libpff `pffinfo 20180714`: accepted with exit code 0;
+- repeated emitter output and repeated PSTD inspect JSON are byte-identical.
 
-- identical SHA-256 across repeated Linux runs;
-- exact byte length and header fields;
-- PSTD classifies the file as ANSI and remains fail-closed;
-- an independent open-source reader accepts the container structure or reports only the expected empty-store condition;
-- zero folders, messages, bodies, recipients, attachments, typed non-mail objects and EML.
-
-Stage A unlocks bounded ANSI root-page decoding. It does not claim email compatibility.
+Stage A establishes a bounded, fail-closed ANSI container baseline. It does not claim
+ANSI email, folder, message, body, recipient, attachment, typed-object, or EML
+compatibility; those require Stage B fixtures.
 
 ### Stage B: one-folder, one-message fixture
 
@@ -104,19 +105,20 @@ name: pstd-ansi-stage-a.pst
 format: Microsoft Outlook PST ANSI
 ndb_version: 14
 generator:
-  crate_or_binary: <path>
-  repository_commit: <full commit SHA>
-content: controlled synthetic data only
+  crate_or_binary: tools/ansi_fixture.rs
+  repository_commit: 9ec2b40b28b02465bc7cbcd3ff8bd6404280a91d
+content: controlled synthetic empty store only
 licence: CC0-1.0
-byte_length: <exact integer>
-sha256: <64 lowercase hexadecimal characters>
+byte_length: 2048
+sha256: b5de1ce4cebacc2ea4cefddb4ab9c4d32e5fed04b81cd681e8831faf1323c765
 header:
   magic: "!BDN"
   client_signature: "SM"
+  version: 14
   crypt_method: 0
 validation:
-  pstd: <exact result>
-  independent_reader: <tool and pinned version>
+  pstd: "ansi_pst; partial; allows_extraction=false; bbt_entries=0; nbt_entries=0"
+  independent_reader: "libpff pffinfo 20180714; exit 0"
 ```
 
 ## Fail-closed boundaries
