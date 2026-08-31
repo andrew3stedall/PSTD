@@ -23,6 +23,9 @@ The libpst attachment model exposes more than a filename and payload. PSTD alrea
 | Hidden flag | Can imply inline content. | **Partial**: captured independently and contributes to inline evidence; broad producer/layout coverage remains open. |
 | Declared size | Used for diagnostics and payload checks. | **Partial** |
 | Exact payload bytes | Reads direct, subnode, reference, and multi-block data. | **Partial**: generic direct/4-or-8-byte XBLOCK/XXBLOCK resolution is implemented, but broad producer and reference corpus coverage remains open. |
+| Missing/blank filename | A valid attachment may lack both filename properties. | **Implemented**: validated property contexts retain `filename_original: None` and use deterministic `attachment_<ordinal>` fallback names; broad producer coverage remains Partial. |
+
+A validated property-context attachment does not require a filename. When both filename properties are absent or blank, PSTD preserves the attachment metadata and payload status, keeps the original name absent, and derives a deterministic safe archive name from the attachment ordinal. Method, declared-size, and property-type validation remains mandatory.
 
 ## Attachment methods
 
