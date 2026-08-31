@@ -11,17 +11,17 @@ checked-in `prepare_generator.py` transformer against that pinned checkout,
 generates the PST twice, and requires byte-for-byte equality. It then runs both
 PSTD and readpst against that same generated file.
 
-The expected payload is a deterministic 4,096-byte object whose first 24
-bytes are a Compound File signature test sequence. Its size intentionally
-forces EMLtoPST to store `PR_ATTACH_DATA_OBJ` through the standard subnode
-reference path that readpst consumes:
+The expected payload is a deterministic 24-byte Compound File signature test
+sequence. The transformer writes the shared `PR_ATTACH_DATA_OBJ` property ID
+using its binary rendition; this is the representation that libpst/readpst
+consumes as attachment bytes while preserving method 6 and OLE provenance:
 
 ```text
 d0 cf 11 e0 a1 b1 1a e1 00 01 02 03 04 05 06 07
 08 09 0a 0b 0c 0d 0e 0f
 ```
 
-Bytes after the prefix are deterministic: byte `i` is `(i * 31 + 7) % 256`.
+The final eight bytes are a deterministic recognizable test suffix.
 
 The generator transformer is fixture-only. It does not become a PSTD runtime or
 build dependency.
