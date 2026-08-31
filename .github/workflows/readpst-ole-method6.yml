@@ -109,6 +109,23 @@ jobs:
                       if part.get_payload(decode=True) == expected:
                           readpst_matches.append(path)
           if not readpst_matches:
+              print(json.dumps({
+                  'readpst_files': [
+                      {
+                          'path': str(path.relative_to(evidence / 'readpst')),
+                          'size': path.stat().st_size,
+                          'prefix_hex': path.read_bytes()[:128].hex(),
+                      }
+                      for path in sorted((evidence / 'readpst').rglob('*'))
+                      if path.is_file()
+                  ],
+                  'readpst_stdout': (evidence / 'readpst.stdout').read_text(
+                      encoding='utf-8', errors='replace'
+                  ),
+                  'readpst_stderr': (evidence / 'readpst.stderr').read_text(
+                      encoding='utf-8', errors='replace'
+                  ),
+              }, indent=2, sort_keys=True))
               raise SystemExit('readpst did not expose the exact OLE payload')
           print(json.dumps({
               'fixture_sha256': hashlib.sha256(fixture.read_bytes()).hexdigest(),
