@@ -61,7 +61,8 @@ pub fn attachment_payloads_from_table_with_fallback_charset(
     let mut missing_payload_count = 0usize;
 
     for (ordinal, row) in table.rows.iter().enumerate() {
-        let properties = property_context_from_table_row_with_fallback_charset(row, fallback_charset);
+        let properties =
+            property_context_from_table_row_with_fallback_charset(row, fallback_charset);
         if let Some(payload) = attachment_payload_from_properties(message_key, ordinal, &properties)
         {
             payloads.push(payload);
