@@ -48,6 +48,8 @@ The method-5 record `att_a9c94a13d70f1cb3` publishes a 453-byte `message/rfc822`
 
 ## Latest completed work
 
+Attachment reference resolution now accepts the validated compact 4-byte SLENTRY form as well as the existing Unicode wide-entry form, with ambiguity and truncation remaining explicit failures. Broad reference/OLE producer coverage remains Partial.
+
 Validated property-context attachments now survive missing or blank filename properties, retaining metadata and using deterministic fallback archive names while keeping method/size validation strict. Broader attachment methods and producer coverage remain Partial.
 
 The MAPI String8 conversion boundary now preserves legacy high-bit bytes through the documented ISO-8859-1 fallback, with NUL-termination and non-replacement regression coverage. This improves BODY-01/MSG-02 fallback fidelity; broader producer-specific charset parity remains open.
