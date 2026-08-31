@@ -22,6 +22,11 @@ _Last reviewed: 31 August 2026._
 - Resolve validated compact 4-byte SLENTRY attachment references alongside the existing Unicode wide-entry form.
 - Keep malformed, truncated, ambiguous, and zero-BID references fail-closed with explicit statuses.
 
+### ATT-06 indirect OLE references
+
+- Resolve method-6 `PR_ATTACH_DATA_OBJ` property-context references through both wide and compact SLBLOCK forms into exact arbitrary OLE/Compound File payload bytes.
+- Reject missing, duplicate, truncated, zero, and mismatched mappings rather than emitting fabricated or empty payloads, and publish explicit OLE provenance.
+
 ### ATT-03 unnamed attachments
 
 - Preserve validated property-context attachments without usable filename properties.
@@ -264,12 +269,13 @@ All seven top-level messages belong to `/Début du fichier de données Outlook` 
 
 ## In progress
 
-- Establish the first pinned public ANSI PST baseline without weakening the Unicode fixture contracts.
+- Establish an approved OLE-bearing or Purview Unicode PST baseline without weakening the Unicode fixture contracts.
 
 ## Known limitations
 
 - PSTD is not yet a generally compatible PST converter or PST-to-EML tool.
 - The Tika fixture has exact parent and child EMLs plus one exact method-`5` payload, but broader producer/layout coverage remains unproven.
+- Method-6 indirect OLE resolution is now proven for property-context wide and compact SLBLOCK references; broader OLE producers, ID2 layouts, and output-profile round trips remain incomplete.
 - One method-`5` child layout is validated; nested child attachments, recursion, and broad layout coverage remain deferred.
 - ANSI, uncommon, corrupt, nested embedded-message, and broad MAPI-layout coverage remain incomplete.
 - Non-ASCII RFC 2047 header encoding remains incomplete.

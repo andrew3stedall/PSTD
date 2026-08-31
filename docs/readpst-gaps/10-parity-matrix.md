@@ -216,7 +216,7 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | ATT-03 | By-value method 1 | Partial | Direct and arbitrary-format payloads, 4/8-byte data trees, zero length, size mismatch, and unnamed attachment fallback; broad corpus remains. |
 | ATT-04 | By-reference methods 2/3/4 | Partial | Validated Unicode and compact 4-byte property-context HNID/SLBLOCK resolution with explicit unresolved records; broader ID2/reference fixtures remain. |
 | ATT-05 | Embedded message method 5 | Partial | Child attachment and nested-child recovery is bounded; ambiguous, non-email, and broad producer cases remain. |
-| ATT-06 | OLE method 6 | Partial | Direct object bytes and canonical metadata are preserved; broad indirect OLE and output-profile evidence remains. |
+| ATT-06 | OLE method 6 | Partial | Direct object bytes plus bounded property-context indirect wide/compact SLBLOCK resolution preserve exact arbitrary OLE/CFB bytes and explicit provenance; broader OLE producers, ID2 layouts, and output-profile evidence remain. |
 | ATT-07 | Content-ID/inline correlation | Partial | Unique, missing, duplicate, and unmatched CID cases. |
 | ATT-08 | Rendering position/MIME sequence | Partial | Canonical fields and MIME-sequence-first ordering are implemented; producer/differential evidence remains. |
 | ATT-09 | Attachment extension filter | Implemented | Case-insensitive filter/status decisions cover every mailbox profile plus MSG/EML projections without mutating canonical attachment records or payloads. |

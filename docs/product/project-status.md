@@ -48,7 +48,7 @@ The method-5 record `att_a9c94a13d70f1cb3` publishes a 453-byte `message/rfc822`
 
 ## Latest completed work
 
-Attachment reference resolution now accepts the validated compact 4-byte SLENTRY form as well as the existing Unicode wide-entry form, with ambiguity and truncation remaining explicit failures. Broad reference/OLE producer coverage remains Partial.
+Attachment reference resolution now accepts the validated compact 4-byte SLENTRY form as well as the existing Unicode wide-entry form, with ambiguity and truncation remaining explicit failures. Method-6 `PR_ATTACH_DATA_OBJ` property-context references now have exact-byte wide/compact OLE data-tree regression coverage and reject duplicate mappings; broad reference/OLE producer coverage remains Partial.
 
 Validated property-context attachments now survive missing or blank filename properties, retaining metadata and using deterministic fallback archive names while keeping method/size validation strict. Broader attachment methods and producer coverage remain Partial.
 

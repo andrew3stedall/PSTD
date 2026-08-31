@@ -755,12 +755,20 @@ fn resolved_subnode_data_reference(
     blocks: &[PayloadBlock],
 ) -> Option<(u32, u64)> {
     let data_nid = attachment_data_nid(properties)?;
-    let data_bid = blocks
+    let references = blocks
         .iter()
-        .find_map(|block| slblock_data_bid_for_nid(&block.bytes, data_nid))?;
-    blocks
+        .flat_map(|block| slblock_data_bids_for_nid(&block.bytes, data_nid))
+        .collect::<Vec<_>>();
+    if references.len() != 1 {
+        return None;
+    }
+
+    let data_bid = references[0];
+    (blocks
         .iter()
-        .any(|block| block.block_id.0 == data_bid)
+        .filter(|block| block.block_id.0 == data_bid)
+        .count()
+        == 1)
         .then_some((data_nid, data_bid))
 }
 
@@ -780,17 +788,17 @@ fn attachment_data_nid(properties: &PropertyContext) -> Option<u32> {
     None
 }
 
-fn slblock_data_bid_for_nid(bytes: &[u8], target_nid: u32) -> Option<u64> {
+fn slblock_data_bids_for_nid(bytes: &[u8], target_nid: u32) -> Vec<u64> {
     if bytes.len() < UNICODE_SLBLOCK_HEADER_BYTES
         || bytes[0] != UNICODE_SLBLOCK_TYPE
         || bytes[1] != UNICODE_SLBLOCK_LEAF_LEVEL
         || bytes[4..8] != [0, 0, 0, 0]
     {
-        return None;
+        return Vec::new();
     }
     let declared_entry_count = u16::from_le_bytes([bytes[2], bytes[3]]) as usize;
     if declared_entry_count == 0 {
-        return None;
+        return Vec::new();
     }
 
     // Unicode uses 8-byte NIDs/BIDs; compact legacy tables use 4-byte fields.
@@ -803,25 +811,27 @@ fn slblock_data_bid_for_nid(bytes: &[u8], target_nid: u32) -> Option<u64> {
             continue;
         }
 
+        let mut bids = Vec::new();
         for index in 0..declared_entry_count {
             let start = UNICODE_SLBLOCK_HEADER_BYTES + index * entry_width;
             let (nid, bid_data) = if entry_width == UNICODE_SLENTRY_BYTES {
                 (
-                    u64::from_le_bytes(bytes[start..start + 8].try_into().ok()?),
-                    u64::from_le_bytes(bytes[start + 8..start + 16].try_into().ok()?),
+                    u64::from_le_bytes(bytes[start..start + 8].try_into().unwrap()),
+                    u64::from_le_bytes(bytes[start + 8..start + 16].try_into().unwrap()),
                 )
             } else {
                 (
-                    u32::from_le_bytes(bytes[start..start + 4].try_into().ok()?) as u64,
-                    u32::from_le_bytes(bytes[start + 4..start + 8].try_into().ok()?) as u64,
+                    u32::from_le_bytes(bytes[start..start + 4].try_into().unwrap()) as u64,
+                    u32::from_le_bytes(bytes[start + 4..start + 8].try_into().unwrap()) as u64,
                 )
             };
             if nid == u64::from(target_nid) && bid_data != 0 {
-                return Some(bid_data);
+                bids.push(bid_data);
             }
         }
+        return bids;
     }
-    None
+    Vec::new()
 }
 
 fn positive_integer32_property(properties: &PropertyContext, tag: u32) -> Option<i32> {
@@ -856,11 +866,18 @@ fn sanitized_status_reason(value: &str) -> String {
 mod tests {
     use std::collections::HashMap;
 
+    use std::fs;
+
+    use tempfile::NamedTempFile;
+
     use super::{
         embedded_attachment_record, embedded_message_nid_from_object_allocation,
-        embedded_object_reference, filename_attachment_record, slblock_data_bid_for_nid,
-        COMPACT_SLENTRY_BYTES, UNICODE_SLBLOCK_LEAF_LEVEL, UNICODE_SLBLOCK_TYPE,
+        embedded_object_reference, filename_attachment_record, resolve_attachment_payload,
+        slblock_data_bids_for_nid, COMPACT_SLENTRY_BYTES, UNICODE_SLBLOCK_LEAF_LEVEL,
+        UNICODE_SLBLOCK_TYPE,
     };
+    use crate::pst::bbt::{BbtEntry, BbtIndex};
+    use crate::pst::limits::ParserLimits;
     use crate::pst::mapi::{
         MapiValue, PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ, PR_ATTACH_LONG_FILENAME,
         PR_ATTACH_METHOD, PR_ATTACH_SIZE,
@@ -868,6 +885,7 @@ mod tests {
     use crate::pst::payload::PayloadBlock;
     use crate::pst::primitives::{BlockId, BlockRef, ByteOffset};
     use crate::pst::property_context::{PropertyContext, PropertyValue};
+    use crate::pst::reader::PstByteReader;
 
     fn property(tag: u32, name: &str, decoded: MapiValue) -> PropertyValue {
         PropertyValue {
@@ -1124,28 +1142,202 @@ mod tests {
     #[test]
     fn resolves_compact_four_byte_slblocks_and_rejects_truncation() {
         assert_eq!(
-            slblock_data_bid_for_nid(&compact_slblock(0x833f, 0x650), 0x833f),
-            Some(0x650)
+            slblock_data_bids_for_nid(&compact_slblock(0x833f, 0x650), 0x833f),
+            vec![0x650]
         );
 
         let mut truncated = compact_slblock(0x833f, 0x650);
         truncated[2..4].copy_from_slice(&2u16.to_le_bytes());
-        assert_eq!(slblock_data_bid_for_nid(&truncated, 0x833f), None);
+        assert_eq!(
+            slblock_data_bids_for_nid(&truncated, 0x833f),
+            Vec::<u64>::new()
+        );
+    }
+
+    #[test]
+    fn resolves_method_six_ole_payload_through_wide_and_compact_references() {
+        let ole_bytes = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1compound-file".to_vec();
+
+        for slblock_bytes in [slblock(0x833f, 0x632), compact_slblock(0x833f, 0x632)] {
+            let first = ole_bytes[..8].to_vec();
+            let second = ole_bytes[8..].to_vec();
+            let root = xblock(&[0x640, 0x644], ole_bytes.len() as u32);
+            let blocks = vec![
+                payload(0x6c6, slblock_bytes.clone()),
+                payload(0x632, root.clone()),
+                payload(0x640, first.clone()),
+                payload(0x644, second.clone()),
+            ];
+            let (file, bbt) = fixture(&[
+                (0x6c6, slblock_bytes),
+                (0x632, root),
+                (0x640, first),
+                (0x644, second),
+            ]);
+            let reader = PstByteReader::open(file.path()).unwrap();
+            let properties = method_six_properties(ole_bytes.len(), 0x833f);
+
+            let (bytes, status) = resolve_attachment_payload(
+                &properties,
+                &blocks,
+                &reader,
+                &bbt,
+                ParserLimits::default(),
+            )
+            .expect("valid method-six reference");
+
+            assert_eq!(bytes, ole_bytes);
+            assert!(status.contains("data_nid=0x0000833f"));
+            assert!(status.contains("data_bid=0x632"));
+        }
+    }
+
+    #[test]
+    fn rejects_missing_and_ambiguous_method_six_references() {
+        let properties = method_six_properties(4, 0x833f);
+        let missing_blocks = vec![payload(0x6c6, slblock(0x833f, 0x632))];
+        let (file, bbt) = fixture(&[(0x6c6, slblock(0x833f, 0x632))]);
+        let reader = PstByteReader::open(file.path()).unwrap();
+        assert_eq!(
+            resolve_attachment_payload(
+                &properties,
+                &missing_blocks,
+                &reader,
+                &bbt,
+                ParserLimits::default(),
+            )
+            .unwrap_err(),
+            "attachment_payload_reference_unresolved"
+        );
+
+        let first = slblock(0x833f, 0x632);
+        let second = slblock(0x833f, 0x634);
+        let ambiguous_blocks = vec![
+            payload(0x6c6, first.clone()),
+            payload(0x6c7, second.clone()),
+            payload(0x632, b"first".to_vec()),
+            payload(0x634, b"second".to_vec()),
+        ];
+        let (file, bbt) = fixture(&[
+            (0x6c6, first),
+            (0x6c7, second),
+            (0x632, b"first".to_vec()),
+            (0x634, b"second".to_vec()),
+        ]);
+        let reader = PstByteReader::open(file.path()).unwrap();
+        assert_eq!(
+            resolve_attachment_payload(
+                &properties,
+                &ambiguous_blocks,
+                &reader,
+                &bbt,
+                ParserLimits::default(),
+            )
+            .unwrap_err(),
+            "attachment_payload_reference_unresolved"
+        );
     }
 
     #[test]
     fn rejects_truncated_or_mismatched_unicode_slblocks() {
         assert_eq!(
-            slblock_data_bid_for_nid(&slblock(0x833f, 0x650), 0x833f),
-            Some(0x650)
+            slblock_data_bids_for_nid(&slblock(0x833f, 0x650), 0x833f),
+            vec![0x650]
         );
         assert_eq!(
-            slblock_data_bid_for_nid(&slblock(0x833f, 0x650), 0x835f),
-            None
+            slblock_data_bids_for_nid(&slblock(0x833f, 0x650), 0x835f),
+            Vec::<u64>::new()
         );
         let mut truncated = slblock(0x833f, 0x650);
         truncated[2..4].copy_from_slice(&2u16.to_le_bytes());
-        assert_eq!(slblock_data_bid_for_nid(&truncated, 0x833f), None);
+        assert_eq!(
+            slblock_data_bids_for_nid(&truncated, 0x833f),
+            Vec::<u64>::new()
+        );
+    }
+
+    fn method_six_properties(size: usize, data_nid: u32) -> PropertyContext {
+        let mut values = HashMap::new();
+        values.insert(
+            PR_ATTACH_LONG_FILENAME,
+            property(
+                PR_ATTACH_LONG_FILENAME,
+                "attachment_long_filename",
+                MapiValue::String("ole-object.cfb".to_string()),
+            ),
+        );
+        values.insert(
+            PR_ATTACH_METHOD,
+            property(
+                PR_ATTACH_METHOD,
+                "attachment_method",
+                MapiValue::Integer32(6),
+            ),
+        );
+        values.insert(
+            PR_ATTACH_SIZE,
+            property(
+                PR_ATTACH_SIZE,
+                "attachment_size",
+                MapiValue::Integer32(size as i32),
+            ),
+        );
+        values.insert(
+            PR_ATTACH_DATA_OBJ,
+            PropertyValue {
+                tag: PR_ATTACH_DATA_OBJ,
+                name: "attachment_data_object".to_string(),
+                raw: data_nid.to_le_bytes().to_vec(),
+                decoded: Some(MapiValue::Unknown(data_nid.to_le_bytes().to_vec())),
+                status: "selected".to_string(),
+            },
+        );
+        PropertyContext { values }
+    }
+
+    fn xblock(child_bids: &[u64], total: u32) -> Vec<u8> {
+        let mut bytes = vec![0; 8 + child_bids.len() * 8];
+        bytes[0..2].copy_from_slice(&0x0101u16.to_le_bytes());
+        bytes[2..4].copy_from_slice(&(child_bids.len() as u16).to_le_bytes());
+        bytes[4..8].copy_from_slice(&total.to_le_bytes());
+        for (index, bid) in child_bids.iter().enumerate() {
+            let start = 8 + index * 8;
+            bytes[start..start + 8].copy_from_slice(&bid.to_le_bytes());
+        }
+        bytes
+    }
+
+    fn fixture(blocks: &[(u64, Vec<u8>)]) -> (NamedTempFile, BbtIndex) {
+        let file = NamedTempFile::new().unwrap();
+        let mut file_bytes = vec![0; 1024];
+        let mut entries = Vec::new();
+        let mut offset = 600usize;
+        for (bid, bytes) in blocks {
+            if file_bytes.len() < offset + bytes.len() {
+                file_bytes.resize(offset + bytes.len(), 0);
+            }
+            file_bytes[offset..offset + bytes.len()].copy_from_slice(bytes);
+            entries.push(BbtEntry {
+                block_id: BlockId(*bid),
+                offset: ByteOffset(offset as u64),
+                size: bytes.len() as u64,
+            });
+            offset += bytes.len() + 32;
+        }
+        fs::write(file.path(), file_bytes).unwrap();
+        (
+            file,
+            BbtIndex {
+                root: None,
+                entries,
+                parsed_pages: 0,
+                discovered_child_pages: 0,
+                traversal_error_count: 0,
+                duplicate_entry_count: 0,
+                truncated_entry_count: 0,
+                status: "test".to_string(),
+            },
+        )
     }
 
     #[test]
