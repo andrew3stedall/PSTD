@@ -624,8 +624,7 @@ fn filename_attachment_record(
         return None;
     }
     record.filename_original = filename.clone();
-    record.filename_safe =
-        crate::pst::attachments::safe_filename(filename.as_deref(), ordinal);
+    record.filename_safe = crate::pst::attachments::safe_filename(filename.as_deref(), ordinal);
     record.extension = crate::pst::attachments::file_extension(&record.filename_safe);
     record.archive_path = format!(
         "attachments/{message_key}/{}_{}",
@@ -1104,9 +1103,15 @@ mod tests {
             PR_ATTACH_SIZE,
             property(PR_ATTACH_SIZE, "attachment_size", MapiValue::Integer32(3)),
         );
-        let record =
-            filename_attachment_record("msg", 1, &PropertyContext { values: missing_filename }, &[])
-                .expect("missing filename must use the deterministic fallback");
+        let record = filename_attachment_record(
+            "msg",
+            1,
+            &PropertyContext {
+                values: missing_filename,
+            },
+            &[],
+        )
+        .expect("missing filename must use the deterministic fallback");
         assert_eq!(record.filename_original, None);
         assert_eq!(record.filename_safe, "attachment_1");
 
