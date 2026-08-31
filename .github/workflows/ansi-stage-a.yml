@@ -93,7 +93,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pffinfo --version | tee /tmp/pstd-ansi-stage-a/evidence/libpff-version.txt
+          pffinfo -V | tee /tmp/pstd-ansi-stage-a/evidence/libpff-version.txt
           pffinfo /tmp/pstd-ansi-stage-a/fixtures/ansi-v14.pst             > /tmp/pstd-ansi-stage-a/evidence/libpff-info.txt             2> /tmp/pstd-ansi-stage-a/evidence/libpff-info.stderr
           status=$?
           printf 'pffinfo_exit=%s\\n' "$status" | tee /tmp/pstd-ansi-stage-a/evidence/libpff-status.txt
