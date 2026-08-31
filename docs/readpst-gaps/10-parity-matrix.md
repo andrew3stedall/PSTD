@@ -213,7 +213,7 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 |---|---|---|---|
 | ATT-01 | Long/short filename selection | Implemented | Canonical property projection prefers `PR_ATTACH_LONG_FILENAME`, falls back to `PR_ATTACH_FILENAME`, preserves the original candidate, and applies deterministic safe-name handling. |
 | ATT-02 | MIME tag/default type | Implemented | Generated EML and canonical MIME parts use the attachment MIME tag, default safely to `application/octet-stream`, reject injected media types, and render deterministically. |
-| ATT-03 | By-value method 1 | Partial | Direct and arbitrary-format payloads, 4/8-byte data trees, zero length, and size mismatch; broad corpus remains. |
+| ATT-03 | By-value method 1 | Partial | Direct and arbitrary-format payloads, 4/8-byte data trees, zero length, size mismatch, and unnamed attachment fallback; broad corpus remains. |
 | ATT-04 | By-reference methods 2/3/4 | Partial | Validated property-context HNID/SLBLOCK resolution and explicit unresolved records; broader ID2/reference fixtures remain. |
 | ATT-05 | Embedded message method 5 | Partial | Child attachment and nested-child recovery is bounded; ambiguous, non-email, and broad producer cases remain. |
 | ATT-06 | OLE method 6 | Partial | Direct object bytes and canonical metadata are preserved; broad indirect OLE and output-profile evidence remains. |
