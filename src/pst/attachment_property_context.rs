@@ -1148,7 +1148,10 @@ mod tests {
 
         let mut truncated = compact_slblock(0x833f, 0x650);
         truncated[2..4].copy_from_slice(&2u16.to_le_bytes());
-        assert_eq!(slblock_data_bids_for_nid(&truncated, 0x833f), Vec::<u64>::new());
+        assert_eq!(
+            slblock_data_bids_for_nid(&truncated, 0x833f),
+            Vec::<u64>::new()
+        );
     }
 
     #[test]
