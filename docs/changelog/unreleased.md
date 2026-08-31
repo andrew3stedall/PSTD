@@ -4,6 +4,11 @@ _Last reviewed: 21 August 2026._
 
 ## Added
 
+### BODY-01 charset fallback
+
+- Decode legacy MAPI String8 values using the documented ISO-8859-1 byte mapping instead of UTF-8 replacement decoding.
+- Add regression coverage for high-bit bytes and NUL-terminated values; broader producer-specific code-page selection remains Partial.
+
 ### Compatibility analysis
 
 - A pinned `libpst`/`readpst` parity gap register under `docs/readpst-gaps/`, covering CLI modes, PST/OST and encryption inputs, item classes, metadata, MIME and RTF bodies, attachment methods, contacts, calendar/journal outputs, storage formats, and acceptance fixtures.
