@@ -86,14 +86,14 @@ def main() -> None:
     replace_once(
         store,
         "    record_key = os.urandom(16)\n",
-        "    record_key = bytes.fromhex('00112233445566778899aabbccddeeff')\\n",
+        "    record_key = bytes.fromhex('00112233445566778899aabbccddeeff')\n",
     )
 
     utils = root / "eml2pst/utils.py"
     replace_once(
         utils,
         "    return datetime_to_filetime(datetime.now(timezone.utc))\n",
-        "    return datetime_to_filetime(datetime(2026, 8, 3, tzinfo=timezone.utc))\\n",
+        "    return datetime_to_filetime(datetime(2026, 8, 3, tzinfo=timezone.utc))\n",
     )
 
 
