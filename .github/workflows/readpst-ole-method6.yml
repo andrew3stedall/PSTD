@@ -64,7 +64,7 @@ jobs:
           evidence = Path(sys.argv[1])
           fixture = Path(sys.argv[2])
           expected = bytes.fromhex(
-              'd0cf11e1a1b11ae1000102030405060708090a0b0c0d0e0f'
+              'd0cf11e0a1b11ae1000102030405060708090a0b0c0d0e0f'
           )
           data = evidence / 'archive' / 'data'
 
