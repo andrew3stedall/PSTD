@@ -5,7 +5,7 @@ format: Microsoft Outlook PST ANSI
 ndb_version: 14
 generator:
   source: tools/ansi_fixture.rs
-  repository_commit: 9ec2b40b28b02465bc7cbcd3ff8bd6404280a91d
+  repository_commit: 8ab19f0d67b4a9ae9a546777d918569f16d909f6
   platform: Linux Rust 1.98 stable
 content: controlled synthetic empty store only
 licence: CC0-1.0
@@ -34,6 +34,7 @@ scope: Stage A structural baseline only; no ANSI email compatibility claim
 ```bash
 rustc --edition=2021 --deny warnings tools/ansi_fixture.rs -o /tmp/ansi-fixture
 /tmp/ansi-fixture /tmp/pstd-ansi-stage-a.pst 0
+# Existing outputs are protected; use --force only for an intentional replacement.
 python3 scripts/validate_ansi_stage_a.py /tmp/pstd-ansi-stage-a.pst 0
 sha256sum /tmp/pstd-ansi-stage-a.pst
 pffinfo /tmp/pstd-ansi-stage-a.pst
