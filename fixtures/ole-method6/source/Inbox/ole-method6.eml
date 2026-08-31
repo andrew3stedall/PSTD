@@ -1,0 +1,19 @@
+From: fixture@example.test
+To: reader@example.test
+Date: Mon, 03 Aug 2026 11:00:00 +0000
+Subject: OLE method six fixture
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="mixed-ole-method6"
+
+--mixed-ole-method6
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+This message carries a synthetic OLE object.
+--mixed-ole-method6
+Content-Type: application/vnd.ms-ole-storage
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="ole-object.cfb"
+
+0M8R4KGxGuEAAQIDBAUGBwgJCgsMDQ4P
+--mixed-ole-method6--

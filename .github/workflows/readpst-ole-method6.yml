@@ -1,0 +1,144 @@
+name: Readpst method-6 OLE fixture
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ole-method6:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install readpst oracle
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes pst-utils
+      - name: Recreate deterministic method-6 PST twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          generator="${RUNNER_TEMP}/eml2pst"
+          first="${RUNNER_TEMP}/ole-method6-first.pst"
+          second="${RUNNER_TEMP}/ole-method6-second.pst"
+          git clone --quiet https://github.com/igrbtn/EMLtoPST.git "$generator"
+          git -C "$generator" checkout --quiet 6fe9025390a96fe0095457b56f12ce241ee4ba53
+          python3 "$GITHUB_WORKSPACE/fixtures/ole-method6/prepare_generator.py" "$generator"
+          (cd "$generator" && python3 -m eml2pst "$GITHUB_WORKSPACE/fixtures/ole-method6/source" -o "$first")
+          (cd "$generator" && python3 -m eml2pst "$GITHUB_WORKSPACE/fixtures/ole-method6/source" -o "$second")
+          cmp "$first" "$second"
+          sha256sum "$first" | tee "${RUNNER_TEMP}/ole-method6.sha256"
+      - name: Run PSTD extraction and readpst comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="${RUNNER_TEMP}/ole-method6-first.pst"
+          evidence="${RUNNER_TEMP}/pstd-ole-method6"
+          output="$evidence/output"
+          readpst_output="$evidence/readpst"
+          archive="$evidence/archive"
+          mkdir -p "$evidence" "$output" "$readpst_output" "$archive"
+          cargo fmt --check
+          cargo test --all-targets
+          cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+          readpst -e -r -o "$readpst_output" "$fixture" > "$evidence/readpst.stdout" 2> "$evidence/readpst.stderr"
+          cargo run --quiet -- extract --input "$fixture" --output "$output" --overwrite > "$evidence/pstd.stdout" 2> "$evidence/pstd.stderr"
+          tar_file=$(find "$output/archives" -type f -name '*.tar' | sort | head -n 1)
+          test -n "$tar_file"
+          tar -xf "$tar_file" -C "$archive"
+          cp "$output/run_summary.json" "$evidence/run_summary.json"
+          python3 - "$evidence" "$fixture" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from email import policy
+          from email.parser import BytesParser
+          from pathlib import Path
+
+          evidence = Path(sys.argv[1])
+          fixture = Path(sys.argv[2])
+          expected = bytes.fromhex(
+              'd0cf11e0a1b11ae1000102030405060708090a0b0c0d0e0f'
+          )
+          data = evidence / 'archive' / 'data'
+
+          records = [
+              json.loads(line)
+              for line in (data / 'attachments.jsonl').read_text(encoding='utf-8').splitlines()
+              if line.strip()
+          ]
+          if len(records) != 1:
+              raise SystemExit(f'unexpected PSTD attachment records: {records!r}')
+          record = records[0]
+          if record['attachment_method'] != 6:
+              raise SystemExit(f'PSTD did not preserve method 6: {record!r}')
+          if record['source_ref'] != 'mapi:PR_ATTACH_DATA_OBJ/ole':
+              raise SystemExit(f'PSTD did not preserve OLE provenance: {record!r}')
+          if record['filename_original'] != 'ole-object.cfb':
+              raise SystemExit(f'unexpected OLE filename: {record!r}')
+          if record['content_type'] != 'application/vnd.ms-ole-storage':
+              raise SystemExit(f'unexpected OLE MIME type: {record!r}')
+          payload_path = evidence / 'archive' / record['archive_path']
+          if not payload_path.is_file():
+              raise SystemExit(f'PSTD payload is missing: {payload_path}')
+          payload = payload_path.read_bytes()
+          if payload != expected:
+              raise SystemExit('PSTD OLE payload bytes changed')
+          if record['size_bytes'] != len(expected) or record['sha256'] != hashlib.sha256(expected).hexdigest():
+              raise SystemExit(f'PSTD OLE integrity metadata is wrong: {record!r}')
+
+          readpst_matches = []
+          for path in evidence.joinpath('readpst').rglob('*'):
+              if not path.is_file():
+                  continue
+              try:
+                  raw = path.read_bytes()
+              except OSError:
+                  continue
+              if raw == expected:
+                  readpst_matches.append(path)
+              try:
+                  message = BytesParser(policy=policy.default).parsebytes(raw)
+              except (TypeError, ValueError):
+                  continue
+              for part in message.walk():
+                  if part.get_payload(decode=True) == expected:
+                      readpst_matches.append(path)
+          if not readpst_matches:
+              print(json.dumps({
+                  'readpst_files': [
+                      {
+                          'path': str(path.relative_to(evidence / 'readpst')),
+                          'size': path.stat().st_size,
+                          'prefix_hex': path.read_bytes()[:128].hex(),
+                      }
+                      for path in sorted((evidence / 'readpst').rglob('*'))
+                      if path.is_file()
+                  ],
+                  'readpst_stdout': (evidence / 'readpst.stdout').read_text(
+                      encoding='utf-8', errors='replace'
+                  ),
+                  'readpst_stderr': (evidence / 'readpst.stderr').read_text(
+                      encoding='utf-8', errors='replace'
+                  ),
+              }, indent=2, sort_keys=True))
+              raise SystemExit('readpst did not expose the exact OLE payload')
+          print(json.dumps({
+              'fixture_sha256': hashlib.sha256(fixture.read_bytes()).hexdigest(),
+              'fixture_bytes': fixture.stat().st_size,
+              'pstd_attachment_method': record['attachment_method'],
+              'pstd_payload_sha256': record['sha256'],
+              'readpst_match_count': len(readpst_matches),
+          }, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: readpst-ole-method6
+          path: ${{ runner.temp }}/pstd-ole-method6
