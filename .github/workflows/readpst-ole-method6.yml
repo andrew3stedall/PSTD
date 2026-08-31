@@ -103,11 +103,13 @@ jobs:
                   continue
               if raw == expected:
                   readpst_matches.append(path)
-              if path.suffix.lower() == '.eml':
+              try:
                   message = BytesParser(policy=policy.default).parsebytes(raw)
-                  for part in message.walk():
-                      if part.get_payload(decode=True) == expected:
-                          readpst_matches.append(path)
+              except (TypeError, ValueError):
+                  continue
+              for part in message.walk():
+                  if part.get_payload(decode=True) == expected:
+                      readpst_matches.append(path)
           if not readpst_matches:
               print(json.dumps({
                   'readpst_files': [
