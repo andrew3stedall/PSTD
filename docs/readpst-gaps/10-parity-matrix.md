@@ -23,7 +23,7 @@ The RP-M0-02 runner now provides the executable comparison contract: isolated bo
 
 ## RP-M1-01 input-capability delivery
 
-The parser boundary now emits a typed capability projection before traversal. It classifies Unicode/ANSI/OST/unknown families and crypt method, records root/index/attribute readiness, applies the ISO-8859-1 fallback policy, serializes budgets, and fails closed for unsupported, malformed, partial, or over-budget input. This closes only the capability/evidence boundary; IN-01 through IN-10 remain at their existing statuses until their traversal and corpus gates pass.
+The parser boundary now emits a typed capability projection before traversal. It classifies Unicode/ANSI/OST/unknown families and crypt method, records root/index/attribute readiness, applies the ISO-8859-1 fallback policy, serializes budgets, and fails closed for unsupported, malformed, partial, or over-budget input. The admitted ANSI Stage-A fixture proves a valid v14 header, root offsets, empty BBT/NBT leaf traversal, weak CRC/page-trailer validation, repeat determinism, and libpff acceptance; it remains structural evidence only.
 ## RP-M1-02 typed folder/item envelope delivery
 
 The canonical extraction path now publishes `data/items.jsonl` with deterministic folder and item envelopes. Source node identity, folder ownership, canonical paths, associated visibility, item-kind confidence, raw evidence references, and unresolved/ambiguous/duplicate/path-collision statuses are explicit. This improves the ITEM-01/ITEM-02 evidence boundary; full mixed-folder, deleted-filter, and typed schedule/contact/calendar/journal/report corpus gates remain open even though bounded contact, appointment, and non-mail Partial projections now exist.
@@ -158,7 +158,7 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | ID | Capability | Status | Closure evidence |
 |---|---|---|---|
 | IN-01 | Unicode PST traversal | Partial | Multiple producer fixtures with folder/message/body/attachment completeness. |
-| IN-02 | ANSI version 14/15 traversal | Partial | Controlled v14/v15 header/root/BBT/NBT traversal, method-2 readiness/unknown-method negatives, malformed derivatives, and repeat-run evidence; full item/output corpus remains. |
+| IN-02 | ANSI version 14/15 traversal | Partial | Admitted Linux Rust Stage-A v14 fixture with exact header/root fields, empty BBT/NBT leaf traversal, page/header weak-CRC and trailer validation, method-2 readiness/unknown-method negatives, malformed derivatives, repeat-run equality, and libpff acceptance; folders/items/messages/bodies/attachments/output corpus remains open. |
 | IN-03 | OST 2013 input | Partial | Controlled 4 KiB OST 2013 header/root/BBT/NBT traversal, explicit truncation/malformed negatives, and repeat-run evidence; full item/output corpus remains. |
 | IN-04 | No/compressible/strong encryption | Partial | Method 0/1/2 production payload statuses, pinned method-1/method-2 vectors, method-2 capability readiness, unknown-method fail-closed evidence, and bounded decode limits; broad encrypted item/output differential corpus remains. |
 | IN-05 | Large-file offsets and streaming | Partial | Sparse/large and real large-file runs without overflow or whole-file loading. |
