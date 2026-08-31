@@ -143,7 +143,7 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | CLI-03 | Debug file, level, quiet mode | Partial | Bounded structured logs with severity filtering and deterministic paths. |
 | CLI-04 | Parallel jobs | Implemented | Bounded batch scheduling preserves sorted item results and normalized progress semantics at `jobs=1` and a higher worker count; scheduling evidence is independent of PST content. |
 | CLI-05 | Overwrite/unique output policy | Partial | Explicit policy in run config and adapter tests. |
-| CLI-06 | Fallback charset (`-C`) | Gap | Per-run fallback charset with provenance and conversion tests. |
+| CLI-06 | Fallback charset (`-C`) | Partial | Validated `iso-8859-1`, `windows-1252`/`cp1252`, and `utf-8` fallbacks reach message, folder, table-row attachment, and embedded-message property contexts; unsupported names fail closed. Broader iconv/code-page discovery, per-item selection, and provenance remain open. |
 | CLI-07 | Prefer UTF-8 (`-8`) | Partial | Explicit body/output encoding policy with raw-byte retention. |
 | CLI-08 | Include deleted items (`-D`) | Gap | Deleted traversal, filter, counts, and scoped records. |
 | CLI-09 | Item-type filter (`-t`) | Partial | Applied to every named mail/typed output projection through routed source identities; broad mixed-folder differential evidence remains. |
