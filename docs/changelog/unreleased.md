@@ -4,6 +4,11 @@ _Last reviewed: 21 August 2026._
 
 ## Added
 
+### ATT-04 compact reference entries
+
+- Resolve validated compact 4-byte SLENTRY attachment references alongside the existing Unicode wide-entry form.
+- Keep malformed, truncated, ambiguous, and zero-BID references fail-closed with explicit statuses.
+
 ### ATT-03 unnamed attachments
 
 - Preserve validated property-context attachments without usable filename properties.

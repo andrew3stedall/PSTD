@@ -23,6 +23,7 @@ const UNICODE_SLBLOCK_TYPE: u8 = 0x02;
 const UNICODE_SLBLOCK_LEAF_LEVEL: u8 = 0x00;
 const UNICODE_SLBLOCK_HEADER_BYTES: usize = 8;
 const UNICODE_SLENTRY_BYTES: usize = 24;
+const COMPACT_SLENTRY_BYTES: usize = 12;
 const HNID_TYPE_MASK: u32 = 0x1f;
 const NID_TYPE_NORMAL_MESSAGE: u32 = 0x04;
 
@@ -742,18 +743,36 @@ fn slblock_data_bid_for_nid(bytes: &[u8], target_nid: u32) -> Option<u64> {
         return None;
     }
     let declared_entry_count = u16::from_le_bytes([bytes[2], bytes[3]]) as usize;
-    let available_entry_count =
-        bytes.len().saturating_sub(UNICODE_SLBLOCK_HEADER_BYTES) / UNICODE_SLENTRY_BYTES;
-    if declared_entry_count == 0 || declared_entry_count > available_entry_count {
+    if declared_entry_count == 0 {
         return None;
     }
 
-    for index in 0..declared_entry_count {
-        let start = UNICODE_SLBLOCK_HEADER_BYTES + index * UNICODE_SLENTRY_BYTES;
-        let nid = u64::from_le_bytes(bytes[start..start + 8].try_into().ok()?);
-        let bid_data = u64::from_le_bytes(bytes[start + 8..start + 16].try_into().ok()?);
-        if nid == u64::from(target_nid) && bid_data != 0 {
-            return Some(bid_data);
+    // Unicode uses 8-byte NIDs/BIDs; compact legacy tables use 4-byte fields.
+    // Try the wide representation first so a padded Unicode entry cannot be
+    // mistaken for a compact entry.
+    for entry_width in [UNICODE_SLENTRY_BYTES, COMPACT_SLENTRY_BYTES] {
+        let available_entry_count =
+            bytes.len().saturating_sub(UNICODE_SLBLOCK_HEADER_BYTES) / entry_width;
+        if declared_entry_count > available_entry_count {
+            continue;
+        }
+
+        for index in 0..declared_entry_count {
+            let start = UNICODE_SLBLOCK_HEADER_BYTES + index * entry_width;
+            let (nid, bid_data) = if entry_width == UNICODE_SLENTRY_BYTES {
+                (
+                    u64::from_le_bytes(bytes[start..start + 8].try_into().ok()?),
+                    u64::from_le_bytes(bytes[start + 8..start + 16].try_into().ok()?),
+                )
+            } else {
+                (
+                    u32::from_le_bytes(bytes[start..start + 4].try_into().ok()?) as u64,
+                    u32::from_le_bytes(bytes[start + 4..start + 8].try_into().ok()?) as u64,
+                )
+            };
+            if nid == u64::from(target_nid) && bid_data != 0 {
+                return Some(bid_data);
+            }
         }
     }
     None
@@ -794,6 +813,7 @@ mod tests {
     use super::{
         embedded_attachment_record, embedded_message_nid_from_object_allocation,
         embedded_object_reference, filename_attachment_record, slblock_data_bid_for_nid,
+        COMPACT_SLENTRY_BYTES, UNICODE_SLBLOCK_LEAF_LEVEL, UNICODE_SLBLOCK_TYPE,
     };
     use crate::pst::mapi::{
         MapiValue, PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ, PR_ATTACH_LONG_FILENAME,
@@ -828,6 +848,16 @@ mod tests {
 
     fn slblock(nid: u32, bid_data: u64) -> Vec<u8> {
         slblock_with_sub(nid, bid_data, 0)
+    }
+
+    fn compact_slblock(nid: u32, bid_data: u32) -> Vec<u8> {
+        let mut bytes = vec![0; 8 + COMPACT_SLENTRY_BYTES];
+        bytes[0] = UNICODE_SLBLOCK_TYPE;
+        bytes[1] = UNICODE_SLBLOCK_LEAF_LEVEL;
+        bytes[2..4].copy_from_slice(&1u16.to_le_bytes());
+        bytes[8..12].copy_from_slice(&nid.to_le_bytes());
+        bytes[12..16].copy_from_slice(&bid_data.to_le_bytes());
+        bytes
     }
 
     fn slblock_with_sub(nid: u32, bid_data: u64, bid_sub: u64) -> Vec<u8> {
@@ -1046,7 +1076,19 @@ mod tests {
     }
 
     #[test]
-    fn rejects_truncated_or_mismatched_slblocks() {
+    fn resolves_compact_four_byte_slblocks_and_rejects_truncation() {
+        assert_eq!(
+            slblock_data_bid_for_nid(&compact_slblock(0x833f, 0x650), 0x833f),
+            Some(0x650)
+        );
+
+        let mut truncated = compact_slblock(0x833f, 0x650);
+        truncated[2..4].copy_from_slice(&2u16.to_le_bytes());
+        assert_eq!(slblock_data_bid_for_nid(&truncated, 0x833f), None);
+    }
+
+    #[test]
+    fn rejects_truncated_or_mismatched_unicode_slblocks() {
         assert_eq!(
             slblock_data_bid_for_nid(&slblock(0x833f, 0x650), 0x833f),
             Some(0x650)
