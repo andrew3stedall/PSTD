@@ -94,7 +94,8 @@ pub fn attachment_records_from_property_context_subnodes_with_fallback_charset(
             rejected_context_count += 1;
             continue;
         };
-        let Ok(report) = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset) else {
+        let Ok(report) = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset)
+        else {
             rejected_context_count += 1;
             continue;
         };
@@ -218,7 +219,8 @@ pub fn attachment_payloads_from_property_context_subnodes_with_fallback_charset(
             rejected_context_count += 1;
             continue;
         };
-        let Ok(report) = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset) else {
+        let Ok(report) = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset)
+        else {
             rejected_context_count += 1;
             continue;
         };
@@ -417,7 +419,8 @@ fn embedded_message_candidate(
             object.data_nid, object.data_bid
         )
     })?;
-    let property_report = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset).map_err(|_| {
+    let property_report = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset)
+        .map_err(|_| {
         format!(
             "stage=property_context; data_nid=0x{:08x}; data_bid=0x{:x}",
             object.data_nid, object.data_bid
