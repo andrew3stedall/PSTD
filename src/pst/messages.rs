@@ -584,6 +584,77 @@ mod tests {
     }
 
     #[test]
+    fn preserves_encrypted_body_bytes_as_opaque_payloads() {
+        let mut values = HashMap::new();
+        let encrypted_html = b"opaque html bytes".to_vec();
+        let encrypted_text = b"opaque text bytes".to_vec();
+        values.insert(
+            PR_ENCRYPTED_HTML_BODY,
+            PropertyValue {
+                tag: PR_ENCRYPTED_HTML_BODY,
+                name: "encrypted_html_body".to_string(),
+                raw: encrypted_html.clone(),
+                decoded: Some(MapiValue::Binary(encrypted_html.clone())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_ENCRYPTED_BODY,
+            PropertyValue {
+                tag: PR_ENCRYPTED_BODY,
+                name: "encrypted_body".to_string(),
+                raw: encrypted_text.clone(),
+                decoded: Some(MapiValue::Binary(encrypted_text.clone())),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext::from_values(values);
+
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+
+        assert_eq!(payloads.len(), 2);
+        assert_eq!(payloads[0].record.body_type, "encrypted_html");
+        assert_eq!(
+            payloads[0].record.archive_path,
+            "bodies/msg_123.encrypted-html.bin"
+        );
+        assert_eq!(payloads[0].bytes, encrypted_html);
+        assert_eq!(
+            payloads[0].record.status,
+            "encrypted_body_opaque; source_property=0x6f020102"
+        );
+        assert_eq!(payloads[1].record.body_type, "encrypted");
+        assert_eq!(
+            payloads[1].record.archive_path,
+            "bodies/msg_123.encrypted.bin"
+        );
+        assert_eq!(payloads[1].bytes, encrypted_text);
+        assert_eq!(
+            payloads[1].record.status,
+            "encrypted_body_opaque; source_property=0x6f040102"
+        );
+    }
+
+    #[test]
+    fn rejects_reference_shaped_encrypted_body_values() {
+        let mut values = HashMap::new();
+        let reference = 0x31fu32.to_le_bytes().to_vec();
+        values.insert(
+            PR_ENCRYPTED_BODY,
+            PropertyValue {
+                tag: PR_ENCRYPTED_BODY,
+                name: "encrypted_body".to_string(),
+                raw: reference.clone(),
+                decoded: Some(MapiValue::Binary(reference)),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext::from_values(values);
+
+        assert!(body_payloads_from_properties("msg_123", &properties).is_empty());
+    }
+
+    #[test]
     fn reports_extracted_body_coverage() {
         let mut values = HashMap::new();
         values.insert(
