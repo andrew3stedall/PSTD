@@ -3,7 +3,8 @@ use sha2::{Digest, Sha256};
 use crate::output::ids;
 use crate::output::metadata::BodyRecord;
 use crate::pst::mapi::{
-    MapiValue, PR_BODY, PR_BODY_A, PR_HTML, PR_HTML_STRING, PR_HTML_STRING_A, PR_RTF_COMPRESSED,
+    MapiValue, PR_BODY, PR_BODY_A, PR_ENCRYPTED_BODY, PR_ENCRYPTED_HTML_BODY, PR_HTML,
+    PR_HTML_STRING, PR_HTML_STRING_A, PR_RTF_COMPRESSED,
 };
 use crate::pst::property_context::PropertyContext;
 
@@ -47,6 +48,24 @@ pub fn body_payloads_from_properties(
 
     if let Some(rtf) = binary_property_bytes(properties, PR_RTF_COMPRESSED) {
         payloads.push(body_payload(message_key, "rtf", rtf, None));
+    }
+
+    if let Some(encrypted_html) = opaque_binary_property_bytes(properties, PR_ENCRYPTED_HTML_BODY)
+    {
+        payloads.push(encrypted_body_payload(
+            message_key,
+            "encrypted_html",
+            encrypted_html,
+            PR_ENCRYPTED_HTML_BODY,
+        ));
+    }
+    if let Some(encrypted_text) = opaque_binary_property_bytes(properties, PR_ENCRYPTED_BODY) {
+        payloads.push(encrypted_body_payload(
+            message_key,
+            "encrypted",
+            encrypted_text,
+            PR_ENCRYPTED_BODY,
+        ));
     }
 
     payloads
@@ -142,6 +161,17 @@ pub fn html_string_body_payload(message_key: &str, html: &str) -> BodyPayload {
     body_payload(message_key, "html", html.as_bytes().to_vec(), Some("utf-8"))
 }
 
+fn encrypted_body_payload(
+    message_key: &str,
+    body_type: &str,
+    bytes: Vec<u8>,
+    source_tag: u32,
+) -> BodyPayload {
+    let mut payload = body_payload(message_key, body_type, bytes, None);
+    payload.record.status = format!("encrypted_body_opaque; source_property=0x{source_tag:08x}");
+    payload
+}
+
 pub fn body_payload(
     message_key: &str,
     body_type: &str,
@@ -185,6 +215,8 @@ pub fn body_extension(body_type: &str) -> &'static str {
     match body_type {
         "html" => "html",
         "rtf" => "rtf",
+        "encrypted" => "encrypted.bin",
+        "encrypted_html" => "encrypted-html.bin",
         _ => "txt",
     }
 }
@@ -247,6 +279,24 @@ fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u
     }
 }
 
+fn opaque_binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u8>> {
+    let value = properties.value(tag)?;
+    let bytes = match value.decoded.as_ref() {
+        Some(MapiValue::Binary(bytes)) => bytes.clone(),
+        _ => value.raw.clone(),
+    };
+    if bytes.len() > MAX_BINARY_BODY_BYTES {
+        return None;
+    }
+    if bytes.len() == PROPERTY_CONTEXT_HNID_BYTES {
+        let reference = u32::from_le_bytes(bytes.as_slice().try_into().ok()?);
+        if reference == 0 || reference & 0x0f == 0x0f || reference & 0x1f != 0 {
+            return None;
+        }
+    }
+    Some(bytes)
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
@@ -263,7 +313,8 @@ mod tests {
         unresolved_body_records,
     };
     use crate::pst::mapi::{
-        MapiValue, PR_BODY, PR_BODY_A, PR_HTML, PR_HTML_STRING, PR_HTML_STRING_A, PR_RTF_COMPRESSED,
+        MapiValue, PR_BODY, PR_BODY_A, PR_ENCRYPTED_BODY, PR_ENCRYPTED_HTML_BODY, PR_HTML,
+        PR_HTML_STRING, PR_HTML_STRING_A, PR_RTF_COMPRESSED,
     };
     use crate::pst::property_context::{PropertyContext, PropertyValue};
 
