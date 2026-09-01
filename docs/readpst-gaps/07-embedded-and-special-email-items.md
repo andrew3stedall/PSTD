@@ -55,13 +55,15 @@ If the required report components are not available, the output must be marked p
 
 ## Encrypted body properties
 
-libpst does not turn `encrypted_body` or `encrypted_htmlbody` into cleartext. readpst moves those bytes into attachment-like output so the source evidence is not lost. PSTD should provide the same lossless behaviour:
+libpst does not turn `encrypted_body` or `encrypted_htmlbody` into cleartext. readpst moves those bytes into attachment-like output so the source evidence is not lost. PSTD now preserves the same lossless source behaviour for validated binary
+properties:
 
-- preserve encrypted bytes as a dedicated body artefact or synthetic attachment;
-- retain the source property and encryption status;
-- never label the bytes as `text/plain` or `text/html` without a validated decode;
-- make the output choice explicit in the manifest;
-- keep encrypted and cleartext body status separate.
+- encrypted bytes are retained as dedicated `encrypted`/`encrypted_html` body artefacts;
+- the source property and encryption status are retained in the body record;
+- MIME projection uses opaque base64 and never labels the bytes as `text/plain` or
+  `text/html` without a validated decode;
+- archive paths, hashes, and output status remain explicit;
+- reference-shaped or over-limit values remain unavailable rather than guessed.
 
 ## RTF-body synthetic attachment
 
