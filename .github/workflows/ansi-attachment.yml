@@ -270,5 +270,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: readpst-ansi-attachment-evidence-${{ matrix.variant }}
-          path: ${{ runner.temp }}/pstd-ansi-attachment
+          path: ${{ runner.temp }}/pstd-ansi-attachment/${{ matrix.variant }}
           if-no-files-found: error
