@@ -391,11 +391,11 @@ mod tests {
         let encrypted = items.iter().find(|item| item.kind == "encrypted").unwrap();
         assert!(!encrypted.authoritative);
         assert_eq!(encrypted.raw_size_bytes, 22);
+        assert_eq!(encrypted.status, "encrypted_body_opaque");
         assert_eq!(
-            encrypted.status,
-            "encrypted_body_opaque"
+            encrypted.source_body_key.as_deref(),
+            Some(payload.record.body_key.as_str())
         );
-        assert_eq!(encrypted.source_body_key.as_deref(), Some(payload.record.body_key.as_str()));
     }
 
     #[test]
