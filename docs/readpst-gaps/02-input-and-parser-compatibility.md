@@ -6,7 +6,7 @@
 
 | Input family | libpst/readpst behaviour | PSTD status | Closure evidence |
 |---|---|---|---|
-| 32-bit ANSI PST, NDB version 14/15 | Reads pre-Outlook-2003 32-bit index and descriptor structures. | **Partial**: variant-correct header, 32-bit root, and BBT/NBT traversal are integrated through the production inspect/extraction loaders. | Controlled ANSI v14 evidence, malformed/strong-crypt negatives, repeat-run equality, and a broader semantic ANSI corpus for full item/output promotion. |
+| 32-bit ANSI PST, NDB version 14/15 | Reads pre-Outlook-2003 32-bit index and descriptor structures. | **Partial**: variant-correct header, 32-bit root, BBT/NBT traversal, one populated contents table, ANSI String8 property contexts, one recipient table, and one plain-text EML path are integrated through the production inspect/extraction loaders. | Controlled Stage-A/Stage-B ANSI evidence, malformed/strong-crypt negatives, repeat-run equality, and a broader semantic ANSI corpus for full item/output promotion. |
 | 64-bit Unicode PST, NDB version 23/24 paths | Reads Outlook 2003+ Unicode PST structures. | **Partial**: bounded Unicode traversal and several real fixtures are validated. | Multiple producers, large files, mixed item classes, and exact completeness counts. |
 | 64-bit OST 2013 path | libpst 0.6.71 added support for the OST 2013 format. | **Partial**: explicit OST 2013 family detection, 4 KiB roots, and 16-bit/64-bit BBT/NBT traversal are integrated through the production path. | Controlled OST 2013 evidence, truncation/malformed negatives, repeat-run equality, and a broader semantic OST corpus for full item/output promotion. |
 | Files larger than 2 GiB | Uses large-file-safe offsets and 64-bit sizes where supported by the build. | **Partial**: internal offsets are wide, but large-file behaviour is not fixture-proven. | Sparse/large synthetic fixture and a real large-file performance run without overflow or whole-file loading. |
@@ -54,6 +54,23 @@ payload loader decodes the pinned method-2 transform. Unknown methods remain exp
 `unsupported`, truncation is explicit `partial`, and a short malformed file exits
 non-zero. This is still structural input breadth, not a claim that every ANSI/OST
 message, property, or output mode is complete.
+
+## RP-M6-02 delivery
+
+The fixture-only emitter `tools/ansi_fixture.rs --stage-b` now constructs a deterministic
+ANSI v14 store with one folder node (`0x22`), one normal message (`0x24`), one populated
+contents table (`0x2e`), one ANSI String8 property context, one Unicode heap-backed
+recipient table, and one plain-text body. `scripts/validate_ansi_stage_b.py` independently
+asserts the exact node/block relationships, heap allocation references, properties,
+recipient values, file length, and weak-CRC/page metadata without invoking production
+parser code.
+
+The dedicated `.github/workflows/ansi-stage-b.yml` repeats generation, rejects accidental
+overwrite, runs the independent validator, exercises PSTD inspect/extract and `pstd-eml`,
+compares canonical JSONL and EML output across repeated runs, and retains `pffinfo`/
+`readpst` exit codes as explicit comparison evidence. The fixture proves one controlled
+ANSI message/output shape only; ANSI attachments, HTML/RTF bodies, typed items, producer
+variants, and malformed semantic derivatives remain open.
 
 ## Encryption
 
