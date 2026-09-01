@@ -85,7 +85,8 @@ jobs:
           assert inspect['bbt_entries'] == 5, inspect
           assert inspect['nbt_entries'] == 3, inspect
 
-          archive = evidence / 'archive-first' / 'data'
+          archive_root = evidence / 'archive-first'
+          archive = archive_root / 'data'
 
           def records(name):
               return [
@@ -143,7 +144,7 @@ jobs:
           assert bodies[0]['size_bytes'] == len(
               b'Hello from the deterministic ANSI Stage-B fixture.'
           ), bodies
-          body_path = archive / bodies[0]['archive_path']
+          body_path = archive_root / bodies[0]['archive_path']
           assert body_path.read_bytes() == b'Hello from the deterministic ANSI Stage-B fixture.', body_path
           assert attachments == [], attachments
           (evidence / 'canonical-report.json').write_text(
