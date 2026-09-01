@@ -69,9 +69,10 @@ The dedicated `.github/workflows/ansi-stage-b.yml` repeats generation, rejects a
 overwrite, runs the independent validator, exercises PSTD inspect/extract and `pstd-eml`,
 compares canonical JSONL and EML output across repeated runs, and retains `pffinfo`/
 `readpst` exit codes as explicit comparison evidence. The fixture proves one controlled
-ANSI message/output shape only; ANSI method-1/method-2/method-3 attachment layouts are
-covered by separate Stage-C fixtures, while method 4, HTML/RTF bodies, typed items,
-producer variants, and malformed semantic derivatives remain open.
+ANSI message/output shape only; ANSI method-1/method-2/method-3/method-4 attachment
+layouts are covered by separate Stage-C fixtures, while external ID2/path layouts,
+HTML/RTF bodies, typed items, producer variants, and malformed semantic derivatives
+remain open.
 
 ## Encryption
 
