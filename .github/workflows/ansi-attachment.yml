@@ -34,7 +34,7 @@ jobs:
           fi
           grep -F 'refusing to overwrite existing fixture' "$root/evidence/overwrite.stderr"
           cp "$root/fixtures/ansi-attachment.pst" "$root/fixtures/ansi-attachment-truncated.pst"
-          truncate -s -1 "$root/fixtures/ansi-attachment-truncated.pst"
+          truncate -s 2000 "$root/fixtures/ansi-attachment-truncated.pst"
           sha256sum "$root/fixtures"/*.pst | tee "$root/evidence/fixture-sha256.txt"
 
       - name: Independently validate ANSI attachment structure
