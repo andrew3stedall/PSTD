@@ -59,7 +59,7 @@ jobs:
           root="${RUNNER_TEMP}/pstd-ansi-attachment/${{ matrix.variant }}"
           fixture="$root/fixtures/ansi-attachment.pst"
           validator_args=("$fixture")
-          if [[ "${{ matrix.variant }}" == indirect || "${{ matrix.variant }}" == method2 || "${{ matrix.variant }}" == method3 ]]; then
+          if [[ "${{ matrix.variant }}" == indirect || "${{ matrix.variant }}" == method2 || "${{ matrix.variant }}" == method3 || "${{ matrix.variant }}" == method4 ]]; then
             validator_args+=(--indirect)
           fi
           if [[ "${{ matrix.variant }}" == method2 ]]; then
