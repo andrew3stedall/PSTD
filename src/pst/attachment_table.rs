@@ -1,17 +1,21 @@
 use std::collections::HashMap;
 
 use crate::output::metadata::AttachmentRecord;
+use crate::pst::attachment_property_context::resolve_attachment_payload;
 use crate::pst::attachments::{
-    attachment_payload, attachment_payload_from_properties,
+    attachment_metadata_from_properties, attachment_payload, attachment_payload_from_properties,
     unavailable_attachment_record_from_metadata, unavailable_attachment_record_from_properties,
     AttachmentMetadata, AttachmentPayload,
 };
+use crate::pst::bbt::BbtIndex;
+use crate::pst::limits::ParserLimits;
 use crate::pst::mapi::{
     decode_string8_with_status, decode_value_with_fallback, property_def, resolve_string8_charset,
     MapiValueType, PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE,
 };
 use crate::pst::payload::PayloadBlock;
 use crate::pst::property_context::{PropertyContext, PropertyValue};
+use crate::pst::reader::PstByteReader;
 use crate::pst::table_context::{TableContext, TableRow};
 
 const COMPACT_ATTACHMENT_TABLE_MAGIC: &[u8; 4] = b"CATB";
@@ -59,6 +63,42 @@ pub fn attachment_payloads_from_table_with_fallback_charset(
     Vec<AttachmentRecord>,
     AttachmentTableWiringReport,
 ) {
+    attachment_payloads_from_table_with_resolver(message_key, table, None, None, fallback_charset)
+}
+
+pub fn attachment_payloads_from_table_with_reader(
+    message_key: &str,
+    table: &TableContext,
+    blocks: &[PayloadBlock],
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    limits: ParserLimits,
+    fallback_charset: Option<&str>,
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    AttachmentTableWiringReport,
+) {
+    attachment_payloads_from_table_with_resolver(
+        message_key,
+        table,
+        Some(blocks),
+        Some((reader, bbt, limits)),
+        fallback_charset,
+    )
+}
+
+fn attachment_payloads_from_table_with_resolver(
+    message_key: &str,
+    table: &TableContext,
+    blocks: Option<&[PayloadBlock]>,
+    resolver: Option<(&PstByteReader, &BbtIndex, ParserLimits)>,
+    fallback_charset: Option<&str>,
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    AttachmentTableWiringReport,
+) {
     let mut payloads = Vec::new();
     let mut unavailable_records = Vec::new();
     let mut missing_payload_count = 0usize;
@@ -66,8 +106,22 @@ pub fn attachment_payloads_from_table_with_fallback_charset(
     for (ordinal, row) in table.rows.iter().enumerate() {
         let properties =
             property_context_from_table_row_with_fallback_charset(row, fallback_charset);
-        if let Some(payload) = attachment_payload_from_properties(message_key, ordinal, &properties)
-        {
+        let payload = attachment_payload_from_properties(message_key, ordinal, &properties)
+            .or_else(|| {
+                let (Some(blocks), Some((reader, bbt, limits))) = (blocks, resolver) else {
+                    return None;
+                };
+                attachment_payload_from_reference(
+                    message_key,
+                    ordinal,
+                    &properties,
+                    blocks,
+                    reader,
+                    bbt,
+                    limits,
+                )
+            });
+        if let Some(payload) = payload {
             payloads.push(payload);
         } else {
             missing_payload_count += 1;
@@ -118,6 +172,44 @@ pub fn attachment_payloads_from_subnode_blocks_with_fallback_charset(
     Vec<AttachmentRecord>,
     AttachmentSubnodeWiringReport,
 ) {
+    attachment_payloads_from_subnode_blocks_with_resolver(
+        message_key,
+        blocks,
+        None,
+        fallback_charset,
+    )
+}
+
+pub fn attachment_payloads_from_subnode_blocks_with_reader(
+    message_key: &str,
+    blocks: &[PayloadBlock],
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    limits: ParserLimits,
+    fallback_charset: Option<&str>,
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    AttachmentSubnodeWiringReport,
+) {
+    attachment_payloads_from_subnode_blocks_with_resolver(
+        message_key,
+        blocks,
+        Some((reader, bbt, limits)),
+        fallback_charset,
+    )
+}
+
+fn attachment_payloads_from_subnode_blocks_with_resolver(
+    message_key: &str,
+    blocks: &[PayloadBlock],
+    resolver: Option<(&PstByteReader, &BbtIndex, ParserLimits)>,
+    fallback_charset: Option<&str>,
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    AttachmentSubnodeWiringReport,
+) {
     let mut payloads = Vec::new();
     let mut unavailable_records = Vec::new();
     let mut parsed_table_count = 0usize;
@@ -130,7 +222,14 @@ pub fn attachment_payloads_from_subnode_blocks_with_fallback_charset(
     let mut next_ordinal = 0usize;
 
     for block in blocks {
-        match decode_attachment_block(message_key, block, next_ordinal, fallback_charset) {
+        match decode_attachment_block(
+            message_key,
+            block,
+            blocks,
+            next_ordinal,
+            fallback_charset,
+            resolver,
+        ) {
             Ok((mut block_payloads, mut block_unavailable_records, report)) => {
                 parsed_table_count += 1;
                 table_statuses.push(report.status);
@@ -176,11 +275,34 @@ pub fn attachment_payloads_from_subnode_blocks_with_fallback_charset(
     (payloads, unavailable_records, report)
 }
 
+fn attachment_payload_from_reference(
+    message_key: &str,
+    ordinal: usize,
+    properties: &PropertyContext,
+    blocks: &[PayloadBlock],
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    limits: ParserLimits,
+) -> Option<AttachmentPayload> {
+    let (bytes, status) =
+        resolve_attachment_payload(properties, blocks, reader, bbt, limits).ok()?;
+    let mut payload = attachment_payload(
+        message_key,
+        ordinal,
+        attachment_metadata_from_properties(properties),
+        bytes,
+    );
+    payload.record.extraction_status = status;
+    Some(payload)
+}
+
 fn decode_attachment_block(
     message_key: &str,
     block: &PayloadBlock,
+    blocks: &[PayloadBlock],
     start_ordinal: usize,
     fallback_charset: Option<&str>,
+    resolver: Option<(&PstByteReader, &BbtIndex, ParserLimits)>,
 ) -> Result<
     (
         Vec<AttachmentPayload>,
@@ -201,12 +323,20 @@ fn decode_attachment_block(
 
     match TableContext::parse_with_report(&block.bytes, block.block_ref.offset.0) {
         Ok(table_report) => {
-            let (payloads, unavailable_records, mut report) =
-                attachment_payloads_from_table_with_fallback_charset(
+            let (payloads, unavailable_records, mut report) = match resolver {
+                Some((reader, bbt, limits)) => attachment_payloads_from_table_with_resolver(
+                    message_key,
+                    &table_report.context,
+                    Some(blocks),
+                    Some((reader, bbt, limits)),
+                    fallback_charset,
+                ),
+                None => attachment_payloads_from_table_with_fallback_charset(
                     message_key,
                     &table_report.context,
                     fallback_charset,
-                );
+                ),
+            };
             report.status = table_report.status;
             Ok((payloads, unavailable_records, report))
         }
@@ -523,6 +653,7 @@ pub fn property_context_from_table_row_with_fallback_charset(
 mod tests {
     use super::{
         attachment_payloads_from_subnode_blocks, attachment_payloads_from_table,
+        attachment_payloads_from_table_with_reader,
         property_context_from_table_row_with_fallback_charset,
     };
     use crate::pst::mapi::{
@@ -579,6 +710,95 @@ mod tests {
         assert_eq!(report.payload_count, 1);
         assert_eq!(report.missing_payload_count, 0);
         assert_eq!(report.status, "attachment_table_payloads_wired");
+    }
+
+    #[test]
+    fn resolves_table_row_hnid_reference_through_slblock() {
+        let payload = b"table row reference payload";
+        let payload_offset = 4096u64;
+        let tempdir = tempfile::tempdir().unwrap();
+        let path = tempdir.path().join("table-row-reference.pst");
+        let mut file_bytes = vec![0u8; payload_offset as usize + payload.len()];
+        file_bytes[payload_offset as usize..].copy_from_slice(payload);
+        std::fs::write(&path, file_bytes).unwrap();
+        let reader = crate::pst::reader::PstByteReader::open(&path).unwrap();
+        let bbt = crate::pst::bbt::BbtIndex {
+            root: None,
+            entries: vec![crate::pst::bbt::BbtEntry {
+                block_id: BlockId(0x10c),
+                offset: ByteOffset(payload_offset),
+                size: payload.len() as u64,
+            }],
+            parsed_pages: 0,
+            discovered_child_pages: 0,
+            traversal_error_count: 0,
+            duplicate_entry_count: 0,
+            truncated_entry_count: 0,
+            status: "test".to_string(),
+        };
+        let slblock = {
+            let mut bytes = vec![0x02, 0x00, 0x01, 0x00, 0, 0, 0, 0];
+            bytes.extend_from_slice(&0x311u64.to_le_bytes());
+            bytes.extend_from_slice(&0x10cu64.to_le_bytes());
+            bytes.extend_from_slice(&0u64.to_le_bytes());
+            bytes
+        };
+        let blocks = vec![
+            PayloadBlock {
+                block_id: BlockId(0x106),
+                block_ref: BlockRef {
+                    block_id: BlockId(0x106),
+                    offset: ByteOffset(1024),
+                    size: slblock.len() as u64,
+                },
+                bytes: slblock,
+                status: "test".to_string(),
+            },
+            PayloadBlock {
+                block_id: BlockId(0x10c),
+                block_ref: BlockRef {
+                    block_id: BlockId(0x10c),
+                    offset: ByteOffset(payload_offset),
+                    size: payload.len() as u64,
+                },
+                bytes: payload.to_vec(),
+                status: "test".to_string(),
+            },
+        ];
+        let table = TableContext {
+            columns: Vec::new(),
+            rows: vec![TableRow {
+                row_id: 0,
+                values: vec![
+                    (PR_ATTACH_DATA_BIN, 0x311u32.to_le_bytes().to_vec()),
+                    (PR_ATTACH_LONG_FILENAME, utf16le("reference.bin")),
+                    (PR_ATTACH_MIME_TAG, utf16le("application/octet-stream")),
+                    (
+                        PR_ATTACH_SIZE,
+                        (payload.len() as i32).to_le_bytes().to_vec(),
+                    ),
+                    (PR_ATTACH_METHOD, 2i32.to_le_bytes().to_vec()),
+                ],
+            }],
+        };
+        let (payloads, unavailable_records, report) = attachment_payloads_from_table_with_reader(
+            "msg_reference",
+            &table,
+            &blocks,
+            &reader,
+            &bbt,
+            crate::pst::limits::ParserLimits::default(),
+            None,
+        );
+        assert!(unavailable_records.is_empty());
+        assert_eq!(report.payload_count, 1);
+        assert_eq!(payloads[0].bytes, payload);
+        assert_eq!(payloads[0].record.attachment_method, Some(2));
+        assert_eq!(payloads[0].record.size_status, "size_matched");
+        assert!(payloads[0]
+            .record
+            .extraction_status
+            .starts_with("attachment_payload_extracted_data_tree"));
     }
 
     #[test]

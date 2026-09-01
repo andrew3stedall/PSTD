@@ -692,7 +692,7 @@ fn first_non_empty_string(properties: &PropertyContext, tags: &[u32]) -> Option<
     })
 }
 
-fn resolve_attachment_payload(
+pub(crate) fn resolve_attachment_payload(
     properties: &PropertyContext,
     blocks: &[PayloadBlock],
     reader: &PstByteReader,

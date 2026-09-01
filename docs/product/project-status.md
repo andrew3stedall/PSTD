@@ -76,6 +76,10 @@ The complete admission and fixture-family plan is in `docs/operations/purview-un
 
 ANSI Stage A is complete as a structural baseline. Stage B proves one controlled message extraction shape and Stage C proves direct/indirect method-1 plus method-2, method-3, and method-4 controlled attachment shapes; all remain below representative Purview Unicode coverage. Additional ANSI work must use separate fixtures for external ID2/path references, embedded/OLE attachments, HTML/RTF bodies, non-mail items, malformed derivatives, and producer-specific layouts.
 
+Attachment reference recovery now covers both property-context and attachment-table
+subnode paths through the same bounded resolver. This is still a controlled layout
+claim: external ID2/path producer variants and broad corpus completeness remain open.
+
 ## Validation expectations
 
 Every extraction PR must pass formatting, clippy with warnings denied, all Rust tests, CLI checks, Python wrapper checks, Docker build, approved fixture workflows, and exact artifact review. Unsupported or ambiguous candidates must remain unavailable rather than producing partial or guessed records.

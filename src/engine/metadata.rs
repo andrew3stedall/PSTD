@@ -21,7 +21,7 @@ use crate::pst::attachment_property_context::{
     attachment_records_from_property_context_subnodes_with_fallback_charset,
     EmbeddedMessageCandidate,
 };
-use crate::pst::attachment_table::attachment_payloads_from_subnode_blocks_with_fallback_charset;
+use crate::pst::attachment_table::attachment_payloads_from_subnode_blocks_with_reader;
 use crate::pst::attachments::{unavailable_attachment_record, AttachmentPayload};
 use crate::pst::bbt::BbtIndex;
 use crate::pst::compatibility::{
@@ -521,9 +521,12 @@ pub fn extract_metadata_with_fallback_charset(
                                 mut loaded_attachments,
                                 mut unavailable_attachment_records,
                                 attachment_report,
-                            ) = attachment_payloads_from_subnode_blocks_with_fallback_charset(
+                            ) = attachment_payloads_from_subnode_blocks_with_reader(
                                 &message.message_key,
                                 &loaded_subnodes.payloads,
+                                &reader,
+                                &bbt,
+                                limits,
                                 selected_charset,
                             );
                             attachment_table_parse_errors += attachment_report.parse_error_count;
