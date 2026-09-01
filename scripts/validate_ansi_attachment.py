@@ -205,7 +205,7 @@ def validate(path: Path, indirect: bool, method: int) -> dict[str, object]:
         "bbt_entries": bbt_page[496],
         "nbt_entries": nbt_page[496],
         "message_node": "0x24",
-        "attachment_method": 1,
+        "attachment_method": method,
         "attachment_filename": "ansi-attachment.bin",
         "attachment_size": len(ATTACHMENT_PAYLOAD),
         "attachment_sha256": hashlib.sha256(ATTACHMENT_PAYLOAD).hexdigest(),
