@@ -330,7 +330,9 @@ fn make_property_context_heap(properties: &[(u16, u16, Vec<u8>)]) -> Vec<u8> {
         allocations.push(value.clone());
     }
     allocations[1] = leaf;
-    make_heap(allocations, 0x20)
+    let mut bytes = make_heap(allocations, 0x20);
+    bytes[3] = 0xbc;
+    bytes
 }
 
 fn attachment_payload_bytes() -> Vec<u8> {
