@@ -194,7 +194,7 @@ jobs:
           for name, value in expected_headers.items():
               assert str(message[name]) == value, (name, message[name])
           assert message.get_content_type() == 'text/plain', message.get_content_type()
-          assert message.get_content() == 'Hello from the deterministic ANSI Stage-B fixture.\n', message.get_content()
+          assert message.get_content() == 'Hello from the deterministic ANSI Stage-B fixture.', message.get_content()
           (root.parent / 'message.eml').write_bytes(raw)
           PY
 
