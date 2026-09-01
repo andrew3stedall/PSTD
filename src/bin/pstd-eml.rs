@@ -1636,12 +1636,12 @@ mod tests {
         let eml = String::from_utf8(eml).unwrap();
 
         assert!(eml.contains(
-            "Content-Type: application/rtf; name="rtf-body.rtf"\r\n"
+            "Content-Type: application/rtf; name=\"rtf-body.rtf\"\r\n"
         ));
-        assert!(eml.contains("Content-Disposition: attachment; filename="rtf-body.rtf"\r\n"));
+        assert!(eml.contains("Content-Disposition: attachment; filename=\"rtf-body.rtf\"\r\n"));
         assert!(eml.contains("e1x0ZjFcYW5zaSBib2R5\r\n"));
         assert!(eml.contains(
-            "Content-Type: application/octet-stream; name="encrypted-body.bin"\r\n"
+            "Content-Type: application/octet-stream; name=\"encrypted-body.bin\"\r\n"
         ));
         assert!(eml.contains("b3BhcXVlIGJ5dGVz\r\n"));
     }
