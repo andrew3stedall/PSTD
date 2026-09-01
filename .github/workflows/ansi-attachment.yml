@@ -1,0 +1,256 @@
+name: ANSI by-value attachment fixture
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ansi-attachment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Build deterministic ANSI attachment fixture twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="${RUNNER_TEMP}/pstd-ansi-attachment"
+          mkdir -p "$root/fixtures" "$root/evidence"
+          rustc --edition=2021 --deny warnings tools/ansi_fixture.rs -o "$root/ansi-fixture"
+          "$root/ansi-fixture" --stage-c-attachment "$root/fixtures/ansi-attachment.pst"
+          "$root/ansi-fixture" --stage-c-attachment "$root/fixtures/ansi-attachment-repeat.pst"
+          cmp "$root/fixtures/ansi-attachment.pst" "$root/fixtures/ansi-attachment-repeat.pst"
+          if "$root/ansi-fixture" --stage-c-attachment "$root/fixtures/ansi-attachment.pst" \
+            > "$root/evidence/overwrite.stdout" 2> "$root/evidence/overwrite.stderr"; then
+            echo 'fixture emitter unexpectedly overwrote an existing output' >&2
+            exit 1
+          fi
+          grep -F 'refusing to overwrite existing fixture' "$root/evidence/overwrite.stderr"
+          cp "$root/fixtures/ansi-attachment.pst" "$root/fixtures/ansi-attachment-truncated.pst"
+          truncate -s 2000 "$root/fixtures/ansi-attachment-truncated.pst"
+          sha256sum "$root/fixtures"/*.pst | tee "$root/evidence/fixture-sha256.txt"
+
+      - name: Independently validate ANSI attachment structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_ansi_attachment.py \
+            "${RUNNER_TEMP}/pstd-ansi-attachment/fixtures/ansi-attachment.pst" \
+            | tee "${RUNNER_TEMP}/pstd-ansi-attachment/evidence/independent-validation.json"
+
+      - name: Extract and validate canonical attachment evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="${RUNNER_TEMP}/pstd-ansi-attachment"
+          fixture="$root/fixtures/ansi-attachment.pst"
+          evidence="$root/evidence"
+          first="$root/first"
+          second="$root/second"
+          mkdir -p "$first" "$second"
+          cargo fmt --check
+          cargo test --all-targets
+          cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+          cargo run --quiet -- inspect --input "$fixture" --json > "$evidence/inspect.json"
+          cargo run --quiet -- extract --input "$fixture" --output "$first" --overwrite
+          cargo run --quiet -- extract --input "$fixture" --output "$second" --overwrite
+          first_tar=$(find "$first/archives" -type f -name '*.tar' | sort | head -n 1)
+          second_tar=$(find "$second/archives" -type f -name '*.tar' | sort | head -n 1)
+          test -n "$first_tar" && test -n "$second_tar"
+          mkdir -p "$evidence/archive-first" "$evidence/archive-second"
+          tar -xf "$first_tar" -C "$evidence/archive-first"
+          tar -xf "$second_tar" -C "$evidence/archive-second"
+          python3 - "$evidence" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          first = root / 'archive-first'
+          second = root / 'archive-second'
+
+          def records(archive, name):
+              return [
+                  json.loads(line)
+                  for line in (archive / 'data' / name).read_text(encoding='utf-8').splitlines()
+                  if line.strip()
+              ]
+
+          def stable(archive, name):
+              return [
+                  json.dumps({key: value for key, value in record.items() if key != 'run_id'}, sort_keys=True)
+                  for record in records(archive, name)
+              ]
+
+          for name in ('folders.jsonl', 'messages.jsonl', 'recipients.jsonl', 'bodies.jsonl', 'attachments.jsonl'):
+              assert stable(first, name) == stable(second, name), name
+
+          inspection = json.loads((root / 'inspect.json').read_text(encoding='utf-8'))
+          assert inspection['capability']['family'] == 'ansi_pst', inspection
+          assert inspection['capability']['allows_extraction'] is True, inspection
+          messages = records(first, 'messages.jsonl')
+          attachments = records(first, 'attachments.jsonl')
+          bodies = records(first, 'bodies.jsonl')
+          assert len([row for row in messages if row['item_type'] == 'message_metadata']) == 1, messages
+          message = next(row for row in messages if row['item_type'] == 'message_metadata')
+          assert message['subject'] == 'ANSI Stage C attachment message', message
+          assert message['has_attachments'] is True, message
+          assert message['attachment_count'] == 1, message
+          assert len(attachments) == 1, attachments
+          attachment = attachments[0]
+          payload = b'ANSI Stage-C arbitrary attachment payload\n'
+          assert attachment['message_key'] == message['message_key'], attachment
+          assert attachment['filename_original'] == 'ansi-attachment.bin', attachment
+          assert attachment['content_type'] == 'application/octet-stream', attachment
+          assert attachment['attachment_method'] == 1, attachment
+          assert attachment['declared_size_bytes'] == len(payload), attachment
+          assert attachment['size_bytes'] == len(payload), attachment
+          assert attachment['sha256'] == hashlib.sha256(payload).hexdigest(), attachment
+          assert attachment['extraction_status'].startswith('attachment_payload_extracted'), attachment
+          payload_path = first / attachment['archive_path']
+          assert payload_path.read_bytes() == payload, payload_path
+          assert len(bodies) == 1 and bodies[0]['body_type'] == 'text', bodies
+          assert (first / bodies[0]['archive_path']).read_bytes() == b'Hello from the deterministic ANSI Stage-C fixture.', bodies[0]
+
+          (root / 'canonical-report.json').write_text(json.dumps({
+              'fixture': 'ansi-attachment.pst',
+              'message_count': 1,
+              'attachment_count': 1,
+              'attachment_size_bytes': len(payload),
+              'attachment_sha256': hashlib.sha256(payload).hexdigest(),
+              'deterministic_jsonl': True,
+          }, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Verify truncated derivative fails closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="${RUNNER_TEMP}/pstd-ansi-attachment"
+          malformed="$root/fixtures/ansi-attachment-truncated.pst"
+          set +e
+          cargo run --quiet -- inspect --input "$malformed" --json > "$root/malformed-inspect.json" 2> "$root/malformed-inspect.stderr"
+          status=$?
+          set -e
+          printf '%s\n' "$status" > "$root/malformed-inspect-exit-code.txt"
+          if [[ "$status" -eq 0 ]]; then
+            python3 - "$root/malformed-inspect.json" <<'PY'
+          import json
+          import sys
+
+          inspection = json.loads(open(sys.argv[1], encoding='utf-8').read())
+          assert inspection['capability']['allows_extraction'] is False, inspection
+          PY
+          fi
+
+      - name: Validate inline and external attachment materialization
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="${RUNNER_TEMP}/pstd-ansi-attachment"
+          fixture="$root/fixtures/ansi-attachment.pst"
+          inline="$root/inline"
+          external="$root/external"
+          mkdir -p "$inline" "$external"
+          cargo run --quiet --bin pstd-eml -- "$fixture" "$inline"
+          cargo run --quiet --bin pstd-eml -- --attachment-mode external "$fixture" "$external"
+          python3 - "$root" <<'PY'
+          import base64
+          import hashlib
+          import json
+          import sys
+          from email import policy
+          from email.parser import BytesParser
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          payload = b'ANSI Stage-C arbitrary attachment payload\n'
+          expected_hash = hashlib.sha256(payload).hexdigest()
+
+          inline_files = sorted((root / 'inline').glob('*.eml'))
+          assert len(inline_files) == 1, inline_files
+          inline_bytes = inline_files[0].read_bytes()
+          assert b'Content-Transfer-Encoding: base64\r\n' in inline_bytes
+          inline_message = BytesParser(policy=policy.default).parsebytes(inline_bytes)
+          assert inline_message.get_content_type() == 'multipart/mixed'
+          inline_parts = list(inline_message.iter_attachments())
+          assert len(inline_parts) == 1, inline_parts
+          inline_attachment = inline_parts[0]
+          assert inline_attachment.get_filename() == 'ansi-attachment.bin'
+          assert inline_attachment.get_content_type() == 'application/octet-stream'
+          assert inline_attachment.get_payload(decode=True) == payload
+          assert base64.b64encode(payload) in b''.join(inline_bytes.splitlines())
+
+          manifest = [
+              json.loads(line)
+              for line in (root / 'external' / 'attachments.jsonl').read_text(encoding='utf-8').splitlines()
+              if line.strip()
+          ]
+          assert len(manifest) == 1, manifest
+          record = manifest[0]
+          assert record['materialization_status'] == 'attachment_file_emitted', record
+          assert record['materialized_path'] == record['archive_path'], record
+          external_payload = root / 'external' / record['materialized_path']
+          assert external_payload.read_bytes() == payload
+          assert hashlib.sha256(external_payload.read_bytes()).hexdigest() == expected_hash
+          external_files = sorted((root / 'external').glob('*.eml'))
+          assert len(external_files) == 1, external_files
+          external_bytes = external_files[0].read_bytes()
+          external_message = BytesParser(policy=policy.default).parsebytes(external_bytes)
+          assert external_message['X-PSTD-Attachment-Mode'] == 'external'
+          assert list(external_message.iter_attachments()) == []
+          assert b'Content-Transfer-Encoding: base64\r\n' not in external_bytes
+          assert record['eml_path'] == external_files[0].name
+          PY
+
+      - name: Retain independent reader results
+        shell: bash
+        run: |
+          set -u
+          root="${RUNNER_TEMP}/pstd-ansi-attachment"
+          fixture="$root/fixtures/ansi-attachment.pst"
+          evidence="$root/evidence/readers"
+          mkdir -p "$evidence"
+          sudo apt-get update
+          sudo apt-get install -y pff-tools pst-utils
+          pffinfo -V > "$evidence/pffinfo-version.txt" 2>&1
+          set +e
+          timeout 30 pffinfo "$fixture" > "$evidence/pffinfo.stdout" 2> "$evidence/pffinfo.stderr"
+          pffinfo_status=$?
+          timeout 30 readpst -e -r -o "$evidence/readpst" "$fixture" > "$evidence/readpst.stdout" 2> "$evidence/readpst.stderr"
+          readpst_status=$?
+          set -e
+          printf '%s\n' "$pffinfo_status" > "$evidence/pffinfo-exit-code.txt"
+          printf '%s\n' "$readpst_status" > "$evidence/readpst-exit-code.txt"
+          python3 - "$evidence" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          evidence = Path(sys.argv[1])
+          pffinfo_status = int((evidence / 'pffinfo-exit-code.txt').read_text())
+          readpst_status = int((evidence / 'readpst-exit-code.txt').read_text())
+          (evidence / 'reader-report.json').write_text(json.dumps({
+              'pffinfo_exit_code': pffinfo_status,
+              'readpst_exit_code': readpst_status,
+              'pffinfo_result': 'accepted' if pffinfo_status == 0 else 'reader_rejected_fixture',
+              'readpst_result': 'accepted' if readpst_status == 0 else 'reader_rejected_fixture',
+              'limitation': 'PSTD and the independent byte-level validator are authoritative for this controlled ANSI fixture; external-reader rejection remains explicit evidence.',
+          }, indent=2) + '\n')
+          PY
+
+      - name: Upload ANSI attachment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-ansi-attachment-evidence
+          path: ${{ runner.temp }}/pstd-ansi-attachment
+          if-no-files-found: error

@@ -59,12 +59,37 @@ The fixture-only emitter now supports `--stage-b` and emits the minimum structur
 
 The exact synthetic values use reserved example domains and fixed timestamps. The dedicated workflow locks repeat-run bytes, independent structure, canonical JSONL, CRLF EML headers/body, output path, byte length, and SHA-256. The fixture is intentionally limited to this controlled shape; it is not representative ANSI coverage.
 
-### Stage C: compatibility breadth
+### Stage C: ANSI by-value attachment — complete for one controlled shape
 
-After Stage B passes, add separate controlled variants for:
+The fixture-only emitter supports `--stage-c-attachment` and emits one deterministic
+folder/message plus one arbitrary-format method-1 attachment. The attachment is
+stored in an ANSI property-context heap using String8 filename and MIME properties,
+with direct `PR_ATTACH_DATA_BIN` bytes. Its filename is `ansi-attachment.bin`, its
+MIME type is `application/octet-stream`, and its exact payload is the synthetic byte
+sequence `ANSI Stage-C arbitrary attachment payload\n` with SHA-256
+`fc1107a00b29da722c39c00794f0458c1626402f8eeab7f080ce596ba01142c1`.
+
+Generate and independently validate it with:
+
+```bash
+rustc --edition=2021 --deny warnings tools/ansi_fixture.rs -o /tmp/ansi-fixture
+/tmp/ansi-fixture --stage-c-attachment /tmp/ansi-attachment.pst
+python3 scripts/validate_ansi_attachment.py /tmp/ansi-attachment.pst
+```
+
+The dedicated workflow also checks byte-for-byte repeatability, refusal to overwrite,
+an index-truncated derivative, canonical attachment records and payload files, inline
+MIME/base64 output, and the external attachment manifest/raw-file contract. A pinned
+external reader is probed for independent evidence, but its acceptance or rejection
+does not override PSTD's own byte-level and extraction validation. This fixture proves
+one ANSI by-value property-context layout only; it is not representative ANSI coverage.
+
+### Stage D: compatibility breadth
+
+After Stages B and C pass, add separate controlled variants for:
 
 - independent HTML and plain bodies;
-- one by-value attachment;
+- reference, embedded-message, and OLE attachments;
 - To/Cc/Bcc;
 - one typed contact that is explicitly classified as non-mail;
 - malformed page, block and ownership variants that must fail closed.

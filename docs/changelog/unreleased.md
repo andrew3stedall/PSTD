@@ -16,6 +16,19 @@ _Last reviewed: 1 September 2026._
   shape and does not claim broad ANSI producer, attachment, HTML/RTF, or typed-item
   compatibility.
 
+### ATT-03 ANSI by-value attachment fixture
+
+- Added a deterministic ANSI v14 Stage-C fixture with one folder, one message, and
+  one arbitrary-format by-value attachment represented by an ANSI/String8 property
+  context and direct `PR_ATTACH_DATA_BIN` bytes.
+- Added an independent validator and workflow checks for exact attachment metadata,
+  payload length and SHA-256 (`fc1107a00b29da722c39c00794f0458c1626402f8eeab7f080ce596ba01142c1`),
+  canonical extraction, inline MIME/base64 output, and external raw-file/manifest
+  materialization.
+- Added repeat-run, overwrite-protection, truncated-input, and fail-closed evidence.
+  This remains one controlled ANSI by-value shape; reference, embedded, OLE, HTML/RTF,
+  typed-item, malformed-producer, and broader corpus coverage remain open.
+
 ### RP-M6-01 ANSI Stage-A fixture
 
 - Added a standalone Linux Rust emitter at `tools/ansi_fixture.rs` for a controlled
