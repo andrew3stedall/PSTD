@@ -74,6 +74,8 @@ _Last reviewed: 1 September 2026._
   gates.
 - Kept unresolved references fail-closed and the ATT-04 scope bounded: external
   path/ID2 producer layouts and broad reference corpus parity remain open.
+- The method-4 variant completes the controlled ANSI method-2/3/4 value fan-out;
+  this remains evidence for one HNID/SLBLOCK layout, not a universal producer claim.
 
 ### RP-M6-01 ANSI Stage-A fixture
 
