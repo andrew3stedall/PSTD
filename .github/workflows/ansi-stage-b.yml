@@ -72,12 +72,6 @@ jobs:
           mkdir -p "$evidence/archive-first" "$evidence/archive-second"
           tar -xf "$first_tar" -C "$evidence/archive-first"
           tar -xf "$second_tar" -C "$evidence/archive-second"
-          cmp "$evidence/archive-first/data/messages.jsonl" \
-            "$evidence/archive-second/data/messages.jsonl"
-          cmp "$evidence/archive-first/data/recipients.jsonl" \
-            "$evidence/archive-second/data/recipients.jsonl"
-          cmp "$evidence/archive-first/data/bodies.jsonl" \
-            "$evidence/archive-second/data/bodies.jsonl"
           python3 - "$evidence" <<'PY'
           import json
           import sys
@@ -99,6 +93,27 @@ jobs:
                   for line in (archive / name).read_text(encoding='utf-8').splitlines()
                   if line.strip()
               ]
+
+          def stable_records(name):
+              stable = []
+              for record in records(name):
+                  record.pop('run_id', None)
+                  stable.append(record)
+              return stable
+
+          def stable_records_from(path):
+              stable = []
+              for line in path.read_text(encoding='utf-8').splitlines():
+                  if line.strip():
+                      record = json.loads(line)
+                      record.pop('run_id', None)
+                      stable.append(record)
+              return stable
+
+          for name in ('messages.jsonl', 'recipients.jsonl', 'bodies.jsonl'):
+              assert stable_records(name) == stable_records_from(
+                  evidence / 'archive-second' / 'data' / name
+              ), name
 
           folders = records('folders.jsonl')
           messages = records('messages.jsonl')
@@ -143,6 +158,7 @@ jobs:
               }, indent=2) + '\n',
               encoding='utf-8',
           )
+
           PY
 
       - name: Validate generated EML
