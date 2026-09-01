@@ -29,6 +29,18 @@ _Last reviewed: 1 September 2026._
   This remains one controlled ANSI by-value shape; reference, embedded, OLE, HTML/RTF,
   typed-item, malformed-producer, and broader corpus coverage remain open.
 
+### ATT-03 ANSI indirect by-value attachment fixture
+
+- Added a second deterministic ANSI v14 attachment variant whose method-1 payload
+  is represented by a property-context HNID and resolved through a validated
+  SLBLOCK/data-BID mapping.
+- Extended the independent structure validator and attachment workflow to compare
+  direct and indirect variants across canonical payload hashes, inline MIME/base64,
+  external files/manifests, repeatability, overwrite refusal, and truncated-input
+  fail-closed behaviour.
+- Kept the scope bounded to one ANSI indirect layout; methods 2/3/4, embedded/OLE
+  producer layouts, and broad corpus parity remain Partial or open.
+
 ### RP-M6-01 ANSI Stage-A fixture
 
 - Added a standalone Linux Rust emitter at `tools/ansi_fixture.rs` for a controlled
