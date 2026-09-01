@@ -68,7 +68,6 @@ pub fn attachment_payloads_from_table_with_fallback_charset(
         table,
         None,
         None,
-        ParserLimits::default(),
         fallback_charset,
     )
 }
