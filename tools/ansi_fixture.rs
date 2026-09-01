@@ -6,6 +6,7 @@ const NBT_OFFSET: usize = 1536;
 const FILE_SIZE: usize = NBT_OFFSET + PAGE_SIZE;
 const ANSI_PROPERTY_VALUE_WIDTH: usize = 128;
 const INDIRECT_ATTACHMENT_DATA_NID: u32 = 0x311;
+const EXTERNAL_ATTACHMENT_DATA_ID2: u32 = 0x31f;
 
 fn put_u16(bytes: &mut [u8], offset: usize, value: u16) {
     bytes[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
@@ -351,13 +352,21 @@ fn attachment_payload_bytes() -> Vec<u8> {
     b"ANSI Stage-C arbitrary attachment payload\n".to_vec()
 }
 
-fn make_attachment_property_context(indirect: bool, method: i32) -> Vec<u8> {
+fn make_attachment_property_context(
+    indirect: bool,
+    method: i32,
+    external_id2: bool,
+) -> Vec<u8> {
     let payload = attachment_payload_bytes();
     let payload_len = payload.len();
     let (data_type, data_value) = if indirect {
         (
             0x000d,
-            INDIRECT_ATTACHMENT_DATA_NID.to_le_bytes().to_vec(),
+            if external_id2 {
+                EXTERNAL_ATTACHMENT_DATA_ID2.to_le_bytes().to_vec()
+            } else {
+                INDIRECT_ATTACHMENT_DATA_NID.to_le_bytes().to_vec()
+            },
         )
     } else {
         (0x0102, payload)
@@ -443,10 +452,15 @@ fn make_stage_b_fixture() -> Vec<u8> {
     bytes
 }
 
-fn make_stage_c_fixture(indirect: bool, method: i32) -> Vec<u8> {
+fn make_stage_c_fixture(indirect: bool, method: i32, external_id2: bool) -> Vec<u8> {
     let mut slblock_entries = vec![(0x32, 0x108, 0), (0x31, 0x10a, 0)];
     if indirect {
-        slblock_entries.push((INDIRECT_ATTACHMENT_DATA_NID, 0x10c, 0));
+        let reference = if external_id2 {
+            EXTERNAL_ATTACHMENT_DATA_ID2
+        } else {
+            INDIRECT_ATTACHMENT_DATA_NID
+        };
+        slblock_entries.push((reference, 0x10c, 0));
     }
     let block_specs = vec![
         (0x100u32, make_folder_payload()),
@@ -454,7 +468,7 @@ fn make_stage_c_fixture(indirect: bool, method: i32) -> Vec<u8> {
         (0x104u32, make_message_contents_table()),
         (0x106u32, make_slblock(&slblock_entries)),
         (0x108u32, make_recipient_table()),
-        (0x10au32, make_attachment_property_context(indirect, method)),
+        (0x10au32, make_attachment_property_context(indirect, method, external_id2)),
     ];
     let mut block_specs = block_specs;
     if indirect {
@@ -530,6 +544,7 @@ fn main() -> io::Result<()> {
         eprintln!("       ansi_fixture --stage-c-method-2-attachment <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-method-3-attachment <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-method-4-attachment <output-path> [--force]");
+        eprintln!("       ansi_fixture --stage-c-external-id2-attachment <output-path> [--force]");
         std::process::exit(2);
     }
 
@@ -549,12 +564,16 @@ fn main() -> io::Result<()> {
     let stage_c_method_4_attachment = args
         .get(1)
         .is_some_and(|arg| arg == "--stage-c-method-4-attachment");
+    let stage_c_external_id2_attachment = args
+        .get(1)
+        .is_some_and(|arg| arg == "--stage-c-external-id2-attachment");
     let output_index = if stage_b
         || stage_c_attachment
         || stage_c_indirect_attachment
         || stage_c_method_2_attachment
         || stage_c_method_3_attachment
         || stage_c_method_4_attachment
+        || stage_c_external_id2_attachment
     {
         2
     } else {
@@ -568,6 +587,7 @@ fn main() -> io::Result<()> {
         eprintln!("       ansi_fixture --stage-c-method-2-attachment <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-method-3-attachment <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-method-4-attachment <output-path> [--force]");
+        eprintln!("       ansi_fixture --stage-c-external-id2-attachment <output-path> [--force]");
         std::process::exit(2);
     }
 
@@ -582,7 +602,8 @@ fn main() -> io::Result<()> {
             || stage_c_indirect_attachment
             || stage_c_method_2_attachment
             || stage_c_method_3_attachment
-            || stage_c_method_4_attachment {
+            || stage_c_method_4_attachment
+            || stage_c_external_id2_attachment {
             eprintln!("unexpected argument: {argument}");
             std::process::exit(2);
         } else if crypt_method_set {
@@ -607,15 +628,17 @@ fn main() -> io::Result<()> {
     let bytes = if stage_b {
         make_stage_b_fixture()
     } else if stage_c_attachment {
-        make_stage_c_fixture(false, 1)
+        make_stage_c_fixture(false, 1, false)
     } else if stage_c_indirect_attachment {
-        make_stage_c_fixture(true, 1)
+        make_stage_c_fixture(true, 1, false)
     } else if stage_c_method_2_attachment {
-        make_stage_c_fixture(true, 2)
+        make_stage_c_fixture(true, 2, false)
     } else if stage_c_method_3_attachment {
-        make_stage_c_fixture(true, 3)
+        make_stage_c_fixture(true, 3, false)
     } else if stage_c_method_4_attachment {
-        make_stage_c_fixture(true, 4)
+        make_stage_c_fixture(true, 4, false)
+    } else if stage_c_external_id2_attachment {
+        make_stage_c_fixture(true, 2, true)
     } else {
         make_fixture(crypt_method)
     };
