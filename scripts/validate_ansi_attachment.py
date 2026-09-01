@@ -13,6 +13,7 @@ PAGE_SIZE = 512
 BBT_OFFSET = 1024
 NBT_OFFSET = 1536
 ATTACHMENT_PAYLOAD = b"ANSI Stage-C arbitrary attachment payload\n"
+INDIRECT_ATTACHMENT_DATA_NID = 0x311
 
 
 def weak_crc32(data: bytes) -> int:
@@ -95,7 +96,7 @@ def parse_property_heap(data: bytes) -> dict[int, bytes]:
     return properties
 
 
-def validate(path: Path) -> dict[str, object]:
+def validate(path: Path, indirect: bool) -> dict[str, object]:
     data = path.read_bytes()
     assert len(data) > NBT_OFFSET + PAGE_SIZE
     assert data[:4] == b"!BDN"
@@ -123,7 +124,8 @@ def validate(path: Path) -> dict[str, object]:
         assert u32(page, 504) == bid
         assert u32(page, 508) == weak_crc32(page[:500])
 
-    assert bbt_page[496] == 6
+    expected_block_count = 7 if indirect else 6
+    assert bbt_page[496] == expected_block_count
     blocks = {}
     for index in range(bbt_page[496]):
         start = index * 12
@@ -135,7 +137,10 @@ def validate(path: Path) -> dict[str, object]:
         assert size > 0
         assert offset + size <= len(data)
         blocks[block_id] = data[offset : offset + size]
-    assert set(blocks) == {0x100, 0x102, 0x104, 0x106, 0x108, 0x10A}
+    expected_blocks = {0x100, 0x102, 0x104, 0x106, 0x108, 0x10A}
+    if indirect:
+        expected_blocks.add(0x10C)
+    assert set(blocks) == expected_blocks
 
     assert nbt_page[496] == 3
     nodes = {}
@@ -160,22 +165,33 @@ def validate(path: Path) -> dict[str, object]:
     assert string8(message, 0x1000_001E) == "Hello from the deterministic ANSI Stage-C fixture."
 
     slblock = blocks[0x106]
-    assert slblock[:4] == b"\x02\x00\x02\x00"
+    assert slblock[:4] == bytes((0x02, 0x00, 0x03 if indirect else 0x02, 0x00))
     assert u64(slblock, 8) == 0x32
     assert u64(slblock, 16) == 0x108
     assert u64(slblock, 32) == 0x31
     assert u64(slblock, 40) == 0x10A
+    if indirect:
+        assert u64(slblock, 56) == INDIRECT_ATTACHMENT_DATA_NID
+        assert u64(slblock, 64) == 0x10C
 
     attachment = parse_property_heap(blocks[0x10A])
     assert string8(attachment, 0x3704_001E) == "ansi-attachment.bin"
     assert string8(attachment, 0x370E_001E) == "application/octet-stream"
     assert u32(attachment[0x3705_0003], 0) == 1
     assert u32(attachment[0x0E20_0003], 0) == len(ATTACHMENT_PAYLOAD)
-    assert attachment[0x3701_0102] == ATTACHMENT_PAYLOAD
+    if indirect:
+        assert attachment[0x3701_000D] == INDIRECT_ATTACHMENT_DATA_NID.to_bytes(4, "little")
+        assert blocks[0x10C] == ATTACHMENT_PAYLOAD
+    else:
+        assert attachment[0x3701_0102] == ATTACHMENT_PAYLOAD
 
     return {
         "fixture": path.name,
-        "status": "valid_ansi_stage_c_one_by_value_attachment",
+        "status": (
+            "valid_ansi_stage_c_indirect_one_by_value_attachment"
+            if indirect
+            else "valid_ansi_stage_c_one_by_value_attachment"
+        ),
         "file_size": len(data),
         "sha256": hashlib.sha256(data).hexdigest(),
         "crypt_method": data[461],
@@ -190,6 +206,6 @@ def validate(path: Path) -> dict[str, object]:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        raise SystemExit("usage: validate_ansi_attachment.py <fixture>")
-    print(json.dumps(validate(Path(sys.argv[1])), sort_keys=True))
+    if len(sys.argv) not in (2, 3) or (len(sys.argv) == 3 and sys.argv[2] != "--indirect"):
+        raise SystemExit("usage: validate_ansi_attachment.py <fixture> [--indirect]")
+    print(json.dumps(validate(Path(sys.argv[1]), len(sys.argv) == 3), sort_keys=True))
