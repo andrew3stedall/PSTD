@@ -723,7 +723,8 @@ mod tests {
     fn resolves_table_row_hnid_reference_through_slblock() {
         let payload = b"table row reference payload";
         let payload_offset = 4096u64;
-        let path = tempfile::tempdir().unwrap().path().join("table-row-reference.pst");
+        let tempdir = tempfile::tempdir().unwrap();
+        let path = tempdir.path().join("table-row-reference.pst");
         let mut file_bytes = vec![0u8; payload_offset as usize + payload.len()];
         file_bytes[payload_offset as usize..].copy_from_slice(payload);
         std::fs::write(&path, file_bytes).unwrap();
