@@ -89,3 +89,12 @@ Comparison workflows must identify the external implementation and pinned versio
 ## Risk statement
 
 The current result is material evidence for two approved Unicode fixture paths, not broad Microsoft Purview or general PST compatibility. Purview exports may contain producer-specific folder layouts, associated contents, Exchange identities, attachment combinations, embedded messages, non-mail objects, and large-file characteristics not represented by the current fixtures. Capability claims must remain fixture-specific until a representative controlled Purview corpus passes without silent data loss.
+
+## ATT-04 external ID2 attachment evidence — 1 September 2026
+
+The ANSI attachment workflow now includes a deterministic external-ID2-style
+method-2 variant (reference `0x31f`, low nibble `0xf`) that resolves through the
+owning SLBLOCK to exact payload bytes. Canonical, inline MIME/base64, external
+manifest/raw-file, repeatability, overwrite-refusal, truncation, and independent
+reader outcomes are captured. This is one validated external layout; broad
+producer/path coverage remains Partial.
