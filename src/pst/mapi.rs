@@ -88,6 +88,8 @@ pub const PR_RTF_COMPRESSED: u32 = 0x1009_0102;
 pub const PR_HTML_STRING: u32 = 0x1013_001f;
 pub const PR_HTML_STRING_A: u32 = 0x1013_001e;
 pub const PR_HTML: u32 = 0x1013_0102;
+pub const PR_ENCRYPTED_HTML_BODY: u32 = 0x6f02_0102;
+pub const PR_ENCRYPTED_BODY: u32 = 0x6f04_0102;
 pub const PR_ATTACH_DATA_OBJ: u32 = 0x3701_000d;
 pub const PR_ATTACH_DATA_BIN: u32 = 0x3701_0102;
 pub const PR_ATTACH_FILENAME: u32 = 0x3704_001f;
@@ -348,6 +350,16 @@ pub const SELECTED_PROPERTIES: &[MapiPropertyDef] = &[
     MapiPropertyDef {
         tag: PR_HTML,
         name: "body_html",
+        value_type: MapiValueType::Binary,
+    },
+    MapiPropertyDef {
+        tag: PR_ENCRYPTED_HTML_BODY,
+        name: "encrypted_html_body",
+        value_type: MapiValueType::Binary,
+    },
+    MapiPropertyDef {
+        tag: PR_ENCRYPTED_BODY,
+        name: "encrypted_body",
         value_type: MapiValueType::Binary,
     },
     MapiPropertyDef {
