@@ -14,6 +14,7 @@ BBT_OFFSET = 1024
 NBT_OFFSET = 1536
 ATTACHMENT_PAYLOAD = b"ANSI Stage-C arbitrary attachment payload\n"
 INDIRECT_ATTACHMENT_DATA_NID = 0x311
+EXTERNAL_ATTACHMENT_DATA_ID2 = 0x31F
 
 
 def weak_crc32(data: bytes) -> int:
@@ -99,7 +100,9 @@ def parse_property_heap(data: bytes) -> dict[int, bytes]:
     return properties
 
 
-def validate(path: Path, indirect: bool, method: int) -> dict[str, object]:
+def validate(
+    path: Path, indirect: bool, method: int, external_id2: bool
+) -> dict[str, object]:
     data = path.read_bytes()
     assert len(data) > NBT_OFFSET + PAGE_SIZE
     assert data[:4] == b"!BDN"
@@ -169,12 +172,13 @@ def validate(path: Path, indirect: bool, method: int) -> dict[str, object]:
 
     slblock = blocks[0x106]
     assert slblock[:4] == bytes((0x02, 0x00, 0x03 if indirect else 0x02, 0x00))
+    reference = EXTERNAL_ATTACHMENT_DATA_ID2 if external_id2 else INDIRECT_ATTACHMENT_DATA_NID
     assert u64(slblock, 8) == 0x32
     assert u64(slblock, 16) == 0x108
     assert u64(slblock, 32) == 0x31
     assert u64(slblock, 40) == 0x10A
     if indirect:
-        assert u64(slblock, 56) == INDIRECT_ATTACHMENT_DATA_NID
+        assert u64(slblock, 56) == reference
         assert u64(slblock, 64) == 0x10C
 
     attachment = parse_property_heap(blocks[0x10A])
@@ -183,7 +187,7 @@ def validate(path: Path, indirect: bool, method: int) -> dict[str, object]:
     assert u32(attachment[0x3705_0003], 0) == method
     assert u32(attachment[0x0E20_0003], 0) == len(ATTACHMENT_PAYLOAD)
     if indirect:
-        assert attachment[0x3701_000D] == INDIRECT_ATTACHMENT_DATA_NID.to_bytes(4, "little")
+        assert attachment[0x3701_000D] == reference.to_bytes(4, "little")
         assert blocks[0x10C] == ATTACHMENT_PAYLOAD
     else:
         assert attachment[0x3701_0102] == ATTACHMENT_PAYLOAD
@@ -191,12 +195,16 @@ def validate(path: Path, indirect: bool, method: int) -> dict[str, object]:
     return {
         "fixture": path.name,
         "status": (
-            f"valid_ansi_stage_c_method_{method}_attachment"
-            if method in (2, 3, 4)
+            "valid_ansi_stage_c_external_id2_attachment"
+            if external_id2
             else (
-                "valid_ansi_stage_c_indirect_one_by_value_attachment"
-                if indirect
-                else "valid_ansi_stage_c_one_by_value_attachment"
+                f"valid_ansi_stage_c_method_{method}_attachment"
+                if method in (2, 3, 4)
+                else (
+                    "valid_ansi_stage_c_indirect_one_by_value_attachment"
+                    if indirect
+                    else "valid_ansi_stage_c_one_by_value_attachment"
+                )
             )
         ),
         "file_size": len(data),
@@ -214,11 +222,20 @@ def validate(path: Path, indirect: bool, method: int) -> dict[str, object]:
 
 if __name__ == "__main__":
     flags = set(sys.argv[2:])
-    valid_flags = {"--indirect", "--method-2", "--method-3", "--method-4"}
+    valid_flags = {
+        "--indirect",
+        "--external-id2",
+        "--method-2",
+        "--method-3",
+        "--method-4",
+    }
     if len(sys.argv) > 4 or not flags.issubset(valid_flags):
         raise SystemExit(
-            "usage: validate_ansi_attachment.py <fixture> [--indirect] [--method-2] [--method-3] [--method-4]"
+            "usage: validate_ansi_attachment.py <fixture> [--indirect] [--external-id2] [--method-2] [--method-3] [--method-4]"
         )
-    indirect = "--indirect" in flags
+    external_id2 = "--external-id2" in flags
+    indirect = "--indirect" in flags or external_id2
     method = 4 if "--method-4" in flags else (3 if "--method-3" in flags else (2 if "--method-2" in flags else 1))
-    print(json.dumps(validate(Path(sys.argv[1]), indirect, method), sort_keys=True))
+    print(
+        json.dumps(validate(Path(sys.argv[1]), indirect, method, external_id2), sort_keys=True)
+    )
