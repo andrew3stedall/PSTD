@@ -94,13 +94,15 @@ fn run() -> Result<(), String> {
             .get(&message.message_key)
             .cloned()
             .unwrap_or_default();
+        let existing_attachment_keys = message_attachment_records
+            .iter()
+            .map(|record| record.attachment_key.as_str())
+            .collect::<BTreeSet<_>>();
         message_attachment_records.extend(
             message_attachments
                 .iter()
                 .filter(|payload| {
-                    !message_attachment_records
-                        .iter()
-                        .any(|record| record.attachment_key == payload.record.attachment_key)
+                    !existing_attachment_keys.contains(payload.record.attachment_key.as_str())
                 })
                 .map(|payload| payload.record.clone()),
         );
