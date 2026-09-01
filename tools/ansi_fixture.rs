@@ -115,7 +115,8 @@ fn make_index_page(
         block_signature(file_offset as u32, page_bid),
     );
     put_u32(&mut page, 504, page_bid);
-    put_u32(&mut page, 508, crc32(&page[..500]));
+    let page_crc = crc32(&page[..500]);
+    put_u32(&mut page, 508, page_crc);
     page
 }
 
@@ -355,7 +356,8 @@ fn make_stage_b_fixture() -> Vec<u8> {
     for (offset, payload) in block_bytes {
         bytes[offset..offset + payload.len()].copy_from_slice(&payload);
     }
-    put_u32(&mut bytes, 4, crc32(&bytes[8..479]));
+    let header_crc = crc32(&bytes[8..479]);
+    put_u32(&mut bytes, 4, header_crc);
     bytes
 }
 
