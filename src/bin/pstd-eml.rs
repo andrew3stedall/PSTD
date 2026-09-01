@@ -8,6 +8,7 @@ use pstd::engine::metadata::extract_metadata;
 use pstd::output::headers::{
     encode_display_name, encode_mime_parameter, encode_unstructured_value, normalize_content_id,
 };
+use pstd::output::ids;
 use pstd::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
 use pstd::pst::attachments::AttachmentPayload;
 use pstd::pst::messages::BodyPayload;
@@ -67,6 +68,7 @@ fn run() -> Result<(), String> {
     let recipients = recipients_by_message(&metadata.recipients);
     let bodies = bodies_by_message(&metadata.body_payloads);
     let attachments = attachments_by_message(&metadata.attachment_payloads);
+    let synthetic_body_attachments = synthetic_body_attachments_by_message(&metadata.body_payloads);
     let attachment_records =
         attachment_records_by_message(&metadata.attachments, &metadata.attachment_payloads);
     let embedded_messages = embedded_message_keys(&metadata.attachments);
@@ -80,18 +82,33 @@ fn run() -> Result<(), String> {
             .get(&message.message_key)
             .map(Vec::as_slice)
             .unwrap_or_default();
-        let message_attachments = attachments
+        let mut message_attachments = attachments
             .get(&message.message_key)
-            .map(Vec::as_slice)
+            .cloned()
             .unwrap_or_default();
-        let message_attachment_records = attachment_records
+        if let Some(synthetic) = synthetic_body_attachments.get(&message.message_key) {
+            message_attachments.extend(synthetic.iter().cloned());
+        }
+        message_attachments.sort_by_key(|payload| attachment_order_key(&payload.record));
+        let mut message_attachment_records = attachment_records
             .get(&message.message_key)
-            .map(Vec::as_slice)
+            .cloned()
             .unwrap_or_default();
-        let unavailable_attachment_count =
-            unavailable_attachment_count(message_attachment_records, message_attachments);
-        let inline_attachments = if attachment_mode == AttachmentMode::Inline {
+        message_attachment_records.extend(
             message_attachments
+                .iter()
+                .filter(|payload| {
+                    !message_attachment_records
+                        .iter()
+                        .any(|record| record.attachment_key == payload.record.attachment_key)
+                })
+                .map(|payload| payload.record.clone()),
+        );
+        message_attachment_records.sort_by_key(attachment_order_key);
+        let unavailable_attachment_count =
+            unavailable_attachment_count(&message_attachment_records, &message_attachments);
+        let inline_attachments = if attachment_mode == AttachmentMode::Inline {
+            message_attachments.as_slice()
         } else {
             &[]
         };
@@ -215,6 +232,99 @@ fn attachments_by_message(
         payloads.sort_by_key(|payload| attachment_order_key(&payload.record));
     }
     grouped
+}
+
+fn synthetic_body_attachments_by_message(
+    payloads: &[BodyPayload],
+) -> BTreeMap<String, Vec<AttachmentPayload>> {
+    let mut grouped = BTreeMap::<String, Vec<AttachmentPayload>>::new();
+    let mut ordinals = BTreeMap::<String, u64>::new();
+    for payload in payloads.iter().filter(|payload| {
+        matches!(
+            payload.record.body_type.as_str(),
+            "rtf" | "encrypted" | "encrypted_html"
+        )
+    }) {
+        let message_key = payload.record.message_key.clone();
+        let ordinal = ordinals.entry(message_key.clone()).or_default();
+        let synthetic = synthetic_body_attachment(payload, *ordinal);
+        *ordinal = ordinal.saturating_add(1);
+        grouped.entry(message_key).or_default().push(synthetic);
+    }
+    for payloads in grouped.values_mut() {
+        payloads.sort_by_key(|payload| attachment_order_key(&payload.record));
+    }
+    grouped
+}
+
+fn synthetic_body_attachment(payload: &BodyPayload, ordinal: u64) -> AttachmentPayload {
+    let (filename, content_type, status) = match payload.record.body_type.as_str() {
+        "rtf" => (
+            "rtf-body.rtf",
+            "application/rtf",
+            if payload.bytes.is_empty() {
+                "synthetic_rtf_attachment_unavailable"
+            } else if validated_rtf(&payload.bytes).is_some() {
+                "synthetic_rtf_attachment_available"
+            } else {
+                "synthetic_rtf_attachment_invalid"
+            },
+        ),
+        "encrypted_html" => (
+            "encrypted-html-body.bin",
+            "application/octet-stream",
+            "encrypted_body_opaque",
+        ),
+        _ => (
+            "encrypted-body.bin",
+            "application/octet-stream",
+            "encrypted_body_opaque",
+        ),
+    };
+    let attachment_key = ids::stable_id(
+        "att",
+        &[
+            &payload.record.message_key,
+            "synthetic-body",
+            &payload.record.body_key,
+        ],
+    );
+    let archive_path = format!(
+        "attachments/{}/{attachment_key}_{filename}",
+        payload.record.message_key
+    );
+    let size_bytes = payload.bytes.len() as u64;
+    AttachmentPayload {
+        record: AttachmentRecord {
+            message_key: payload.record.message_key.clone(),
+            attachment_key,
+            filename_original: Some(filename.to_string()),
+            filename_safe: filename.to_string(),
+            content_type: Some(content_type.to_string()),
+            extension: Some(
+                filename
+                    .rsplit_once('.')
+                    .map(|(_, extension)| extension.to_string())
+                    .unwrap_or_default(),
+            ),
+            size_bytes,
+            declared_size_bytes: Some(size_bytes),
+            size_status: "size_matched".to_string(),
+            sha256: sha256_hex(&payload.bytes),
+            is_inline: false,
+            is_hidden: false,
+            content_id: None,
+            attachment_method: None,
+            source_ref: format!("body:{}", payload.record.body_type),
+            rendering_position: Some(u64::MAX.saturating_sub(ordinal)),
+            mime_sequence: None,
+            embedded_message_key: None,
+            ordinal: u64::MAX.saturating_sub(ordinal),
+            archive_path,
+            extraction_status: status.to_string(),
+        },
+        bytes: payload.bytes.clone(),
+    }
 }
 
 fn attachment_records_by_message(
@@ -1474,6 +1584,64 @@ mod tests {
         assert!(eml.contains(
             "Content-Disposition: attachment; filename=\"attachment.docx\"\r\n\r\n--pstd-mixed-3e2b1a9c--"
         ));
+    }
+
+    #[test]
+    fn materializes_synthetic_rtf_and_encrypted_body_payloads() {
+        let payloads = vec![
+            body_payload("message", "rtf", b"{\\rtf1\\ansi body}".to_vec(), None),
+            body_payload("message", "encrypted_html", Vec::new(), None),
+        ];
+        let grouped = synthetic_body_attachments_by_message(&payloads);
+        let attachments = grouped.get("message").unwrap();
+
+        assert_eq!(attachments.len(), 2);
+        assert_eq!(attachments[0].record.filename_safe, "rtf-body.rtf");
+        assert_eq!(
+            attachments[0].record.extraction_status,
+            "synthetic_rtf_attachment_available"
+        );
+        assert_eq!(attachments[0].bytes, b"{\\rtf1\\ansi body}");
+        assert_eq!(attachments[1].record.filename_safe, "encrypted-html-body.bin");
+        assert_eq!(attachments[1].record.extraction_status, "encrypted_body_opaque");
+        assert!(attachments[1].bytes.is_empty());
+        assert_ne!(
+            attachments[0].record.attachment_key,
+            attachments[1].record.attachment_key
+        );
+        assert!(attachments.iter().all(payload_is_valid));
+    }
+
+    #[test]
+    fn emits_synthetic_body_payloads_as_inline_base64_attachments() {
+        let bodies = MessageBodies {
+            text: Some(b"plain body".to_vec()),
+            html: None,
+        };
+        let payloads = vec![
+            body_payload("message", "rtf", b"{\\rtf1\\ansi body}".to_vec(), None),
+            body_payload("message", "encrypted", b"opaque bytes".to_vec(), None),
+        ];
+        let grouped = synthetic_body_attachments_by_message(&payloads);
+        let attachments = grouped.get("message").unwrap();
+        let eml = build_eml(
+            &message(),
+            &[recipient(0, "to")],
+            &bodies,
+            attachments,
+        )
+        .unwrap();
+        let eml = String::from_utf8(eml).unwrap();
+
+        assert!(eml.contains(
+            "Content-Type: application/rtf; name="rtf-body.rtf"\r\n"
+        ));
+        assert!(eml.contains("Content-Disposition: attachment; filename="rtf-body.rtf"\r\n"));
+        assert!(eml.contains("e1x0ZjFcYW5zaSBib2R5\r\n"));
+        assert!(eml.contains(
+            "Content-Type: application/octet-stream; name="encrypted-body.bin"\r\n"
+        ));
+        assert!(eml.contains("b3BhcXVlIGJ5dGVz\r\n"));
     }
 
     #[test]
