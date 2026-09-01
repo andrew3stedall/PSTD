@@ -127,3 +127,13 @@ MIME/base64, external raw-file/manifest, repeatability, overwrite refusal,
 truncated-input fail-closed behaviour, and best-effort readpst/pffinfo outcomes
 are recorded by the expanded attachment workflow. This closes one external-ID2
 layout evidence slice; broader producer/path layouts remain unproven.
+
+## BODY-06 encrypted body preservation — 1 September 2026
+
+Issue #587 preserves validated `PR_ENCRYPTED_BODY` and
+`PR_ENCRYPTED_HTML_BODY` bytes as exact opaque body artefacts with source
+property tags, sizes, SHA-256 values, bounded archive paths, and explicit
+non-authoritative MIME/special-item status. Reference-shaped or over-limit values
+remain unavailable. This closes the lossless encrypted-body source slice while
+cleartext decryption and broad encrypted-item differential coverage remain out of
+scope.
