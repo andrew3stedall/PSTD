@@ -529,6 +529,7 @@ fn main() -> io::Result<()> {
         eprintln!("       ansi_fixture --stage-c-indirect-attachment <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-method-2-attachment <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-method-3-attachment <output-path> [--force]");
+        eprintln!("       ansi_fixture --stage-c-method-4-attachment <output-path> [--force]");
         std::process::exit(2);
     }
 
@@ -545,11 +546,15 @@ fn main() -> io::Result<()> {
     let stage_c_method_3_attachment = args
         .get(1)
         .is_some_and(|arg| arg == "--stage-c-method-3-attachment");
+    let stage_c_method_4_attachment = args
+        .get(1)
+        .is_some_and(|arg| arg == "--stage-c-method-4-attachment");
     let output_index = if stage_b
         || stage_c_attachment
         || stage_c_indirect_attachment
         || stage_c_method_2_attachment
         || stage_c_method_3_attachment
+        || stage_c_method_4_attachment
     {
         2
     } else {
@@ -562,6 +567,7 @@ fn main() -> io::Result<()> {
         eprintln!("       ansi_fixture --stage-c-indirect-attachment <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-method-2-attachment <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-method-3-attachment <output-path> [--force]");
+        eprintln!("       ansi_fixture --stage-c-method-4-attachment <output-path> [--force]");
         std::process::exit(2);
     }
 
@@ -575,7 +581,8 @@ fn main() -> io::Result<()> {
             || stage_c_attachment
             || stage_c_indirect_attachment
             || stage_c_method_2_attachment
-            || stage_c_method_3_attachment {
+            || stage_c_method_3_attachment
+            || stage_c_method_4_attachment {
             eprintln!("unexpected argument: {argument}");
             std::process::exit(2);
         } else if crypt_method_set {
@@ -607,6 +614,8 @@ fn main() -> io::Result<()> {
         make_stage_c_fixture(true, 2)
     } else if stage_c_method_3_attachment {
         make_stage_c_fixture(true, 3)
+    } else if stage_c_method_4_attachment {
+        make_stage_c_fixture(true, 4)
     } else {
         make_fixture(crypt_method)
     };
