@@ -283,8 +283,7 @@ mod tests {
             },
         );
 
-        let (folder, _) =
-            folder_from_nbt_candidate("pst-a", &candidate, None, Some(&properties));
+        let (folder, _) = folder_from_nbt_candidate("pst-a", &candidate, None, Some(&properties));
 
         assert_eq!(folder.folder_name, "Synthetic Mail");
         assert_eq!(folder.folder_path, "/Synthetic Mail");
