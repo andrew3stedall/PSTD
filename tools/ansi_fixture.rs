@@ -342,6 +342,7 @@ fn attachment_payload_bytes() -> Vec<u8> {
 
 fn make_attachment_property_context(indirect: bool) -> Vec<u8> {
     let payload = attachment_payload_bytes();
+    let payload_len = payload.len();
     let (data_type, data_value) = if indirect {
         (
             0x000d,
@@ -357,7 +358,7 @@ fn make_attachment_property_context(indirect: bool) -> Vec<u8> {
         (
             0x0e20,
             0x0003,
-            (payload.len() as i32).to_le_bytes().to_vec(),
+            (payload_len as i32).to_le_bytes().to_vec(),
         ),
         (0x3701, data_type, data_value),
     ])
