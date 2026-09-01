@@ -146,7 +146,7 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | CLI-03 | Debug file, level, quiet mode | Partial | Bounded structured logs with severity filtering and deterministic paths. |
 | CLI-04 | Parallel jobs | Implemented | Bounded batch scheduling preserves sorted item results and normalized progress semantics at `jobs=1` and a higher worker count; scheduling evidence is independent of PST content. |
 | CLI-05 | Overwrite/unique output policy | Partial | Explicit policy in run config and adapter tests. |
-| CLI-06 | Fallback charset (`-C`) | Partial | Validated `iso-8859-1`, `windows-1252`/`cp1252`, and `utf-8` fallbacks reach message, folder, table-row attachment, and embedded-message property contexts; supported per-context `PR_MESSAGE_CODEPAGE`/`PR_INTERNET_CPID` values now select String8 decoding, with raw evidence/provenance and fail-closed conflicts. Broader iconv/item-code-page coverage remains open. |
+| CLI-06 | Fallback charset (`-C`) | Partial | Validated `iso-8859-1`, `windows-1252`/`cp1252`, `utf-8`, Shift-JIS/`cp932`, GBK/`cp936`, EUC-KR/`cp949`, and Big5/`cp950` fallbacks reach message, folder, table-row attachment, and embedded-message property contexts; supported per-context `PR_MESSAGE_CODEPAGE`/`PR_INTERNET_CPID` values now select String8 decoding, with raw evidence/provenance, explicit malformed-conversion counts, and fail-closed conflicts. Broader item-level and producer corpus coverage remains open. |
 | CLI-07 | Prefer UTF-8 (`-8`) | Partial | Explicit body/output encoding policy with raw-byte retention. |
 | CLI-08 | Include deleted items (`-D`) | Gap | Deleted traversal, filter, counts, and scoped records. |
 | CLI-09 | Item-type filter (`-t`) | Partial | Applied to every named mail/typed output projection through routed source identities; broad mixed-folder differential evidence remains. |
@@ -201,7 +201,7 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | MSG-08 | Stored transport header validation | Partial | Folded/invalid/duplicate header corpus and safe normalization. |
 | MSG-09 | RFC 2047 header encoding | Implemented | Generated non-ASCII subjects/display names use deterministic UTF-8 encoded words; injection inputs fail closed and the compatibility EML projection is covered. |
 | MSG-10 | RFC 2231 filename encoding | Implemented | Generated MIME name/filename parameters use deterministic UTF-8 percent encoding with ASCII fallbacks and continuations; normalized filenames are covered in both EML and MSG compatibility projections. |
-| BODY-01 | Plain text | Partial | Charset and body-only producer coverage. |
+| BODY-01 | Plain text | Partial | Charset and body-only producer coverage, including validated String8 code-page selection and four common East Asian code pages; broader item-level and producer coverage remains open. |
 | BODY-02 | HTML binary/string forms | Partial | Valid direct HTML, locator, raw, and malformed cases. |
 | BODY-03 | Compressed/generic RTF | Partial | Generic RTF payload preservation and decompression corpus. |
 | BODY-04 | RTF-to-HTML `fromhtml` | Partial | Broader valid and invalid RTF/HTML fixtures. |

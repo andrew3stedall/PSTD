@@ -38,6 +38,17 @@ _Last reviewed: 31 August 2026._
 - Select a validated per-context charset from supported `PR_MESSAGE_CODEPAGE` and `PR_INTERNET_CPID` values (UTF-8, Windows-1252, and ISO-8859-1), preserve raw code-page properties and resolution provenance, and reject conflicting or unsupported declarations in favour of the configured fallback.
 - Add regression coverage for high-bit bytes, NUL-terminated values, code-page selection, conflicts, malformed values, attachment table rows, and authoritative `-C` overrides; broader producer-specific code-page coverage remains Partial.
 
+### BODY-02 expanded String8 code pages
+
+- Decode validated String8 values for Shift-JIS/CP932 (932), GBK/CP936 (936),
+  EUC-KR/CP949 (949), and Big5/CP950 (950) using the pinned `encoding_rs`
+  implementation.
+- Keep `-C` authoritative, retain the original bytes and selected charset
+  provenance, and publish an explicit conversion-error count when malformed
+  multibyte sequences are replaced rather than silently treated as valid text.
+- Add fixed-byte unit coverage for all four code pages plus malformed-sequence
+  and property-context evidence tests.
+
 ### CLI-06 fallback charset
 
 - Make `--fallback-charset`/`-C` effective across message, folder, attachment table/property-context, and recursively recovered embedded-message decoding.

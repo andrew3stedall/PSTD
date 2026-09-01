@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use crate::error::PstdResult;
 use crate::pst::bth::BthMap;
 use crate::pst::mapi::{
-    byte_swapped_tag, decode_value_with_fallback, has_known_value_type, property_def,
-    resolve_string8_charset, value_summary, MapiValue, PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE,
+    byte_swapped_tag, decode_string8_with_status, decode_value_with_fallback, has_known_value_type,
+    property_def, resolve_string8_charset, value_summary, MapiValue, MapiValueType,
+    PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE,
 };
 
 const PQ10_TRAVERSAL_STATUS_TAG: u32 = 0xffff_fffe;
@@ -37,6 +38,7 @@ pub struct PropertyContextParseReport {
     pub byte_swapped_selected_property_count: usize,
     pub skipped_key_count: usize,
     pub decode_error_count: usize,
+    pub charset_conversion_error_count: usize,
     pub charset_resolution: crate::pst::mapi::CharsetResolution,
     pub status: String,
 }
@@ -91,6 +93,7 @@ impl PropertyContext {
         let mut byte_swapped_selected_property_count = 0usize;
         let mut skipped_key_count = 0usize;
         let mut decode_error_count = 0usize;
+        let mut charset_conversion_error_count = 0usize;
 
         for entry in &bth.entries {
             if entry.key.len() < 4 {
@@ -129,7 +132,18 @@ impl PropertyContext {
                 &entry.value,
                 Some(charset_resolution.charset.as_str()),
             ) {
-                Ok(value) => Some(value),
+                Ok(value) => {
+                    if def.value_type == MapiValueType::String8
+                        && decode_string8_with_status(
+                            &entry.value,
+                            Some(charset_resolution.charset.as_str()),
+                        )
+                        .1
+                    {
+                        charset_conversion_error_count += 1;
+                    }
+                    Some(value)
+                }
                 Err(_) => {
                     decode_error_count += 1;
                     None
@@ -169,7 +183,10 @@ impl PropertyContext {
                 unknown_tag_sample(&unknown_property_tags)
             )
         };
-        let status = format!("{status}; {}", charset_resolution.status);
+        let status = format!(
+            "{status}; {}; charset_conversion_errors={charset_conversion_error_count}",
+            charset_resolution.status
+        );
 
         Ok(PropertyContextParseReport {
             context: Self { values },
@@ -183,6 +200,7 @@ impl PropertyContext {
             byte_swapped_selected_property_count,
             skipped_key_count,
             decode_error_count,
+            charset_conversion_error_count,
             charset_resolution,
             status,
         })
@@ -542,7 +560,7 @@ mod tests {
             entries: vec![
                 BthEntry {
                     key: PR_MESSAGE_CODEPAGE.to_le_bytes().to_vec(),
-                    value: 932i32.to_le_bytes().to_vec(),
+                    value: 9500i32.to_le_bytes().to_vec(),
                 },
                 BthEntry {
                     key: PR_SUBJECT_A.to_le_bytes().to_vec(),
@@ -559,6 +577,73 @@ mod tests {
             Some("€")
         );
         assert!(report.status.contains("charset_override_authoritative"));
+    }
+
+    #[test]
+    fn decodes_common_non_western_code_pages_and_reports_bad_sequences() {
+        let cases = [
+            (932i32, &[0x93, 0xfa, 0x96, 0x7b, 0x8c, 0xea][..], "日本語"),
+            (936i32, &[0xd6, 0xd0, 0xce, 0xc4][..], "中文"),
+            (949i32, &[0xc7, 0xd1, 0xb1, 0xdb][..], "한글"),
+            (950i32, &[0xa4, 0xa4, 0xa4, 0xe5][..], "中文"),
+        ];
+
+        for (code_page, raw, expected) in cases {
+            let bth = BthMap {
+                header: BthHeader {
+                    key_size: 4,
+                    value_size: 4,
+                    entry_count: 2,
+                    root_allocation: 0,
+                },
+                entries: vec![
+                    BthEntry {
+                        key: PR_MESSAGE_CODEPAGE.to_le_bytes().to_vec(),
+                        value: code_page.to_le_bytes().to_vec(),
+                    },
+                    BthEntry {
+                        key: PR_SUBJECT_A.to_le_bytes().to_vec(),
+                        value: raw.to_vec(),
+                    },
+                ],
+            };
+            let report = PropertyContext::from_bth_with_report(&bth).unwrap();
+            assert_eq!(
+                report.context.string_value(PR_SUBJECT_A).as_deref(),
+                Some(expected),
+                "code_page={code_page}"
+            );
+            assert_eq!(report.charset_resolution.source, "message_codepage");
+            assert_eq!(report.charset_conversion_error_count, 0);
+        }
+
+        let malformed = BthMap {
+            header: BthHeader {
+                key_size: 4,
+                value_size: 4,
+                entry_count: 2,
+                root_allocation: 0,
+            },
+            entries: vec![
+                BthEntry {
+                    key: PR_MESSAGE_CODEPAGE.to_le_bytes().to_vec(),
+                    value: 932i32.to_le_bytes().to_vec(),
+                },
+                BthEntry {
+                    key: PR_SUBJECT_A.to_le_bytes().to_vec(),
+                    value: vec![0x82, 0x20],
+                },
+            ],
+        };
+        let report = PropertyContext::from_bth_with_report(&malformed).unwrap();
+        assert_eq!(report.charset_conversion_error_count, 1);
+        assert!(report.status.contains("charset_conversion_errors=1"));
+        assert_eq!(report.context.values[&PR_SUBJECT_A].raw, vec![0x82, 0x20]);
+        assert!(report
+            .context
+            .string_value(PR_SUBJECT_A)
+            .unwrap()
+            .contains('\u{fffd}'));
     }
 
     #[test]
