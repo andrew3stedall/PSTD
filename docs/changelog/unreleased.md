@@ -77,6 +77,17 @@ _Last reviewed: 1 September 2026._
 - The method-4 variant completes the controlled ANSI method-2/3/4 value fan-out;
   this remains evidence for one HNID/SLBLOCK layout, not a universal producer claim.
 
+### ATT-04 attachment-table reference payload recovery
+
+- Threaded the bounded PST reader, BBT, and parser limits into attachment-table
+  subnode decoding so valid HNID/SLBLOCK/data-tree references are recovered instead
+  of being emitted as metadata-only rows.
+- Reused the validated property-context resolver and preserved exact method, size,
+  source, hash, MIME, filename, and failure provenance; compact CATB/CATW rows remain
+  unchanged.
+- Added a reader-backed table-row regression test covering exact payload bytes and
+  size/method metadata while keeping unresolved references fail-closed.
+
 ### RP-M6-01 ANSI Stage-A fixture
 
 - Added a standalone Linux Rust emitter at `tools/ansi_fixture.rs` for a controlled
