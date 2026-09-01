@@ -1,8 +1,12 @@
 use std::collections::HashMap;
 
 use crate::output::metadata::AttachmentRecord;
+use crate::pst::attachment_property_context::resolve_attachment_payload;
+use crate::pst::bbt::BbtIndex;
+use crate::pst::limits::ParserLimits;
+use crate::pst::reader::PstByteReader;
 use crate::pst::attachments::{
-    attachment_payload, attachment_payload_from_properties,
+    attachment_metadata_from_properties, attachment_payload, attachment_payload_from_properties,
     unavailable_attachment_record_from_metadata, unavailable_attachment_record_from_properties,
     AttachmentMetadata, AttachmentPayload,
 };
@@ -59,6 +63,27 @@ pub fn attachment_payloads_from_table_with_fallback_charset(
     Vec<AttachmentRecord>,
     AttachmentTableWiringReport,
 ) {
+    attachment_payloads_from_table_with_resolver(
+        message_key,
+        table,
+        None,
+        None,
+        ParserLimits::default(),
+        fallback_charset,
+    )
+}
+
+fn attachment_payloads_from_table_with_resolver(
+    message_key: &str,
+    table: &TableContext,
+    blocks: Option<&[PayloadBlock]>,
+    resolver: Option<(&PstByteReader, &BbtIndex, ParserLimits)>,
+    fallback_charset: Option<&str>,
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    AttachmentTableWiringReport,
+) {
     let mut payloads = Vec::new();
     let mut unavailable_records = Vec::new();
     let mut missing_payload_count = 0usize;
@@ -66,8 +91,23 @@ pub fn attachment_payloads_from_table_with_fallback_charset(
     for (ordinal, row) in table.rows.iter().enumerate() {
         let properties =
             property_context_from_table_row_with_fallback_charset(row, fallback_charset);
-        if let Some(payload) = attachment_payload_from_properties(message_key, ordinal, &properties)
-        {
+        let payload = attachment_payload_from_properties(message_key, ordinal, &properties).or_else(
+            || {
+                let (Some(blocks), Some((reader, bbt, limits))) = (blocks, resolver) else {
+                    return None;
+                };
+                attachment_payload_from_reference(
+                    message_key,
+                    ordinal,
+                    &properties,
+                    blocks,
+                    reader,
+                    bbt,
+                    limits,
+                )
+            },
+        );
+        if let Some(payload) = payload {
             payloads.push(payload);
         } else {
             missing_payload_count += 1;
@@ -118,6 +158,44 @@ pub fn attachment_payloads_from_subnode_blocks_with_fallback_charset(
     Vec<AttachmentRecord>,
     AttachmentSubnodeWiringReport,
 ) {
+    attachment_payloads_from_subnode_blocks_with_resolver(
+        message_key,
+        blocks,
+        None,
+        fallback_charset,
+    )
+}
+
+pub fn attachment_payloads_from_subnode_blocks_with_reader(
+    message_key: &str,
+    blocks: &[PayloadBlock],
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    limits: ParserLimits,
+    fallback_charset: Option<&str>,
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    AttachmentSubnodeWiringReport,
+) {
+    attachment_payloads_from_subnode_blocks_with_resolver(
+        message_key,
+        blocks,
+        Some((reader, bbt, limits)),
+        fallback_charset,
+    )
+}
+
+fn attachment_payloads_from_subnode_blocks_with_resolver(
+    message_key: &str,
+    blocks: &[PayloadBlock],
+    resolver: Option<(&PstByteReader, &BbtIndex, ParserLimits)>,
+    fallback_charset: Option<&str>,
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    AttachmentSubnodeWiringReport,
+) {
     let mut payloads = Vec::new();
     let mut unavailable_records = Vec::new();
     let mut parsed_table_count = 0usize;
@@ -130,7 +208,14 @@ pub fn attachment_payloads_from_subnode_blocks_with_fallback_charset(
     let mut next_ordinal = 0usize;
 
     for block in blocks {
-        match decode_attachment_block(message_key, block, next_ordinal, fallback_charset) {
+        match decode_attachment_block(
+            message_key,
+            block,
+            blocks,
+            next_ordinal,
+            fallback_charset,
+            resolver,
+        ) {
             Ok((mut block_payloads, mut block_unavailable_records, report)) => {
                 parsed_table_count += 1;
                 table_statuses.push(report.status);
@@ -176,11 +261,34 @@ pub fn attachment_payloads_from_subnode_blocks_with_fallback_charset(
     (payloads, unavailable_records, report)
 }
 
+fn attachment_payload_from_reference(
+    message_key: &str,
+    ordinal: usize,
+    properties: &PropertyContext,
+    blocks: &[PayloadBlock],
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    limits: ParserLimits,
+) -> Option<AttachmentPayload> {
+    let (bytes, status) =
+        resolve_attachment_payload(properties, blocks, reader, bbt, limits).ok()?;
+    let mut payload = attachment_payload(
+        message_key,
+        ordinal,
+        attachment_metadata_from_properties(properties),
+        bytes,
+    );
+    payload.record.extraction_status = status;
+    Some(payload)
+}
+
 fn decode_attachment_block(
     message_key: &str,
     block: &PayloadBlock,
+    blocks: &[PayloadBlock],
     start_ordinal: usize,
     fallback_charset: Option<&str>,
+    resolver: Option<(&PstByteReader, &BbtIndex, ParserLimits)>,
 ) -> Result<
     (
         Vec<AttachmentPayload>,
@@ -201,12 +309,20 @@ fn decode_attachment_block(
 
     match TableContext::parse_with_report(&block.bytes, block.block_ref.offset.0) {
         Ok(table_report) => {
-            let (payloads, unavailable_records, mut report) =
-                attachment_payloads_from_table_with_fallback_charset(
+            let (payloads, unavailable_records, mut report) = match resolver {
+                Some((reader, bbt, limits)) => attachment_payloads_from_table_with_resolver(
+                    message_key,
+                    &table_report.context,
+                    Some(blocks),
+                    Some((reader, bbt, limits)),
+                    fallback_charset,
+                ),
+                None => attachment_payloads_from_table_with_fallback_charset(
                     message_key,
                     &table_report.context,
                     fallback_charset,
-                );
+                ),
+            };
             report.status = table_report.status;
             Ok((payloads, unavailable_records, report))
         }
