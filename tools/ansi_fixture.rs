@@ -175,6 +175,25 @@ fn make_message_payload() -> Vec<u8> {
     ])
 }
 
+fn make_attachment_message_payload() -> Vec<u8> {
+    make_flat_property_context(&[
+        (0x001a_001e, ansi_string("IPM.Note")),
+        (0x0037_001e, ansi_string("ANSI Stage C attachment message")),
+        (0x0c1a_001e, ansi_string("PSTD Fixture Sender")),
+        (0x0c1f_001e, ansi_string("sender@example.test")),
+        (0x0c1e_001e, ansi_string("SMTP")),
+        (0x0e1b_000b, vec![1]),
+        (0x1000_001e, ansi_string("Hello from the deterministic ANSI Stage-C fixture.")),
+        (0x1035_001e, ansi_string("<ansi-stage-c-001@example.test>")),
+        (
+            0x007d_001e,
+            ansi_string(
+                "Date: Tue, 01 Jan 2019 00:00:00 +0000\r\nTo: Recipient <recipient@example.test>\r\n",
+            ),
+        ),
+    ])
+}
+
 fn make_message_contents_table() -> Vec<u8> {
     let mut bth_header = vec![0xb5, 4, 4, 0];
     bth_header.extend_from_slice(&0x60u32.to_le_bytes());
@@ -284,13 +303,53 @@ fn utf16(value: &str) -> Vec<u8> {
         .collect()
 }
 
-fn make_slblock(recipient_table_bid: u64) -> Vec<u8> {
-    let mut bytes = vec![0u8; 32];
+fn make_slblock(entries: &[(u32, u64, u64)]) -> Vec<u8> {
+    let mut bytes = vec![0u8; 8 + entries.len() * 24];
     bytes[0] = 0x02;
-    bytes[2..4].copy_from_slice(&1u16.to_le_bytes());
-    bytes[8..16].copy_from_slice(&0x32u64.to_le_bytes());
-    bytes[16..24].copy_from_slice(&recipient_table_bid.to_le_bytes());
+    bytes[2..4].copy_from_slice(&(entries.len() as u16).to_le_bytes());
+    for (index, (node_id, data_bid, subnode_bid)) in entries.iter().enumerate() {
+        let start = 8 + index * 24;
+        bytes[start..start + 8].copy_from_slice(&u64::from(*node_id).to_le_bytes());
+        bytes[start + 8..start + 16].copy_from_slice(&data_bid.to_le_bytes());
+        bytes[start + 16..start + 24].copy_from_slice(&subnode_bid.to_le_bytes());
+    }
     bytes
+}
+
+fn make_property_context_heap(properties: &[(u16, u16, Vec<u8>)]) -> Vec<u8> {
+    let mut bth_header = vec![0xb5, 2, 6, 0];
+    bth_header.extend_from_slice(&0x40u32.to_le_bytes());
+    let mut leaf = Vec::with_capacity(properties.len() * 8);
+    let mut allocations = vec![bth_header, Vec::new()];
+
+    for (property_id, property_type, value) in properties {
+        let hid = u32::try_from((allocations.len() + 1) * 0x20).expect("ANSI heap HID fits");
+        leaf.extend_from_slice(&property_id.to_le_bytes());
+        leaf.extend_from_slice(&property_type.to_le_bytes());
+        leaf.extend_from_slice(&hid.to_le_bytes());
+        allocations.push(value.clone());
+    }
+    allocations[1] = leaf;
+    make_heap(allocations, 0x20)
+}
+
+fn attachment_payload_bytes() -> Vec<u8> {
+    b"ANSI Stage-C arbitrary attachment payload\n".to_vec()
+}
+
+fn make_attachment_property_context() -> Vec<u8> {
+    let payload = attachment_payload_bytes();
+    make_property_context_heap(&[
+        (0x3704, 0x001e, b"ansi-attachment.bin\0".to_vec()),
+        (0x370e, 0x001e, b"application/octet-stream\0".to_vec()),
+        (0x3705, 0x0003, 1i32.to_le_bytes().to_vec()),
+        (
+            0x0e20,
+            0x0003,
+            (payload.len() as i32).to_le_bytes().to_vec(),
+        ),
+        (0x3701, 0x0102, payload),
+    ])
 }
 
 fn make_stage_b_fixture() -> Vec<u8> {
@@ -298,8 +357,80 @@ fn make_stage_b_fixture() -> Vec<u8> {
         (0x100u32, make_folder_payload()),
         (0x102u32, make_message_payload()),
         (0x104u32, make_message_contents_table()),
-        (0x106u32, make_slblock(0x108)),
+        (0x106u32, make_slblock(&[(0x32, 0x108, 0)])),
         (0x108u32, make_recipient_table()),
+    ];
+    let mut block_entries = Vec::new();
+    let mut nbt_entries = Vec::new();
+    let mut cursor = FILE_SIZE;
+    let mut block_bytes = Vec::new();
+    for (block_id, payload) in block_specs {
+        let offset = cursor;
+        cursor += payload.len();
+        block_entries.push((block_id, offset as u32, payload.len() as u16));
+        block_bytes.push((offset, payload));
+        match block_id {
+            0x100 => nbt_entries.push((0x22u32, block_id, 0u32)),
+            0x102 => nbt_entries.push((0x24u32, block_id, 0x106u32)),
+            0x104 => nbt_entries.push((0x2eu32, block_id, 0u32)),
+            _ => {}
+        }
+    }
+
+    let mut bytes = vec![0u8; cursor];
+    bytes[0..4].copy_from_slice(b"!BDN");
+    bytes[8..10].copy_from_slice(b"SM");
+    put_u16(&mut bytes, 10, 14);
+    put_u16(&mut bytes, 12, 19);
+    bytes[14] = 1;
+    bytes[15] = 1;
+    put_u32(&mut bytes, 168, cursor as u32);
+    put_u32(&mut bytes, 184, 0x61);
+    put_u32(&mut bytes, 188, NBT_OFFSET as u32);
+    put_u32(&mut bytes, 192, 0x22);
+    put_u32(&mut bytes, 196, BBT_OFFSET as u32);
+    bytes[200] = 2;
+    bytes[204..460].fill(0xff);
+    bytes[460] = 0x80;
+    bytes[461] = 0;
+
+    let mut bbt_entry_bytes = vec![0u8; block_entries.len() * 12];
+    for (index, (block_id, offset, size)) in block_entries.iter().enumerate() {
+        let start = index * 12;
+        put_u32(&mut bbt_entry_bytes, start, *block_id);
+        put_u32(&mut bbt_entry_bytes, start + 4, *offset);
+        put_u16(&mut bbt_entry_bytes, start + 8, *size);
+    }
+    let bbt = make_index_page(BBT_OFFSET, 0x80, 0x22, block_entries.len(), &bbt_entry_bytes);
+    let mut nbt_entry_bytes = vec![0u8; nbt_entries.len() * 12];
+    for (index, (node_id, data_block_id, subnode_block_id)) in nbt_entries.iter().enumerate() {
+        let start = index * 12;
+        put_u32(&mut nbt_entry_bytes, start, *node_id);
+        put_u32(&mut nbt_entry_bytes, start + 4, *data_block_id);
+        put_u32(&mut nbt_entry_bytes, start + 8, *subnode_block_id);
+    }
+    let nbt = make_index_page(NBT_OFFSET, 0x81, 0x61, nbt_entries.len(), &nbt_entry_bytes);
+    bytes[BBT_OFFSET..BBT_OFFSET + PAGE_SIZE].copy_from_slice(&bbt);
+    bytes[NBT_OFFSET..NBT_OFFSET + PAGE_SIZE].copy_from_slice(&nbt);
+    for (offset, payload) in block_bytes {
+        bytes[offset..offset + payload.len()].copy_from_slice(&payload);
+    }
+    let header_crc = crc32(&bytes[8..479]);
+    put_u32(&mut bytes, 4, header_crc);
+    bytes
+}
+
+fn make_stage_c_fixture() -> Vec<u8> {
+    let block_specs = vec![
+        (0x100u32, make_folder_payload()),
+        (0x102u32, make_attachment_message_payload()),
+        (0x104u32, make_message_contents_table()),
+        (
+            0x106u32,
+            make_slblock(&[(0x32, 0x108, 0), (0x31, 0x10a, 0)]),
+        ),
+        (0x108u32, make_recipient_table()),
+        (0x10au32, make_attachment_property_context()),
     ];
     let mut block_entries = Vec::new();
     let mut nbt_entries = Vec::new();
@@ -366,14 +497,19 @@ fn main() -> io::Result<()> {
     if args.len() < 2 {
         eprintln!("usage: ansi_fixture <output-path> [crypt-method] [--force]");
         eprintln!("       ansi_fixture --stage-b <output-path> [--force]");
+        eprintln!("       ansi_fixture --stage-c-attachment <output-path> [--force]");
         std::process::exit(2);
     }
 
     let stage_b = args.get(1).is_some_and(|arg| arg == "--stage-b");
-    let output_index = if stage_b { 2 } else { 1 };
+    let stage_c_attachment = args
+        .get(1)
+        .is_some_and(|arg| arg == "--stage-c-attachment");
+    let output_index = if stage_b || stage_c_attachment { 2 } else { 1 };
     if args.len() <= output_index || (stage_b && args.len() > 4) || (!stage_b && args.len() > 4) {
         eprintln!("usage: ansi_fixture <output-path> [crypt-method] [--force]");
         eprintln!("       ansi_fixture --stage-b <output-path> [--force]");
+        eprintln!("       ansi_fixture --stage-c-attachment <output-path> [--force]");
         std::process::exit(2);
     }
 
@@ -383,7 +519,7 @@ fn main() -> io::Result<()> {
     for argument in args.iter().skip(output_index + 1) {
         if argument == "--force" {
             force = true;
-        } else if stage_b {
+        } else if stage_b || stage_c_attachment {
             eprintln!("unexpected argument: {argument}");
             std::process::exit(2);
         } else if crypt_method_set {
@@ -407,6 +543,8 @@ fn main() -> io::Result<()> {
 
     let bytes = if stage_b {
         make_stage_b_fixture()
+    } else if stage_c_attachment {
+        make_stage_c_fixture()
     } else {
         make_fixture(crypt_method)
     };
