@@ -99,7 +99,7 @@ def parse_property_heap(data: bytes) -> dict[int, bytes]:
     return properties
 
 
-def validate(path: Path, indirect: bool) -> dict[str, object]:
+def validate(path: Path, indirect: bool, method: int) -> dict[str, object]:
     data = path.read_bytes()
     assert len(data) > NBT_OFFSET + PAGE_SIZE
     assert data[:4] == b"!BDN"
@@ -180,7 +180,7 @@ def validate(path: Path, indirect: bool) -> dict[str, object]:
     attachment = parse_property_heap(blocks[0x10A])
     assert string8(attachment, 0x3704_001E) == "ansi-attachment.bin"
     assert string8(attachment, 0x370E_001E) == "application/octet-stream"
-    assert u32(attachment[0x3705_0003], 0) == 1
+    assert u32(attachment[0x3705_0003], 0) == method
     assert u32(attachment[0x0E20_0003], 0) == len(ATTACHMENT_PAYLOAD)
     if indirect:
         assert attachment[0x3701_000D] == INDIRECT_ATTACHMENT_DATA_NID.to_bytes(4, "little")
@@ -191,9 +191,13 @@ def validate(path: Path, indirect: bool) -> dict[str, object]:
     return {
         "fixture": path.name,
         "status": (
-            "valid_ansi_stage_c_indirect_one_by_value_attachment"
-            if indirect
-            else "valid_ansi_stage_c_one_by_value_attachment"
+            "valid_ansi_stage_c_method_2_attachment"
+            if method == 2
+            else (
+                "valid_ansi_stage_c_indirect_one_by_value_attachment"
+                if indirect
+                else "valid_ansi_stage_c_one_by_value_attachment"
+            )
         ),
         "file_size": len(data),
         "sha256": hashlib.sha256(data).hexdigest(),
@@ -201,7 +205,7 @@ def validate(path: Path, indirect: bool) -> dict[str, object]:
         "bbt_entries": bbt_page[496],
         "nbt_entries": nbt_page[496],
         "message_node": "0x24",
-        "attachment_method": 1,
+        "attachment_method": method,
         "attachment_filename": "ansi-attachment.bin",
         "attachment_size": len(ATTACHMENT_PAYLOAD),
         "attachment_sha256": hashlib.sha256(ATTACHMENT_PAYLOAD).hexdigest(),
@@ -209,6 +213,12 @@ def validate(path: Path, indirect: bool) -> dict[str, object]:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (2, 3) or (len(sys.argv) == 3 and sys.argv[2] != "--indirect"):
-        raise SystemExit("usage: validate_ansi_attachment.py <fixture> [--indirect]")
-    print(json.dumps(validate(Path(sys.argv[1]), len(sys.argv) == 3), sort_keys=True))
+    flags = set(sys.argv[2:])
+    valid_flags = {"--indirect", "--method-2"}
+    if len(sys.argv) > 4 or not flags.issubset(valid_flags):
+        raise SystemExit(
+            "usage: validate_ansi_attachment.py <fixture> [--indirect] [--method-2]"
+        )
+    indirect = "--indirect" in flags
+    method = 2 if "--method-2" in flags else 1
+    print(json.dumps(validate(Path(sys.argv[1]), indirect, method), sort_keys=True))

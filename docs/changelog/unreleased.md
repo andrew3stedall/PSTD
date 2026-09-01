@@ -41,6 +41,17 @@ _Last reviewed: 1 September 2026._
 - Kept the scope bounded to one ANSI indirect layout; methods 2/3/4, embedded/OLE
   producer layouts, and broad corpus parity remain Partial or open.
 
+### ATT-04 ANSI method-2 by-reference attachment fixture
+
+- Added a deterministic ANSI v14 method-2 attachment variant using the same validated
+  HNID `0x311`/SLBLOCK payload mapping as the by-value resolver, while preserving the
+  method value as 2 in canonical metadata and EML output.
+- Extended the independent validator and workflow matrix to exercise direct, indirect
+  method-1, and method-2 variants with exact payload hashes, inline MIME/base64,
+  external files/manifests, repeatability, overwrite refusal, and truncation gates.
+- Kept unresolved references fail-closed and the ATT-04 scope bounded: methods 3/4,
+  external path/ID2 producer layouts, and broad reference corpus parity remain open.
+
 ### RP-M6-01 ANSI Stage-A fixture
 
 - Added a standalone Linux Rust emitter at `tools/ansi_fixture.rs` for a controlled

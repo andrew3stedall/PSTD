@@ -169,6 +169,12 @@ and indirect fixture variants produce the same exact payload hash through canoni
 inline, and external output paths. This proves another resolver layout without
 promoting methods 2/3/4 or broad producer parity.
 
+
+Issue #581 adds the method-2 reference variant: the same HNID/SLBLOCK mapping is
+validated while `PR_ATTACH_METHOD=2` remains visible in canonical metadata and
+materialized MIME/external outputs. This proves one method-2 mapping layout only;
+methods 3/4, external ID2/path resolution, and broad reference producer parity remain
+open.
 ## Planned implementation — `RP-06`
 
 ### Readpst logic reviewed

@@ -351,7 +351,7 @@ fn attachment_payload_bytes() -> Vec<u8> {
     b"ANSI Stage-C arbitrary attachment payload\n".to_vec()
 }
 
-fn make_attachment_property_context(indirect: bool) -> Vec<u8> {
+fn make_attachment_property_context(indirect: bool, method: i32) -> Vec<u8> {
     let payload = attachment_payload_bytes();
     let payload_len = payload.len();
     let (data_type, data_value) = if indirect {
@@ -365,7 +365,7 @@ fn make_attachment_property_context(indirect: bool) -> Vec<u8> {
     make_property_context_heap(&[
         (0x3704, 0x001e, b"ansi-attachment.bin\0".to_vec()),
         (0x370e, 0x001e, b"application/octet-stream\0".to_vec()),
-        (0x3705, 0x0003, 1i32.to_le_bytes().to_vec()),
+        (0x3705, 0x0003, method.to_le_bytes().to_vec()),
         (
             0x0e20,
             0x0003,
@@ -443,7 +443,7 @@ fn make_stage_b_fixture() -> Vec<u8> {
     bytes
 }
 
-fn make_stage_c_fixture(indirect: bool) -> Vec<u8> {
+fn make_stage_c_fixture(indirect: bool, method: i32) -> Vec<u8> {
     let mut slblock_entries = vec![(0x32, 0x108, 0), (0x31, 0x10a, 0)];
     if indirect {
         slblock_entries.push((INDIRECT_ATTACHMENT_DATA_NID, 0x10c, 0));
@@ -454,7 +454,7 @@ fn make_stage_c_fixture(indirect: bool) -> Vec<u8> {
         (0x104u32, make_message_contents_table()),
         (0x106u32, make_slblock(&slblock_entries)),
         (0x108u32, make_recipient_table()),
-        (0x10au32, make_attachment_property_context(indirect)),
+        (0x10au32, make_attachment_property_context(indirect, method)),
     ];
     let mut block_specs = block_specs;
     if indirect {
@@ -527,6 +527,7 @@ fn main() -> io::Result<()> {
         eprintln!("       ansi_fixture --stage-b <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-attachment <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-indirect-attachment <output-path> [--force]");
+        eprintln!("       ansi_fixture --stage-c-method-2-attachment <output-path> [--force]");
         std::process::exit(2);
     }
 
@@ -537,7 +538,14 @@ fn main() -> io::Result<()> {
     let stage_c_indirect_attachment = args
         .get(1)
         .is_some_and(|arg| arg == "--stage-c-indirect-attachment");
-    let output_index = if stage_b || stage_c_attachment || stage_c_indirect_attachment {
+    let stage_c_method_2_attachment = args
+        .get(1)
+        .is_some_and(|arg| arg == "--stage-c-method-2-attachment");
+    let output_index = if stage_b
+        || stage_c_attachment
+        || stage_c_indirect_attachment
+        || stage_c_method_2_attachment
+    {
         2
     } else {
         1
@@ -547,6 +555,7 @@ fn main() -> io::Result<()> {
         eprintln!("       ansi_fixture --stage-b <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-attachment <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-indirect-attachment <output-path> [--force]");
+        eprintln!("       ansi_fixture --stage-c-method-2-attachment <output-path> [--force]");
         std::process::exit(2);
     }
 
@@ -556,7 +565,10 @@ fn main() -> io::Result<()> {
     for argument in args.iter().skip(output_index + 1) {
         if argument == "--force" {
             force = true;
-        } else if stage_b || stage_c_attachment || stage_c_indirect_attachment {
+        } else if stage_b
+            || stage_c_attachment
+            || stage_c_indirect_attachment
+            || stage_c_method_2_attachment {
             eprintln!("unexpected argument: {argument}");
             std::process::exit(2);
         } else if crypt_method_set {
@@ -581,9 +593,11 @@ fn main() -> io::Result<()> {
     let bytes = if stage_b {
         make_stage_b_fixture()
     } else if stage_c_attachment {
-        make_stage_c_fixture(false)
+        make_stage_c_fixture(false, 1)
     } else if stage_c_indirect_attachment {
-        make_stage_c_fixture(true)
+        make_stage_c_fixture(true, 1)
+    } else if stage_c_method_2_attachment {
+        make_stage_c_fixture(true, 2)
     } else {
         make_fixture(crypt_method)
     };
