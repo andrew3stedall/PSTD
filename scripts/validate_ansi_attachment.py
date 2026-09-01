@@ -191,8 +191,8 @@ def validate(path: Path, indirect: bool, method: int) -> dict[str, object]:
     return {
         "fixture": path.name,
         "status": (
-            "valid_ansi_stage_c_method_2_attachment"
-            if method == 2
+            f"valid_ansi_stage_c_method_{method}_attachment"
+            if method in (2, 3)
             else (
                 "valid_ansi_stage_c_indirect_one_by_value_attachment"
                 if indirect
@@ -214,11 +214,11 @@ def validate(path: Path, indirect: bool, method: int) -> dict[str, object]:
 
 if __name__ == "__main__":
     flags = set(sys.argv[2:])
-    valid_flags = {"--indirect", "--method-2"}
+    valid_flags = {"--indirect", "--method-2", "--method-3"}
     if len(sys.argv) > 4 or not flags.issubset(valid_flags):
         raise SystemExit(
-            "usage: validate_ansi_attachment.py <fixture> [--indirect] [--method-2]"
+            "usage: validate_ansi_attachment.py <fixture> [--indirect] [--method-2] [--method-3]"
         )
     indirect = "--indirect" in flags
-    method = 2 if "--method-2" in flags else 1
+    method = 3 if "--method-3" in flags else (2 if "--method-2" in flags else 1)
     print(json.dumps(validate(Path(sys.argv[1]), indirect, method), sort_keys=True))
