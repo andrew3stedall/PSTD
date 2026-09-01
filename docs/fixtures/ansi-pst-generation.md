@@ -94,8 +94,10 @@ the reference variant.
 The related `--stage-c-method-2-attachment` mode keeps the same HNID `0x311` and
 payload mapping but sets `PR_ATTACH_METHOD` to 2. This verifies that the resolver uses
 the validated reference/data mapping rather than treating the four-byte value as a
-method-1 literal. The workflow preserves exact method metadata and the same inline and
-external payload contracts; it does not claim methods 3/4 or external ID2/path layouts.
+method-1 literal. The `--stage-c-method-3-attachment` mode repeats the same controlled
+mapping with `PR_ATTACH_METHOD` set to 3. The workflow preserves exact method metadata
+and the same inline and external payload contracts; it does not claim method 4 or
+external ID2/path layouts.
 
 ### Stage D: compatibility breadth
 
