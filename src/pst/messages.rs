@@ -50,8 +50,7 @@ pub fn body_payloads_from_properties(
         payloads.push(body_payload(message_key, "rtf", rtf, None));
     }
 
-    if let Some(encrypted_html) = opaque_binary_property_bytes(properties, PR_ENCRYPTED_HTML_BODY)
-    {
+    if let Some(encrypted_html) = opaque_binary_property_bytes(properties, PR_ENCRYPTED_HTML_BODY) {
         payloads.push(encrypted_body_payload(
             message_key,
             "encrypted_html",
