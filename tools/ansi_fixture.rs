@@ -5,6 +5,7 @@ const BBT_OFFSET: usize = 1024;
 const NBT_OFFSET: usize = 1536;
 const FILE_SIZE: usize = NBT_OFFSET + PAGE_SIZE;
 const ANSI_PROPERTY_VALUE_WIDTH: usize = 128;
+const INDIRECT_ATTACHMENT_DATA_NID: u32 = 0x311;
 
 fn put_u16(bytes: &mut [u8], offset: usize, value: u16) {
     bytes[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
@@ -323,11 +324,22 @@ fn make_property_context_heap(properties: &[(u16, u16, Vec<u8>)]) -> Vec<u8> {
     let mut allocations = vec![bth_header, Vec::new()];
 
     for (property_id, property_type, value) in properties {
-        let hid = u32::try_from((allocations.len() + 1) * 0x20).expect("ANSI heap HID fits");
+        let value_hid = if *property_type == 0x000d {
+            u32::from_le_bytes(
+                value
+                    .as_slice()
+                    .try_into()
+                    .expect("ANSI object HNID is four bytes"),
+            )
+        } else {
+            let hid = u32::try_from((allocations.len() + 1) * 0x20)
+                .expect("ANSI heap HID fits");
+            allocations.push(value.clone());
+            hid
+        };
         leaf.extend_from_slice(&property_id.to_le_bytes());
         leaf.extend_from_slice(&property_type.to_le_bytes());
-        leaf.extend_from_slice(&hid.to_le_bytes());
-        allocations.push(value.clone());
+        leaf.extend_from_slice(&value_hid.to_le_bytes());
     }
     allocations[1] = leaf;
     let mut bytes = make_heap(allocations, 0x20);
@@ -339,8 +351,17 @@ fn attachment_payload_bytes() -> Vec<u8> {
     b"ANSI Stage-C arbitrary attachment payload\n".to_vec()
 }
 
-fn make_attachment_property_context() -> Vec<u8> {
+fn make_attachment_property_context(indirect: bool) -> Vec<u8> {
     let payload = attachment_payload_bytes();
+    let payload_len = payload.len();
+    let (data_type, data_value) = if indirect {
+        (
+            0x000d,
+            INDIRECT_ATTACHMENT_DATA_NID.to_le_bytes().to_vec(),
+        )
+    } else {
+        (0x0102, payload)
+    };
     make_property_context_heap(&[
         (0x3704, 0x001e, b"ansi-attachment.bin\0".to_vec()),
         (0x370e, 0x001e, b"application/octet-stream\0".to_vec()),
@@ -348,9 +369,9 @@ fn make_attachment_property_context() -> Vec<u8> {
         (
             0x0e20,
             0x0003,
-            (payload.len() as i32).to_le_bytes().to_vec(),
+            (payload_len as i32).to_le_bytes().to_vec(),
         ),
-        (0x3701, 0x0102, payload),
+        (0x3701, data_type, data_value),
     ])
 }
 
@@ -422,18 +443,23 @@ fn make_stage_b_fixture() -> Vec<u8> {
     bytes
 }
 
-fn make_stage_c_fixture() -> Vec<u8> {
+fn make_stage_c_fixture(indirect: bool) -> Vec<u8> {
+    let mut slblock_entries = vec![(0x32, 0x108, 0), (0x31, 0x10a, 0)];
+    if indirect {
+        slblock_entries.push((INDIRECT_ATTACHMENT_DATA_NID, 0x10c, 0));
+    }
     let block_specs = vec![
         (0x100u32, make_folder_payload()),
         (0x102u32, make_attachment_message_payload()),
         (0x104u32, make_message_contents_table()),
-        (
-            0x106u32,
-            make_slblock(&[(0x32, 0x108, 0), (0x31, 0x10a, 0)]),
-        ),
+        (0x106u32, make_slblock(&slblock_entries)),
         (0x108u32, make_recipient_table()),
-        (0x10au32, make_attachment_property_context()),
+        (0x10au32, make_attachment_property_context(indirect)),
     ];
+    let mut block_specs = block_specs;
+    if indirect {
+        block_specs.push((0x10cu32, attachment_payload_bytes()));
+    }
     let mut block_entries = Vec::new();
     let mut nbt_entries = Vec::new();
     let mut cursor = FILE_SIZE;
@@ -500,6 +526,7 @@ fn main() -> io::Result<()> {
         eprintln!("usage: ansi_fixture <output-path> [crypt-method] [--force]");
         eprintln!("       ansi_fixture --stage-b <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-attachment <output-path> [--force]");
+        eprintln!("       ansi_fixture --stage-c-indirect-attachment <output-path> [--force]");
         std::process::exit(2);
     }
 
@@ -507,11 +534,19 @@ fn main() -> io::Result<()> {
     let stage_c_attachment = args
         .get(1)
         .is_some_and(|arg| arg == "--stage-c-attachment");
-    let output_index = if stage_b || stage_c_attachment { 2 } else { 1 };
+    let stage_c_indirect_attachment = args
+        .get(1)
+        .is_some_and(|arg| arg == "--stage-c-indirect-attachment");
+    let output_index = if stage_b || stage_c_attachment || stage_c_indirect_attachment {
+        2
+    } else {
+        1
+    };
     if args.len() <= output_index || (stage_b && args.len() > 4) || (!stage_b && args.len() > 4) {
         eprintln!("usage: ansi_fixture <output-path> [crypt-method] [--force]");
         eprintln!("       ansi_fixture --stage-b <output-path> [--force]");
         eprintln!("       ansi_fixture --stage-c-attachment <output-path> [--force]");
+        eprintln!("       ansi_fixture --stage-c-indirect-attachment <output-path> [--force]");
         std::process::exit(2);
     }
 
@@ -521,7 +556,7 @@ fn main() -> io::Result<()> {
     for argument in args.iter().skip(output_index + 1) {
         if argument == "--force" {
             force = true;
-        } else if stage_b || stage_c_attachment {
+        } else if stage_b || stage_c_attachment || stage_c_indirect_attachment {
             eprintln!("unexpected argument: {argument}");
             std::process::exit(2);
         } else if crypt_method_set {
@@ -546,7 +581,9 @@ fn main() -> io::Result<()> {
     let bytes = if stage_b {
         make_stage_b_fixture()
     } else if stage_c_attachment {
-        make_stage_c_fixture()
+        make_stage_c_fixture(false)
+    } else if stage_c_indirect_attachment {
+        make_stage_c_fixture(true)
     } else {
         make_fixture(crypt_method)
     };

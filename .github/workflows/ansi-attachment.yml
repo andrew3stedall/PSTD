@@ -11,6 +11,10 @@ permissions:
 jobs:
   ansi-attachment:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [direct, indirect]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -21,13 +25,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          root="${RUNNER_TEMP}/pstd-ansi-attachment"
+          root="${RUNNER_TEMP}/pstd-ansi-attachment/${{ matrix.variant }}"
           mkdir -p "$root/fixtures" "$root/evidence"
           rustc --edition=2021 --deny warnings tools/ansi_fixture.rs -o "$root/ansi-fixture"
-          "$root/ansi-fixture" --stage-c-attachment "$root/fixtures/ansi-attachment.pst"
-          "$root/ansi-fixture" --stage-c-attachment "$root/fixtures/ansi-attachment-repeat.pst"
+          if [[ "${{ matrix.variant }}" == indirect ]]; then
+            fixture_mode=--stage-c-indirect-attachment
+          else
+            fixture_mode=--stage-c-attachment
+          fi
+          "$root/ansi-fixture" "$fixture_mode" "$root/fixtures/ansi-attachment.pst"
+          "$root/ansi-fixture" "$fixture_mode" "$root/fixtures/ansi-attachment-repeat.pst"
           cmp "$root/fixtures/ansi-attachment.pst" "$root/fixtures/ansi-attachment-repeat.pst"
-          if "$root/ansi-fixture" --stage-c-attachment "$root/fixtures/ansi-attachment.pst" \
+          if "$root/ansi-fixture" "$fixture_mode" "$root/fixtures/ansi-attachment.pst" \
             > "$root/evidence/overwrite.stdout" 2> "$root/evidence/overwrite.stderr"; then
             echo 'fixture emitter unexpectedly overwrote an existing output' >&2
             exit 1
@@ -41,15 +50,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/validate_ansi_attachment.py \
-            "${RUNNER_TEMP}/pstd-ansi-attachment/fixtures/ansi-attachment.pst" \
-            | tee "${RUNNER_TEMP}/pstd-ansi-attachment/evidence/independent-validation.json"
+          root="${RUNNER_TEMP}/pstd-ansi-attachment/${{ matrix.variant }}"
+          fixture="$root/fixtures/ansi-attachment.pst"
+          validator_args=("$fixture")
+          if [[ "${{ matrix.variant }}" == indirect ]]; then
+            validator_args+=(--indirect)
+          fi
+          python3 scripts/validate_ansi_attachment.py "${validator_args[@]}" \
+            | tee "$root/evidence/independent-validation.json"
 
       - name: Extract and validate canonical attachment evidence
         shell: bash
         run: |
           set -euo pipefail
-          root="${RUNNER_TEMP}/pstd-ansi-attachment"
+          root="${RUNNER_TEMP}/pstd-ansi-attachment/${{ matrix.variant }}"
           fixture="$root/fixtures/ansi-attachment.pst"
           evidence="$root/evidence"
           first="$root/first"
@@ -67,13 +81,14 @@ jobs:
           mkdir -p "$evidence/archive-first" "$evidence/archive-second"
           tar -xf "$first_tar" -C "$evidence/archive-first"
           tar -xf "$second_tar" -C "$evidence/archive-second"
-          python3 - "$evidence" <<'PY'
+          python3 - "$evidence" "${{ matrix.variant }}" <<'PY'
           import hashlib
           import json
           import sys
           from pathlib import Path
 
           root = Path(sys.argv[1])
+          variant = sys.argv[2]
           first = root / 'archive-first'
           second = root / 'archive-second'
 
@@ -115,13 +130,16 @@ jobs:
           assert attachment['size_bytes'] == len(payload), attachment
           assert attachment['sha256'] == hashlib.sha256(payload).hexdigest(), attachment
           assert attachment['extraction_status'].startswith('attachment_payload_extracted'), attachment
+          if variant == 'indirect':
+              assert 'data_nid=0x00000311' in attachment['extraction_status'], attachment
           payload_path = first / attachment['archive_path']
           assert payload_path.read_bytes() == payload, payload_path
           assert len(bodies) == 1 and bodies[0]['body_type'] == 'text', bodies
           assert (first / bodies[0]['archive_path']).read_bytes() == b'Hello from the deterministic ANSI Stage-C fixture.', bodies[0]
 
           (root / 'canonical-report.json').write_text(json.dumps({
-              'fixture': 'ansi-attachment.pst',
+              'fixture': f'ansi-attachment-{variant}.pst',
+              'variant': variant,
               'message_count': 1,
               'attachment_count': 1,
               'attachment_size_bytes': len(payload),
@@ -134,7 +152,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          root="${RUNNER_TEMP}/pstd-ansi-attachment"
+          root="${RUNNER_TEMP}/pstd-ansi-attachment/${{ matrix.variant }}"
           malformed="$root/fixtures/ansi-attachment-truncated.pst"
           set +e
           cargo run --quiet -- inspect --input "$malformed" --json > "$root/malformed-inspect.json" 2> "$root/malformed-inspect.stderr"
@@ -155,7 +173,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          root="${RUNNER_TEMP}/pstd-ansi-attachment"
+          root="${RUNNER_TEMP}/pstd-ansi-attachment/${{ matrix.variant }}"
           fixture="$root/fixtures/ansi-attachment.pst"
           inline="$root/inline"
           external="$root/external"
@@ -215,7 +233,7 @@ jobs:
         shell: bash
         run: |
           set -u
-          root="${RUNNER_TEMP}/pstd-ansi-attachment"
+          root="${RUNNER_TEMP}/pstd-ansi-attachment/${{ matrix.variant }}"
           fixture="$root/fixtures/ansi-attachment.pst"
           evidence="$root/evidence/readers"
           mkdir -p "$evidence"
@@ -251,6 +269,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: readpst-ansi-attachment-evidence
-          path: ${{ runner.temp }}/pstd-ansi-attachment
+          name: readpst-ansi-attachment-evidence-${{ matrix.variant }}
+          path: ${{ runner.temp }}/pstd-ansi-attachment/${{ matrix.variant }}
           if-no-files-found: error

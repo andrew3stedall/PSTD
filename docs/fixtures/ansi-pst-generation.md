@@ -84,6 +84,13 @@ external reader is probed for independent evidence, but its acceptance or reject
 does not override PSTD's own byte-level and extraction validation. This fixture proves
 one ANSI by-value property-context layout only; it is not representative ANSI coverage.
 
+The related `--stage-c-indirect-attachment` mode keeps the same message and payload
+but stores `PR_ATTACH_DATA_OBJ` as the attachment data HNID `0x311`. The root SLBLOCK
+maps that NID to a separate payload data BID, allowing the resolver to be tested
+without treating a four-byte HNID as literal attachment bytes. The validator and CI
+matrix require the exact mapping and payload hash, and the normal direct mode remains
+the reference variant.
+
 ### Stage D: compatibility breadth
 
 After Stages B and C pass, add separate controlled variants for:
