@@ -176,6 +176,13 @@ materialized MIME/external outputs. Issues #582 and #583 add method-3 and method
 variants with the same exact payload/hash, MIME, and external-file contracts. These
 prove three controlled reference mapping layouts only; external ID2/path resolution
 and broad reference producer parity remain open.
+Issue #584 closes a material wiring gap for attachment Table Context rows:
+production subnode decoding now passes the bounded reader/BBT/parser-limit context into
+the same validated HNID/SLBLOCK/data-tree resolver used by property-context rows. A
+unique reference is materialized with exact bytes and provenance; unresolved, ambiguous,
+or truncated references remain explicit unavailable records. Compact CATB/CATW rows
+retain their existing direct-byte contract.
+
 ## Planned implementation — `RP-06`
 
 ### Readpst logic reviewed
