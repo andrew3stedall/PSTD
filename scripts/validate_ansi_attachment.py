@@ -44,7 +44,7 @@ def page_signature(file_offset: int, bid: int) -> int:
 def parse_heap(data: bytes) -> tuple[int, dict[int, bytes]]:
     assert len(data) >= 8
     page_map_offset = u16(data, 0)
-    assert data[2:4] == b"\xec\x7c"
+    assert data[2] == 0xEC
     user_root = u32(data, 4)
     count = u16(data, page_map_offset)
     offsets = [u16(data, page_map_offset + 4 + index * 2) for index in range(count + 1)]
@@ -78,6 +78,7 @@ def string8(properties: dict[int, bytes], tag: int) -> str:
 
 
 def parse_property_heap(data: bytes) -> dict[int, bytes]:
+    assert data[2:4] == b"\xec\xbc"
     user_root, allocations = parse_heap(data)
     bth_header = hid(allocations, user_root)
     assert bth_header[:4] == b"\xb5\x02\x06\x00"
