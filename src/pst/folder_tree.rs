@@ -1,7 +1,7 @@
 use crate::output::ids;
 use crate::output::metadata::FolderRecord;
 use crate::pst::header::PstHeader;
-use crate::pst::mapi::{PR_CONTENT_COUNT, PR_DISPLAY_NAME};
+use crate::pst::mapi::{PR_CONTENT_COUNT, PR_DISPLAY_NAME, PR_DISPLAY_NAME_A};
 use crate::pst::nbt::NbtEntry;
 use crate::pst::primitives::NodeId;
 use crate::pst::property_context::PropertyContext;
@@ -117,7 +117,11 @@ pub fn folder_from_nbt_candidate(
     });
     let folder_key = ids::folder_key(pst_id, &candidate.node_identity);
     let folder_name = properties
-        .and_then(|values| values.string_value(PR_DISPLAY_NAME))
+        .and_then(|values| {
+            values
+                .string_value(PR_DISPLAY_NAME)
+                .or_else(|| values.string_value(PR_DISPLAY_NAME_A))
+        })
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| candidate.node_identity.clone());
     let item_count = properties
@@ -163,6 +167,7 @@ pub fn folder_from_properties(
     let folder_key = ids::folder_key(pst_id, folder_identity);
     let folder_name = properties
         .string_value(PR_DISPLAY_NAME)
+        .or_else(|| properties.string_value(PR_DISPLAY_NAME_A))
         .filter(|value| !value.is_empty())
         .unwrap_or_else(|| folder_identity.to_string());
     let item_count = properties
@@ -215,7 +220,7 @@ mod tests {
     use super::{
         classify_folder_candidate, folder_from_nbt_candidate, folder_node_type, FolderNodeType,
     };
-    use crate::pst::mapi::{MapiValue, PR_CONTENT_COUNT, PR_DISPLAY_NAME};
+    use crate::pst::mapi::{MapiValue, PR_CONTENT_COUNT, PR_DISPLAY_NAME, PR_DISPLAY_NAME_A};
     use crate::pst::nbt::NbtEntry;
     use crate::pst::primitives::{BlockId, NodeId};
     use crate::pst::property_context::{PropertyContext, PropertyValue};
@@ -260,6 +265,29 @@ mod tests {
         assert!(folder.status.contains("folder_candidate_from_nbt"));
         assert!(folder.status.contains("property_context_loaded"));
         assert_eq!(inventory.item_count_email, Some(7));
+    }
+
+    #[test]
+    fn emits_folder_rows_from_ansi_display_name_properties() {
+        let candidate = entry(0x22);
+        let mut properties = property_context("", 1);
+        properties.values.remove(&PR_DISPLAY_NAME);
+        properties.values.insert(
+            PR_DISPLAY_NAME_A,
+            PropertyValue {
+                tag: PR_DISPLAY_NAME_A,
+                name: "display_name".to_string(),
+                raw: b"Synthetic Mail\0".to_vec(),
+                decoded: Some(MapiValue::String("Synthetic Mail".to_string())),
+                status: "selected".to_string(),
+            },
+        );
+
+        let (folder, _) =
+            folder_from_nbt_candidate("pst-a", &candidate, None, Some(&properties));
+
+        assert_eq!(folder.folder_name, "Synthetic Mail");
+        assert_eq!(folder.folder_path, "/Synthetic Mail");
     }
 
     #[test]
