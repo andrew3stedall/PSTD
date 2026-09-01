@@ -1639,7 +1639,7 @@ mod tests {
             "Content-Type: application/rtf; name=\"rtf-body.rtf\"\r\n"
         ));
         assert!(eml.contains("Content-Disposition: attachment; filename=\"rtf-body.rtf\"\r\n"));
-        assert!(eml.contains("e1x0ZjFcYW5zaSBib2R5\r\n"));
+        assert!(eml.contains("e1x0ZjFcYW5zaSBib2R5fQ==\r\n"));
         assert!(eml.contains(
             "Content-Type: application/octet-stream; name=\"encrypted-body.bin\"\r\n"
         ));
@@ -1728,6 +1728,28 @@ mod tests {
         let manifest = fs::read_to_string(directory.path().join("attachments.jsonl")).unwrap();
         assert!(manifest.contains(&attachment.record.attachment_key));
         assert!(manifest.contains("\"materialized_path\":\"attachments/message/"));
+        assert!(manifest.contains("\"materialization_status\":\"attachment_file_emitted\""));
+    }
+
+    #[test]
+    fn external_mode_materializes_synthetic_body_payloads() {
+        let directory = tempfile::tempdir().unwrap();
+        let body = body_payload("message", "encrypted", b"opaque bytes".to_vec(), None);
+        let synthetic = synthetic_body_attachment(&body, 0);
+        let records = vec![synthetic.record.clone()];
+        let (pending, manifest) = plan_external_attachments(
+            Some("message.eml"),
+            &records,
+            std::slice::from_ref(&synthetic),
+            &mut BTreeSet::new(),
+        )
+        .unwrap();
+        write_external_attachments(directory.path(), &pending, &manifest).unwrap();
+
+        let path = directory.path().join(&synthetic.record.archive_path);
+        assert_eq!(fs::read(path).unwrap(), b"opaque bytes");
+        let manifest = fs::read_to_string(directory.path().join("attachments.jsonl")).unwrap();
+        assert!(manifest.contains("\"source_ref\":\"body:encrypted\""));
         assert!(manifest.contains("\"materialization_status\":\"attachment_file_emitted\""));
     }
 
