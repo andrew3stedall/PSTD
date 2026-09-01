@@ -442,3 +442,13 @@ All seven top-level messages belong to `/Début du fichier de données Outlook` 
 - Added the RP-M7-02 E4 report and release workflow: the pinned oracle run is green for the approved Unicode fixture, while missing admissible corpus coverage remains explicitly not-proven rather than inferred.
 - RP-M7-03 final decision: PSTD is not parity-complete at the reviewed baseline; 2 rows are Implemented, 54 Partial, and 19 Gap, with every remaining row and admissibility blocker named in the release decision.
 - RP-M7-03 final decision: PSTD is not parity-complete at the reviewed baseline; 2 rows are Implemented, 54 Partial, and 19 Gap, with every remaining row and admissibility blocker named in the release decision.
+
+### ATT-04 external ID2 attachment fixture
+
+- Added a deterministic ANSI Stage-C external-ID2-style method-2 attachment
+  variant using reference `0x31f` and an exact SLBLOCK/data-BID payload mapping.
+- Extended independent validation and the attachment workflow across canonical,
+  inline MIME/base64, external manifest/raw-file, repeatability, overwrite refusal,
+  truncation, and best-effort readpst/pffinfo evidence.
+- External-ID2 handling is now evidenced for one controlled layout; broader
+  external path and producer coverage remains Partial.

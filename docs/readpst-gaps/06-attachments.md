@@ -257,3 +257,18 @@ ordinals, and method/source correlation.
 path, CID, payload hash, and embedded-child key from `AttachmentRecord`. Attachment
 rows remain ordered by source rendering position; unresolved or size-mismatched rows
 are represented as non-authoritative MIME parts rather than guessed zero-byte content.
+
+## ATT-04 external ID2 attachment fixture — 1 September 2026
+
+Issue #585 adds a deterministic ANSI Stage-C variant whose method-2
+`PR_ATTACH_DATA_OBJ` value is the external-ID2-style reference `0x31f`
+(the low nibble is `0xf`) rather than the internal HNID `0x311`. The
+reference maps through the owning SLBLOCK to the same arbitrary binary payload
+and is independently checked before PSTD extraction.
+
+The workflow exercises canonical bytes and SHA-256, inline MIME/base64,
+external raw-file/manifest materialization, repeat-run equality, overwrite
+refusal, truncated-input fail-closed behaviour, and best-effort readpst/pffinfo
+comparison. This promotes external-ID2 handling from an unmeasured boundary to
+one validated layout; broader producer/path layouts and malformed semantic
+derivatives remain Partial.
