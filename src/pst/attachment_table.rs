@@ -73,6 +73,28 @@ pub fn attachment_payloads_from_table_with_fallback_charset(
     )
 }
 
+pub fn attachment_payloads_from_table_with_reader(
+    message_key: &str,
+    table: &TableContext,
+    blocks: &[PayloadBlock],
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    limits: ParserLimits,
+    fallback_charset: Option<&str>,
+) -> (
+    Vec<AttachmentPayload>,
+    Vec<AttachmentRecord>,
+    AttachmentTableWiringReport,
+) {
+    attachment_payloads_from_table_with_resolver(
+        message_key,
+        table,
+        Some(blocks),
+        Some((reader, bbt, limits)),
+        fallback_charset,
+    )
+}
+
 fn attachment_payloads_from_table_with_resolver(
     message_key: &str,
     table: &TableContext,
@@ -639,7 +661,7 @@ pub fn property_context_from_table_row_with_fallback_charset(
 mod tests {
     use super::{
         attachment_payloads_from_subnode_blocks, attachment_payloads_from_table,
-        property_context_from_table_row_with_fallback_charset,
+        attachment_payloads_from_table_with_reader, property_context_from_table_row_with_fallback_charset,
     };
     use crate::pst::mapi::{
         PR_ATTACH_DATA_BIN, PR_ATTACH_LONG_FILENAME, PR_ATTACH_METHOD, PR_ATTACH_MIME_TAG,
@@ -695,6 +717,91 @@ mod tests {
         assert_eq!(report.payload_count, 1);
         assert_eq!(report.missing_payload_count, 0);
         assert_eq!(report.status, "attachment_table_payloads_wired");
+    }
+
+    #[test]
+    fn resolves_table_row_hnid_reference_through_slblock() {
+        let payload = b"table row reference payload";
+        let payload_offset = 4096u64;
+        let path = tempfile::tempdir().unwrap().path().join("table-row-reference.pst");
+        let mut file_bytes = vec![0u8; payload_offset as usize + payload.len()];
+        file_bytes[payload_offset as usize..].copy_from_slice(payload);
+        std::fs::write(&path, file_bytes).unwrap();
+        let reader = crate::pst::reader::PstByteReader::open(&path).unwrap();
+        let bbt = crate::pst::bbt::BbtIndex {
+            root: None,
+            entries: vec![crate::pst::bbt::BbtEntry {
+                block_id: BlockId(0x10c),
+                offset: ByteOffset(payload_offset),
+                size: payload.len() as u64,
+            }],
+            parsed_pages: 0,
+            discovered_child_pages: 0,
+            traversal_error_count: 0,
+            duplicate_entry_count: 0,
+            truncated_entry_count: 0,
+            status: "test".to_string(),
+        };
+        let slblock = {
+            let mut bytes = vec![0x02, 0x00, 0x01, 0x00, 0, 0, 0, 0];
+            bytes.extend_from_slice(&0x311u64.to_le_bytes());
+            bytes.extend_from_slice(&0x10cu64.to_le_bytes());
+            bytes.extend_from_slice(&0u64.to_le_bytes());
+            bytes
+        };
+        let blocks = vec![
+            PayloadBlock {
+                block_id: BlockId(0x106),
+                block_ref: BlockRef {
+                    block_id: BlockId(0x106),
+                    offset: ByteOffset(1024),
+                    size: slblock.len() as u64,
+                },
+                bytes: slblock,
+                status: "test".to_string(),
+            },
+            PayloadBlock {
+                block_id: BlockId(0x10c),
+                block_ref: BlockRef {
+                    block_id: BlockId(0x10c),
+                    offset: ByteOffset(payload_offset),
+                    size: payload.len() as u64,
+                },
+                bytes: payload.to_vec(),
+                status: "test".to_string(),
+            },
+        ];
+        let table = TableContext {
+            columns: Vec::new(),
+            rows: vec![TableRow {
+                row_id: 0,
+                values: vec![
+                    (PR_ATTACH_DATA_BIN, 0x311u32.to_le_bytes().to_vec()),
+                    (PR_ATTACH_LONG_FILENAME, utf16le("reference.bin")),
+                    (PR_ATTACH_MIME_TAG, utf16le("application/octet-stream")),
+                    (PR_ATTACH_SIZE, (payload.len() as i32).to_le_bytes().to_vec()),
+                    (PR_ATTACH_METHOD, 2i32.to_le_bytes().to_vec()),
+                ],
+            }],
+        };
+        let (payloads, unavailable_records, report) = attachment_payloads_from_table_with_reader(
+            "msg_reference",
+            &table,
+            &blocks,
+            &reader,
+            &bbt,
+            crate::pst::limits::ParserLimits::default(),
+            None,
+        );
+        assert!(unavailable_records.is_empty());
+        assert_eq!(report.payload_count, 1);
+        assert_eq!(payloads[0].bytes, payload);
+        assert_eq!(payloads[0].record.attachment_method, Some(2));
+        assert_eq!(payloads[0].record.size_status, "size_matched");
+        assert!(payloads[0]
+            .record
+            .extraction_status
+            .starts_with("attachment_payload_extracted_data_tree"));
     }
 
     #[test]
