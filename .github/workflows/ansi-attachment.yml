@@ -62,7 +62,7 @@ jobs:
           fixture="$root/fixtures/ansi-attachment.pst"
           validator_args=("$fixture")
           if [[ "${{ matrix.variant }}" == external_id2 ]]; then
-            validator_args+=(--external-id2)
+            validator_args+=(--external-id2 --method-2)
           elif [[ "${{ matrix.variant }}" == indirect || "${{ matrix.variant }}" == method2 || "${{ matrix.variant }}" == method3 || "${{ matrix.variant }}" == method4 ]]; then
             validator_args+=(--indirect)
           fi
