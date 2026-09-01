@@ -63,6 +63,20 @@ _Last reviewed: 1 September 2026._
 - Kept unresolved references fail-closed and the ATT-04 scope bounded: method 4,
   external path/ID2 producer layouts, and broad reference corpus parity remain open.
 
+### ATT-04 ANSI method-4 by-reference attachment fixture
+
+- Added a deterministic ANSI v14 method-4 attachment variant using the same validated
+  HNID `0x311`/SLBLOCK payload mapping, while preserving `PR_ATTACH_METHOD=4` in
+  canonical metadata and generated MIME/external output metadata.
+- Extended the independent validator and workflow matrix to exercise direct, indirect
+  method-1, method-2, method-3, and method-4 variants with exact payload hashes, inline
+  MIME/base64, external files/manifests, repeatability, overwrite refusal, and truncation
+  gates.
+- Kept unresolved references fail-closed and the ATT-04 scope bounded: external
+  path/ID2 producer layouts and broad reference corpus parity remain open.
+- The method-4 variant completes the controlled ANSI method-2/3/4 value fan-out;
+  this remains evidence for one HNID/SLBLOCK layout, not a universal producer claim.
+
 ### RP-M6-01 ANSI Stage-A fixture
 
 - Added a standalone Linux Rust emitter at `tools/ansi_fixture.rs` for a controlled

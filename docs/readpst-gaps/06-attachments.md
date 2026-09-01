@@ -172,10 +172,10 @@ promoting methods 2/3/4 or broad producer parity.
 
 Issue #581 adds the method-2 reference variant: the same HNID/SLBLOCK mapping is
 validated while `PR_ATTACH_METHOD=2` remains visible in canonical metadata and
-materialized MIME/external outputs. Issue #582 adds the method-3 variant with
-`PR_ATTACH_METHOD=3` and the same exact payload/hash, MIME, and external-file
-contracts. These prove two controlled reference mapping layouts only; method 4,
-external ID2/path resolution, and broad reference producer parity remain open.
+materialized MIME/external outputs. Issues #582 and #583 add method-3 and method-4
+variants with the same exact payload/hash, MIME, and external-file contracts. These
+prove three controlled reference mapping layouts only; external ID2/path resolution
+and broad reference producer parity remain open.
 ## Planned implementation — `RP-06`
 
 ### Readpst logic reviewed
