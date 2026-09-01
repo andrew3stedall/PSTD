@@ -162,6 +162,13 @@ evidence closes the missing ANSI by-value fixture slice for this controlled layo
 but `ATT-03` remains Partial: reference/embedded/OLE methods, other ANSI producers,
 and broad malformed/large/edge corpus coverage still require separate evidence.
 
+Issue #580 adds the matching indirect ANSI method-1 evidence: `PR_ATTACH_DATA_OBJ`
+contains HNID `0x311`, the property-context attachment is owned by the message's
+SLBLOCK, and that SLBLOCK maps the HNID to a separate direct payload BID. The direct
+and indirect fixture variants produce the same exact payload hash through canonical,
+inline, and external output paths. This proves another resolver layout without
+promoting methods 2/3/4 or broad producer parity.
+
 ## Planned implementation — `RP-06`
 
 ### Readpst logic reviewed
