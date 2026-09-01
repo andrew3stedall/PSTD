@@ -208,11 +208,15 @@ jobs:
           evidence="${RUNNER_TEMP}/pstd-ansi-stage-b/evidence"
           mkdir -p "$evidence/pffinfo" "$evidence/readpst"
           pffinfo -V > "$evidence/pffinfo/version.txt" 2>&1
+          set +e
           timeout 30 pffinfo "$fixture" > "$evidence/pffinfo/stdout.txt" 2> "$evidence/pffinfo/stderr.txt"
-          echo "$?" > "$evidence/pffinfo/exit-code.txt"
+          pffinfo_exit_code=$?
           timeout 30 readpst -e -r -o "$evidence/readpst" "$fixture" \
             > "$evidence/readpst/stdout.txt" 2> "$evidence/readpst/stderr.txt"
-          echo "$?" > "$evidence/readpst/exit-code.txt"
+          readpst_exit_code=$?
+          set -e
+          echo "$pffinfo_exit_code" > "$evidence/pffinfo/exit-code.txt"
+          echo "$readpst_exit_code" > "$evidence/readpst/exit-code.txt"
           python3 - "$evidence" <<'PY'
           import json
           import sys
