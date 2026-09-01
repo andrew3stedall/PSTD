@@ -452,3 +452,12 @@ All seven top-level messages belong to `/Début du fichier de données Outlook` 
   truncation, and best-effort readpst/pffinfo evidence.
 - External-ID2 handling is now evidenced for one controlled layout; broader
   external path and producer coverage remains Partial.
+
+### BODY-06 encrypted text/HTML preservation
+
+- Added explicit MAPI definitions and body payload projection for
+  `PR_ENCRYPTED_BODY` and `PR_ENCRYPTED_HTML_BODY`.
+- Preserved exact opaque bytes, hashes, bounded archive paths, source-property
+  statuses, and base64-safe MIME projection without claiming decryption.
+- Rejected reference-shaped encrypted values fail-closed and added focused body
+  and special-item regression coverage.

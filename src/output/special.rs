@@ -62,7 +62,12 @@ pub fn build_special_items(
             let encrypted_bodies = message_bodies
                 .iter()
                 .copied()
-                .filter(|body| matches!(body.body_type.as_str(), "text" | "html" | "rtf"))
+                .filter(|body| {
+                    matches!(
+                        body.body_type.as_str(),
+                        "text" | "html" | "rtf" | "encrypted" | "encrypted_html"
+                    )
+                })
                 .collect::<Vec<_>>();
             if encrypted_bodies.is_empty() {
                 records.push(unavailable_record(
@@ -368,6 +373,29 @@ mod tests {
         assert!(!encrypted.authoritative);
         assert!(encrypted.raw_sha256.is_some());
         assert!(encrypted.decoded_sha256.is_none());
+    }
+
+    #[test]
+    fn preserves_encrypted_property_payload_as_opaque_special_item() {
+        let payload = crate::pst::messages::body_payload(
+            "msg",
+            "encrypted_html",
+            b"opaque encrypted bytes".to_vec(),
+            None,
+        );
+        let items = build_special_items(
+            &[message(Some("IPM.Note.Encrypted"))],
+            std::slice::from_ref(&payload.record),
+            std::slice::from_ref(&payload),
+        );
+        let encrypted = items.iter().find(|item| item.kind == "encrypted").unwrap();
+        assert!(!encrypted.authoritative);
+        assert_eq!(encrypted.raw_size_bytes, 22);
+        assert_eq!(encrypted.status, "encrypted_body_opaque");
+        assert_eq!(
+            encrypted.source_body_key.as_deref(),
+            Some(payload.record.body_key.as_str())
+        );
     }
 
     #[test]

@@ -206,7 +206,7 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | BODY-03 | Compressed/generic RTF | Partial | Generic RTF payload preservation and decompression corpus. |
 | BODY-04 | RTF-to-HTML `fromhtml` | Partial | Broader valid and invalid RTF/HTML fixtures. |
 | BODY-05 | Report text | Gap | Report record and multipart/report output. |
-| BODY-06 | Encrypted text/HTML preservation | Gap | Synthetic attachment-like output with exact source bytes. |
+| BODY-06 | Encrypted text/HTML preservation | Partial | Valid `PR_ENCRYPTED_BODY`/`PR_ENCRYPTED_HTML_BODY` bytes are retained as hashed opaque body artefacts, projected as non-authoritative base64 MIME, and rejected when reference-shaped or over-limit; broad encrypted-item and reader differential corpus remains. |
 | BODY-07 | MIME alternative/mixed | Partial | Semantic parser comparison across body/attachment combinations. |
 | BODY-08 | Calendar and `message/rfc822` MIME parts | Gap | Schedule and embedded-child MIME trees. |
 

@@ -3,7 +3,8 @@ use sha2::{Digest, Sha256};
 use crate::output::ids;
 use crate::output::metadata::BodyRecord;
 use crate::pst::mapi::{
-    MapiValue, PR_BODY, PR_BODY_A, PR_HTML, PR_HTML_STRING, PR_HTML_STRING_A, PR_RTF_COMPRESSED,
+    MapiValue, PR_BODY, PR_BODY_A, PR_ENCRYPTED_BODY, PR_ENCRYPTED_HTML_BODY, PR_HTML,
+    PR_HTML_STRING, PR_HTML_STRING_A, PR_RTF_COMPRESSED,
 };
 use crate::pst::property_context::PropertyContext;
 
@@ -47,6 +48,23 @@ pub fn body_payloads_from_properties(
 
     if let Some(rtf) = binary_property_bytes(properties, PR_RTF_COMPRESSED) {
         payloads.push(body_payload(message_key, "rtf", rtf, None));
+    }
+
+    if let Some(encrypted_html) = opaque_binary_property_bytes(properties, PR_ENCRYPTED_HTML_BODY) {
+        payloads.push(encrypted_body_payload(
+            message_key,
+            "encrypted_html",
+            encrypted_html,
+            PR_ENCRYPTED_HTML_BODY,
+        ));
+    }
+    if let Some(encrypted_text) = opaque_binary_property_bytes(properties, PR_ENCRYPTED_BODY) {
+        payloads.push(encrypted_body_payload(
+            message_key,
+            "encrypted",
+            encrypted_text,
+            PR_ENCRYPTED_BODY,
+        ));
     }
 
     payloads
@@ -142,6 +160,17 @@ pub fn html_string_body_payload(message_key: &str, html: &str) -> BodyPayload {
     body_payload(message_key, "html", html.as_bytes().to_vec(), Some("utf-8"))
 }
 
+fn encrypted_body_payload(
+    message_key: &str,
+    body_type: &str,
+    bytes: Vec<u8>,
+    source_tag: u32,
+) -> BodyPayload {
+    let mut payload = body_payload(message_key, body_type, bytes, None);
+    payload.record.status = format!("encrypted_body_opaque; source_property=0x{source_tag:08x}");
+    payload
+}
+
 pub fn body_payload(
     message_key: &str,
     body_type: &str,
@@ -185,6 +214,8 @@ pub fn body_extension(body_type: &str) -> &'static str {
     match body_type {
         "html" => "html",
         "rtf" => "rtf",
+        "encrypted" => "encrypted.bin",
+        "encrypted_html" => "encrypted-html.bin",
         _ => "txt",
     }
 }
@@ -247,6 +278,24 @@ fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u
     }
 }
 
+fn opaque_binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u8>> {
+    let value = properties.value(tag)?;
+    let bytes = match value.decoded.as_ref() {
+        Some(MapiValue::Binary(bytes)) => bytes.clone(),
+        _ => value.raw.clone(),
+    };
+    if bytes.len() > MAX_BINARY_BODY_BYTES {
+        return None;
+    }
+    if bytes.len() == PROPERTY_CONTEXT_HNID_BYTES {
+        let reference = u32::from_le_bytes(bytes.as_slice().try_into().ok()?);
+        if reference == 0 || reference & 0x0f == 0x0f || reference & 0x1f != 0 {
+            return None;
+        }
+    }
+    Some(bytes)
+}
+
 fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
@@ -263,7 +312,8 @@ mod tests {
         unresolved_body_records,
     };
     use crate::pst::mapi::{
-        MapiValue, PR_BODY, PR_BODY_A, PR_HTML, PR_HTML_STRING, PR_HTML_STRING_A, PR_RTF_COMPRESSED,
+        MapiValue, PR_BODY, PR_BODY_A, PR_ENCRYPTED_BODY, PR_ENCRYPTED_HTML_BODY, PR_HTML,
+        PR_HTML_STRING, PR_HTML_STRING_A, PR_RTF_COMPRESSED,
     };
     use crate::pst::property_context::{PropertyContext, PropertyValue};
 
@@ -530,6 +580,77 @@ mod tests {
         assert_eq!(payloads[1].record.archive_path, "bodies/msg_123.html");
         assert_eq!(payloads[2].record.archive_path, "bodies/msg_123.rtf");
         assert_eq!(payloads[2].bytes, b"{\\rtf1 synthetic}");
+    }
+
+    #[test]
+    fn preserves_encrypted_body_bytes_as_opaque_payloads() {
+        let mut values = HashMap::new();
+        let encrypted_html = b"opaque html bytes".to_vec();
+        let encrypted_text = b"opaque text bytes".to_vec();
+        values.insert(
+            PR_ENCRYPTED_HTML_BODY,
+            PropertyValue {
+                tag: PR_ENCRYPTED_HTML_BODY,
+                name: "encrypted_html_body".to_string(),
+                raw: encrypted_html.clone(),
+                decoded: Some(MapiValue::Binary(encrypted_html.clone())),
+                status: "selected".to_string(),
+            },
+        );
+        values.insert(
+            PR_ENCRYPTED_BODY,
+            PropertyValue {
+                tag: PR_ENCRYPTED_BODY,
+                name: "encrypted_body".to_string(),
+                raw: encrypted_text.clone(),
+                decoded: Some(MapiValue::Binary(encrypted_text.clone())),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext::from_values(values);
+
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+
+        assert_eq!(payloads.len(), 2);
+        assert_eq!(payloads[0].record.body_type, "encrypted_html");
+        assert_eq!(
+            payloads[0].record.archive_path,
+            "bodies/msg_123.encrypted-html.bin"
+        );
+        assert_eq!(payloads[0].bytes, encrypted_html);
+        assert_eq!(
+            payloads[0].record.status,
+            "encrypted_body_opaque; source_property=0x6f020102"
+        );
+        assert_eq!(payloads[1].record.body_type, "encrypted");
+        assert_eq!(
+            payloads[1].record.archive_path,
+            "bodies/msg_123.encrypted.bin"
+        );
+        assert_eq!(payloads[1].bytes, encrypted_text);
+        assert_eq!(
+            payloads[1].record.status,
+            "encrypted_body_opaque; source_property=0x6f040102"
+        );
+    }
+
+    #[test]
+    fn rejects_reference_shaped_encrypted_body_values() {
+        let mut values = HashMap::new();
+        let reference = 0x31fu32.to_le_bytes().to_vec();
+        values.insert(
+            PR_ENCRYPTED_BODY,
+            PropertyValue {
+                tag: PR_ENCRYPTED_BODY,
+                name: "encrypted_body".to_string(),
+                raw: reference.clone(),
+                decoded: Some(MapiValue::Binary(reference)),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext::from_values(values);
+
+        assert!(body_payloads_from_properties("msg_123", &properties).is_empty());
     }
 
     #[test]
