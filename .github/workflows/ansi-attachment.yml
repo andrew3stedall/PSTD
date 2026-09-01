@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [direct, indirect]
+        variant: [direct, indirect, method2]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -30,6 +30,8 @@ jobs:
           rustc --edition=2021 --deny warnings tools/ansi_fixture.rs -o "$root/ansi-fixture"
           if [[ "${{ matrix.variant }}" == indirect ]]; then
             fixture_mode=--stage-c-indirect-attachment
+          elif [[ "${{ matrix.variant }}" == method2 ]]; then
+            fixture_mode=--stage-c-method-2-attachment
           else
             fixture_mode=--stage-c-attachment
           fi
@@ -53,8 +55,11 @@ jobs:
           root="${RUNNER_TEMP}/pstd-ansi-attachment/${{ matrix.variant }}"
           fixture="$root/fixtures/ansi-attachment.pst"
           validator_args=("$fixture")
-          if [[ "${{ matrix.variant }}" == indirect ]]; then
+          if [[ "${{ matrix.variant }}" == indirect || "${{ matrix.variant }}" == method2 ]]; then
             validator_args+=(--indirect)
+          fi
+          if [[ "${{ matrix.variant }}" == method2 ]]; then
+            validator_args+=(--method-2)
           fi
           python3 scripts/validate_ansi_attachment.py "${validator_args[@]}" \
             | tee "$root/evidence/independent-validation.json"
@@ -125,12 +130,13 @@ jobs:
           assert attachment['message_key'] == message['message_key'], attachment
           assert attachment['filename_original'] == 'ansi-attachment.bin', attachment
           assert attachment['content_type'] == 'application/octet-stream', attachment
-          assert attachment['attachment_method'] == 1, attachment
           assert attachment['declared_size_bytes'] == len(payload), attachment
           assert attachment['size_bytes'] == len(payload), attachment
           assert attachment['sha256'] == hashlib.sha256(payload).hexdigest(), attachment
           assert attachment['extraction_status'].startswith('attachment_payload_extracted'), attachment
-          if variant == 'indirect':
+          expected_method = 2 if variant == 'method2' else 1
+          assert attachment['attachment_method'] == expected_method, attachment
+          if variant in ('indirect', 'method2'):
               assert 'data_nid=0x00000311' in attachment['extraction_status'], attachment
           payload_path = first / attachment['archive_path']
           assert payload_path.read_bytes() == payload, payload_path
