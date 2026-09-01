@@ -170,7 +170,7 @@ jobs:
           evidence="${RUNNER_TEMP}/pstd-ansi-stage-b/evidence"
           eml="$evidence/eml"
           mkdir -p "$eml"
-          cargo run --quiet --bin pstd-eml -- "$fixture" "$eml" \
+          cargo run --quiet --bin pstd-eml -- --attachment-mode external "$fixture" "$eml" \
             > "$evidence/pstd-eml.stdout" 2> "$evidence/pstd-eml.stderr"
           python3 - "$eml" <<'PY'
           import sys
