@@ -63,13 +63,7 @@ pub fn attachment_payloads_from_table_with_fallback_charset(
     Vec<AttachmentRecord>,
     AttachmentTableWiringReport,
 ) {
-    attachment_payloads_from_table_with_resolver(
-        message_key,
-        table,
-        None,
-        None,
-        fallback_charset,
-    )
+    attachment_payloads_from_table_with_resolver(message_key, table, None, None, fallback_charset)
 }
 
 pub fn attachment_payloads_from_table_with_reader(
