@@ -324,11 +324,22 @@ fn make_property_context_heap(properties: &[(u16, u16, Vec<u8>)]) -> Vec<u8> {
     let mut allocations = vec![bth_header, Vec::new()];
 
     for (property_id, property_type, value) in properties {
-        let hid = u32::try_from((allocations.len() + 1) * 0x20).expect("ANSI heap HID fits");
+        let value_hid = if *property_type == 0x000d {
+            u32::from_le_bytes(
+                value
+                    .as_slice()
+                    .try_into()
+                    .expect("ANSI object HNID is four bytes"),
+            )
+        } else {
+            let hid = u32::try_from((allocations.len() + 1) * 0x20)
+                .expect("ANSI heap HID fits");
+            allocations.push(value.clone());
+            hid
+        };
         leaf.extend_from_slice(&property_id.to_le_bytes());
         leaf.extend_from_slice(&property_type.to_le_bytes());
-        leaf.extend_from_slice(&hid.to_le_bytes());
-        allocations.push(value.clone());
+        leaf.extend_from_slice(&value_hid.to_le_bytes());
     }
     allocations[1] = leaf;
     let mut bytes = make_heap(allocations, 0x20);
