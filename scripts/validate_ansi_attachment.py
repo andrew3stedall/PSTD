@@ -90,8 +90,11 @@ def parse_property_heap(data: bytes) -> dict[int, bytes]:
         start = index * 8
         property_id = u16(leaf, start)
         property_type = u16(leaf, start + 2)
-        properties[(property_id << 16) | property_type] = hid(
-            allocations, u32(leaf, start + 4)
+        value_hid = u32(leaf, start + 4)
+        properties[(property_id << 16) | property_type] = (
+            value_hid.to_bytes(4, "little")
+            if property_type == 0x000D
+            else hid(allocations, value_hid)
         )
     return properties
 
