@@ -2,20 +2,20 @@ use std::collections::HashMap;
 
 use crate::output::metadata::AttachmentRecord;
 use crate::pst::attachment_property_context::resolve_attachment_payload;
-use crate::pst::bbt::BbtIndex;
-use crate::pst::limits::ParserLimits;
-use crate::pst::reader::PstByteReader;
 use crate::pst::attachments::{
     attachment_metadata_from_properties, attachment_payload, attachment_payload_from_properties,
     unavailable_attachment_record_from_metadata, unavailable_attachment_record_from_properties,
     AttachmentMetadata, AttachmentPayload,
 };
+use crate::pst::bbt::BbtIndex;
+use crate::pst::limits::ParserLimits;
 use crate::pst::mapi::{
     decode_string8_with_status, decode_value_with_fallback, property_def, resolve_string8_charset,
     MapiValueType, PR_INTERNET_CPID, PR_MESSAGE_CODEPAGE,
 };
 use crate::pst::payload::PayloadBlock;
 use crate::pst::property_context::{PropertyContext, PropertyValue};
+use crate::pst::reader::PstByteReader;
 use crate::pst::table_context::{TableContext, TableRow};
 
 const COMPACT_ATTACHMENT_TABLE_MAGIC: &[u8; 4] = b"CATB";
@@ -113,8 +113,8 @@ fn attachment_payloads_from_table_with_resolver(
     for (ordinal, row) in table.rows.iter().enumerate() {
         let properties =
             property_context_from_table_row_with_fallback_charset(row, fallback_charset);
-        let payload = attachment_payload_from_properties(message_key, ordinal, &properties).or_else(
-            || {
+        let payload = attachment_payload_from_properties(message_key, ordinal, &properties)
+            .or_else(|| {
                 let (Some(blocks), Some((reader, bbt, limits))) = (blocks, resolver) else {
                     return None;
                 };
@@ -127,8 +127,7 @@ fn attachment_payloads_from_table_with_resolver(
                     bbt,
                     limits,
                 )
-            },
-        );
+            });
         if let Some(payload) = payload {
             payloads.push(payload);
         } else {
@@ -661,7 +660,8 @@ pub fn property_context_from_table_row_with_fallback_charset(
 mod tests {
     use super::{
         attachment_payloads_from_subnode_blocks, attachment_payloads_from_table,
-        attachment_payloads_from_table_with_reader, property_context_from_table_row_with_fallback_charset,
+        attachment_payloads_from_table_with_reader,
+        property_context_from_table_row_with_fallback_charset,
     };
     use crate::pst::mapi::{
         PR_ATTACH_DATA_BIN, PR_ATTACH_LONG_FILENAME, PR_ATTACH_METHOD, PR_ATTACH_MIME_TAG,
@@ -780,7 +780,10 @@ mod tests {
                     (PR_ATTACH_DATA_BIN, 0x311u32.to_le_bytes().to_vec()),
                     (PR_ATTACH_LONG_FILENAME, utf16le("reference.bin")),
                     (PR_ATTACH_MIME_TAG, utf16le("application/octet-stream")),
-                    (PR_ATTACH_SIZE, (payload.len() as i32).to_le_bytes().to_vec()),
+                    (
+                        PR_ATTACH_SIZE,
+                        (payload.len() as i32).to_le_bytes().to_vec(),
+                    ),
                     (PR_ATTACH_METHOD, 2i32.to_le_bytes().to_vec()),
                 ],
             }],
