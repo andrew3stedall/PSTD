@@ -1604,8 +1604,14 @@ mod tests {
             "synthetic_rtf_attachment_available"
         );
         assert_eq!(attachments[0].bytes, b"{\\rtf1\\ansi body}");
-        assert_eq!(attachments[1].record.filename_safe, "encrypted-html-body.bin");
-        assert_eq!(attachments[1].record.extraction_status, "encrypted_body_opaque");
+        assert_eq!(
+            attachments[1].record.filename_safe,
+            "encrypted-html-body.bin"
+        );
+        assert_eq!(
+            attachments[1].record.extraction_status,
+            "encrypted_body_opaque"
+        );
         assert!(attachments[1].bytes.is_empty());
         assert_ne!(
             attachments[0].record.attachment_key,
@@ -1626,23 +1632,15 @@ mod tests {
         ];
         let grouped = synthetic_body_attachments_by_message(&payloads);
         let attachments = grouped.get("message").unwrap();
-        let eml = build_eml(
-            &message(),
-            &[recipient(0, "to")],
-            &bodies,
-            attachments,
-        )
-        .unwrap();
+        let eml = build_eml(&message(), &[recipient(0, "to")], &bodies, attachments).unwrap();
         let eml = String::from_utf8(eml).unwrap();
 
-        assert!(eml.contains(
-            "Content-Type: application/rtf; name=\"rtf-body.rtf\"\r\n"
-        ));
+        assert!(eml.contains("Content-Type: application/rtf; name=\"rtf-body.rtf\"\r\n"));
         assert!(eml.contains("Content-Disposition: attachment; filename=\"rtf-body.rtf\"\r\n"));
         assert!(eml.contains("e1x0ZjFcYW5zaSBib2R5fQ==\r\n"));
-        assert!(eml.contains(
-            "Content-Type: application/octet-stream; name=\"encrypted-body.bin\"\r\n"
-        ));
+        assert!(
+            eml.contains("Content-Type: application/octet-stream; name=\"encrypted-body.bin\"\r\n")
+        );
         assert!(eml.contains("b3BhcXVlIGJ5dGVz\r\n"));
     }
 
