@@ -1,6 +1,6 @@
 # PSTD Project Status
 
-_Last reviewed: 31 August 2026._
+_Last reviewed: 1 September 2026._
 
 ## Purpose
 
@@ -18,7 +18,7 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Embedded message | Partial bounded recovery | One separately linked child remains exact for the approved layout; child attachment subnodes and nested method-5 children are now walked under the depth budget, while additional producer layouts remain unproven. |
 | Folder/message ownership | Exact on the Tika fixture | Eight folders and seven top-level physical message owners resolved from authoritative contents-table rows; the embedded child remains isolated. |
 | Independent body forms | Exact on approved fixtures | Four-byte Property Context body locators remain explicit unavailable forms; valid plain-text siblings are retained independently. |
-| ANSI input baseline | Stage A structural baseline exact | A deterministic 2,048-byte Linux Rust v14 fixture is independently byte-validated, accepted by libpff pffinfo 20180714, and fail-closed in PSTD with zero BBT/NBT entries. ANSI email/folder/item extraction remains unproven. |
+| ANSI input baseline | Stage B one-message extraction exact for one controlled shape | Deterministic Linux Rust v14 fixture with one `Synthetic Mail` folder, one `IPM.Note`, one plain-text body, one structured To row, exact canonical JSONL and EML evidence, and independent byte validation. Broad ANSI producers, attachments, HTML/RTF, and typed items remain unproven. |
 | Microsoft Purview Unicode exports | Active corpus target | No approved Purview export fixture is yet committed. Compatibility must be established capability-by-capability on controlled synthetic Purview exports rather than inferred from the existing fixtures. |
 | External PST implementations | Comparison-only tooling | Pinned external tools may generate or independently inventory controlled fixtures, but PSTD acceptance must come from its own Rust implementation and exact deterministic output. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
@@ -56,7 +56,7 @@ The MAPI String8 conversion boundary now preserves legacy high-bit bytes through
 
 The CLI fallback charset override is now effective across message, folder, attachment table/property-context, and nested embedded-message decoding. Supported names include `iso-8859-1`, `windows-1252`/`cp1252`, `utf-8`, Shift-JIS/`cp932`, GBK/`cp936`, EUC-KR/`cp949`, and Big5/`cp950`; unsupported values fail closed during policy validation.
 
-The ANSI Stage-A structural fixture is now admitted from `tools/ansi_fixture.rs`: exact 2,048-byte length, SHA-256 `b5de1ce4cebacc2ea4cefddb4ab9c4d32e5fed04b81cd681e8831faf1323c765`, independent weak-CRC/page-trailer validation, repeat-run equality, PSTD fail-closed empty traversal, and libpff acceptance. This is Stage A evidence only; no ANSI email compatibility claim is made.
+The ANSI Stage-A structural fixture remains admitted from `tools/ansi_fixture.rs`: exact 2,048-byte length, SHA-256 `b5de1ce4cebacc2ea4cefddb4ab9c4d32e5fed04b81cd681e8831faf1323c765`, independent weak-CRC/page-trailer validation, repeat-run equality, PSTD fail-closed empty traversal, and libpff acceptance. Stage B now adds a separate deterministic one-folder/one-message ANSI fixture, with exact node/property/table validation, one structured recipient, a plain-text body, and EML evidence. These are controlled shape claims only; no broad ANSI compatibility claim is made.
 
 The java-libpst comparison fixture has a deterministic fail-closed baseline: 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised attachment payloads, 0 validated `IPM.Note*` classes, and 0 EML files. It is comparison evidence, not an email capability milestone.
 
@@ -74,7 +74,7 @@ The first fixture should expose the smallest capability not already proven by cu
 
 The complete admission and fixture-family plan is in `docs/operations/purview-unicode-corpus-plan.md`.
 
-ANSI Stage A is complete as a structural baseline. It intentionally adds no email or EML behaviour; the next ANSI work would be a separate Stage B one-folder/one-message fixture and remains below representative Purview Unicode coverage.
+ANSI Stage A is complete as a structural baseline. Stage B proves one controlled message extraction shape and remains below representative Purview Unicode coverage. Additional ANSI work must use separate fixtures for attachments, HTML/RTF bodies, non-mail items, malformed derivatives, and producer-specific layouts.
 
 ## Validation expectations
 

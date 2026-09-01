@@ -1,8 +1,20 @@
 # Unreleased
 
-_Last reviewed: 31 August 2026._
+_Last reviewed: 1 September 2026._
 
 ## Added
+
+### RP-M6-02 ANSI Stage-B message fixture
+
+- Extended `tools/ansi_fixture.rs` with a deterministic ANSI v14 one-folder,
+  one-message fixture containing an authoritative contents-table row, ANSI
+  String8 message properties, a plain-text body, and one structured To row.
+- Added `scripts/validate_ansi_stage_b.py` and a dedicated workflow that validate
+  the independent node/property/table layout, repeat-run byte equality, PSTD
+  canonical records, and exact plain-text EML headers/body.
+- Kept the fixture boundary explicit: it proves one controlled ANSI extraction
+  shape and does not claim broad ANSI producer, attachment, HTML/RTF, or typed-item
+  compatibility.
 
 ### RP-M6-01 ANSI Stage-A fixture
 

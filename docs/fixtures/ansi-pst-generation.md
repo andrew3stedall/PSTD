@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Vertical 40 now has its first deterministic version-14 ANSI structural baseline. The fixture contains only controlled synthetic data, has an explicit redistribution basis, and is reproducible and independently readable on Linux.
+Vertical 40 now has a deterministic version-14 ANSI structural baseline, and Stage B adds a controlled one-folder/one-message email fixture. The fixtures contain only synthetic data, have an explicit redistribution basis, and are reproducible and independently validated on Linux.
 
 The selected approach is a **fixture-only Rust emitter**, not a general PST writer. It exists solely to produce one small, immutable ANSI compatibility fixture whose exact bytes can be independently validated and pinned. It must not become part of PSTD's public extraction API.
 
@@ -47,9 +47,9 @@ Stage A establishes a bounded, fail-closed ANSI container baseline. It does not 
 ANSI email, folder, message, body, recipient, attachment, typed-object, or EML
 compatibility; those require Stage B fixtures.
 
-### Stage B: one-folder, one-message fixture
+### Stage B: one-folder, one-message fixture — complete for one controlled shape
 
-Extend the fixture-only emitter with the minimum structures required for:
+The fixture-only emitter now supports `--stage-b` and emits the minimum structures required for:
 
 - one root message store;
 - one folder named `Synthetic Mail`;
@@ -57,11 +57,11 @@ Extend the fixture-only emitter with the minimum structures required for:
 - deterministic subject, sender, To recipient and plain-text body;
 - no attachment and no embedded message.
 
-The exact synthetic values must use reserved example domains and fixed timestamps. The first EML acceptance result must lock headers, CRLF body bytes, output path, byte length and SHA-256.
+The exact synthetic values use reserved example domains and fixed timestamps. The dedicated workflow locks repeat-run bytes, independent structure, canonical JSONL, CRLF EML headers/body, output path, byte length, and SHA-256. The fixture is intentionally limited to this controlled shape; it is not representative ANSI coverage.
 
 ### Stage C: compatibility breadth
 
-Only after Stage B passes, add separate controlled variants for:
+After Stage B passes, add separate controlled variants for:
 
 - independent HTML and plain bodies;
 - one by-value attachment;

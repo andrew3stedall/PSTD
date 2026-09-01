@@ -1,0 +1,221 @@
+name: ANSI Stage-B message fixture
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ansi-stage-b:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Build deterministic ANSI Stage-B fixture twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/pstd-ansi-stage-b/fixtures" "${RUNNER_TEMP}/pstd-ansi-stage-b/evidence"
+          rustc --edition=2021 --deny warnings tools/ansi_fixture.rs -o "${RUNNER_TEMP}/ansi-fixture"
+          "${RUNNER_TEMP}/ansi-fixture" --stage-b "${RUNNER_TEMP}/pstd-ansi-stage-b/fixtures/ansi-stage-b.pst"
+          "${RUNNER_TEMP}/ansi-fixture" --stage-b "${RUNNER_TEMP}/pstd-ansi-stage-b/fixtures/ansi-stage-b-repeat.pst"
+          cmp "${RUNNER_TEMP}/pstd-ansi-stage-b/fixtures/ansi-stage-b.pst" \
+            "${RUNNER_TEMP}/pstd-ansi-stage-b/fixtures/ansi-stage-b-repeat.pst"
+          if "${RUNNER_TEMP}/ansi-fixture" --stage-b \
+            "${RUNNER_TEMP}/pstd-ansi-stage-b/fixtures/ansi-stage-b.pst" \
+            > "${RUNNER_TEMP}/pstd-ansi-stage-b/evidence/overwrite.stdout" \
+            2> "${RUNNER_TEMP}/pstd-ansi-stage-b/evidence/overwrite.stderr"; then
+            echo 'fixture emitter unexpectedly overwrote an existing output' >&2
+            exit 1
+          fi
+          grep -F 'refusing to overwrite existing fixture' \
+            "${RUNNER_TEMP}/pstd-ansi-stage-b/evidence/overwrite.stderr"
+          sha256sum "${RUNNER_TEMP}/pstd-ansi-stage-b/fixtures"/*.pst \
+            | tee "${RUNNER_TEMP}/pstd-ansi-stage-b/evidence/fixture-sha256.txt"
+
+      - name: Independently validate ANSI Stage-B structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_ansi_stage_b.py \
+            "${RUNNER_TEMP}/pstd-ansi-stage-b/fixtures/ansi-stage-b.pst" \
+            | tee "${RUNNER_TEMP}/pstd-ansi-stage-b/evidence/independent-validation.json"
+
+      - name: Run PSTD ANSI inspection and canonical extraction
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="${RUNNER_TEMP}/pstd-ansi-stage-b/fixtures/ansi-stage-b.pst"
+          evidence="${RUNNER_TEMP}/pstd-ansi-stage-b/evidence"
+          first="${RUNNER_TEMP}/pstd-ansi-stage-b/first"
+          second="${RUNNER_TEMP}/pstd-ansi-stage-b/second"
+          mkdir -p "$first" "$second"
+          cargo fmt --check
+          cargo test --all-targets
+          cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+          cargo run --quiet -- inspect --input "$fixture" --json > "$evidence/pstd-inspect.json"
+          cargo run --quiet -- inspect --input "$fixture" --json > "$evidence/pstd-inspect-repeat.json"
+          cmp "$evidence/pstd-inspect.json" "$evidence/pstd-inspect-repeat.json"
+          cargo run --quiet -- extract --input "$fixture" --output "$first" --overwrite \
+            > "$evidence/pstd-extract.stdout" 2> "$evidence/pstd-extract.stderr"
+          cargo run --quiet -- extract --input "$fixture" --output "$second" --overwrite \
+            > "$evidence/pstd-extract-repeat.stdout" 2> "$evidence/pstd-extract-repeat.stderr"
+          first_tar=$(find "$first/archives" -type f -name '*.tar' | sort | head -n 1)
+          second_tar=$(find "$second/archives" -type f -name '*.tar' | sort | head -n 1)
+          test -n "$first_tar" && test -n "$second_tar"
+          mkdir -p "$evidence/archive-first" "$evidence/archive-second"
+          tar -xf "$first_tar" -C "$evidence/archive-first"
+          tar -xf "$second_tar" -C "$evidence/archive-second"
+          cmp "$evidence/archive-first/data/messages.jsonl" \
+            "$evidence/archive-second/data/messages.jsonl"
+          cmp "$evidence/archive-first/data/recipients.jsonl" \
+            "$evidence/archive-second/data/recipients.jsonl"
+          cmp "$evidence/archive-first/data/bodies.jsonl" \
+            "$evidence/archive-second/data/bodies.jsonl"
+          python3 - "$evidence" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          evidence = Path(sys.argv[1])
+          inspect = json.loads((evidence / 'pstd-inspect.json').read_text(encoding='utf-8'))
+          assert inspect['capability']['family'] == 'ansi_pst', inspect
+          assert inspect['capability']['status'] == 'ready', inspect
+          assert inspect['capability']['allows_extraction'] is True, inspect
+          assert inspect['bbt_entries'] == 5, inspect
+          assert inspect['nbt_entries'] == 3, inspect
+
+          archive = evidence / 'archive-first' / 'data'
+
+          def records(name):
+              return [
+                  json.loads(line)
+                  for line in (archive / name).read_text(encoding='utf-8').splitlines()
+                  if line.strip()
+              ]
+
+          folders = records('folders.jsonl')
+          messages = records('messages.jsonl')
+          recipients = records('recipients.jsonl')
+          bodies = records('bodies.jsonl')
+          attachments = records('attachments.jsonl')
+          assert any(folder.get('folder_name') == 'Synthetic Mail' for folder in folders), folders
+          extracted = [message for message in messages if message.get('item_type') == 'message_metadata']
+          assert len(extracted) == 1, messages
+          message = extracted[0]
+          expected = {
+              'message_class': 'IPM.Note',
+              'subject': 'ANSI Stage B synthetic message',
+              'sender_name': 'PSTD Fixture Sender',
+              'sender_email': 'sender@example.test',
+              'folder_path': '/Synthetic Mail',
+          }
+          for key, value in expected.items():
+              assert message.get(key) == value, (key, message)
+          assert len(recipients) == 1, recipients
+          assert recipients[0]['recipient_type'] == 'to', recipients
+          assert recipients[0]['display_name'] == 'Recipient', recipients
+          assert recipients[0]['smtp_address'] == 'recipient@example.test', recipients
+          assert len(bodies) == 1, bodies
+          assert bodies[0]['body_type'] == 'text', bodies
+          assert bodies[0]['status'] == 'extracted', bodies
+          assert bodies[0]['size_bytes'] == len(
+              b'Hello from the deterministic ANSI Stage-B fixture.'
+          ), bodies
+          body_path = archive / bodies[0]['archive_path']
+          assert body_path.read_bytes() == b'Hello from the deterministic ANSI Stage-B fixture.', body_path
+          assert attachments == [], attachments
+          (evidence / 'canonical-report.json').write_text(
+              json.dumps({
+                  'fixture': 'ansi-stage-b.pst',
+                  'family': inspect['capability']['family'],
+                  'message_count': len(extracted),
+                  'recipient_count': len(recipients),
+                  'body_count': len(bodies),
+                  'attachment_count': len(attachments),
+                  'deterministic_jsonl': True,
+              }, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Validate generated EML
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="${RUNNER_TEMP}/pstd-ansi-stage-b/fixtures/ansi-stage-b.pst"
+          evidence="${RUNNER_TEMP}/pstd-ansi-stage-b/evidence"
+          eml="$evidence/eml"
+          mkdir -p "$eml"
+          cargo run --quiet --bin pstd-eml -- "$fixture" "$eml" \
+            > "$evidence/pstd-eml.stdout" 2> "$evidence/pstd-eml.stderr"
+          python3 - "$eml" <<'PY'
+          import sys
+          from email import policy
+          from email.parser import BytesParser
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          files = sorted(root.glob('*.eml'))
+          assert len(files) == 1, files
+          raw = files[0].read_bytes()
+          assert b'\n' not in raw.replace(b'\r\n', b''), 'bare LF in EML'
+          message = BytesParser(policy=policy.default).parsebytes(raw)
+          expected_headers = {
+              'From': 'PSTD Fixture Sender <sender@example.test>',
+              'To': 'Recipient <recipient@example.test>',
+              'Subject': 'ANSI Stage B synthetic message',
+              'Date': 'Tue, 01 Jan 2019 00:00:00 +0000',
+              'Message-ID': '<ansi-stage-b-001@example.test>',
+          }
+          for name, value in expected_headers.items():
+              assert str(message[name]) == value, (name, message[name])
+          assert message.get_content_type() == 'text/plain', message.get_content_type()
+          assert message.get_content() == 'Hello from the deterministic ANSI Stage-B fixture.\n', message.get_content()
+          (root.parent / 'message.eml').write_bytes(raw)
+          PY
+
+      - name: Check independent readers and retain limitations explicitly
+        shell: bash
+        run: |
+          set -u
+          sudo apt-get update
+          sudo apt-get install -y pff-tools pst-utils
+          fixture="${RUNNER_TEMP}/pstd-ansi-stage-b/fixtures/ansi-stage-b.pst"
+          evidence="${RUNNER_TEMP}/pstd-ansi-stage-b/evidence"
+          mkdir -p "$evidence/pffinfo" "$evidence/readpst"
+          pffinfo -V > "$evidence/pffinfo/version.txt" 2>&1
+          timeout 30 pffinfo "$fixture" > "$evidence/pffinfo/stdout.txt" 2> "$evidence/pffinfo/stderr.txt"
+          echo "$?" > "$evidence/pffinfo/exit-code.txt"
+          timeout 30 readpst -e -r -o "$evidence/readpst" "$fixture" \
+            > "$evidence/readpst/stdout.txt" 2> "$evidence/readpst/stderr.txt"
+          echo "$?" > "$evidence/readpst/exit-code.txt"
+          python3 - "$evidence" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          evidence = Path(sys.argv[1])
+          report = {
+              'pffinfo_exit_code': int((evidence / 'pffinfo/exit-code.txt').read_text()),
+              'readpst_exit_code': int((evidence / 'readpst/exit-code.txt').read_text()),
+              'pffinfo_result': 'accepted' if (evidence / 'pffinfo/exit-code.txt').read_text().strip() == '0' else 'reader_rejected_fixture',
+              'readpst_result': 'accepted' if (evidence / 'readpst/exit-code.txt').read_text().strip() == '0' else 'reader_rejected_fixture',
+              'limitation': 'PSTD and the independent byte-level validator are authoritative for this controlled fixture; a non-zero external-reader result is retained as evidence and does not claim broad reader compatibility.',
+          }
+          (evidence / 'reader-report.json').write_text(json.dumps(report, indent=2) + '\n')
+          PY
+
+      - name: Upload ANSI Stage-B evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: readpst-ansi-stage-b-evidence
+          path: ${{ runner.temp }}/pstd-ansi-stage-b
+          if-no-files-found: error
