@@ -117,3 +117,13 @@ Public PST progress:
 - Unsupported boundary: <explicit fail-closed cases>
 - Next blocker: <evidence-based statement>
 ```
+
+## ATT-04 external ID2 attachment evidence — 1 September 2026
+
+Issue #585 adds a deterministic ANSI v14 method-2 fixture with an external-ID2-style
+`PR_ATTACH_DATA_OBJ` value `0x31f`, an owning SLBLOCK mapping to the exact
+attachment payload, and an independent validator. Canonical extraction, inline
+MIME/base64, external raw-file/manifest, repeatability, overwrite refusal,
+truncated-input fail-closed behaviour, and best-effort readpst/pffinfo outcomes
+are recorded by the expanded attachment workflow. This closes one external-ID2
+layout evidence slice; broader producer/path layouts remain unproven.
