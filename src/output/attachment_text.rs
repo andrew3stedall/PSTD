@@ -338,7 +338,7 @@ fn parse_xlsx<R: Read + std::io::Seek>(
                         .and_then(|value| value.trim().parse::<usize>().ok())
                         .and_then(|index| shared_strings.get(index).cloned())
                         .unwrap_or_default(),
-                    Some("inlineStr") => xml_readable_text(&cell),
+                    Some("inlineStr") => xml_readable_text(cell.as_bytes()),
                     _ => extract_named_blocks(&cell, "v")
                         .first()
                         .map(|value| xml_readable_text(value.as_bytes()))
@@ -362,10 +362,10 @@ fn read_zip_entry<R: Read + std::io::Seek>(
     let mut entry = archive
         .by_name(name)
         .map_err(|_| "office_package_entry_unavailable".to_string())?;
-    if entry.uncompressed_size() > MAX_ENTRY_BYTES {
+    if entry.size() > MAX_ENTRY_BYTES {
         return Err("office_package_entry_exceeds_budget".to_string());
     }
-    let mut bytes = Vec::with_capacity(entry.uncompressed_size() as usize);
+    let mut bytes = Vec::with_capacity(entry.size() as usize);
     entry
         .read_to_end(&mut bytes)
         .map_err(|_| "office_package_entry_read_failed".to_string())?;
@@ -513,7 +513,7 @@ fn sha256_hex(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
+    use std::io::{Cursor, Write};
 
     use super::{
         attribute_value, decode_xml_entities, extract_named_blocks, parse_pdf, xml_readable_text,

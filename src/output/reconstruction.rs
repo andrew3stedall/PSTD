@@ -67,13 +67,17 @@ pub fn build_email_content_records(
                 .filter(|body| body.message_key == message.message_key)
                 .cloned()
                 .collect::<Vec<_>>();
-            for payload in body_payloads.values().copied().filter(|payload| {
-                payload.record.message_key == message.message_key
-                    && !message_bodies
-                        .iter()
-                        .any(|body| body.body_key == payload.record.body_key)
-            }) {
-                message_bodies.push(payload.record.clone());
+            for payload in body_payloads
+                .values()
+                .copied()
+                .filter(|payload| payload.record.message_key == message.message_key)
+            {
+                if !message_bodies
+                    .iter()
+                    .any(|body| body.body_key == payload.record.body_key)
+                {
+                    message_bodies.push(payload.record.clone());
+                }
             }
             message_bodies.sort_by_key(|body| (body_order(&body.body_type), body.body_key.clone()));
 
