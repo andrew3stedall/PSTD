@@ -5,6 +5,7 @@ Timing is informational; byte/hash equivalence is mandatory. Peak RSS includes
 synthetic input construction and JSONL buffering, not only the timed output phase.
 """
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -45,6 +46,14 @@ def main():
                     example = example.replace(iterator, collecting)
             (baseline / "examples").mkdir(exist_ok=True)
             (baseline / source.relative_to(root)).write_text(example)
+            # The repository does not track Cargo.lock. Resolve once, then use
+            # exactly the same dependency versions for both release builds.
+            if not (root / "Cargo.lock").exists():
+                run("cargo", "generate-lockfile", cwd=root)
+            lockfile = (root / "Cargo.lock").read_bytes()
+            (baseline / "Cargo.lock").write_bytes(lockfile)
+            lock_sha256 = hashlib.sha256(lockfile).hexdigest()
+            toolchain = subprocess.check_output(["rustc", "--version"], text=True).strip()
             binaries = {}
             for label, checkout in [("baseline", baseline), ("head", root)]:
                 run("cargo", "build", "--locked", "--release", "--example", "content_output_benchmark", cwd=checkout)
@@ -81,6 +90,7 @@ def main():
         finally:
             run("git", "worktree", "remove", "--force", str(baseline), cwd=root)
     Path(args.output).write_text(json.dumps({"baseline_sha": baseline_sha, "head_sha": head_sha,
+        "cargo_lock_sha256": lock_sha256, "rustc": toolchain,
         "scope": "synthetic output phases; excludes PST parsing; RSS includes setup and buffered JSONL",
         "cases": results}, indent=2) + "\n")
 
