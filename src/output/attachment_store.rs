@@ -68,7 +68,7 @@ pub fn write_disk_attachments(
             None => (None, "attachment_payload_unavailable"),
         };
 
-        let mut value = serde_json::to_value(&record)?;
+        let mut value = serde_json::to_value(record)?;
         let Some(object) = value.as_object_mut() else {
             return Err(PstdError::OutputWrite(
                 "attachment record did not serialize as an object".to_string(),

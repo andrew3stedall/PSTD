@@ -56,6 +56,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo build
       - run: cargo run -- --help
+      - run: cargo run -- version
       - run: cargo run -- batch --help
       - run: cargo run -- inspect --help
       - name: Find fixture
