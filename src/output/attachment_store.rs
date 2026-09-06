@@ -123,19 +123,18 @@ pub fn retrieve_attachment_by_id(
         root.join("attachments.jsonl"),
         root.join("data/attachments.jsonl"),
     ]
-        .into_iter()
-        .find(|path| path.is_file())
-        .ok_or_else(|| {
-            PstdError::SourceOpen(format!(
-                "attachment manifest not found beneath {}",
-                root.display()
-            ))
-        })?;
+    .into_iter()
+    .find(|path| path.is_file())
+    .ok_or_else(|| {
+        PstdError::SourceOpen(format!(
+            "attachment manifest not found beneath {}",
+            root.display()
+        ))
+    })?;
     let manifest = fs::read_to_string(&manifest_path)?;
     let mut found = None;
     for line in manifest.lines().filter(|line| !line.trim().is_empty()) {
-        let record = serde_json::from_str::<AttachmentRecord>(line)
-            .map_err(|error| PstdError::Json(error))?;
+        let record = serde_json::from_str::<AttachmentRecord>(line).map_err(PstdError::Json)?;
         if record.attachment_key == attachment_id {
             if found.is_some() {
                 return Err(PstdError::OutputWrite(format!(
@@ -216,8 +215,6 @@ fn sha256_hex(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-
     use tempfile::tempdir;
 
     use super::{retrieve_attachment_by_id, write_disk_attachments};
