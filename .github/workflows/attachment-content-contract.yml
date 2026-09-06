@@ -1,0 +1,152 @@
+name: Reconstructible email and attachment content
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  content-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+      - run: command -v pdftotext
+      - run: cargo test attachment_text
+      - run: cargo test attachment_store
+      - name: Validate canonical content and attachment modes
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/upstream/tika-testPST.pst"
+          root="${RUNNER_TEMP}/pstd-content-contract"
+          both="$root/both"
+          none="$root/none"
+          archive="$root/archive"
+          extracted="$root/archive-unpacked"
+          mkdir -p "$root" "$extracted"
+
+          cargo run --quiet -- extract \
+            --input "$fixture" \
+            --output "$both" \
+            --overwrite \
+            --attachment-storage both \
+            --attachment-text office-pdf
+          cargo run --quiet -- extract \
+            --input "$fixture" \
+            --output "$archive" \
+            --overwrite \
+            --attachment-storage archive \
+            --attachment-text office-pdf
+          cargo run --quiet -- extract \
+            --input "$fixture" \
+            --output "$none" \
+            --overwrite \
+            --attachment-storage none
+
+          tar_file=$(find "$both/archives" -type f -name '*.tar' | sort | head -n 1)
+          tar -xf "$tar_file" -C "$extracted"
+          python - <<'PY'
+          import base64
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path(__import__('os').environ['RUNNER_TEMP']) / 'pstd-content-contract'
+          both = root / 'both'
+          archive = root / 'archive'
+          none = root / 'none'
+          unpacked = root / 'archive-unpacked'
+
+          def rows(path):
+              return [json.loads(line) for line in path.read_text(encoding='utf-8').splitlines() if line.strip()]
+
+          content = rows(unpacked / 'data/email_content.jsonl')
+          messages = rows(unpacked / 'data/messages.jsonl')
+          attachments = rows(unpacked / 'data/attachments.jsonl')
+          text_rows = rows(unpacked / 'data/attachment_text.jsonl')
+          disk_manifest = rows(both / 'attachments.jsonl')
+          if len(content) != len(messages):
+              raise SystemExit(f'email content row count mismatch: {len(content)} != {len(messages)}')
+          if {row['message_key'] for row in content} != {row['message_key'] for row in messages}:
+              raise SystemExit('email content message ownership mismatch')
+          if {row['attachment_key'] for row in disk_manifest} != {row['attachment_key'] for row in attachments}:
+              raise SystemExit('disk attachment manifest ownership mismatch')
+          if len(text_rows) != len(attachments):
+              raise SystemExit(f'attachment text row count mismatch: {len(text_rows)} != {len(attachments)}')
+
+          content_by_message = {row['message_key']: row for row in content}
+          body_count = 0
+          for row in content:
+              for body in row['bodies']:
+                  encoded = body.get('raw_bytes_base64')
+                  if not encoded:
+                      continue
+                  payload = base64.b64decode(encoded)
+                  if len(payload) != body['size_bytes']:
+                      raise SystemExit(f'body size mismatch: {body["body_key"]}')
+                  if hashlib.sha256(payload).hexdigest() != body['sha256']:
+                      raise SystemExit(f'body hash mismatch: {body["body_key"]}')
+                  body_count += 1
+              for attachment_id in row['attachment_ids']:
+                  if attachment_id not in {item['attachment_key'] for item in row['attachments']}:
+                      raise SystemExit(f'attachment ID is not declared by email: {attachment_id}')
+          if body_count == 0:
+              raise SystemExit('email content rows contain no embedded body payloads')
+
+          docx_rows = [row for row in text_rows if row['filename'].lower().endswith(('.docx', '.docm'))]
+          if not docx_rows or not any('This is a docx attachment.' in (row.get('text') or '') for row in docx_rows):
+              raise SystemExit(f'Office Open XML text projection missing expected DOCX text: {docx_rows!r}')
+
+          for row in disk_manifest:
+              path = both / row['archive_path']
+              if row['materialization_status'] == 'attachment_file_emitted':
+                  payload = path.read_bytes()
+                  if len(payload) != row['size_bytes']:
+                      raise SystemExit(f'disk attachment size mismatch: {row["attachment_key"]}')
+                  if hashlib.sha256(payload).hexdigest() != row['sha256']:
+                      raise SystemExit(f'disk attachment hash mismatch: {row["attachment_key"]}')
+              elif path.exists():
+                  raise SystemExit(f'unavailable attachment unexpectedly materialized: {row["attachment_key"]}')
+
+          archive_tar = next((archive / 'archives').glob('*.tar'))
+          archive_names = __import__('subprocess').check_output(['tar', '-tf', str(archive_tar)], text=True).splitlines()
+          if not any(name.startswith('attachments/') for name in archive_names):
+              raise SystemExit('archive mode did not retain attachment payloads in TAR')
+          none_tar = next((none / 'archives').glob('*.tar'))
+          none_names = __import__('subprocess').check_output(['tar', '-tf', str(none_tar)], text=True).splitlines()
+          if any(name.startswith('attachments/') for name in none_names) or (none / 'attachments').exists():
+              raise SystemExit('none mode materialized attachment bytes')
+          if (none / 'attachments.jsonl').exists():
+              raise SystemExit('none mode emitted a disk attachment manifest')
+
+          # Run metadata contains a timestamped run_id; compare the reconstruction
+          # contract after removing that provenance field to catch output drift.
+          second = root / 'both-second'
+          __import__('subprocess').run([
+              'cargo', 'run', '--quiet', '--', 'extract', '--input', str(Path('tests/fixtures/upstream/tika-testPST.pst')),
+              '--output', str(second), '--overwrite', '--attachment-storage', 'both', '--attachment-text', 'office-pdf'
+          ], check=True)
+          second_tar = next((second / 'archives').glob('*.tar'))
+          second_unpacked = root / 'second-unpacked'
+          second_unpacked.mkdir()
+          __import__('subprocess').run(['tar', '-xf', str(second_tar), '-C', str(second_unpacked)], check=True)
+          def without_run(rows):
+              for row in rows:
+                  row.pop('run_id', None)
+                  row.get('message', {}).pop('run_id', None)
+              return rows
+          if without_run(rows(unpacked / 'data/email_content.jsonl')) != without_run(rows(second_unpacked / 'data/email_content.jsonl')):
+              raise SystemExit('email content contract changed between repeated runs')
+          if rows(unpacked / 'data/attachment_text.jsonl') != rows(second_unpacked / 'data/attachment_text.jsonl'):
+              raise SystemExit('attachment text contract changed between repeated runs')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: attachment-content-contract
+          path: ${{ runner.temp }}/pstd-content-contract
+          if-no-files-found: ignore

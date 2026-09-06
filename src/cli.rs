@@ -40,6 +40,12 @@ pub struct ReadpstArgs {
     /// Comma-separated attachment extensions to retain, case-insensitive.
     #[arg(long)]
     attachment_extensions: Option<String>,
+    /// Attachment byte storage: archive, disk, both, or none.
+    #[arg(long, default_value = "archive")]
+    attachment_storage: String,
+    /// Attachment text projection: none or office-pdf.
+    #[arg(long, default_value = "none")]
+    attachment_text: String,
     /// Do not emit the decompressed RTF body as a synthetic attachment projection.
     #[arg(long, default_value_t = false)]
     no_synthetic_rtf: bool,
@@ -64,6 +70,8 @@ impl ReadpstArgs {
             self.include_associated,
             &self.item_types,
             self.attachment_extensions.as_deref(),
+            &self.attachment_storage,
+            &self.attachment_text,
             !self.no_synthetic_rtf,
             self.jobs,
             &self.diagnostics,
@@ -286,7 +294,9 @@ pub fn run() -> i32 {
 #[cfg(test)]
 mod tests {
     use super::Cli;
-    use crate::config::{CollisionPolicy, DiagnosticsPolicy, OutputProfile};
+    use crate::config::{
+        AttachmentStorage, AttachmentTextMode, CollisionPolicy, DiagnosticsPolicy, OutputProfile,
+    };
     use clap::Parser;
 
     #[test]
@@ -330,6 +340,8 @@ mod tests {
             crate::pst::item_routing::ItemTypeFilter::Contact
         );
         assert_eq!(policy.attachment_extensions, ["doc", "txt"]);
+        assert_eq!(policy.attachment_storage, AttachmentStorage::Archive);
+        assert_eq!(policy.attachment_text, AttachmentTextMode::None);
         assert_eq!(policy.jobs, 4);
         assert_eq!(policy.diagnostics, DiagnosticsPolicy::Debug);
         assert_eq!(policy.collision, CollisionPolicy::Fail);
@@ -401,6 +413,8 @@ mod tests {
         assert!(extract_help.contains("--output-profile"));
         assert!(extract_help.contains("--item-types"));
         assert!(extract_help.contains("--attachment-extensions"));
+        assert!(extract_help.contains("--attachment-storage"));
+        assert!(extract_help.contains("--attachment-text"));
         assert!(extract_help.contains("--jobs"));
 
         let version = Cli::try_parse_from(["pstd", "--version"])

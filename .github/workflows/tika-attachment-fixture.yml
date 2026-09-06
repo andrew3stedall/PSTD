@@ -956,8 +956,8 @@ jobs:
               'recipients_jsonl_bytes': 2708,
               'attachments_jsonl_bytes': 2409,
               'headers_jsonl_bytes': 4596,
-              'tar_bytes': 641536,
-              'stable_archive_bytes': 641536,
+              'tar_bytes': 687104,
+              'stable_archive_bytes': 687104,
           }
           stable_metrics = {
               key: value

@@ -1,6 +1,6 @@
 # PSTD Documentation
 
-_Last reviewed: 22 August 2026._
+_Last reviewed: 6 September 2026._
 
 This documentation tree contains both current operating guidance and historical delivery evidence. Use the current-state pages below for present capability and next work. Milestone, PQ, vertical, issue-plan, and implementation-plan files record what was known at the time they were written.
 
@@ -73,6 +73,7 @@ The current roadmap, compatibility matrix, and approved-fixture gap record defin
 - [Vertical 37: Tika message-folder ownership](operations/vertical-37-resolve-tika-message-folder-ownership.md)
 - [Vertical 38: Reject unresolved binary body references](operations/vertical-38-reject-unresolved-binary-body-references.md)
 - [Vertical 45: Synthetic body attachments](operations/vertical-45-materialise-synthetic-body-attachments.md)
+- [Vertical 46: Reconstructible email content](operations/vertical-46-reconstructible-email-content.md)
 
 ### Data contract
 

@@ -1,3 +1,5 @@
+pub mod attachment_store;
+pub mod attachment_text;
 pub mod calendar;
 pub mod cid;
 pub mod contact;
@@ -10,6 +12,7 @@ pub mod mime;
 pub mod msg;
 pub mod non_mail;
 pub mod paths;
+pub mod reconstruction;
 pub mod special;
 pub mod summary;
 pub mod tar_writer;
