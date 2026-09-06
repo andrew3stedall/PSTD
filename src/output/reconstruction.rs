@@ -92,7 +92,11 @@ pub fn build_email_content_records(
                 .cloned()
                 .collect::<Vec<_>>();
             message_recipients.sort_by_key(|recipient| {
-                (recipient.ordinal, recipient.recipient_type.clone(), recipient.recipient_key.clone())
+                (
+                    recipient.ordinal,
+                    recipient.recipient_type.clone(),
+                    recipient.recipient_key.clone(),
+                )
             });
 
             let mut message_attachments = attachments
@@ -100,9 +104,8 @@ pub fn build_email_content_records(
                 .filter(|attachment| attachment.message_key == message.message_key)
                 .cloned()
                 .collect::<Vec<_>>();
-            message_attachments.sort_by_key(|attachment| {
-                (attachment.ordinal, attachment.attachment_key.clone())
-            });
+            message_attachments
+                .sort_by_key(|attachment| (attachment.ordinal, attachment.attachment_key.clone()));
             let attachment_ids = message_attachments
                 .iter()
                 .map(|attachment| attachment.attachment_key.clone())
@@ -113,7 +116,8 @@ pub fn build_email_content_records(
                 .find(|header| header.message_key == message.message_key)
                 .cloned();
             let reconstructible = body_content.iter().any(|body| {
-                body.payload_present && matches!(body.record.body_type.as_str(), "text" | "html" | "rtf")
+                body.payload_present
+                    && matches!(body.record.body_type.as_str(), "text" | "html" | "rtf")
             });
 
             EmailContentRecord {
@@ -195,10 +199,12 @@ pub fn reconstruct_email(
             continue;
         };
         let bytes = base64_decode(encoded)?;
-        if bytes.len() as u64 != body.record.size_bytes
-            || sha256_hex(&bytes) != body.record.sha256
+        if bytes.len() as u64 != body.record.size_bytes || sha256_hex(&bytes) != body.record.sha256
         {
-            return Err(format!("body payload integrity failed: {}", body.record.body_key));
+            return Err(format!(
+                "body payload integrity failed: {}",
+                body.record.body_key
+            ));
         }
         body_payloads.push(BodyPayload {
             record: body.record.clone(),
@@ -299,9 +305,18 @@ fn base64_decode(value: &str) -> Result<Vec<u8>, String> {
     let mut output = Vec::with_capacity(bytes.len() / 4 * 3);
     for chunk in bytes.chunks(4) {
         let first = base64_value(chunk[0]).ok_or_else(|| "invalid base64 character".to_string())?;
-        let second = base64_value(chunk[1]).ok_or_else(|| "invalid base64 character".to_string())?;
-        let third = if chunk[2] == b'=' { 0 } else { base64_value(chunk[2]).ok_or_else(|| "invalid base64 character".to_string())? };
-        let fourth = if chunk[3] == b'=' { 0 } else { base64_value(chunk[3]).ok_or_else(|| "invalid base64 character".to_string())? };
+        let second =
+            base64_value(chunk[1]).ok_or_else(|| "invalid base64 character".to_string())?;
+        let third = if chunk[2] == b'=' {
+            0
+        } else {
+            base64_value(chunk[2]).ok_or_else(|| "invalid base64 character".to_string())?
+        };
+        let fourth = if chunk[3] == b'=' {
+            0
+        } else {
+            base64_value(chunk[3]).ok_or_else(|| "invalid base64 character".to_string())?
+        };
         output.push((first << 2) | (second >> 4));
         if chunk[2] != b'=' {
             output.push((second << 4) | (third >> 2));

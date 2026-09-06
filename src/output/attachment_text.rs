@@ -98,8 +98,12 @@ fn parse_attachment_text(
     let result = match format {
         AttachmentFormat::Pdf => parse_pdf(&payload.bytes),
         AttachmentFormat::OfficeOpenXml => parse_office_open_xml(record, &payload.bytes),
-        AttachmentFormat::LegacyOffice => Err("legacy Office binary format is not enabled".to_string()),
-        AttachmentFormat::Unsupported => Err("attachment type is outside the Office/PDF text scope".to_string()),
+        AttachmentFormat::LegacyOffice => {
+            Err("legacy Office binary format is not enabled".to_string())
+        }
+        AttachmentFormat::Unsupported => {
+            Err("attachment type is outside the Office/PDF text scope".to_string())
+        }
     };
     match result {
         Ok(text) => {
@@ -123,7 +127,10 @@ fn base_text_record(record: &AttachmentRecord, parser: &str) -> AttachmentTextRe
     AttachmentTextRecord {
         attachment_key: record.attachment_key.clone(),
         message_key: record.message_key.clone(),
-        filename: record.filename_original.clone().unwrap_or_else(|| record.filename_safe.clone()),
+        filename: record
+            .filename_original
+            .clone()
+            .unwrap_or_else(|| record.filename_safe.clone()),
         content_type: record.content_type.clone(),
         source_archive_path: record.archive_path.clone(),
         source_size_bytes: record.size_bytes,
@@ -153,7 +160,11 @@ enum AttachmentFormat {
 }
 
 fn attachment_format(record: &AttachmentRecord) -> AttachmentFormat {
-    let extension = record.extension.as_deref().unwrap_or_default().to_ascii_lowercase();
+    let extension = record
+        .extension
+        .as_deref()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
     let content_type = record
         .content_type
         .as_deref()
@@ -180,8 +191,10 @@ fn attachment_format(record: &AttachmentRecord) -> AttachmentFormat {
     {
         return AttachmentFormat::OfficeOpenXml;
     }
-    if matches!(extension.as_str(), "doc" | "xls" | "ppt" | "dot" | "xlt" | "pot")
-        || content_type == "application/msword"
+    if matches!(
+        extension.as_str(),
+        "doc" | "xls" | "ppt" | "dot" | "xlt" | "pot"
+    ) || content_type == "application/msword"
         || content_type == "application/vnd.ms-excel"
         || content_type == "application/vnd.ms-powerpoint"
     {
@@ -191,7 +204,11 @@ fn attachment_format(record: &AttachmentRecord) -> AttachmentFormat {
 }
 
 fn parse_pdf(bytes: &[u8]) -> Result<String, String> {
-    if !bytes.starts_with(b"%PDF-") || !bytes.windows(b"%%EOF".len()).any(|window| window == b"%%EOF") {
+    if !bytes.starts_with(b"%PDF-")
+        || !bytes
+            .windows(b"%%EOF".len())
+            .any(|window| window == b"%%EOF")
+    {
         return Err("pdf_invalid_structure".to_string());
     }
 
@@ -224,11 +241,21 @@ fn parse_pdf(bytes: &[u8]) -> Result<String, String> {
 }
 
 fn parse_office_open_xml(record: &AttachmentRecord, bytes: &[u8]) -> Result<String, String> {
-    let mut archive = ZipArchive::new(Cursor::new(bytes)).map_err(|_| "office_package_invalid".to_string())?;
+    let mut archive =
+        ZipArchive::new(Cursor::new(bytes)).map_err(|_| "office_package_invalid".to_string())?;
     let names = (0..archive.len())
-        .filter_map(|index| archive.by_index(index).ok().map(|file| file.name().to_string()))
+        .filter_map(|index| {
+            archive
+                .by_index(index)
+                .ok()
+                .map(|file| file.name().to_string())
+        })
         .collect::<BTreeSet<_>>();
-    let extension = record.extension.as_deref().unwrap_or_default().to_ascii_lowercase();
+    let extension = record
+        .extension
+        .as_deref()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
     let content_type = record
         .content_type
         .as_deref()
@@ -306,7 +333,8 @@ fn parse_xlsx<R: Read + std::io::Seek>(
     names: &BTreeSet<String>,
 ) -> Result<String, String> {
     let shared_strings = if names.contains("xl/sharedStrings.xml") {
-        let xml = String::from_utf8_lossy(&read_zip_entry(archive, "xl/sharedStrings.xml")?).into_owned();
+        let xml =
+            String::from_utf8_lossy(&read_zip_entry(archive, "xl/sharedStrings.xml")?).into_owned();
         extract_named_blocks(&xml, "si")
             .iter()
             .map(|block| xml_readable_text(block.as_bytes()))
@@ -380,7 +408,9 @@ fn extract_named_blocks(source: &str, name: &str) -> Vec<String> {
     let mut cursor = 0usize;
     while let Some(relative) = source[cursor..].find('<') {
         let start = cursor + relative;
-        let Some(end) = source[start..].find('>') else { break };
+        let Some(end) = source[start..].find('>') else {
+            break;
+        };
         let end = start + end;
         let open = &source[start..=end];
         if tag_name(open) != Some(name) || open.starts_with("</") || open.ends_with("/>") {
@@ -388,9 +418,13 @@ fn extract_named_blocks(source: &str, name: &str) -> Vec<String> {
             continue;
         }
         let close_marker = format!("</{name}");
-        let Some(close_relative) = source[end + 1..].find(&close_marker) else { break };
+        let Some(close_relative) = source[end + 1..].find(&close_marker) else {
+            break;
+        };
         let close_start = end + 1 + close_relative;
-        let Some(close_end_relative) = source[close_start..].find('>') else { break };
+        let Some(close_end_relative) = source[close_start..].find('>') else {
+            break;
+        };
         let close_end = close_start + close_end_relative;
         blocks.push(source[start..=close_end].to_string());
         cursor = close_end + 1;
@@ -399,10 +433,14 @@ fn extract_named_blocks(source: &str, name: &str) -> Vec<String> {
 }
 
 fn tag_name(tag: &str) -> Option<&str> {
-    let tag = tag.trim_start_matches('<').trim_start_matches('/').trim_end_matches('>');
+    let tag = tag
+        .trim_start_matches('<')
+        .trim_start_matches('/')
+        .trim_end_matches('>');
     let tag = tag.trim_end_matches('/').trim();
     let name = tag.split_whitespace().next()?;
-    (!name.starts_with('!') && !name.starts_with('?')).then_some(name.rsplit(':').next().unwrap_or(name))
+    (!name.starts_with('!') && !name.starts_with('?'))
+        .then_some(name.rsplit(':').next().unwrap_or(name))
 }
 
 fn attribute_value(tag: &str, name: &str) -> Option<String> {
@@ -429,7 +467,9 @@ fn xml_readable_text(xml: &[u8]) -> String {
         };
         let start = cursor + relative;
         text.push_str(&decode_xml_entities(&source[cursor..start]));
-        let Some(end_relative) = source[start..].find('>') else { break };
+        let Some(end_relative) = source[start..].find('>') else {
+            break;
+        };
         let end = start + end_relative;
         let tag = &source[start..=end];
         let name = tag_name(tag).unwrap_or_default();
@@ -461,8 +501,12 @@ fn decode_xml_entities(value: &str) -> String {
             "gt" => Some('>'),
             "quot" => Some('"'),
             "apos" => Some('\''),
-            _ if entity.starts_with("#x") => u32::from_str_radix(&entity[2..], 16).ok().and_then(char::from_u32),
-            _ if entity.starts_with('#') => entity[1..].parse::<u32>().ok().and_then(char::from_u32),
+            _ if entity.starts_with("#x") => u32::from_str_radix(&entity[2..], 16)
+                .ok()
+                .and_then(char::from_u32),
+            _ if entity.starts_with('#') => {
+                entity[1..].parse::<u32>().ok().and_then(char::from_u32)
+            }
             _ => None,
         };
         if let Some(decoded) = decoded {

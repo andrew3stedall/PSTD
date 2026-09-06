@@ -109,9 +109,9 @@ pub fn retrieve_attachment_by_id(
 ) -> PstdResult<RetrievedAttachment> {
     if attachment_id.is_empty()
         || attachment_id.len() > 128
-        || attachment_id
-            .chars()
-            .any(|character| !(character.is_ascii_alphanumeric() || character == '_' || character == '-'))
+        || attachment_id.chars().any(|character| {
+            !(character.is_ascii_alphanumeric() || character == '_' || character == '-')
+        })
     {
         return Err(PstdError::InvalidConfig(
             "attachment ID contains unsupported characters".to_string(),
@@ -119,7 +119,10 @@ pub fn retrieve_attachment_by_id(
     }
 
     let root = extraction_root.as_ref();
-    let manifest_path = [root.join("attachments.jsonl"), root.join("data/attachments.jsonl")]
+    let manifest_path = [
+        root.join("attachments.jsonl"),
+        root.join("data/attachments.jsonl"),
+    ]
         .into_iter()
         .find(|path| path.is_file())
         .ok_or_else(|| {
@@ -131,9 +134,8 @@ pub fn retrieve_attachment_by_id(
     let manifest = fs::read_to_string(&manifest_path)?;
     let mut found = None;
     for line in manifest.lines().filter(|line| !line.trim().is_empty()) {
-        let record = serde_json::from_str::<AttachmentRecord>(line).map_err(|error| {
-            PstdError::Json(error)
-        })?;
+        let record = serde_json::from_str::<AttachmentRecord>(line)
+            .map_err(|error| PstdError::Json(error))?;
         if record.attachment_key == attachment_id {
             if found.is_some() {
                 return Err(PstdError::OutputWrite(format!(
@@ -144,7 +146,9 @@ pub fn retrieve_attachment_by_id(
         }
     }
     let record = found.ok_or_else(|| {
-        PstdError::SourceOpen(format!("attachment ID not found in manifest: {attachment_id}"))
+        PstdError::SourceOpen(format!(
+            "attachment ID not found in manifest: {attachment_id}"
+        ))
     })?;
     let relative_path = safe_relative_path(&record.archive_path)?;
     let path = root.join(relative_path);
@@ -163,7 +167,9 @@ pub fn retrieve_attachment_by_id(
         record: record.clone(),
         bytes: bytes.clone(),
     };
-    if payload.bytes.len() as u64 != record.size_bytes || sha256_hex(&payload.bytes) != record.sha256 {
+    if payload.bytes.len() as u64 != record.size_bytes
+        || sha256_hex(&payload.bytes) != record.sha256
+    {
         return Err(PstdError::OutputWrite(format!(
             "attachment {} failed size/hash validation",
             attachment_id
@@ -179,7 +185,10 @@ fn safe_relative_path(path: &str) -> PstdResult<PathBuf> {
         || path.components().any(|component| {
             matches!(
                 component,
-                Component::CurDir | Component::ParentDir | Component::RootDir | Component::Prefix(_)
+                Component::CurDir
+                    | Component::ParentDir
+                    | Component::RootDir
+                    | Component::Prefix(_)
             )
         })
     {
@@ -236,8 +245,8 @@ mod tests {
         assert_eq!(materialized_count, 1);
         assert!(path.is_file());
 
-        let retrieved = retrieve_attachment_by_id(directory.path(), &payload.record.attachment_key)
-            .unwrap();
+        let retrieved =
+            retrieve_attachment_by_id(directory.path(), &payload.record.attachment_key).unwrap();
         assert_eq!(retrieved.record.message_key, "msg_1");
         assert_eq!(retrieved.bytes, b"pdf bytes");
     }

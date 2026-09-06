@@ -698,13 +698,17 @@ fn build_eml_with_attachment_mode(
     }
     let date = validated_message_date(message)?;
 
-    let text = bodies.text.as_deref().and_then(|bytes| std::str::from_utf8(bytes).ok());
+    let text = bodies
+        .text
+        .as_deref()
+        .and_then(|bytes| std::str::from_utf8(bytes).ok());
     let html = bodies.html.as_deref();
     let rtf = bodies.rtf.as_deref();
     if text.is_none() && html.is_none() && rtf.is_none() {
         return None;
     }
-    if text.is_some_and(|value| value.contains(ALTERNATIVE_BOUNDARY) || value.contains(MIXED_BOUNDARY))
+    if text
+        .is_some_and(|value| value.contains(ALTERNATIVE_BOUNDARY) || value.contains(MIXED_BOUNDARY))
         || html.is_some_and(|value| {
             value.contains(ALTERNATIVE_BOUNDARY) || value.contains(MIXED_BOUNDARY)
         })
