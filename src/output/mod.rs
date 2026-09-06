@@ -1,3 +1,4 @@
+mod attachment_index;
 pub mod attachment_store;
 pub mod attachment_text;
 pub mod calendar;

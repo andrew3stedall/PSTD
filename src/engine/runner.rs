@@ -8,7 +8,7 @@ use crate::config::ExtractConfig;
 use crate::engine::metadata::{extract_metadata_with_fallback_charset, fallback_metadata};
 use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::attachment_store::write_disk_attachments;
-use crate::output::attachment_text::parse_attachment_text_records;
+use crate::output::attachment_text::iter_attachment_text_records;
 use crate::output::calendar::serialize_icalendar;
 use crate::output::contact::{serialize_contact_list, serialize_vcards};
 use crate::output::ids;
@@ -17,7 +17,7 @@ use crate::output::mailbox::render_profile;
 use crate::output::metadata::MessageRecord;
 use crate::output::msg::render_profile as render_msg_profile;
 use crate::output::non_mail::serialize_vjournals;
-use crate::output::reconstruction::build_email_content_records;
+use crate::output::reconstruction::iter_email_content_records;
 use crate::output::summary::ExtractionSummary;
 use crate::output::tar_writer::TarShardWriter;
 use crate::output::thunderbird::render_typed_outputs;
@@ -192,7 +192,7 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     for record in &metadata.attachments {
         attachments.write_record(record)?;
     }
-    let email_content_records = build_email_content_records(
+    let email_content_records = iter_email_content_records(
         &metadata.messages,
         &metadata.headers,
         &metadata.recipients,
@@ -201,17 +201,17 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         &metadata.attachments,
     );
     let mut email_content = JsonlBuffer::new();
-    for record in &email_content_records {
-        email_content.write_record(record)?;
+    for record in email_content_records {
+        email_content.write_record(&record)?;
     }
-    let attachment_text_records = parse_attachment_text_records(
+    let attachment_text_records = iter_attachment_text_records(
         config.readpst.attachment_text,
         &metadata.attachments,
         &metadata.attachment_payloads,
     );
     let mut attachment_text = JsonlBuffer::new();
-    for record in &attachment_text_records {
-        attachment_text.write_record(record)?;
+    for record in attachment_text_records {
+        attachment_text.write_record(&record)?;
     }
     let mut compatibility_triage = JsonlBuffer::new();
     for record in &metadata.compatibility_triage {

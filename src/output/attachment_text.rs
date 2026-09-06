@@ -36,36 +36,31 @@ pub fn parse_attachment_text_records(
     attachments: &[AttachmentRecord],
     payloads: &[AttachmentPayload],
 ) -> Vec<AttachmentTextRecord> {
-    if mode == AttachmentTextMode::None {
-        return Vec::new();
-    }
+    iter_attachment_text_records(mode, attachments, payloads).collect()
+}
 
-    let mut records = attachments.to_vec();
-    for payload in payloads {
-        if !records
-            .iter()
-            .any(|record| record.attachment_key == payload.record.attachment_key)
-        {
-            records.push(payload.record.clone());
+/// Parse and release one text projection at a time without cloning source metadata.
+pub fn iter_attachment_text_records<'a>(
+    mode: AttachmentTextMode,
+    attachments: &'a [AttachmentRecord],
+    payloads: &'a [AttachmentPayload],
+) -> impl Iterator<Item = AttachmentTextRecord> + 'a {
+    let index = if mode == AttachmentTextMode::None {
+        crate::output::attachment_index::AttachmentIndex::new(&[], &[])
+    } else {
+        crate::output::attachment_index::AttachmentIndex::new(attachments, payloads)
+    };
+    (0..index.records.len()).map(move |position| {
+        let record = index.records[position];
+        match index.payload(&record.attachment_key) {
+            Ok(payload) => parse_attachment_text(mode, record, payload),
+            Err(_) => {
+                let mut output = parse_attachment_text(mode, record, None);
+                output.status = "attachment_payload_duplicate_id".to_string();
+                output
+            }
         }
-    }
-    records.sort_by_key(|record| {
-        (
-            record.message_key.clone(),
-            record.ordinal,
-            record.attachment_key.clone(),
-        )
-    });
-
-    records
-        .iter()
-        .map(|record| {
-            let payload = payloads
-                .iter()
-                .find(|payload| payload.record.attachment_key == record.attachment_key);
-            parse_attachment_text(mode, record, payload)
-        })
-        .collect()
+    })
 }
 
 fn parse_attachment_text(
