@@ -12,7 +12,7 @@ _Last reviewed: 6 September 2026._
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI v14/v15 and OST 2013 structural page/index traversal is now integrated with explicit evidence boundaries. |
 | Current milestone | Reconstructible email content and attachment text | The release decision remains NOT PARITY-COMPLETE; canonical email-content JSONL, stable attachment IDs, disk/archive/both/none storage, ID-based retrieval, and opt-in Office Open XML/PDF plain-text projections are now implemented while broad producer and differential evidence remains Partial. |
-| EML reconstruction | Deterministic inline and external assembly | The original fixture retains its historical 956-byte plain/HTML baseline; current standalone `pstd-eml` adds validated synthetic body attachment parts when present. Tika emits the plain-text parent with both recovered payloads in inline mode and one exact 453-byte plain-text child. External mode writes the same payloads beside linked EML records. |
+| EML reconstruction | Deterministic inline and external assembly | The original fixture retains its historical 956-byte plain/HTML baseline; current standalone `pstd-eml` adds validated synthetic body attachment parts when present. Tika emits the parent and recovered child with their validated attachments; the current embedded-child payload is 17,032 bytes. External mode writes the same payloads beside linked EML records. |
 | Canonical reconstruction data | One `email_content.jsonl` row per message | Exact body bytes and validated RTF-derived representations are embedded; attachment IDs and metadata remain separate so attachment bytes can be retrieved or materialized independently. |
 | Readpst parity workboard | Attachment payload extraction wave | Canonical typed records feed deterministic output projections; the release decision is still NOT PARITY-COMPLETE and broad input/differential/import evidence is still required. |
 
@@ -106,6 +106,15 @@ encoded words, and MIME filename/name parameters use RFC 2231 UTF-8 encoding wit
 ASCII fallbacks and long-value continuations. These rows are Partial until broad
 mixed-folder corpora and independent readpst/import differentials pass.
 
+## Content output performance
+
+Canonical email and attachment output now uses borrowed ownership/ID indexes and
+serializes one expanded record at a time. Attachment retrieval reads manifests
+incrementally and validates payload bytes without cloning them. Valid output schemas
+and ordering are preserved; ambiguous attachment payload IDs are explicitly rejected.
+The extraction pipeline still retains source metadata, payloads and JSONL buffers.
+See the [PERF-01 measurements and boundaries](docs/operations/perf-01-content-output.md).
+
 ## Intent
 
 PSTD is intended to become a dependable PST-to-email extraction engine that:
@@ -133,8 +142,8 @@ The original public fixture currently yields:
 | Extracted messages | 1 |
 | Body payloads | 2 |
 | Attachments emitted | 0 |
-| Selected properties | 16 |
-| Unknown properties | 19 |
+| Selected properties | 19 |
+| Unknown properties | 16 |
 
 The Table Context path validates four 52-byte rows. The fixture has separately produced:
 
@@ -144,7 +153,7 @@ The Table Context path validates four 52-byte rows. The fixture has separately p
 
 On `main`, these values are published as four complete row-aligned recipient records and assembled into the original fixture's readable EML.
 
-The Tika attachment fixture emits seven top-level messages assigned by exact contents-table rows to `/Début du fichier de données Outlook`, plus one separately linked embedded child, nine directly owned recipient records, ten body records, six valid body payloads totalling 271 bytes, two explicit unresolved HTML forms, two attachment records, two exact attachment payloads totalling 12,315 bytes, and two deterministic EML files. The method-`5` payload is byte-identical to the 453-byte standalone child EML and uses `message/rfc822`; inline assembly now includes both recovered payloads in the parent MIME tree, while external assembly writes them at manifest-linked paths.
+The Tika attachment fixture emits seven top-level messages assigned by exact contents-table rows to `/Début du fichier de données Outlook`, plus one separately linked embedded child, nine directly owned recipient records, ten body records, six valid body payloads totalling 271 bytes, two explicit unresolved HTML forms, three attachment records, three exact attachment payloads totalling 40,756 bytes, and two deterministic EML files. The method-`5` payload is byte-identical to the 17,032-byte standalone child EML and uses `message/rfc822`; inline assembly includes the validated attachments in both parent and child MIME trees, while external assembly writes them at manifest-linked paths. The current canonical extraction TAR is 687,104 bytes. These ATT-11-era metrics are preserved by PERF-01; they replace the stale Vertical-38 numbers previously presented here as current.
 
 The dedicated inline-CID fixture adds a deterministic Unicode PST with three messages and five attachment payloads. It validates one unique HTML `cid:` match, duplicate and unmatched relationships, direct HTML-body preservation, and inline EML `Content-ID`/disposition output against `readpst`; the fixture is synthetic, uses only `example.test` addresses, and is documented under `fixtures/inline-cid/`.
 

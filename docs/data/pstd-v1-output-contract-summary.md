@@ -221,6 +221,24 @@ base64 MIME part; external mode writes validated raw files plus a manifest-linke
 sidecar without base64-ing payloads into JSONL. Metadata-only and integrity-failed
 attachments remain explicit rather than becoming fabricated MIME parts.
 
+## Content output ambiguity and access
+
+The schema and ordering of valid `email_content.jsonl`, attachment text rows and disk
+manifests remain unchanged by PERF-01. `attachment_payload_duplicate_id` is an explicit
+attachment-text failure status with no parsed text. Disk export preflights duplicate
+payload IDs, duplicate record IDs, duplicate paths and unsafe relative paths before
+writing attachment files. Integrity-failed or absent payloads retain their existing
+metadata-only statuses.
+
+`retrieve_attachment_by_id` reads one manifest row at a time and still scans to EOF,
+so duplicate target IDs or malformed later rows fail instead of returning an early
+match. It validates payload size/hash without copying the bytes. A content body key
+that resolves only to another message's payload remains unavailable.
+
+The iterator APIs avoid retaining all expanded records, but parser metadata, source
+payloads and serialized JSONL TAR entries still consume memory proportional to input
+and output. No whole-PST bounded-memory guarantee is implied.
+
 ## Downstream boundary
 
 Snowflake, search, UI, tagging, graph, and LLM/RAG systems should consume this contract. They must not compensate for missing extraction by reparsing source PST files or silently inventing absent values.

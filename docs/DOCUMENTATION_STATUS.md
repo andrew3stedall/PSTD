@@ -53,6 +53,11 @@ The following are intentionally retained as historical evidence:
 
 Completed milestone and PQ reports. They capture objective, evidence, implementation, validation, and the proposed next boundary at that time.
 
+### `docs/operations/perf-01-content-output.md`
+
+Point-in-time output-scaling measurements and validation for issue #595. The README,
+project status and output contract remain authoritative for current behavior.
+
 ### `docs/issues/`
 
 Ordered issue plans for earlier delivery phases. They are not the active backlog unless a current roadmap page explicitly reactivates them.

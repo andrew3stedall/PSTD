@@ -5,7 +5,7 @@
 //! bytes are embedded as base64 so the email record is self-contained and
 //! lossless for the non-attachment portion of a message.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::output::metadata::{
     AttachmentRecord, BodyRecord, HeaderProjectionRecord, MessageRecord, RecipientRecord,
@@ -52,94 +52,130 @@ pub fn build_email_content_records(
     body_payloads: &[BodyPayload],
     attachments: &[AttachmentRecord],
 ) -> Vec<EmailContentRecord> {
+    iter_email_content_records(
+        messages,
+        headers,
+        recipients,
+        bodies,
+        body_payloads,
+        attachments,
+    )
+    .collect()
+}
+
+/// Build one owned record at a time using borrowed, per-message indexes.
+/// Consumers can serialize and release each expanded body before building the next.
+pub fn iter_email_content_records<'a>(
+    messages: &'a [MessageRecord],
+    headers: &'a [HeaderProjectionRecord],
+    recipients: &'a [RecipientRecord],
+    bodies: &'a [BodyRecord],
+    body_payloads: &'a [BodyPayload],
+    attachments: &'a [AttachmentRecord],
+) -> impl Iterator<Item = EmailContentRecord> + 'a {
     let body_payloads = body_payloads
         .iter()
         .map(|payload| (payload.record.body_key.as_str(), payload))
         .collect::<BTreeMap<_, _>>();
-    let mut output_messages = messages.to_vec();
-    output_messages.sort_by_key(|message| message.message_key.clone());
+    let mut payloads_by_message = BTreeMap::<&str, Vec<&BodyPayload>>::new();
+    for payload in body_payloads.values() {
+        payloads_by_message
+            .entry(payload.record.message_key.as_str())
+            .or_default()
+            .push(*payload);
+    }
+    let bodies_by_message = group_by(bodies, |body| body.message_key.as_str());
+    let recipients_by_message = group_by(recipients, |recipient| recipient.message_key.as_str());
+    let attachments_by_message =
+        group_by(attachments, |attachment| attachment.message_key.as_str());
+    let mut headers_by_message = BTreeMap::new();
+    for header in headers {
+        // Preserve the existing first-header selection and stable input ordering.
+        headers_by_message
+            .entry(header.message_key.as_str())
+            .or_insert(header);
+    }
+    let mut output_messages = messages.iter().collect::<Vec<_>>();
+    output_messages.sort_by(|left, right| left.message_key.cmp(&right.message_key));
 
-    output_messages
-        .iter()
-        .map(|message| {
-            let mut message_bodies = bodies
-                .iter()
-                .filter(|body| body.message_key == message.message_key)
-                .cloned()
-                .collect::<Vec<_>>();
-            for payload in body_payloads
-                .values()
-                .copied()
-                .filter(|payload| payload.record.message_key == message.message_key)
-            {
-                if !message_bodies
-                    .iter()
-                    .any(|body| body.body_key == payload.record.body_key)
-                {
-                    message_bodies.push(payload.record.clone());
-                }
+    output_messages.into_iter().map(move |message| {
+        let key = message.message_key.as_str();
+        let mut message_bodies = bodies_by_message.get(key).cloned().unwrap_or_default();
+        let mut body_keys = message_bodies
+            .iter()
+            .map(|body| body.body_key.as_str())
+            .collect::<BTreeSet<_>>();
+        for payload in payloads_by_message.get(key).into_iter().flatten() {
+            if body_keys.insert(payload.record.body_key.as_str()) {
+                message_bodies.push(&payload.record);
             }
-            message_bodies.sort_by_key(|body| (body_order(&body.body_type), body.body_key.clone()));
+        }
+        message_bodies.sort_by(|left, right| {
+            (body_order(&left.body_type), &left.body_key)
+                .cmp(&(body_order(&right.body_type), &right.body_key))
+        });
+        let body_content = message_bodies
+            .iter()
+            .map(|body| {
+                let payload = body_payloads
+                    .get(body.body_key.as_str())
+                    .copied()
+                    .filter(|payload| payload.record.message_key == body.message_key);
+                body_content(body, payload)
+            })
+            .collect::<Vec<_>>();
 
-            let body_content = message_bodies
+        let mut message_recipients = recipients_by_message.get(key).cloned().unwrap_or_default();
+        message_recipients.sort_by(|left, right| {
+            (left.ordinal, &left.recipient_type, &left.recipient_key).cmp(&(
+                right.ordinal,
+                &right.recipient_type,
+                &right.recipient_key,
+            ))
+        });
+        let mut message_attachments = attachments_by_message.get(key).cloned().unwrap_or_default();
+        message_attachments.sort_by(|left, right| {
+            (left.ordinal, &left.attachment_key).cmp(&(right.ordinal, &right.attachment_key))
+        });
+        let reconstructible = body_content.iter().any(|body| {
+            body.payload_present
+                && matches!(body.record.body_type.as_str(), "text" | "html" | "rtf")
+        });
+        EmailContentRecord {
+            record_type: "email_content".to_string(),
+            schema_version: 1,
+            message: message.clone(),
+            header_projection: headers_by_message.get(key).map(|header| (*header).clone()),
+            recipients: message_recipients.into_iter().cloned().collect(),
+            bodies: body_content,
+            attachment_ids: message_attachments
                 .iter()
-                .map(|body| body_content(body, body_payloads.get(body.body_key.as_str()).copied()))
-                .collect::<Vec<_>>();
+                .map(|record| record.attachment_key.clone())
+                .collect(),
+            attachments: message_attachments
+                .into_iter()
+                .map(|record| EmailAttachmentReference {
+                    record: record.clone(),
+                })
+                .collect(),
+            reconstruction_status: if reconstructible {
+                "reconstructible_body_available".to_string()
+            } else {
+                "body_payload_unavailable".to_string()
+            },
+        }
+    })
+}
 
-            let mut message_recipients = recipients
-                .iter()
-                .filter(|recipient| recipient.message_key == message.message_key)
-                .cloned()
-                .collect::<Vec<_>>();
-            message_recipients.sort_by_key(|recipient| {
-                (
-                    recipient.ordinal,
-                    recipient.recipient_type.clone(),
-                    recipient.recipient_key.clone(),
-                )
-            });
-
-            let mut message_attachments = attachments
-                .iter()
-                .filter(|attachment| attachment.message_key == message.message_key)
-                .cloned()
-                .collect::<Vec<_>>();
-            message_attachments
-                .sort_by_key(|attachment| (attachment.ordinal, attachment.attachment_key.clone()));
-            let attachment_ids = message_attachments
-                .iter()
-                .map(|attachment| attachment.attachment_key.clone())
-                .collect::<Vec<_>>();
-
-            let header_projection = headers
-                .iter()
-                .find(|header| header.message_key == message.message_key)
-                .cloned();
-            let reconstructible = body_content.iter().any(|body| {
-                body.payload_present
-                    && matches!(body.record.body_type.as_str(), "text" | "html" | "rtf")
-            });
-
-            EmailContentRecord {
-                record_type: "email_content".to_string(),
-                schema_version: 1,
-                message: message.clone(),
-                header_projection,
-                recipients: message_recipients,
-                bodies: body_content,
-                attachment_ids,
-                attachments: message_attachments
-                    .into_iter()
-                    .map(|record| EmailAttachmentReference { record })
-                    .collect(),
-                reconstruction_status: if reconstructible {
-                    "reconstructible_body_available".to_string()
-                } else {
-                    "body_payload_unavailable".to_string()
-                },
-            }
-        })
-        .collect()
+fn group_by<'a, T>(
+    records: &'a [T],
+    key: impl Fn(&'a T) -> &'a str,
+) -> BTreeMap<&'a str, Vec<&'a T>> {
+    let mut groups = BTreeMap::<&str, Vec<&T>>::new();
+    for record in records {
+        groups.entry(key(record)).or_default().push(record);
+    }
+    groups
 }
 
 fn body_content(body: &BodyRecord, payload: Option<&BodyPayload>) -> EmailBodyContent {
@@ -157,7 +193,7 @@ fn body_content(body: &BodyRecord, payload: Option<&BodyPayload>) -> EmailBodyCo
             (
                 Some(base64_encode(&payload.bytes)),
                 decoded_bytes_base64,
-                String::from_utf8(payload.bytes.clone()).ok(),
+                std::str::from_utf8(&payload.bytes).ok().map(str::to_owned),
                 rendered_html,
             )
         }

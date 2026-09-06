@@ -1,6 +1,6 @@
 # Public PST Progress Log
 
-_Last reviewed: 1 September 2026._
+_Last reviewed: 6 September 2026._
 
 ## Purpose
 
@@ -28,8 +28,8 @@ After every extraction milestone:
 | Extracted messages | 1 |
 | Body payloads | 2 |
 | Attachment rows emitted | 0 |
-| Selected properties | 16 |
-| Unknown properties | 19 |
+| Selected properties | 19 |
+| Unknown properties | 16 |
 | Validated Table Context rows | 4 × 52 bytes |
 
 ## Latest validated recipient evidence
@@ -42,6 +42,8 @@ After every extraction milestone:
 | 3 | Cc | Recipient 4 | `PidTagEmailAddress` | `cc2@domain.com` | native email address |
 
 The original fixture publishes these four complete row-aligned records through the production extraction path and emits one deterministic 956-byte `multipart/alternative` EML.
+
+> The Tika table below is historical Vertical-38 evidence. Current metrics are recorded in the PERF-01 section at the end of this log.
 
 ## Exact Tika baseline through Vertical 38
 
@@ -145,3 +147,35 @@ non-authoritative MIME/special-item status. Reference-shaped or over-limit value
 remain unavailable. This closes the lossless encrypted-body source slice while
 cleartext decryption and broad encrypted-item differential coverage remain out of
 scope.
+
+## PERF-01 content output scaling — 6 September 2026
+
+Issue #595 / PR #596 removes quadratic canonical-output joins and unnecessary
+expanded-record/payload copies. This changes output costs and malformed-input
+handling; it adds no new PST producer or attachment coverage.
+
+At implementation commit `645ae4badec06f6f806025a368505cfc765544c6`,
+[Tika workflow 34048431165](https://github.com/andrew3stedall/PSTD/actions/runs/34048431165)
+passed and artifact `9993817999` was inspected. It retains the ATT-11 baseline:
+8 messages, 10 body records, 9 recipients, 3 attachment records, 6 body payloads /
+271 bytes, 3 attachment payloads / 40,756 bytes, and 2 EML files. The embedded-child
+payload is 17,032 bytes, SHA-256
+`44f7e7bd7d8fbb8a8b7c506ffd6283024a86721f27870dd7dfb9da62065588db`.
+The current TAR is 687,104 bytes; messages/bodies/recipients/attachments JSONL are
+28,778 / 2,922 / 2,708 / 2,409 bytes. The earlier 453-byte child, two attachments
+and 234,496-byte TAR remain historical evidence, not current metrics.
+
+The original fixture baseline artifact `9989674797` from main run `34034250130`
+was also inspected: 11 folders, one extracted message, two body payloads, four
+recipients, no ordinary attachments, 19 selected properties and 16 unknown
+properties. The top-level selected/unknown table had those last two values reversed
+and is corrected here; this is a documentation correction, not a parser delta.
+
+Release benchmarks enforce byte/hash equivalence across all six synthetic cases.
+See [PERF-01 measured results and limitations](perf-01-content-output.md). The final
+PR records exact-head CI and public-fixture comparison before squash merge.
+
+The PERF-01 original-fixture artifact `9993831193` from run `34048431238`
+was compared directly with baseline artifact `9989674797`: all run-summary fields
+except run ID, timestamps and duration match, and recipients JSONL is byte-identical.
+Recorded output bytes remain 115,998 with one TAR shard; there is no extraction delta.

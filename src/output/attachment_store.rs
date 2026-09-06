@@ -1,6 +1,7 @@
 //! Retrieval of disk-materialized attachment bytes by stable attachment ID.
 
 use std::fs;
+use std::io::{BufRead, BufReader};
 use std::path::{Component, Path, PathBuf};
 
 use sha2::{Digest, Sha256};
@@ -24,46 +25,37 @@ pub fn write_disk_attachments(
     payloads: &[AttachmentPayload],
 ) -> PstdResult<(Vec<u8>, usize)> {
     let root = extraction_root.as_ref();
-    let mut all_records = records.to_vec();
-    for payload in payloads {
-        if !all_records
-            .iter()
-            .any(|record| record.attachment_key == payload.record.attachment_key)
-        {
-            all_records.push(payload.record.clone());
-        }
-    }
-    all_records.sort_by_key(|record| {
-        (
-            record.message_key.clone(),
-            record.ordinal,
-            record.attachment_key.clone(),
-        )
-    });
-
+    let index = crate::output::attachment_index::AttachmentIndex::new(records, payloads);
     let mut used_paths = std::collections::BTreeSet::new();
-    let mut materialized_count = 0usize;
-    let mut manifest = String::new();
-    for record in all_records {
-        let relative_path = safe_relative_path(&record.archive_path)?;
-        if !used_paths.insert(relative_path.clone()) {
+    let mut used_ids = std::collections::BTreeSet::new();
+    // Validate all ambiguous mappings before writing any attachment bytes.
+    for record in &index.records {
+        let path = safe_relative_path(&record.archive_path)?;
+        if !used_paths.insert(path) {
             return Err(PstdError::OutputWrite(format!(
                 "duplicate attachment archive path: {}",
                 record.archive_path
             )));
         }
-        let matching_payloads = payloads
-            .iter()
-            .filter(|payload| payload.record.attachment_key == record.attachment_key)
-            .collect::<Vec<_>>();
-        if matching_payloads.len() > 1 {
+        if !used_ids.insert(record.attachment_key.as_str()) {
             return Err(PstdError::OutputWrite(format!(
-                "duplicate attachment ID in payloads: {}",
+                "duplicate attachment ID in records: {}",
                 record.attachment_key
             )));
         }
-        let (materialized_path, status) = match matching_payloads.first().copied() {
-            Some(payload) if payload_matches_record(payload, &record) => {
+        index.payload(&record.attachment_key).map_err(|reason| {
+            PstdError::OutputWrite(format!("{reason}: {}", record.attachment_key))
+        })?;
+    }
+    let mut materialized_count = 0usize;
+    let mut manifest = String::new();
+    for record in &index.records {
+        let relative_path = safe_relative_path(&record.archive_path)?;
+        let payload = index.payload(&record.attachment_key).map_err(|reason| {
+            PstdError::OutputWrite(format!("{reason}: {}", record.attachment_key))
+        })?;
+        let (materialized_path, status) = match payload {
+            Some(payload) if payload_matches_record(payload, record) => {
                 let path = root.join(&relative_path);
                 if let Some(parent) = path.parent() {
                     fs::create_dir_all(parent)?;
@@ -76,7 +68,7 @@ pub fn write_disk_attachments(
             None => (None, "attachment_payload_unavailable"),
         };
 
-        let mut value = serde_json::to_value(&record)?;
+        let mut value = serde_json::to_value(record)?;
         let Some(object) = value.as_object_mut() else {
             return Err(PstdError::OutputWrite(
                 "attachment record did not serialize as an object".to_string(),
@@ -131,10 +123,18 @@ pub fn retrieve_attachment_by_id(
             root.display()
         ))
     })?;
-    let manifest = fs::read_to_string(&manifest_path)?;
+    let mut manifest = BufReader::new(fs::File::open(&manifest_path)?);
     let mut found = None;
-    for line in manifest.lines().filter(|line| !line.trim().is_empty()) {
-        let record = serde_json::from_str::<AttachmentRecord>(line).map_err(PstdError::Json)?;
+    let mut line = String::new();
+    loop {
+        line.clear();
+        if manifest.read_line(&mut line)? == 0 {
+            break;
+        }
+        if line.trim().is_empty() {
+            continue;
+        }
+        let record = serde_json::from_str::<AttachmentRecord>(&line).map_err(PstdError::Json)?;
         if record.attachment_key == attachment_id {
             if found.is_some() {
                 return Err(PstdError::OutputWrite(format!(
@@ -162,13 +162,7 @@ pub fn retrieve_attachment_by_id(
             PstdError::Io(error)
         }
     })?;
-    let payload = AttachmentPayload {
-        record: record.clone(),
-        bytes: bytes.clone(),
-    };
-    if payload.bytes.len() as u64 != record.size_bytes
-        || sha256_hex(&payload.bytes) != record.sha256
-    {
+    if bytes.len() as u64 != record.size_bytes || sha256_hex(&bytes) != record.sha256 {
         return Err(PstdError::OutputWrite(format!(
             "attachment {} failed size/hash validation",
             attachment_id
