@@ -4,15 +4,15 @@ PSTD is a Rust-first tool for extracting email data from Microsoft Outlook PST f
 
 ## Current position
 
-_Last reviewed: 22 August 2026._
+_Last reviewed: 6 September 2026._
 
 | Area | State on `main` | Current result |
 |---|---|---|
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume support, diagnostics, and operator guidance. |
 | Parser-quality sequence | Complete through PQ74 | Bounded PST traversal, Heap-on-Node/BTH/Table Context parsing, validated row transport, fixed-width value decoding, and production diagnostics. |
 | Vertical extraction sequence | Complete through Vertical 39 | Four-byte Property Context body locators remain explicit unavailable forms; ANSI v14/v15 and OST 2013 structural page/index traversal is now integrated with explicit evidence boundaries. |
-| Current milestone | Attachment payload extraction wave | The release decision remains NOT PARITY-COMPLETE; generic direct/data-tree attachment extraction, method-aware metadata, MIME sequence ordering, and bounded nested-child recovery are now implemented while broad producer and differential evidence remains Partial. |
-| EML reconstruction | Deterministic inline and external assembly | The original fixture emits one 956-byte plain/HTML EML; Tika emits the plain-text parent with both recovered payloads in inline mode and one exact 453-byte plain-text child. External mode writes the same payloads beside linked EML records. |
+| Current milestone | Attachment payload extraction wave | The release decision remains NOT PARITY-COMPLETE; generic direct/data-tree attachment extraction, method-aware metadata, MIME sequence ordering, bounded nested-child recovery, and standalone synthetic RTF/opaque encrypted body artifact delivery are now implemented while broad producer and differential evidence remains Partial. |
+| EML reconstruction | Deterministic inline and external assembly | The original fixture retains its historical 956-byte plain/HTML baseline; current standalone `pstd-eml` adds validated synthetic body attachment parts when present. Tika emits the plain-text parent with both recovered payloads in inline mode and one exact 453-byte plain-text child. External mode writes the same payloads beside linked EML records. |
 | Readpst parity workboard | Attachment payload extraction wave | Canonical typed records feed deterministic output projections; the release decision is still NOT PARITY-COMPLETE and broad input/differential/import evidence is still required. |
 
 ### RP-M4-03

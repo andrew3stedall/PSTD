@@ -98,6 +98,88 @@ jobs:
               }, indent=2) + '\n', encoding='utf-8'
           )
           PY
+      - name: Verify standalone synthetic body attachment adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="tests/fixtures/pst/sample.pst"
+          evidence="/tmp/pstd-synthetic-body-attachments"
+          inline="$evidence/inline"
+          external_first="$evidence/external-first"
+          external_second="$evidence/external-second"
+          mkdir -p "$evidence"
+
+          cargo run --quiet --bin pstd-eml -- "$fixture" "$inline" \
+            > "$evidence/inline.stdout" 2> "$evidence/inline.stderr"
+          cargo run --quiet --bin pstd-eml -- --attachment-mode external "$fixture" "$external_first" \
+            > "$evidence/external-first.stdout" 2> "$evidence/external-first.stderr"
+          cargo run --quiet --bin pstd-eml -- --attachment-mode external "$fixture" "$external_second" \
+            > "$evidence/external-second.stdout" 2> "$evidence/external-second.stderr"
+
+          test -n "$(find "$inline" -type f -name '*.eml' -print -quit)"
+          test -f "$external_first/attachments.jsonl"
+          diff -ru "$external_first" "$external_second"
+
+          python - <<'PY'
+          import hashlib
+          import json
+          from email import policy
+          from email.parser import BytesParser
+          from pathlib import Path
+
+          root = Path('/tmp/pstd-synthetic-body-attachments')
+          inline_parts = {}
+          for path in sorted((root / 'inline').glob('*.eml')):
+              message = BytesParser(policy=policy.default).parsebytes(path.read_bytes())
+              for part in message.walk():
+                  filename = part.get_filename()
+                  if filename:
+                      inline_parts.setdefault(filename, []).append(part.get_payload(decode=True) or b'')
+          records = [
+              json.loads(line)
+              for line in (root / 'external-first' / 'attachments.jsonl').read_text().splitlines()
+              if line.strip()
+          ]
+          synthetic = [record for record in records if record.get('synthetic')]
+          if not synthetic:
+              raise SystemExit('fixture did not produce synthetic body attachment records')
+          emitted = 0
+          for record in synthetic:
+              if not record.get('source_body_key'):
+                  raise SystemExit('synthetic record is missing source_body_key')
+              if record.get('authoritative') is not False:
+                  raise SystemExit('synthetic record is not explicitly non-authoritative')
+              if not record.get('extraction_status', '').startswith('synthetic_'):
+                  raise SystemExit('synthetic record has no synthetic extraction status')
+              if record['materialization_status'] == 'attachment_file_emitted':
+                  emitted += 1
+                  path = root / 'external-first' / record['materialized_path']
+                  data = path.read_bytes()
+                  if len(data) != record['size_bytes']:
+                      raise SystemExit('materialized synthetic size does not match manifest')
+                  if hashlib.sha256(data).hexdigest() != record['sha256']:
+                      raise SystemExit('materialized synthetic hash does not match manifest')
+                  inline_payloads = inline_parts.get(record['filename_safe'], [])
+                  if not inline_payloads:
+                      raise SystemExit('inline EML omitted a materialized synthetic filename')
+                  if not any(
+                      len(data) == record['size_bytes']
+                      and hashlib.sha256(data).hexdigest() == record['sha256']
+                      for data in inline_payloads
+                  ):
+                      raise SystemExit('inline EML synthetic bytes do not match the manifest')
+              elif record['materialization_status'] != 'attachment_payload_unavailable':
+                  raise SystemExit('unexpected synthetic materialization status')
+          if emitted == 0:
+              raise SystemExit('fixture produced no materialized synthetic body payload')
+          (root / 'adapter-report.json').write_text(json.dumps({
+              'synthetic_record_count': len(synthetic),
+              'materialized_synthetic_count': emitted,
+              'external_repeat_identical': True,
+              'inline_and_external_hashes_checked': True,
+              'invalid_or_unavailable_sources_remain_explicit': True,
+          }, indent=2) + '\n')
+          PY
       - name: Upload special-item evidence
         if: always()
         uses: actions/upload-artifact@v4

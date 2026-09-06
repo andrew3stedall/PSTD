@@ -434,6 +434,20 @@ All seven top-level messages belong to `/Début du fichier de données Outlook` 
   differential fixture coverage remain Partial. The maintained matrix is now 10
   Implemented, 54 Partial, and 11 Gap; no full-parity claim is made.
 
+### Synthetic body attachment delivery — 6 September 2026
+
+- Closed ATT-10 for standalone `pstd-eml`: validated RTF and opaque `encrypted`/
+  `encrypted_html` body payloads are now exposed as deterministic synthetic attachment
+  records in both inline base64 MIME and external raw-file/`attachments.jsonl` output.
+- Preserved exact source bytes, SHA-256, size, source body key, safe filename, and
+  explicit synthetic/non-authoritative provenance. Empty opaque payloads remain valid
+  zero-byte artifacts; invalid or unavailable sources remain metadata-only with explicit
+  statuses and no fabricated bytes.
+- Added focused adapter tests for exact payloads, empty bodies, invalid/unavailable
+  sources, inline MIME, external materialization, manifest provenance, and integrity
+  behaviour. The maintained matrix is now 11 Implemented, 54 Partial, and 10 Gap;
+  no full-parity claim is made.
+
 ## RP-M7 release-gate review
 
 - Added the RP-M7-01 conservative matrix promotion report at main commit `57fbcaf1a83e2ddc79fff300be812a23cc66bb53`: 2 Implemented, 54 Partial, and 19 Gap rows remain explicit.

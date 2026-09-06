@@ -115,8 +115,9 @@ attachment `Content-ID` headers; ambiguous relationships remain explicit evidenc
 and are never resolved by filename similarity.
 
 External mode writes each recovered payload at its validated relative
-`AttachmentRecord.archive_path`, writes `attachments.jsonl` with the attachment
-record plus `eml_path`, `materialized_path`, and `materialization_status`, and adds
+`AttachmentRecord.archive_path`, including validated RTF and opaque encrypted body
+payloads exposed as synthetic attachment-like records. It writes `attachments.jsonl`
+with the attachment record plus `eml_path`, `materialized_path`, and `materialization_status`, and adds
 `X-PSTD-Attachment-*` headers to each EML. Metadata-only or integrity-failed
 attachments remain in the manifest with no fabricated empty file; inline EMLs
 carry `X-PSTD-Attachments-Unavailable` when a payload could not be included.

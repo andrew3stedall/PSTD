@@ -119,7 +119,7 @@ As of this review:
   one recovered `message/rfc822` payload, an inline parent EML carrying both payloads,
   and one 453-byte child EML;
 - the active boundary is the published RP-M7 final decision: PSTD is not parity-complete, and future work must resolve the named Partial/Gap rows;
-- the matrix currently records 10 Implemented, 54 Partial, and 11 Gap rows after the post-RP-M7 output expansion, easiest-closure wave, attachment metadata closure, and attachment payload extraction wave; fixture breadth, mixed item/output semantics, and broad address/body fidelity remain incomplete;
+- the matrix currently records 11 Implemented, 54 Partial, and 10 Gap rows after the post-RP-M7 output expansion, easiest-closure wave, attachment metadata closure, attachment payload extraction wave, and standalone synthetic body attachment delivery; fixture breadth, mixed item/output semantics, and broad address/body fidelity remain incomplete;
 - RP-M7-02 has a passing pinned-oracle control run but records release-wide E4 as not proven; RP-M7-03 accepts that limitation and names the remaining work;
 - downstream Snowflake/UI/search work remains parked;
 - historical M/PQ/vertical files are retained as traceability records and are no longer used as the current roadmap.

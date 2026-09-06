@@ -183,6 +183,21 @@ unique reference is materialized with exact bytes and provenance; unresolved, am
 or truncated references remain explicit unavailable records. Compact CATB/CATW rows
 retain their existing direct-byte contract.
 
+## ATT-10 synthetic body artifact delivery — 6 September 2026
+
+The standalone `pstd-eml` adapter now materializes every validated RTF body payload and every
+available opaque `encrypted`/`encrypted_html` body payload as a deterministic synthetic
+attachment-like record. The adapter preserves the original body bytes, SHA-256, size, source body
+key, safe filename, and explicit `synthetic=true`/`authoritative=false` provenance. RTF bytes are
+validated before materialization; no decompressed or guessed replacement is emitted.
+
+Inline mode emits these records as ordinary base64 MIME attachment parts. External mode writes the
+same bytes at validated attachment paths and links them from `attachments.jsonl`. Empty encrypted
+payloads remain represented as valid zero-byte files. Invalid RTF and missing/unavailable source
+payloads remain explicit synthetic metadata records with source hashes/statuses and no fabricated
+file. Existing ordinary attachment ordering, duplicate/path checks, embedded-message handling, and
+integrity validation are unchanged.
+
 ## Planned implementation — `RP-06`
 
 ### Readpst logic reviewed

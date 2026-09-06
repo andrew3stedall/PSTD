@@ -1,6 +1,6 @@
 # PSTD Project Status
 
-_Last reviewed: 1 September 2026._
+_Last reviewed: 6 September 2026._
 
 ## Purpose
 
@@ -12,7 +12,7 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 |---|---|---|
 | Product foundation | Complete through M25 | Rust CLI, Python wrapper, Docker packaging, structured TAR/JSONL output, batch/resume, diagnostics, and operator guidance. |
 | Bounded PST parser | Validated foundation through PQ74 | Header, BBT/NBT, blocks, subnodes, Heap-on-Node, BTH, Property Context, Table Context, row transport, and supported MAPI values with explicit limits. |
-| Original public fixture | Material readable-email path | One message, four structured recipients, text and recovered HTML, and one deterministic 956-byte EML. |
+| Original public fixture | Material readable-email path | One message, four structured recipients, text and recovered HTML; the historical plain/HTML projection is 956 bytes, while current `pstd-eml` adds validated synthetic body attachment parts when present. |
 | Tika DOCX attachment | Exact | One 11,862-byte DOCX payload with validated ownership, length, hash, ZIP/CRC evidence, and deterministic parent EML placement. |
 | Tika recipients | Exact or explicit native preservation | Nine directly owned recipients across the fixture, including SMTP rows and preserved legacy Exchange evidence. |
 | Embedded message | Partial bounded recovery | One separately linked child remains exact for the approved layout; child attachment subnodes and nested method-5 children are now walked under the depth budget, while additional producer layouts remain unproven. |
@@ -22,7 +22,7 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Microsoft Purview Unicode exports | Active corpus target | No approved Purview export fixture is yet committed. Compatibility must be established capability-by-capability on controlled synthetic Purview exports rather than inferred from the existing fixtures. |
 | External PST implementations | Comparison-only tooling | Pinned external tools may generate or independently inventory controlled fixtures, but PSTD acceptance must come from its own Rust implementation and exact deterministic output. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
-| Readpst parity release gate | Attachment payload extraction wave | RP-M7-03 remains NOT PARITY-COMPLETE for its reviewed baseline; the maintained matrix is now 10 Implemented, 54 Partial, and 11 Gap after generic direct/data-tree extraction, method-aware metadata, MIME sequence ordering, and bounded nested-child recovery. |
+| Readpst parity release gate | Attachment payload extraction wave | RP-M7-03 remains NOT PARITY-COMPLETE for its reviewed baseline; the maintained matrix is now 11 Implemented, 54 Partial, and 10 Gap after generic direct/data-tree extraction, method-aware metadata, MIME sequence ordering, bounded nested-child recovery, and standalone synthetic body attachment delivery. |
 | Pinned semantic differential | RP-M7-02 evidence collected | Run `32512518536` passed the 18-test readpst/PSTD harness for the approved Unicode fixture; release-wide E4 remains not proven because admissible profile/input corpus coverage is incomplete. |
 
 ## Exact Tika baseline
@@ -50,7 +50,7 @@ The method-5 record `att_a9c94a13d70f1cb3` publishes a 453-byte `message/rfc822`
 
 Attachment reference resolution now accepts the validated compact 4-byte SLENTRY form as well as the existing Unicode wide-entry form, with ambiguity and truncation remaining explicit failures. Method-6 `PR_ATTACH_DATA_OBJ` property-context references now have exact-byte wide/compact OLE data-tree regression coverage and reject duplicate mappings; broad reference/OLE producer coverage remains Partial.
 
-Validated property-context attachments now survive missing or blank filename properties, retaining metadata and using deterministic fallback archive names while keeping method/size validation strict. Broader attachment methods and producer coverage remain Partial.
+Validated property-context attachments now survive missing or blank filename properties, retaining metadata and using deterministic fallback archive names while keeping method/size validation strict. Standalone `pstd-eml` now also materializes validated RTF and opaque encrypted body payloads as exact synthetic inline or external attachment-like artifacts, while invalid or unavailable sources remain explicit metadata-only records. Broader attachment methods and producer coverage remain Partial.
 
 The MAPI String8 conversion boundary now preserves legacy high-bit bytes through the documented ISO-8859-1 fallback and selects supported per-context `PR_MESSAGE_CODEPAGE`/`PR_INTERNET_CPID` declarations for UTF-8, Windows-1252, ISO-8859-1, Shift-JIS, GBK, EUC-KR, or Big5. Raw declarations and charset provenance are retained; malformed, unsupported, and conflicting metadata fails closed to the configured fallback, and `-C` remains authoritative. Malformed multibyte sequences remain raw-backed and publish explicit conversion-error counts. Broader producer-specific charset parity remains open.
 

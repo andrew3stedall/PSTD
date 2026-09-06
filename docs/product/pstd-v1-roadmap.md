@@ -27,7 +27,7 @@ M1-M25 and PQ1-PQ74 are complete. The repository has a Rust CLI, Python wrapper,
 
 ### Original fixture email path
 
-The approved original fixture emits four exact To/Cc recipients, validated plain text and HTML recovered from RTF, and one deterministic 956-byte `multipart/alternative` EML.
+The approved original fixture emits four exact To/Cc recipients and validated plain text and HTML recovered from RTF. Its historical body-only projection is a deterministic 956-byte `multipart/alternative` EML; current standalone `pstd-eml` additionally projects validated RTF and opaque encrypted body payloads as synthetic attachments.
 
 ### Tika attachment and embedded-message path
 
@@ -58,10 +58,11 @@ PR #491 records the java-libpst fixture's deterministic fail-closed result: 25 f
 
 The attachment path now resolves arbitrary direct bytes and bounded 0x0101/0x0201
 data trees without assuming DOCX, retains attachment method/hidden/position/sequence
-metadata, and recursively recovers attachments owned by embedded child messages under
-the existing depth budget. This is a material extraction improvement, but the release
-gate remains NOT PARITY-COMPLETE until broad method-2/3/4/6, ANSI/OST, CID, and
-differential fixture coverage is admitted.
+metadata, recursively recovers attachments owned by embedded child messages under
+the existing depth budget, and exposes validated RTF/opaque encrypted body bytes through
+standalone `pstd-eml` inline and external attachment projections. This is a material
+extraction improvement, but the release gate remains NOT PARITY-COMPLETE until broad
+method-2/3/4/6, ANSI/OST, CID, and differential fixture coverage is admitted.
 
 ### Readpst parity release gate
 
@@ -69,9 +70,9 @@ RP-M6-01 through RP-M6-03 are merged with controlled input, crypto, hardening, a
 determinism evidence. RP-M7-01 reviewed the live matrix, RP-M7-02 recorded the pinned
 oracle and E4 admissibility blockers, and RP-M7-03 published the final decision:
 NOT PARITY-COMPLETE. The reviewed baseline had 2 Implemented, 54 Partial, and 19 Gap
-rows; the maintained matrix is now 10 Implemented, 53 Partial, and 14 Gap after the
-post-RP-M7 output parity expansion, easiest-closure wave, and attachment metadata
-closure.
+rows; the maintained matrix is now 11 Implemented, 54 Partial, and 10 Gap after the
+post-RP-M7 output parity expansion, easiest-closure wave, attachment metadata closure,
+attachment payload extraction, and standalone synthetic body attachment delivery.
 
 The output expansion applies typed `-t[eajc]` routing to named projections, extends
 case-insensitive attachment filtering to generated MIME/MSG output, and adds shared

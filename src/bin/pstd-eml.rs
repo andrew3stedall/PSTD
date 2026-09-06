@@ -8,8 +8,8 @@ use pstd::engine::metadata::extract_metadata;
 use pstd::output::headers::{
     encode_display_name, encode_mime_parameter, encode_unstructured_value, normalize_content_id,
 };
-use pstd::output::metadata::{AttachmentRecord, MessageRecord, RecipientRecord};
-use pstd::pst::attachments::AttachmentPayload;
+use pstd::output::metadata::{AttachmentRecord, BodyRecord, MessageRecord, RecipientRecord};
+use pstd::pst::attachments::{AttachmentMetadata, AttachmentPayload};
 use pstd::pst::messages::BodyPayload;
 use sha2::{Digest, Sha256};
 
@@ -66,9 +66,19 @@ fn run() -> Result<(), String> {
 
     let recipients = recipients_by_message(&metadata.recipients);
     let bodies = bodies_by_message(&metadata.body_payloads);
-    let attachments = attachments_by_message(&metadata.attachment_payloads);
+    let mut attachment_payloads = metadata.attachment_payloads.clone();
+    let (mut synthetic_payloads, synthetic_unavailable_records) = synthetic_body_attachments(
+        &metadata.bodies,
+        &metadata.body_payloads,
+        &metadata.attachments,
+        &attachment_payloads,
+    );
+    attachment_payloads.append(&mut synthetic_payloads);
+    let attachments = attachments_by_message(&attachment_payloads);
+    let mut all_attachment_records = metadata.attachments.clone();
+    all_attachment_records.extend(synthetic_unavailable_records);
     let attachment_records =
-        attachment_records_by_message(&metadata.attachments, &metadata.attachment_payloads);
+        attachment_records_by_message(&all_attachment_records, &attachment_payloads);
     let embedded_messages = embedded_message_keys(&metadata.attachments);
     let mut pending_external_attachments = Vec::new();
     let mut external_manifest = Vec::new();
@@ -450,6 +460,175 @@ fn bodies_by_message(payloads: &[BodyPayload]) -> BTreeMap<String, MessageBodies
     }
     bodies.retain(|_, body| body.text.is_some());
     bodies
+}
+
+fn synthetic_body_attachments(
+    body_records: &[BodyRecord],
+    body_payloads: &[BodyPayload],
+    attachment_records: &[AttachmentRecord],
+    attachment_payloads: &[AttachmentPayload],
+) -> (Vec<AttachmentPayload>, Vec<AttachmentRecord>) {
+    let mut bodies = BTreeMap::<String, BodyRecord>::new();
+    for body in body_records {
+        if is_synthetic_body_type(&body.body_type) {
+            bodies.insert(body.body_key.clone(), body.clone());
+        }
+    }
+    for payload in body_payloads {
+        if is_synthetic_body_type(&payload.record.body_type) {
+            bodies
+                .entry(payload.record.body_key.clone())
+                .or_insert_with(|| payload.record.clone());
+        }
+    }
+
+    let mut next_ordinals = BTreeMap::<String, u64>::new();
+    for record in attachment_records {
+        let next = record.ordinal.saturating_add(1);
+        next_ordinals
+            .entry(record.message_key.clone())
+            .and_modify(|current| *current = (*current).max(next))
+            .or_insert(next);
+    }
+    for payload in attachment_payloads {
+        let next = payload.record.ordinal.saturating_add(1);
+        next_ordinals
+            .entry(payload.record.message_key.clone())
+            .and_modify(|current| *current = (*current).max(next))
+            .or_insert(next);
+    }
+
+    let mut candidates = bodies.into_values().collect::<Vec<_>>();
+    candidates.sort_by_key(|body| {
+        (
+            body.message_key.clone(),
+            synthetic_body_order(&body.body_type),
+            body.body_key.clone(),
+        )
+    });
+
+    let mut payloads = Vec::new();
+    let mut unavailable_records = Vec::new();
+    for body in candidates {
+        let ordinal = next_ordinals.entry(body.message_key.clone()).or_insert(0);
+        let body_ordinal = *ordinal as usize;
+        *ordinal = (*ordinal).saturating_add(1);
+        let source_payload = body_payloads
+            .iter()
+            .find(|payload| payload.record.body_key == body.body_key);
+        let (payload, record) = synthetic_body_attachment(&body, source_payload, body_ordinal);
+        if let Some(payload) = payload {
+            payloads.push(payload);
+        }
+        if let Some(record) = record {
+            unavailable_records.push(record);
+        }
+    }
+    (payloads, unavailable_records)
+}
+
+fn is_synthetic_body_type(body_type: &str) -> bool {
+    matches!(body_type, "rtf" | "encrypted" | "encrypted_html")
+}
+
+fn synthetic_body_order(body_type: &str) -> u8 {
+    match body_type {
+        "rtf" => 0,
+        "encrypted_html" => 1,
+        "encrypted" => 2,
+        _ => u8::MAX,
+    }
+}
+
+fn synthetic_body_attachment(
+    body: &BodyRecord,
+    source_payload: Option<&BodyPayload>,
+    ordinal: usize,
+) -> (Option<AttachmentPayload>, Option<AttachmentRecord>) {
+    let metadata = AttachmentMetadata {
+        filename_original: Some(synthetic_body_filename(body)),
+        content_type: Some(synthetic_body_content_type(&body.body_type)),
+        is_inline: false,
+        is_hidden: false,
+        content_id: None,
+        attachment_method: None,
+        declared_size_bytes: Some(body.size_bytes),
+        rendering_position: None,
+        mime_sequence: None,
+    };
+    let valid = match (body.body_type.as_str(), source_payload) {
+        ("rtf", Some(payload)) => validated_rtf(&payload.bytes).is_some(),
+        ("encrypted" | "encrypted_html", Some(_)) => true,
+        _ => false,
+    };
+    let status = synthetic_body_status(body, source_payload, valid);
+
+    if valid {
+        let payload = source_payload.expect("a valid synthetic body has a source payload");
+        let mut payload = pstd::pst::attachments::attachment_payload(
+            &body.message_key,
+            ordinal,
+            metadata,
+            payload.bytes.clone(),
+        );
+        annotate_synthetic_body_record(&mut payload.record, body, &status);
+        (Some(payload), None)
+    } else {
+        let mut record = pstd::pst::attachments::unavailable_attachment_record_from_metadata(
+            &body.message_key,
+            ordinal,
+            metadata,
+            &status,
+        );
+        annotate_synthetic_body_record(&mut record, body, &status);
+        (None, Some(record))
+    }
+}
+
+fn annotate_synthetic_body_record(record: &mut AttachmentRecord, body: &BodyRecord, status: &str) {
+    record.source_body_key = Some(body.body_key.clone());
+    record.synthetic = true;
+    record.authoritative = Some(false);
+    record.source_ref = format!(
+        "body:{}; synthetic={}; authoritative=false",
+        body.body_key, body.body_type
+    );
+    record.extraction_status = status.to_string();
+}
+
+fn synthetic_body_status(
+    body: &BodyRecord,
+    source_payload: Option<&BodyPayload>,
+    valid: bool,
+) -> String {
+    let status = match body.body_type.as_str() {
+        "rtf" if valid => "synthetic_rtf_attachment_available",
+        "rtf" if source_payload.is_some() => "synthetic_rtf_attachment_invalid",
+        "rtf" => "synthetic_rtf_attachment_source_unavailable",
+        "encrypted" | "encrypted_html" if valid => "synthetic_opaque_body_attachment_available",
+        "encrypted" | "encrypted_html" => "synthetic_opaque_body_attachment_source_unavailable",
+        _ => "synthetic_body_attachment_unsupported",
+    };
+    format!(
+        "{status}; source_body_key={}; source_body_sha256={}; source_body_size_bytes={}; authoritative=false",
+        body.body_key, body.sha256, body.size_bytes
+    )
+}
+
+fn synthetic_body_filename(body: &BodyRecord) -> String {
+    match body.body_type.as_str() {
+        "rtf" => format!("pstd-{}.rtf", body.body_key),
+        "encrypted_html" => format!("pstd-{}.encrypted-html.bin", body.body_key),
+        "encrypted" => format!("pstd-{}.encrypted.bin", body.body_key),
+        _ => format!("pstd-{}.bin", body.body_key),
+    }
+}
+
+fn synthetic_body_content_type(body_type: &str) -> String {
+    match body_type {
+        "rtf" => "application/rtf".to_string(),
+        _ => "application/octet-stream".to_string(),
+    }
 }
 
 #[cfg(test)]
@@ -1288,6 +1467,168 @@ mod tests {
         assert_eq!(
             grouped.get("message").and_then(|body| body.html.as_deref()),
             Some("<p>direct HTML</p>")
+        );
+    }
+
+    #[test]
+    fn materializes_valid_rtf_and_opaque_body_payloads_as_synthetic_attachments() {
+        let rtf = body_payload("message", "rtf", b"{\\rtf1\\ansi synthetic}".to_vec(), None);
+        let encrypted_html = body_payload("message", "encrypted_html", Vec::new(), None);
+        let encrypted = body_payload(
+            "message",
+            "encrypted",
+            b"opaque encrypted bytes".to_vec(),
+            None,
+        );
+        let body_records = vec![
+            rtf.record.clone(),
+            encrypted_html.record.clone(),
+            encrypted.record.clone(),
+        ];
+        let body_payloads = vec![rtf, encrypted_html, encrypted];
+
+        let (payloads, unavailable) =
+            synthetic_body_attachments(&body_records, &body_payloads, &[], &[]);
+
+        assert!(unavailable.is_empty());
+        assert_eq!(payloads.len(), 3);
+        assert_eq!(payloads[0].record.extension.as_deref(), Some("rtf"));
+        assert_eq!(
+            payloads[0].record.content_type.as_deref(),
+            Some("application/rtf")
+        );
+        assert_eq!(
+            payloads[0].record.source_body_key,
+            Some(body_records[0].body_key.clone())
+        );
+        assert!(payloads.iter().all(|payload| {
+            payload.record.synthetic
+                && payload.record.authoritative == Some(false)
+                && payload.record.source_body_key.is_some()
+                && payload
+                    .record
+                    .extraction_status
+                    .contains("authoritative=false")
+        }));
+        assert!(payloads.iter().any(|payload| {
+            payload.record.source_body_key == Some(body_records[1].body_key.clone())
+                && payload.bytes.is_empty()
+        }));
+        assert_eq!(payloads[0].bytes, b"{\\rtf1\\ansi synthetic}");
+        assert_eq!(payloads[2].bytes, b"opaque encrypted bytes");
+    }
+
+    #[test]
+    fn preserves_invalid_and_unavailable_synthetic_body_sources_without_fabricating_payloads() {
+        let invalid_rtf = body_payload("message", "rtf", b"not rtf".to_vec(), None);
+        let unavailable_encrypted = pstd::pst::messages::unavailable_body_record(
+            "message",
+            "encrypted",
+            "encrypted_body_reference_unresolved",
+        );
+
+        let (payloads, unavailable) = synthetic_body_attachments(
+            &[invalid_rtf.record.clone(), unavailable_encrypted.clone()],
+            &[invalid_rtf],
+            &[],
+            &[],
+        );
+
+        assert!(payloads.is_empty());
+        assert_eq!(unavailable.len(), 2);
+        assert!(unavailable.iter().all(|record| {
+            record.synthetic
+                && record.authoritative == Some(false)
+                && record.source_body_key.is_some()
+                && record.size_bytes == 0
+                && record.extraction_status.contains("source_body_sha256=")
+        }));
+        assert!(unavailable.iter().any(|record| record
+            .extraction_status
+            .contains("synthetic_rtf_attachment_invalid")));
+        assert!(unavailable.iter().any(|record| {
+            record
+                .extraction_status
+                .contains("synthetic_opaque_body_attachment_source_unavailable")
+        }));
+    }
+
+    #[test]
+    fn emits_synthetic_rtf_and_opaque_body_payloads_inline() {
+        let bodies = MessageBodies {
+            text: Some(b"plain body".to_vec()),
+            html: None,
+        };
+        let rtf = body_payload("message", "rtf", b"{\\rtf1\\ansi synthetic}".to_vec(), None);
+        let encrypted = body_payload(
+            "message",
+            "encrypted",
+            b"opaque encrypted bytes".to_vec(),
+            None,
+        );
+        let (payloads, unavailable) = synthetic_body_attachments(
+            &[rtf.record.clone(), encrypted.record.clone()],
+            &[rtf, encrypted],
+            &[],
+            &[],
+        );
+        assert!(unavailable.is_empty());
+
+        let eml = build_eml(&message(), &[recipient(0, "to")], &bodies, &payloads).unwrap();
+        let eml = String::from_utf8(eml).unwrap();
+        assert!(eml.contains("Content-Type: multipart/mixed;"));
+        assert!(eml.contains("Content-Type: application/rtf; name="));
+        assert!(eml.contains(&base64_lines(b"{\\rtf1\\ansi synthetic}")));
+        assert!(eml.contains("Content-Type: application/octet-stream; name="));
+        assert!(eml.contains(&base64_lines(b"opaque encrypted bytes")));
+        assert!(!eml.contains("authoritative=false"));
+    }
+
+    #[test]
+    fn external_mode_materializes_synthetic_payloads_and_preserves_provenance() {
+        let directory = tempfile::tempdir().unwrap();
+        let encrypted = body_payload(
+            "message",
+            "encrypted_html",
+            b"opaque html bytes".to_vec(),
+            None,
+        );
+        let (payloads, unavailable) = synthetic_body_attachments(
+            std::slice::from_ref(&encrypted.record),
+            std::slice::from_ref(&encrypted),
+            &[],
+            &[],
+        );
+        assert!(unavailable.is_empty());
+        let records = payloads
+            .iter()
+            .map(|payload| payload.record.clone())
+            .collect::<Vec<_>>();
+        let (pending, manifest) = plan_external_attachments(
+            Some("message.eml"),
+            &records,
+            &payloads,
+            &mut BTreeSet::new(),
+        )
+        .unwrap();
+        write_external_attachments(directory.path(), &pending, &manifest).unwrap();
+
+        let record: serde_json::Value =
+            serde_json::from_str(manifest.first().expect("one manifest record")).unwrap();
+        assert_eq!(
+            record["source_body_key"],
+            serde_json::Value::String(encrypted.record.body_key.clone())
+        );
+        assert_eq!(record["synthetic"], serde_json::Value::Bool(true));
+        assert_eq!(record["authoritative"], serde_json::Value::Bool(false));
+        assert_eq!(
+            record["materialization_status"],
+            serde_json::Value::String("attachment_file_emitted".to_string())
+        );
+        let materialized_path = record["materialized_path"].as_str().unwrap();
+        assert_eq!(
+            fs::read(directory.path().join(materialized_path)).unwrap(),
+            b"opaque html bytes"
         );
     }
 

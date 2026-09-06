@@ -166,6 +166,13 @@ Its RTF gate uses the repository's existing `tests/fixtures/pst/sample.pst` fixt
 whose readable RTF path is independently exercised by the RTF fixture workflow.
 Synthetic unit evidence covers unavailable reports/schedules, opaque encrypted bytes,
 and valid RTF; broad recurrence/report-property producer coverage remains open.
+
+As of 6 September 2026, standalone `pstd-eml` also exposes the validated RTF and opaque
+encrypted body payloads through its attachment projections. Each synthetic record retains the
+source body key, exact source hash/size, deterministic safe filename, and explicit
+non-authoritative marker. Inline mode emits exact base64 MIME bytes; external mode emits exact raw
+files plus manifest links. Empty opaque payloads are retained, while invalid or unavailable source
+payloads produce metadata-only unavailable records rather than fabricated files.
 # RP-M2-03 delivery
 
 Attachment method-5 records now carry an explicit embedded-message source reference
