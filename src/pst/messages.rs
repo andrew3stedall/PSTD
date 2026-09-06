@@ -82,8 +82,7 @@ pub fn body_coverage_report(
         || properties.value(PR_HTML_STRING).is_some()
         || properties.value(PR_HTML_STRING_A).is_some();
     let rtf_property_present = properties.value(PR_RTF_COMPRESSED).is_some();
-    let encrypted_html_body_property_present =
-        properties.value(PR_ENCRYPTED_HTML_BODY).is_some();
+    let encrypted_html_body_property_present = properties.value(PR_ENCRYPTED_HTML_BODY).is_some();
     let encrypted_body_property_present = properties.value(PR_ENCRYPTED_BODY).is_some();
     let supported_body_property_count = [
         text_property_present,

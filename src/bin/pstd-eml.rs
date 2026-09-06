@@ -585,11 +585,7 @@ fn synthetic_body_attachment(
     }
 }
 
-fn annotate_synthetic_body_record(
-    record: &mut AttachmentRecord,
-    body: &BodyRecord,
-    status: &str,
-) {
+fn annotate_synthetic_body_record(record: &mut AttachmentRecord, body: &BodyRecord, status: &str) {
     record.source_body_key = Some(body.body_key.clone());
     record.synthetic = true;
     record.authoritative = Some(false);
@@ -609,9 +605,7 @@ fn synthetic_body_status(
         "rtf" if valid => "synthetic_rtf_attachment_available",
         "rtf" if source_payload.is_some() => "synthetic_rtf_attachment_invalid",
         "rtf" => "synthetic_rtf_attachment_source_unavailable",
-        "encrypted" | "encrypted_html" if valid => {
-            "synthetic_opaque_body_attachment_available"
-        }
+        "encrypted" | "encrypted_html" if valid => "synthetic_opaque_body_attachment_available",
         "encrypted" | "encrypted_html" => "synthetic_opaque_body_attachment_source_unavailable",
         _ => "synthetic_body_attachment_unsupported",
     };
@@ -1478,12 +1472,7 @@ mod tests {
 
     #[test]
     fn materializes_valid_rtf_and_opaque_body_payloads_as_synthetic_attachments() {
-        let rtf = body_payload(
-            "message",
-            "rtf",
-            b"{\\rtf1\\ansi synthetic}".to_vec(),
-            None,
-        );
+        let rtf = body_payload("message", "rtf", b"{\\rtf1\\ansi synthetic}".to_vec(), None);
         let encrypted_html = body_payload("message", "encrypted_html", Vec::new(), None);
         let encrypted = body_payload(
             "message",
@@ -1516,7 +1505,10 @@ mod tests {
             payload.record.synthetic
                 && payload.record.authoritative == Some(false)
                 && payload.record.source_body_key.is_some()
-                && payload.record.extraction_status.contains("authoritative=false")
+                && payload
+                    .record
+                    .extraction_status
+                    .contains("authoritative=false")
         }));
         assert!(payloads.iter().any(|payload| {
             payload.record.source_body_key == Some(body_records[1].body_key.clone())
@@ -1551,9 +1543,9 @@ mod tests {
                 && record.size_bytes == 0
                 && record.extraction_status.contains("source_body_sha256=")
         }));
-        assert!(unavailable
-            .iter()
-            .any(|record| record.extraction_status.contains("synthetic_rtf_attachment_invalid")));
+        assert!(unavailable.iter().any(|record| record
+            .extraction_status
+            .contains("synthetic_rtf_attachment_invalid")));
         assert!(unavailable.iter().any(|record| {
             record
                 .extraction_status
@@ -1567,12 +1559,7 @@ mod tests {
             text: Some(b"plain body".to_vec()),
             html: None,
         };
-        let rtf = body_payload(
-            "message",
-            "rtf",
-            b"{\\rtf1\\ansi synthetic}".to_vec(),
-            None,
-        );
+        let rtf = body_payload("message", "rtf", b"{\\rtf1\\ansi synthetic}".to_vec(), None);
         let encrypted = body_payload(
             "message",
             "encrypted",
