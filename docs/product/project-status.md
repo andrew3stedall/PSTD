@@ -35,16 +35,16 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Valid body payload files / bytes | 6 / 271 |
 | Explicit unresolved HTML forms | 2 |
 | Recipient records | 9 |
-| Attachment records | 2 |
-| Attachment payload files / bytes | 2 / 12,315 |
+| Attachment records | 3 |
+| Attachment payload files / bytes | 3 / 40,756 |
 | EML files / bytes | 2 / deterministic; inline parent carries both recovered payloads |
-| Messages JSONL bytes | 23,865 |
+| Messages JSONL bytes | 28,778 |
 | Bodies JSONL bytes | 2,922 |
 | Recipients JSONL bytes | 2,708 |
-| Attachments JSONL bytes | 1,240 |
-| Extraction TAR bytes | 234,496 |
+| Attachments JSONL bytes | 2,409 |
+| Extraction TAR bytes | 687,104 |
 
-The method-5 record `att_a9c94a13d70f1cb3` publishes a 453-byte `message/rfc822` payload with SHA-256 `86ffe5567da7aa505b8be16400889170ca583fd247cc0758f00a43c2a8a99420`. Those bytes are identical to standalone child `msg_0ff529af59d373d5.eml`. Inline parent EML now carries both the validated DOCX and recovered embedded-message payload; external mode publishes the same bytes at manifest-linked paths.
+The method-5 record `att_a9c94a13d70f1cb3` publishes a 17,032-byte `message/rfc822` payload with SHA-256 `44f7e7bd7d8fbb8a8b7c506ffd6283024a86721f27870dd7dfb9da62065588db`. The recovered child now includes its validated attachment; the older 453-byte child baseline is historical. Those bytes are identical to standalone child `msg_0ff529af59d373d5.eml`. Inline parent EML now carries both the validated DOCX and recovered embedded-message payload; external mode publishes the same bytes at manifest-linked paths.
 
 ## Latest completed work
 
@@ -59,6 +59,19 @@ The CLI fallback charset override is now effective across message, folder, attac
 The ANSI Stage-A structural fixture remains admitted from `tools/ansi_fixture.rs`: exact 2,048-byte length, SHA-256 `b5de1ce4cebacc2ea4cefddb4ab9c4d32e5fed04b81cd681e8831faf1323c765`, independent weak-CRC/page-trailer validation, repeat-run equality, PSTD fail-closed empty traversal, and libpff acceptance. Stage B adds a separate deterministic one-folder/one-message ANSI fixture with exact node/property/table validation, one structured recipient, a plain-text body, and EML evidence. Stage C adds direct and HNID/SLBLOCK-indirect method-1 property-context attachment variants plus one method-2 reference variant, all with exact method/payload hash and inline/external output evidence. These are controlled shape claims only; no broad ANSI compatibility claim is made.
 
 The java-libpst comparison fixture has a deterministic fail-closed baseline: 25 folders, 9 message metadata records, 12 body records, 0 recipients, 22 attachment metadata records, 0 materialised attachment payloads, 0 validated `IPM.Note*` classes, and 0 EML files. It is comparison evidence, not an email capability milestone.
+
+## Content output scaling (PERF-01)
+
+Email-content joins and attachment text/disk lookup now use borrowed indexes instead
+of repeatedly scanning whole collections. The runner serializes one expanded content
+record at a time; collecting library APIs remain available. Disk attachment lookup
+streams manifest rows and hashes the returned bytes directly. Duplicate attachment
+payload IDs receive an explicit text status and fail disk export before writes;
+body-key collisions cannot inject another message's payload into a content row.
+
+This is an output performance and correctness slice, not new PST parser coverage.
+See [PERF-01](../operations/perf-01-content-output.md) for measured evidence and
+remaining memory/adapter limitations.
 
 ## Next evidence-based milestone
 

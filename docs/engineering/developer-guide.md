@@ -95,6 +95,22 @@ cargo run -- batch --input <approved-file-or-directory> --output <tmp-batch-outp
 
 Inspect the public-progress and milestone-specific artifacts. Record the exact extraction delta, including unchanged counters when a milestone is structural or diagnostic only.
 
+## Content output benchmarks
+
+Run `python scripts/benchmark_content_output.py --baseline <commit>` from a checkout
+with Rust and `/usr/bin/time`. It builds the same deterministic synthetic driver
+against the selected revision and current checkout, resolving one shared Cargo lockfile
+for both builds. It alternates three samples of each revision, checks byte counts and
+SHA-256 equality, and reports median output-phase time and process peak RSS.
+
+The `Content output performance` workflow runs this comparison on relevant PR changes
+and can be dispatched with an explicit baseline. Timing is informational rather than
+a noisy CI threshold. Cases cover message-count scaling, larger bodies, attachment
+text joins and disk export. The text-join case uses unsupported binary attachments to
+isolate lookup and serialization; it does not measure Office/PDF parser throughput.
+RSS includes synthetic input setup and buffered JSONL; these are not end-to-end PST
+or constant-memory extraction benchmarks.
+
 ## Fixture policy
 
 - Never commit private PST files.

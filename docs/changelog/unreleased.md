@@ -2,6 +2,23 @@
 
 _Last reviewed: 1 September 2026._
 
+## Performance and correctness — PERF-01
+
+- Index canonical email ownership and attachment payload IDs with borrowed records;
+  preserve stable ordering and existing collecting APIs.
+- Serialize email-content and attachment-text records one at a time instead of
+  retaining every expanded record alongside the JSONL output.
+- Read attachment manifests through a reusable line buffer and remove the extra
+  payload copy during retrieval integrity validation.
+- Reject duplicate attachment payload IDs explicitly; preflight duplicate IDs,
+  archive paths and unsafe paths before disk attachment writes.
+- Keep another message's payload unavailable when body keys collide.
+- Add focused regressions and an identical release benchmark against a selected
+  baseline, enforcing exact output hashes while reporting timing and peak RSS.
+- Refresh stale current-state fixture metrics from inspected artifacts; preserve
+  Vertical-38 measurements as historical evidence.
+- Measurements and limits: [PERF-01 report](../operations/perf-01-content-output.md).
+
 ## Added
 
 ### RP-M6-02 ANSI Stage-B message fixture
