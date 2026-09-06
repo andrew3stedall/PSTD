@@ -27,7 +27,7 @@ M1-M25 and PQ1-PQ74 are complete. The repository has a Rust CLI, Python wrapper,
 
 ### Original fixture email path
 
-The approved original fixture emits four exact To/Cc recipients, validated plain text and HTML recovered from RTF, and one deterministic 956-byte `multipart/alternative` EML.
+The approved original fixture emits four exact To/Cc recipients and validated plain text and HTML recovered from RTF. Its historical body-only projection is a deterministic 956-byte `multipart/alternative` EML; current standalone `pstd-eml` additionally projects validated RTF and opaque encrypted body payloads as synthetic attachments.
 
 ### Tika attachment and embedded-message path
 

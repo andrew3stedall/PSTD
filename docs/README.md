@@ -31,7 +31,7 @@ This documentation tree contains both current operating guidance and historical 
 | M1-M25 | Product foundation complete: CLI, Python wrapper, Docker, TAR/JSONL outputs, batch/resume, diagnostics, and operator handoff. |
 | PQ1-PQ74 | Validated parser foundation through bounded traversal, Table Context row transport, and fixed-width value decoding. |
 | Recipient verticals | Four structured To/Cc recipient records with names and usable addresses are emitted from the original public fixture. |
-| Readable message verticals | One deterministic 956-byte EML is emitted with sender, recipients, subject, Date, Message-ID, plain text, and recovered HTML. |
+| Readable message verticals | The original fixture retains its 956-byte plain/HTML baseline; current standalone `pstd-eml` output adds validated RTF and opaque encrypted body payloads as synthetic attachment-like MIME parts when present. |
 | Upstream fixture corpus | Three pinned public PSTs cover attachments, multiple folders/messages, body forms, appointments, recurrence, contacts, distribution lists, and legacy Exchange addresses. Non-mail objects remain outside the active email-to-EML milestone. |
 | Tika attachment fixture | Eight messages include seven top-level messages assigned by exact contents-table rows, one linked method-`5` child, nine directly owned recipients, ten body records, two exact attachment payloads, inline parent EML with both payloads, and one exact 453-byte child EML. |
 | Current milestone | Attachment payload extraction wave | RP-M7-03 remains NOT PARITY-COMPLETE for its reviewed baseline; the maintained matrix is 11 Implemented, 54 Partial, and 10 Gap rows after generic attachment resolver work and standalone synthetic RTF/opaque encrypted body artifact delivery. See `readpst-gaps/10-parity-matrix.md`. |
@@ -72,6 +72,7 @@ The current roadmap, compatibility matrix, and approved-fixture gap record defin
 - [Vertical 36: Method-5 child EML payload](operations/vertical-36-materialise-method5-eml-payload.md)
 - [Vertical 37: Tika message-folder ownership](operations/vertical-37-resolve-tika-message-folder-ownership.md)
 - [Vertical 38: Reject unresolved binary body references](operations/vertical-38-reject-unresolved-binary-body-references.md)
+- [Vertical 45: Synthetic body attachments](operations/vertical-45-materialise-synthetic-body-attachments.md)
 
 ### Data contract
 
