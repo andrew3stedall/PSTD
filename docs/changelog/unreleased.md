@@ -448,6 +448,17 @@ All seven top-level messages belong to `/Début du fichier de données Outlook` 
   behaviour. The maintained matrix is now 11 Implemented, 54 Partial, and 10 Gap;
   no full-parity claim is made.
 
+### Reconstructible email content and attachment text — 6 September 2026
+
+- Added canonical `data/email_content.jsonl` rows containing serializable message and
+  header data, ordered recipients, exact body bytes, decoded/recovered RTF forms, and
+  attachment IDs without duplicating attachment bytes into the email row.
+- Added `--attachment-storage archive|disk|both|none`, a disk-sidecar manifest, and a
+  public ID-based retrieval method with path, size, and SHA-256 validation.
+- Added opt-in `--attachment-text office-pdf` parsing for Office Open XML packages and
+  well-formed PDFs into a separate `data/attachment_text.jsonl` stream. Raw bytes are
+  preserved and unsupported or unavailable formats remain explicit.
+
 ## RP-M7 release-gate review
 
 - Added the RP-M7-01 conservative matrix promotion report at main commit `57fbcaf1a83e2ddc79fff300be812a23cc66bb53`: 2 Implemented, 54 Partial, and 19 Gap rows remain explicit.

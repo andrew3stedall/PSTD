@@ -8,6 +8,8 @@ use crate::config::ExtractConfig;
 use crate::engine::metadata::{extract_metadata_with_fallback_charset, fallback_metadata};
 use crate::error::{PstdError, PstdResult, StatusRecord};
 use crate::output::calendar::serialize_icalendar;
+use crate::output::attachment_store::write_disk_attachments;
+use crate::output::attachment_text::parse_attachment_text_records;
 use crate::output::contact::{serialize_contact_list, serialize_vcards};
 use crate::output::ids;
 use crate::output::jsonl_writer::JsonlBuffer;
@@ -16,6 +18,7 @@ use crate::output::metadata::MessageRecord;
 use crate::output::msg::render_profile as render_msg_profile;
 use crate::output::non_mail::serialize_vjournals;
 use crate::output::summary::ExtractionSummary;
+use crate::output::reconstruction::build_email_content_records;
 use crate::output::tar_writer::TarShardWriter;
 use crate::output::thunderbird::render_typed_outputs;
 use crate::progress::{ProgressEvent, ProgressEventType};
@@ -189,6 +192,27 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     for record in &metadata.attachments {
         attachments.write_record(record)?;
     }
+    let email_content_records = build_email_content_records(
+        &metadata.messages,
+        &metadata.headers,
+        &metadata.recipients,
+        &metadata.bodies,
+        &metadata.body_payloads,
+        &metadata.attachments,
+    );
+    let mut email_content = JsonlBuffer::new();
+    for record in &email_content_records {
+        email_content.write_record(record)?;
+    }
+    let attachment_text_records = parse_attachment_text_records(
+        config.readpst.attachment_text,
+        &metadata.attachments,
+        &metadata.attachment_payloads,
+    );
+    let mut attachment_text = JsonlBuffer::new();
+    for record in &attachment_text_records {
+        attachment_text.write_record(record)?;
+    }
     let mut compatibility_triage = JsonlBuffer::new();
     for record in &metadata.compatibility_triage {
         compatibility_triage.write_record(record)?;
@@ -225,6 +249,8 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         "manifest_only": config.manifest_only,
         "profile": config.profile,
         "readpst_policy": config.readpst.clone(),
+        "attachment_storage": config.readpst.attachment_storage,
+        "attachment_text": config.readpst.attachment_text,
         "metadata_status": metadata_status.clone(),
         "input_capability_status": capability.status,
         "input_capability_family": capability.family,
@@ -253,6 +279,16 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         &message_references.into_bytes(),
     )?;
     tar.append_bytes(&["data", "bodies.jsonl"], &bodies.into_bytes())?;
+    tar.append_bytes(
+        &["data", "email_content.jsonl"],
+        &email_content.into_bytes(),
+    )?;
+    if config.readpst.attachment_text != crate::config::AttachmentTextMode::None {
+        tar.append_bytes(
+            &["data", "attachment_text.jsonl"],
+            &attachment_text.into_bytes(),
+        )?;
+    }
     tar.append_bytes(&["data", "mime_parts.jsonl"], &mime_parts.into_bytes())?;
     if !metadata.cid_references.is_empty() {
         tar.append_bytes(
@@ -488,8 +524,10 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     for payload in &metadata.body_payloads {
         append_archive_payload(&mut tar, &payload.record.archive_path, &payload.bytes)?;
     }
-    for payload in &metadata.attachment_payloads {
-        append_archive_payload(&mut tar, &payload.record.archive_path, &payload.bytes)?;
+    if config.readpst.attachment_storage.stores_in_archive() {
+        for payload in &metadata.attachment_payloads {
+            append_archive_payload(&mut tar, &payload.record.archive_path, &payload.bytes)?;
+        }
     }
     tar.append_bytes(
         &["_pstfast", "folder_inventory.jsonl"],
@@ -529,6 +567,13 @@ pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
         &serde_json::to_vec_pretty(&summary)?,
     )?;
     let shards = tar.finish()?;
+    if config.readpst.attachment_storage.stores_on_disk() {
+        write_disk_attachments(
+            &config.output,
+            &metadata.attachments,
+            &metadata.attachment_payloads,
+        )?;
+    }
     summary.tar_shards_written = shards.len() as u64;
     summary.bytes_written = shards.iter().map(|s| s.bytes_written_estimate).sum();
     fs::write(

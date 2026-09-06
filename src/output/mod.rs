@@ -1,6 +1,8 @@
 pub mod calendar;
 pub mod cid;
 pub mod contact;
+pub mod attachment_text;
+pub mod attachment_store;
 pub mod headers;
 pub mod ids;
 pub mod jsonl_writer;
@@ -14,3 +16,4 @@ pub mod special;
 pub mod summary;
 pub mod tar_writer;
 pub mod thunderbird;
+pub mod reconstruction;

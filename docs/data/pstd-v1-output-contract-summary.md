@@ -1,6 +1,6 @@
 # PSTD Structured Output Contract
 
-_Last reviewed: 17 July 2026._
+_Last reviewed: 6 September 2026._
 
 ## Purpose
 
@@ -22,6 +22,8 @@ The existence of a record type or archive path means the output layer supports t
 | Recipient records | Implemented | Row-aligned role/name/address records are fixture validated, including direct ownership for one embedded child |
 | Message-reference records | Implemented as a contract | Coverage is not yet sufficient to claim complete threading fidelity |
 | Attachment records and raw attachment artefacts | Implemented | Tika emits one by-value DOCX payload plus one metadata-only method-`5` record linked to its child message |
+| Reconstructible email-content JSONL | Implemented | `data/email_content.jsonl` embeds exact non-attachment body bytes and links every attachment by stable ID |
+| Office/PDF attachment text JSONL | Opt-in projection | `data/attachment_text.jsonl` provides bounded plain text for Office Open XML and well-formed PDF payloads |
 | EML | Non-canonical assembly output | Deterministic inline and external assembly are validated over plain/HTML, DOCX, and recovered `message/rfc822` evidence |
 
 ## Single-PST output root
@@ -68,7 +70,9 @@ data/
   recipients.jsonl
   message_references.jsonl
   bodies.jsonl
+  email_content.jsonl
   attachments.jsonl
+  attachment_text.jsonl (when `--attachment-text office-pdf` is enabled)
   cid_references.jsonl
   selected_mapi_properties.jsonl
 
@@ -126,11 +130,31 @@ A native `PidTagEmailAddress` value must not be labelled SMTP unless authoritati
 
 ### Bodies
 
-Body records should identify body type, archive path, encoding, size, hash, and status. Raw body artefacts should be stored as files rather than embedded in JSON.
+Body records should identify body type, archive path, encoding, size, hash, and status. Raw body artefacts remain available as files in TAR; the reconstruction JSONL additionally embeds exact base64 bytes so a consumer can rebuild the message without reopening the PST.
+
+### Reconstructible email content
+
+`email_content.jsonl` contains one `EmailContentRecord` per message. It embeds the
+complete serializable message record, the selected header projection, ordered
+recipient records, every body record, exact body payload bytes as base64, and (for
+validated RTF) decoded RTF bytes and recovered HTML when available. Attachment bytes
+are intentionally excluded; the row carries `attachment_ids` and full metadata-only
+attachment references so a consumer can retrieve or materialize them independently.
+
+The public `pstd::output::reconstruction::reconstruct_email` helper accepts one row
+and separately retrieved attachment payloads and returns deterministic EML bytes.
 
 ### Attachments
 
-Attachment records should preserve known metadata even when payload bytes are unavailable, empty, unsupported, or deferred. Raw extracted bytes belong in TAR entries, not base64 JSON. A method-`5` record may carry `embedded_message_key` to link a separately emitted child; that optional field does not imply that an EML payload exists at `archive_path`.
+Attachment records should preserve known metadata even when payload bytes are unavailable, empty, unsupported, or deferred. Every attachment has a deterministic `attachment_key` and owning `message_key`. Raw extracted bytes remain files in TAR by default, or can be written beneath the extraction root with `--attachment-storage disk|both`. The root `attachments.jsonl` sidecar produced by disk mode links the ID to its materialized path; `pstd::output::attachment_store::retrieve_attachment_by_id` validates the ID, path, size, and SHA-256 before returning bytes. A method-`5` record may carry `embedded_message_key` to link a separately emitted child; that optional field does not imply that an EML payload exists at `archive_path`.
+
+`--attachment-storage none` keeps metadata and IDs while suppressing binary
+materialization. `--attachment-text office-pdf` emits a separate
+`attachment_text.jsonl` projection. It performs plain text extraction only for
+Office Open XML packages (`docx`, `docm`, `dotx`, `dotm`, `xlsx`, `xlsm`, `xltx`,
+`xltm`, `pptx`, `pptm`, `potx`, and `potm`) and well-formed PDFs; original
+attachment bytes are never replaced. Legacy binary Office formats remain explicit
+unsupported text projections until a dedicated parser is added.
 
 ### CID references
 
@@ -182,7 +206,9 @@ recipient_status
 
 - Never place private PST files in source control or CI artifacts.
 - Do not publish complete message bodies or attachment payloads in diagnostic artifacts.
-- Do not base64 raw attachment data into JSONL.
+- Do not base64 raw attachment data into JSONL; body bytes in `email_content.jsonl`
+  are the deliberate reconstruction exception, and attachment text JSONL contains
+  parsed text plus source hash/size rather than attachment bytes.
 - Bound diagnostic strings and sanitise delimiters.
 - Preserve hashes and byte counts where available for later verification.
 

@@ -80,6 +80,25 @@ Review the reported variant, diagnostics, unsupported structures, and completene
 
 PSTD writes deterministic structured output containing records such as folders, messages, recipients, bodies, attachments, summaries, and diagnostics when those records are supported by validated evidence.
 
+The canonical TAR also contains `data/email_content.jsonl`, one row per message.
+That row includes exact base64 body bytes, HTML/RTF projections where validated,
+headers, recipients, and attachment IDs so an EML builder can work without reopening
+the PST. Attachment bytes remain separate. Choose their storage policy explicitly:
+
+```bash
+./target/release/pstd extract \
+  --input /path/to/mailbox.pst \
+  --output ./pstd-output \
+  --attachment-storage both \
+  --attachment-text office-pdf
+```
+
+`archive` is the backwards-compatible default; `disk` writes the safe attachment
+paths below the output directory; `both` does both; and `none` keeps only metadata.
+The Office/PDF option writes `data/attachment_text.jsonl` with plain text for Office
+Open XML packages and well-formed PDFs while retaining the original bytes. Legacy
+binary Office formats remain explicitly unsupported in this projection.
+
 Do not treat an exit code of zero by itself as proof that every item in the PST was extracted. Check the summary and diagnostic records for unavailable, partial, unsupported, ambiguous, corrupt, or non-mail objects.
 
 ## 4. Generate EML files

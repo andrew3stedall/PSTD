@@ -87,15 +87,24 @@ _pstfast/folder_inventory.jsonl
 _pstfast/extraction_warnings.jsonl
 _pstfast/run_config.json
 data/folders.jsonl
-data/messages.jsonl
-data/recipients.jsonl
-data/message_references.jsonl
-data/bodies.jsonl
-data/attachments.jsonl
+  data/messages.jsonl
+  data/recipients.jsonl
+  data/message_references.jsonl
+  data/bodies.jsonl
+  data/email_content.jsonl
+  data/attachments.jsonl
+  data/attachment_text.jsonl (when `--attachment-text office-pdf` is enabled)
 data/selected_mapi_properties.jsonl
 bodies/
 attachments/
 ```
+
+When `--attachment-storage disk|both` is used, the same safe attachment paths are
+also written below the output root and `attachments.jsonl` is emitted at the root.
+`pstd::output::attachment_store::retrieve_attachment_by_id` can then retrieve and
+validate a payload by its `attachment_key`. `--attachment-storage none` emits
+metadata and IDs without writing binary payloads. `--attachment-text office-pdf`
+adds a plain-text attachment projection without embedding the original bytes.
 
 Validate file presence against the command and extracted data. Do not assume every contract family is populated for every fixture.
 

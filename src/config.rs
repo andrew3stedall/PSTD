@@ -102,6 +102,60 @@ pub enum CollisionPolicy {
     Replace,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AttachmentStorage {
+    /// Keep attachment bytes in the canonical TAR archive.
+    Archive,
+    /// Write attachment bytes beneath the extraction output directory.
+    Disk,
+    /// Keep attachment bytes in both the canonical TAR and on disk.
+    Both,
+    /// Emit attachment metadata only.
+    None,
+}
+
+impl AttachmentStorage {
+    pub fn parse(raw: &str) -> PstdResult<Self> {
+        match raw.trim().to_ascii_lowercase().as_str() {
+            "archive" | "tar" => Ok(Self::Archive),
+            "disk" | "files" => Ok(Self::Disk),
+            "both" => Ok(Self::Both),
+            "none" | "metadata" => Ok(Self::None),
+            _ => Err(PstdError::InvalidConfig(format!(
+                "RPCLI_INVALID_ATTACHMENT_STORAGE: {raw}; expected archive, disk, both, or none"
+            ))),
+        }
+    }
+
+    pub fn stores_in_archive(self) -> bool {
+        matches!(self, Self::Archive | Self::Both)
+    }
+
+    pub fn stores_on_disk(self) -> bool {
+        matches!(self, Self::Disk | Self::Both)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AttachmentTextMode {
+    None,
+    OfficePdf,
+}
+
+impl AttachmentTextMode {
+    pub fn parse(raw: &str) -> PstdResult<Self> {
+        match raw.trim().to_ascii_lowercase().as_str() {
+            "none" | "off" => Ok(Self::None),
+            "office-pdf" | "office_pdf" | "officepdf" => Ok(Self::OfficePdf),
+            _ => Err(PstdError::InvalidConfig(format!(
+                "RPCLI_INVALID_ATTACHMENT_TEXT: {raw}; expected none or office-pdf"
+            ))),
+        }
+    }
+}
+
 impl CollisionPolicy {
     fn parse(raw: &str) -> PstdResult<Self> {
         match raw.trim().to_ascii_lowercase().as_str() {
@@ -125,6 +179,8 @@ pub struct ReadpstPolicy {
     pub include_associated: bool,
     pub item_type_filter: ItemTypeFilter,
     pub attachment_extensions: Vec<String>,
+    pub attachment_storage: AttachmentStorage,
+    pub attachment_text: AttachmentTextMode,
     pub emit_synthetic_rtf: bool,
     pub jobs: u16,
     pub diagnostics: DiagnosticsPolicy,
@@ -142,6 +198,8 @@ impl Default for ReadpstPolicy {
             include_associated: false,
             item_type_filter: ItemTypeFilter::All,
             attachment_extensions: Vec::new(),
+            attachment_storage: AttachmentStorage::Archive,
+            attachment_text: AttachmentTextMode::None,
             emit_synthetic_rtf: true,
             jobs: 1,
             diagnostics: DiagnosticsPolicy::Info,
@@ -160,6 +218,8 @@ impl ReadpstPolicy {
         include_associated: bool,
         item_types: &str,
         attachment_extensions: Option<&str>,
+        attachment_storage: &str,
+        attachment_text: &str,
         emit_synthetic_rtf: bool,
         jobs: u16,
         diagnostics: &str,
@@ -169,6 +229,8 @@ impl ReadpstPolicy {
         let output_profile = OutputProfile::parse(output_profile)?;
         let item_type_filter = parse_item_type_filter(item_types)?;
         let attachment_extensions = parse_attachment_extensions(attachment_extensions)?;
+        let attachment_storage = AttachmentStorage::parse(attachment_storage)?;
+        let attachment_text = AttachmentTextMode::parse(attachment_text)?;
         let fallback_charset = fallback_charset
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty());
@@ -180,6 +242,8 @@ impl ReadpstPolicy {
             include_associated,
             item_type_filter,
             attachment_extensions,
+            attachment_storage,
+            attachment_text,
             emit_synthetic_rtf,
             jobs,
             diagnostics: DiagnosticsPolicy::parse(diagnostics)?,

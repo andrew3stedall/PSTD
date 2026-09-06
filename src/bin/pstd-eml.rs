@@ -195,6 +195,7 @@ fn usage() -> String {
 struct MessageBodies {
     text: Option<Vec<u8>>,
     html: Option<String>,
+    rtf: Option<Vec<u8>>,
 }
 
 fn recipients_by_message(records: &[RecipientRecord]) -> BTreeMap<String, Vec<RecipientRecord>> {
@@ -451,6 +452,9 @@ fn bodies_by_message(payloads: &[BodyPayload]) -> BTreeMap<String, MessageBodies
                     .filter(|value| !value.is_empty());
             }
             "rtf" if entry.html.is_none() => {
+                if entry.rtf.is_none() {
+                    entry.rtf = Some(payload.bytes.clone());
+                }
                 entry.html = validated_rtf(&payload.bytes)
                     .and_then(|rtf| String::from_utf8(rtf).ok())
                     .and_then(|rtf| recover_html(&rtf));
@@ -458,7 +462,7 @@ fn bodies_by_message(payloads: &[BodyPayload]) -> BTreeMap<String, MessageBodies
             _ => {}
         }
     }
-    bodies.retain(|_, body| body.text.is_some());
+    bodies.retain(|_, body| body.text.is_some() || body.html.is_some() || body.rtf.is_some());
     bodies
 }
 
@@ -694,10 +698,13 @@ fn build_eml_with_attachment_mode(
     }
     let date = validated_message_date(message)?;
 
-    let text = std::str::from_utf8(bodies.text.as_deref()?).ok()?;
+    let text = bodies.text.as_deref().and_then(|bytes| std::str::from_utf8(bytes).ok());
     let html = bodies.html.as_deref();
-    if text.contains(ALTERNATIVE_BOUNDARY)
-        || text.contains(MIXED_BOUNDARY)
+    let rtf = bodies.rtf.as_deref();
+    if text.is_none() && html.is_none() && rtf.is_none() {
+        return None;
+    }
+    if text.is_some_and(|value| value.contains(ALTERNATIVE_BOUNDARY) || value.contains(MIXED_BOUNDARY))
         || html.is_some_and(|value| {
             value.contains(ALTERNATIVE_BOUNDARY) || value.contains(MIXED_BOUNDARY)
         })
@@ -743,7 +750,7 @@ fn build_eml_with_attachment_mode(
     push_header(&mut eml, "MIME-Version", "1.0");
 
     if attachments.is_empty() {
-        if let Some(html) = html {
+        if let (Some(text), Some(html)) = (text, html) {
             push_header(
                 &mut eml,
                 "Content-Type",
@@ -751,6 +758,19 @@ fn build_eml_with_attachment_mode(
             );
             eml.push_str("\r\n");
             push_alternative_body(&mut eml, text, html);
+        } else if let Some(html) = html {
+            push_header(&mut eml, "Content-Type", "text/html; charset=utf-8");
+            push_header(&mut eml, "Content-Transfer-Encoding", "8bit");
+            eml.push_str("\r\n");
+            eml.push_str(&normalize_crlf(html));
+            if !eml.ends_with("\r\n") {
+                eml.push_str("\r\n");
+            }
+        } else if let Some(rtf) = rtf {
+            push_header(&mut eml, "Content-Type", "application/rtf");
+            push_header(&mut eml, "Content-Transfer-Encoding", "base64");
+            eml.push_str("\r\n");
+            eml.push_str(&base64_lines(rtf));
         } else {
             if !allow_plain_text_only {
                 return None;
@@ -758,7 +778,7 @@ fn build_eml_with_attachment_mode(
             push_header(&mut eml, "Content-Type", "text/plain; charset=utf-8");
             push_header(&mut eml, "Content-Transfer-Encoding", "8bit");
             eml.push_str("\r\n");
-            eml.push_str(&normalize_crlf(text));
+            eml.push_str(&normalize_crlf(text?));
             if !eml.ends_with("\r\n") {
                 eml.push_str("\r\n");
             }
@@ -773,7 +793,7 @@ fn build_eml_with_attachment_mode(
         eml.push_str("--");
         eml.push_str(MIXED_BOUNDARY);
         eml.push_str("\r\n");
-        if let Some(html) = html {
+        if let (Some(text), Some(html)) = (text, html) {
             push_header(
                 &mut eml,
                 "Content-Type",
@@ -781,11 +801,24 @@ fn build_eml_with_attachment_mode(
             );
             eml.push_str("\r\n");
             push_alternative_body(&mut eml, text, html);
+        } else if let Some(html) = html {
+            push_header(&mut eml, "Content-Type", "text/html; charset=utf-8");
+            push_header(&mut eml, "Content-Transfer-Encoding", "8bit");
+            eml.push_str("\r\n");
+            eml.push_str(&normalize_crlf(html));
+            if !eml.ends_with("\r\n") {
+                eml.push_str("\r\n");
+            }
+        } else if let Some(rtf) = rtf {
+            push_header(&mut eml, "Content-Type", "application/rtf");
+            push_header(&mut eml, "Content-Transfer-Encoding", "base64");
+            eml.push_str("\r\n");
+            eml.push_str(&base64_lines(rtf));
         } else {
             push_header(&mut eml, "Content-Type", "text/plain; charset=utf-8");
             push_header(&mut eml, "Content-Transfer-Encoding", "8bit");
             eml.push_str("\r\n");
-            eml.push_str(&normalize_crlf(text));
+            eml.push_str(&normalize_crlf(text?));
             if !eml.ends_with("\r\n") {
                 eml.push_str("\r\n");
             }
@@ -1403,6 +1436,7 @@ mod tests {
         let bodies = MessageBodies {
             text: Some(b"Hello\nworld".to_vec()),
             html: Some("<b>Rich body</b>".to_string()),
+            rtf: None,
         };
         let eml = build_eml(
             &message(),
@@ -1421,6 +1455,33 @@ mod tests {
         assert!(eml.contains("Hello\r\nworld"));
         assert!(eml.contains("<b>Rich body</b>"));
         assert!(eml.ends_with("--pstd-alternative-7f6a8d2b--\r\n"));
+    }
+
+    #[test]
+    fn emits_html_only_message_without_inventing_plain_text() {
+        let bodies = MessageBodies {
+            text: None,
+            html: Some("<p>HTML only</p>".to_string()),
+            rtf: None,
+        };
+        let eml = build_eml(&message(), &[recipient(0, "to")], &bodies, &[]).unwrap();
+        let eml = String::from_utf8(eml).unwrap();
+        assert!(eml.contains("Content-Type: text/html; charset=utf-8\r\n"));
+        assert!(eml.contains("<p>HTML only</p>"));
+        assert!(!eml.contains("multipart/alternative"));
+    }
+
+    #[test]
+    fn emits_rtf_only_message_as_a_readable_rtf_body() {
+        let bodies = MessageBodies {
+            text: None,
+            html: None,
+            rtf: Some(b"{\\rtf1\\ansi RTF only}".to_vec()),
+        };
+        let eml = build_eml(&message(), &[recipient(0, "to")], &bodies, &[]).unwrap();
+        let eml = String::from_utf8(eml).unwrap();
+        assert!(eml.contains("Content-Type: application/rtf\r\n"));
+        assert!(eml.contains("e1xydGYxXGFuc2kgUlRGIG9ubHl9"));
     }
 
     #[test]
@@ -1558,6 +1619,7 @@ mod tests {
         let bodies = MessageBodies {
             text: Some(b"plain body".to_vec()),
             html: None,
+            rtf: None,
         };
         let rtf = body_payload("message", "rtf", b"{\\rtf1\\ansi synthetic}".to_vec(), None);
         let encrypted = body_payload(
@@ -1637,6 +1699,7 @@ mod tests {
         let bodies = MessageBodies {
             text: Some(b"plain\nbody".to_vec()),
             html: None,
+            rtf: None,
         };
         assert!(build_eml(&message(), &[recipient(0, "to")], &bodies, &[]).is_none());
         let eml =
@@ -1658,6 +1721,7 @@ mod tests {
         let collision = MessageBodies {
             text: Some(ALTERNATIVE_BOUNDARY.as_bytes().to_vec()),
             html: Some("<b>rich</b>".to_string()),
+            rtf: None,
         };
         assert!(build_eml(&message(), &recipients, &collision, &[]).is_none());
     }
@@ -1700,6 +1764,7 @@ mod tests {
         let bodies = MessageBodies {
             text: Some("Forwarding mail…\r\n\r\n".as_bytes().to_vec()),
             html: None,
+            rtf: None,
         };
         let attachments = vec![attachment(0, b"Hello attachment")];
         let eml = build_eml(&message, &[recipient(0, "to")], &bodies, &attachments).unwrap();
@@ -1724,6 +1789,7 @@ mod tests {
         let bodies = MessageBodies {
             text: Some(b"plain body".to_vec()),
             html: Some("<p><img src=\"cid:image-1@example.com\"></p>".to_string()),
+            rtf: None,
         };
         let mut inline = attachment(0, b"image bytes");
         inline.record.filename_safe = "image.png".to_string();
@@ -1747,6 +1813,7 @@ mod tests {
         let bodies = MessageBodies {
             text: Some(b"plain body".to_vec()),
             html: Some("<p>rich body</p>".to_string()),
+            rtf: None,
         };
 
         let eml = build_eml(&message, &[], &bodies, &[]).unwrap();
@@ -1762,6 +1829,7 @@ mod tests {
         let bodies = MessageBodies {
             text: Some(b"plain".to_vec()),
             html: None,
+            rtf: None,
         };
         let recipient = recipient(0, "to");
         let attachment = attachment(0, b"bytes");
@@ -1787,6 +1855,7 @@ mod tests {
         let bodies = MessageBodies {
             text: Some(b"plain".to_vec()),
             html: None,
+            rtf: None,
         };
         let mut embedded = attachment(0, b"child eml");
         embedded.record.attachment_method = Some(5);
@@ -1807,6 +1876,7 @@ mod tests {
         let bodies = MessageBodies {
             text: Some(b"plain".to_vec()),
             html: None,
+            rtf: None,
         };
         let empty = attachment(0, &[]);
         let eml = build_eml(&message, &[recipient(0, "to")], &bodies, &[empty]).unwrap();
@@ -1861,6 +1931,7 @@ mod tests {
         let bodies = MessageBodies {
             text: Some(b"plain body".to_vec()),
             html: None,
+            rtf: None,
         };
         let eml = build_eml_with_attachment_mode(
             &message(),
