@@ -72,7 +72,6 @@ fn recipient(message_key: &str) -> RecipientRecord {
     }
 }
 
-
 #[test]
 fn content_indexes_preserve_order_missing_and_payload_only_records() {
     let messages = vec![message("msg_b"), message("msg_a"), message("msg_empty")];
@@ -89,18 +88,66 @@ fn content_indexes_preserve_order_missing_and_payload_only_records() {
     let payloads = vec![other, html, text];
     let attachment = attachment_payload("msg_a", 0, AttachmentMetadata::default(), vec![]);
     let attachments = vec![attachment.record];
-    let actual = iter_email_content_records(&messages, &[], &recipients, &bodies, &payloads, &attachments).collect::<Vec<_>>();
-    assert_eq!(actual.iter().map(|row| row.message.message_key.as_str()).collect::<Vec<_>>(), ["msg_a", "msg_b", "msg_empty"]);
-    assert_eq!(actual[0].bodies.iter().map(|body| body.record.body_type.as_str()).collect::<Vec<_>>(), ["text", "html"]);
+    let actual = iter_email_content_records(
+        &messages,
+        &[],
+        &recipients,
+        &bodies,
+        &payloads,
+        &attachments,
+    )
+    .collect::<Vec<_>>();
+    assert_eq!(
+        actual
+            .iter()
+            .map(|row| row.message.message_key.as_str())
+            .collect::<Vec<_>>(),
+        ["msg_a", "msg_b", "msg_empty"]
+    );
+    assert_eq!(
+        actual[0]
+            .bodies
+            .iter()
+            .map(|body| body.record.body_type.as_str())
+            .collect::<Vec<_>>(),
+        ["text", "html"]
+    );
     assert_eq!(actual[0].bodies[0].text.as_deref(), Some("Alpha"));
-    assert_eq!(actual[0].recipients.iter().map(|row| row.ordinal).collect::<Vec<_>>(), [0, 5]);
-    assert_eq!(actual[0].attachment_ids, [attachments[0].attachment_key.clone()]);
+    assert_eq!(
+        actual[0]
+            .recipients
+            .iter()
+            .map(|row| row.ordinal)
+            .collect::<Vec<_>>(),
+        [0, 5]
+    );
+    assert_eq!(
+        actual[0].attachment_ids,
+        [attachments[0].attachment_key.clone()]
+    );
     assert_eq!(actual[1].bodies.len(), 2);
-    assert_eq!(actual[1].bodies.iter().filter(|body| body.payload_present).count(), 1);
+    assert_eq!(
+        actual[1]
+            .bodies
+            .iter()
+            .filter(|body| body.payload_present)
+            .count(),
+        1
+    );
     assert!(actual[2].bodies.is_empty());
     assert_eq!(actual[2].reconstruction_status, "body_payload_unavailable");
-    let collected = build_email_content_records(&messages, &[], &recipients, &bodies, &payloads, &attachments);
-    assert_eq!(serde_json::to_vec(&actual).unwrap(), serde_json::to_vec(&collected).unwrap());
+    let collected = build_email_content_records(
+        &messages,
+        &[],
+        &recipients,
+        &bodies,
+        &payloads,
+        &attachments,
+    );
+    assert_eq!(
+        serde_json::to_vec(&actual).unwrap(),
+        serde_json::to_vec(&collected).unwrap()
+    );
 }
 
 #[test]
@@ -108,7 +155,8 @@ fn content_index_does_not_attach_another_messages_body_on_key_collision() {
     let payload = text_body_payload("msg_other", "Other message bytes");
     let mut record = payload.record.clone();
     record.message_key = "msg_a".into();
-    let rows = build_email_content_records(&[message("msg_a")], &[], &[], &[record], &[payload], &[]);
+    let rows =
+        build_email_content_records(&[message("msg_a")], &[], &[], &[record], &[payload], &[]);
     assert!(!rows[0].bodies[0].payload_present);
     assert!(rows[0].bodies[0].raw_bytes_base64.is_none());
 }
@@ -119,16 +167,24 @@ fn attachment_index_keeps_payload_only_records_and_rejects_duplicate_payloads() 
     let mut missing = payload.record.clone();
     missing.attachment_key = "missing".into();
     missing.ordinal = 1;
-    let records = parse_attachment_text_records(AttachmentTextMode::OfficePdf, &[missing], std::slice::from_ref(&payload));
+    let records = parse_attachment_text_records(
+        AttachmentTextMode::OfficePdf,
+        &[missing],
+        std::slice::from_ref(&payload),
+    );
     assert_eq!(records.len(), 2);
     assert_eq!(records[0].attachment_key, payload.record.attachment_key);
     assert_eq!(records[1].status, "attachment_payload_unavailable");
     let duplicates = vec![payload.clone(), payload];
-    let records = iter_attachment_text_records(AttachmentTextMode::OfficePdf, &[], &duplicates).collect::<Vec<_>>();
+    let records = iter_attachment_text_records(AttachmentTextMode::OfficePdf, &[], &duplicates)
+        .collect::<Vec<_>>();
     assert_eq!(records.len(), 1);
     assert_eq!(records[0].status, "attachment_payload_duplicate_id");
     assert!(records[0].text.is_none());
-    assert_eq!(iter_attachment_text_records(AttachmentTextMode::None, &[], &duplicates).count(), 0);
+    assert_eq!(
+        iter_attachment_text_records(AttachmentTextMode::None, &[], &duplicates).count(),
+        0
+    );
 }
 
 #[test]
@@ -136,7 +192,12 @@ fn disk_export_preflights_duplicate_ids_and_paths_before_writing() {
     let first = attachment_payload("msg_a", 0, AttachmentMetadata::default(), vec![1]);
     let second = attachment_payload("msg_b", 0, AttachmentMetadata::default(), vec![2]);
     let root = tempfile::tempdir().unwrap();
-    assert!(write_disk_attachments(root.path(), &[], &[first.clone(), second.clone(), second.clone()]).is_err());
+    assert!(write_disk_attachments(
+        root.path(),
+        &[],
+        &[first.clone(), second.clone(), second.clone()]
+    )
+    .is_err());
     assert_eq!(fs::read_dir(root.path()).unwrap().count(), 0);
     let mut collision = second.record.clone();
     collision.archive_path = first.record.archive_path.clone();
@@ -152,22 +213,47 @@ fn disk_export_preflights_duplicate_ids_and_paths_before_writing() {
 fn retrieval_scans_after_match_for_duplicates_and_malformed_rows_and_validates_bytes() {
     let payload = attachment_payload("msg_a", 0, AttachmentMetadata::default(), vec![1, 2]);
     let root = tempfile::tempdir().unwrap();
-    let (manifest, _) = write_disk_attachments(root.path(), &[], std::slice::from_ref(&payload)).unwrap();
+    let (manifest, _) =
+        write_disk_attachments(root.path(), &[], std::slice::from_ref(&payload)).unwrap();
     let path = root.path().join("attachments.jsonl");
     let line = String::from_utf8(manifest).unwrap();
     // CRLF, whitespace-only rows and an unterminated final row remain accepted.
     fs::write(&path, format!("\r\n  \r\n{}", line.trim_end())).unwrap();
-    assert_eq!(retrieve_attachment_by_id(root.path(), &payload.record.attachment_key).unwrap().bytes, payload.bytes);
+    assert_eq!(
+        retrieve_attachment_by_id(root.path(), &payload.record.attachment_key)
+            .unwrap()
+            .bytes,
+        payload.bytes
+    );
     fs::write(&path, format!("{line}{line}")).unwrap();
-    assert!(retrieve_attachment_by_id(root.path(), &payload.record.attachment_key).unwrap_err().to_string().contains("duplicate"));
+    assert!(
+        retrieve_attachment_by_id(root.path(), &payload.record.attachment_key)
+            .unwrap_err()
+            .to_string()
+            .contains("duplicate")
+    );
     fs::write(&path, format!("{line}not-json\n")).unwrap();
     assert!(retrieve_attachment_by_id(root.path(), &payload.record.attachment_key).is_err());
     fs::write(&path, &line).unwrap();
     fs::write(root.path().join(&payload.record.archive_path), [9, 9]).unwrap();
-    assert!(retrieve_attachment_by_id(root.path(), &payload.record.attachment_key).unwrap_err().to_string().contains("validation"));
+    assert!(
+        retrieve_attachment_by_id(root.path(), &payload.record.attachment_key)
+            .unwrap_err()
+            .to_string()
+            .contains("validation")
+    );
     // Canonical unpacked archive manifest fallback retains the same validation.
     fs::create_dir(root.path().join("data")).unwrap();
     fs::rename(&path, root.path().join("data/attachments.jsonl")).unwrap();
-    fs::write(root.path().join(&payload.record.archive_path), &payload.bytes).unwrap();
-    assert_eq!(retrieve_attachment_by_id(root.path(), &payload.record.attachment_key).unwrap().bytes, payload.bytes);
+    fs::write(
+        root.path().join(&payload.record.archive_path),
+        &payload.bytes,
+    )
+    .unwrap();
+    assert_eq!(
+        retrieve_attachment_by_id(root.path(), &payload.record.attachment_key)
+            .unwrap()
+            .bytes,
+        payload.bytes
+    );
 }

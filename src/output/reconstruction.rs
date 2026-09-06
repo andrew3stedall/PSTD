@@ -52,8 +52,15 @@ pub fn build_email_content_records(
     body_payloads: &[BodyPayload],
     attachments: &[AttachmentRecord],
 ) -> Vec<EmailContentRecord> {
-    iter_email_content_records(messages, headers, recipients, bodies, body_payloads, attachments)
-        .collect()
+    iter_email_content_records(
+        messages,
+        headers,
+        recipients,
+        bodies,
+        body_payloads,
+        attachments,
+    )
+    .collect()
 }
 
 /// Build one owned record at a time using borrowed, per-message indexes.
@@ -79,11 +86,14 @@ pub fn iter_email_content_records<'a>(
     }
     let bodies_by_message = group_by(bodies, |body| body.message_key.as_str());
     let recipients_by_message = group_by(recipients, |recipient| recipient.message_key.as_str());
-    let attachments_by_message = group_by(attachments, |attachment| attachment.message_key.as_str());
+    let attachments_by_message =
+        group_by(attachments, |attachment| attachment.message_key.as_str());
     let mut headers_by_message = BTreeMap::new();
     for header in headers {
         // Preserve the existing first-header selection and stable input ordering.
-        headers_by_message.entry(header.message_key.as_str()).or_insert(header);
+        headers_by_message
+            .entry(header.message_key.as_str())
+            .or_insert(header);
     }
     let mut output_messages = messages.iter().collect::<Vec<_>>();
     output_messages.sort_by(|left, right| left.message_key.cmp(&right.message_key));
@@ -91,7 +101,10 @@ pub fn iter_email_content_records<'a>(
     output_messages.into_iter().map(move |message| {
         let key = message.message_key.as_str();
         let mut message_bodies = bodies_by_message.get(key).cloned().unwrap_or_default();
-        let mut body_keys = message_bodies.iter().map(|body| body.body_key.as_str()).collect::<BTreeSet<_>>();
+        let mut body_keys = message_bodies
+            .iter()
+            .map(|body| body.body_key.as_str())
+            .collect::<BTreeSet<_>>();
         for payload in payloads_by_message.get(key).into_iter().flatten() {
             if body_keys.insert(payload.record.body_key.as_str()) {
                 message_bodies.push(&payload.record);
@@ -101,23 +114,32 @@ pub fn iter_email_content_records<'a>(
             (body_order(&left.body_type), &left.body_key)
                 .cmp(&(body_order(&right.body_type), &right.body_key))
         });
-        let body_content = message_bodies.iter().map(|body| {
-            let payload = body_payloads.get(body.body_key.as_str()).copied()
-                .filter(|payload| payload.record.message_key == body.message_key);
-            body_content(body, payload)
-        }).collect::<Vec<_>>();
+        let body_content = message_bodies
+            .iter()
+            .map(|body| {
+                let payload = body_payloads
+                    .get(body.body_key.as_str())
+                    .copied()
+                    .filter(|payload| payload.record.message_key == body.message_key);
+                body_content(body, payload)
+            })
+            .collect::<Vec<_>>();
 
         let mut message_recipients = recipients_by_message.get(key).cloned().unwrap_or_default();
         message_recipients.sort_by(|left, right| {
-            (left.ordinal, &left.recipient_type, &left.recipient_key)
-                .cmp(&(right.ordinal, &right.recipient_type, &right.recipient_key))
+            (left.ordinal, &left.recipient_type, &left.recipient_key).cmp(&(
+                right.ordinal,
+                &right.recipient_type,
+                &right.recipient_key,
+            ))
         });
         let mut message_attachments = attachments_by_message.get(key).cloned().unwrap_or_default();
         message_attachments.sort_by(|left, right| {
             (left.ordinal, &left.attachment_key).cmp(&(right.ordinal, &right.attachment_key))
         });
         let reconstructible = body_content.iter().any(|body| {
-            body.payload_present && matches!(body.record.body_type.as_str(), "text" | "html" | "rtf")
+            body.payload_present
+                && matches!(body.record.body_type.as_str(), "text" | "html" | "rtf")
         });
         EmailContentRecord {
             record_type: "email_content".to_string(),
@@ -126,8 +148,16 @@ pub fn iter_email_content_records<'a>(
             header_projection: headers_by_message.get(key).map(|header| (*header).clone()),
             recipients: message_recipients.into_iter().cloned().collect(),
             bodies: body_content,
-            attachment_ids: message_attachments.iter().map(|record| record.attachment_key.clone()).collect(),
-            attachments: message_attachments.into_iter().map(|record| EmailAttachmentReference { record: record.clone() }).collect(),
+            attachment_ids: message_attachments
+                .iter()
+                .map(|record| record.attachment_key.clone())
+                .collect(),
+            attachments: message_attachments
+                .into_iter()
+                .map(|record| EmailAttachmentReference {
+                    record: record.clone(),
+                })
+                .collect(),
             reconstruction_status: if reconstructible {
                 "reconstructible_body_available".to_string()
             } else {
@@ -137,7 +167,10 @@ pub fn iter_email_content_records<'a>(
     })
 }
 
-fn group_by<'a, T>(records: &'a [T], key: impl Fn(&'a T) -> &'a str) -> BTreeMap<&'a str, Vec<&'a T>> {
+fn group_by<'a, T>(
+    records: &'a [T],
+    key: impl Fn(&'a T) -> &'a str,
+) -> BTreeMap<&'a str, Vec<&'a T>> {
     let mut groups = BTreeMap::<&str, Vec<&T>>::new();
     for record in records {
         groups.entry(key(record)).or_default().push(record);

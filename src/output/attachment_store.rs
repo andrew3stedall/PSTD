@@ -33,12 +33,14 @@ pub fn write_disk_attachments(
         let path = safe_relative_path(&record.archive_path)?;
         if !used_paths.insert(path) {
             return Err(PstdError::OutputWrite(format!(
-                "duplicate attachment archive path: {}", record.archive_path
+                "duplicate attachment archive path: {}",
+                record.archive_path
             )));
         }
         if !used_ids.insert(record.attachment_key.as_str()) {
             return Err(PstdError::OutputWrite(format!(
-                "duplicate attachment ID in records: {}", record.attachment_key
+                "duplicate attachment ID in records: {}",
+                record.attachment_key
             )));
         }
         index.payload(&record.attachment_key).map_err(|reason| {
@@ -160,8 +162,7 @@ pub fn retrieve_attachment_by_id(
             PstdError::Io(error)
         }
     })?;
-    if bytes.len() as u64 != record.size_bytes || sha256_hex(&bytes) != record.sha256
-    {
+    if bytes.len() as u64 != record.size_bytes || sha256_hex(&bytes) != record.sha256 {
         return Err(PstdError::OutputWrite(format!(
             "attachment {} failed size/hash validation",
             attachment_id
