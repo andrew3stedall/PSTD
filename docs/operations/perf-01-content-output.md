@@ -111,4 +111,3 @@ historical Vertical-38 records remain intact.
   random retrieval could benefit from a versioned persistent index.
 - Office/PDF parser breadth, representative Purview exports and readpst parity
   remain at the existing evidence boundaries.
-
