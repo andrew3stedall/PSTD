@@ -169,9 +169,10 @@ derived HTML part without replacing the raw RTF evidence.
 
 The body/MIME workflow repeats extraction and compares canonical MIME JSONL bytes,
 while the approved Tika body fixture verifies that an unresolved HTML locator remains
-non-authoritative and that a valid text body retains decoded evidence. Full report,
-schedule, encrypted-body, and adapter-specific output semantics remain downstream
-typed work in RP-M3/RP-M5.
+non-authoritative and that a valid text body retains decoded evidence. Canonical report
+and schedule projections, broad encrypted-body coverage, and full adapter-specific
+differentials remain downstream typed work in RP-M3/RP-M5; standalone `pstd-eml` now
+materializes validated RTF and opaque encrypted payloads through its attachment modes.
 
 ## RP-M3-01 embedded ownership
 

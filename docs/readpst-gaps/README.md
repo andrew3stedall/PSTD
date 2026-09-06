@@ -177,7 +177,9 @@ policy/projection rows to Implemented; the attachment metadata closure wave has 
 promoted two additional rows, bringing the maintained ledger to 10 Implemented, 53
 Partial, and 14 Gap rows. The attachment payload extraction wave then moved three
 attachment capability rows from Gap to Partial, bringing the maintained ledger to 10
-Implemented, 54 Partial, and 11 Gap rows. Future work must still add admissible corpora
+Implemented, 54 Partial, and 11 Gap rows. ATT-10 then completed standalone synthetic
+RTF/opaque encrypted body attachment delivery, bringing the maintained ledger to 11
+Implemented, 54 Partial, and 10 Gap rows. Future work must still add admissible corpora
 and semantic differentials before making a full-parity claim.
 
 RP-M7-03 remains the historical release decision for its reviewed baseline. The

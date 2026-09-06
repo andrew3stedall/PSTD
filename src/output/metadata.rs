@@ -270,9 +270,19 @@ pub struct AttachmentRecord {
     pub mime_sequence: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedded_message_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_body_key: Option<String>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub synthetic: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authoritative: Option<bool>,
     pub ordinal: u64,
     pub archive_path: String,
     pub extraction_status: String,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

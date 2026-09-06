@@ -223,7 +223,7 @@ PSTD-unsupported statuses. None are promoted to ordinary email.
 | ATT-07 | Content-ID/inline correlation | Partial | Unique, missing, duplicate, and unmatched CID cases. |
 | ATT-08 | Rendering position/MIME sequence | Partial | Canonical fields and MIME-sequence-first ordering are implemented; producer/differential evidence remains. |
 | ATT-09 | Attachment extension filter | Implemented | Case-insensitive filter/status decisions cover every mailbox profile plus MSG/EML projections without mutating canonical attachment records or payloads. |
-| ATT-10 | Synthetic RTF/encrypted body attachments | Gap | Synthetic-source markers and policy tests. |
+| ATT-10 | Synthetic RTF/encrypted body attachments | Implemented | Standalone `pstd-eml` materializes validated RTF and opaque `encrypted`/`encrypted_html` body bytes exactly once in inline MIME/base64 and external raw-file output; `attachments.jsonl` preserves source body key, SHA-256, size, deterministic safe filename, and synthetic/non-authoritative status. Empty payloads remain files; invalid or unavailable sources remain explicit metadata without fabricated bytes. Focused adapter tests cover positive, empty, invalid, unavailable, inline, external, integrity, and provenance cases. |
 | ATT-11 | Nested ownership and recursion limits | Partial | Deterministic parent/child graph and bounded recursion. |
 
 ## Output formats
@@ -318,7 +318,9 @@ and 14 Gap**. The first closure wave brought the maintained ledger to **8
 Implemented, 55 Partial, and 14 Gap**. The attachment metadata closure below brings
 it to **10 Implemented, 53 Partial, and 14 Gap**. The attachment payload extraction
 wave then moves three attachment capability rows from Gap to Partial, bringing the
-maintained matrix to **10 Implemented, 54 Partial, and 11 Gap**. The RP-M7-03
+maintained matrix to **10 Implemented, 54 Partial, and 11 Gap**. The ATT-10 adapter
+delivery then promotes synthetic RTF/opaque encrypted body artifact output to Implemented,
+bringing the maintained matrix to **11 Implemented, 54 Partial, and 10 Gap**. The RP-M7-03
 document remains the historical release decision for its reviewed baseline; the
 current row states above are the maintained ledger after these expansions.
 

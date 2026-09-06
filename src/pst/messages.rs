@@ -22,6 +22,8 @@ pub struct BodyCoverageReport {
     pub text_property_present: bool,
     pub html_property_present: bool,
     pub rtf_property_present: bool,
+    pub encrypted_html_body_property_present: bool,
+    pub encrypted_body_property_present: bool,
     pub supported_body_property_count: usize,
     pub extracted_payload_count: usize,
     pub fallback_record_count: usize,
@@ -80,10 +82,15 @@ pub fn body_coverage_report(
         || properties.value(PR_HTML_STRING).is_some()
         || properties.value(PR_HTML_STRING_A).is_some();
     let rtf_property_present = properties.value(PR_RTF_COMPRESSED).is_some();
+    let encrypted_html_body_property_present =
+        properties.value(PR_ENCRYPTED_HTML_BODY).is_some();
+    let encrypted_body_property_present = properties.value(PR_ENCRYPTED_BODY).is_some();
     let supported_body_property_count = [
         text_property_present,
         html_property_present,
         rtf_property_present,
+        encrypted_html_body_property_present,
+        encrypted_body_property_present,
     ]
     .iter()
     .filter(|present| **present)
@@ -93,6 +100,8 @@ pub fn body_coverage_report(
         text_property_present,
         html_property_present,
         rtf_property_present,
+        encrypted_html_body_property_present,
+        encrypted_body_property_present,
         payloads,
     );
     let preferred_body_type = preferred_body_type(payloads).map(ToString::to_string);
@@ -125,6 +134,8 @@ pub fn body_coverage_report(
         text_property_present,
         html_property_present,
         rtf_property_present,
+        encrypted_html_body_property_present,
+        encrypted_body_property_present,
         supported_body_property_count,
         extracted_payload_count,
         fallback_record_count,
@@ -224,12 +235,16 @@ fn unresolved_body_types(
     text_property_present: bool,
     html_property_present: bool,
     rtf_property_present: bool,
+    encrypted_html_body_property_present: bool,
+    encrypted_body_property_present: bool,
     payloads: &[BodyPayload],
 ) -> Vec<String> {
     [
         ("text", text_property_present),
         ("html", html_property_present),
         ("rtf", rtf_property_present),
+        ("encrypted_html", encrypted_html_body_property_present),
+        ("encrypted", encrypted_body_property_present),
     ]
     .into_iter()
     .filter(|(body_type, present)| {
@@ -651,6 +666,37 @@ mod tests {
         let properties = PropertyContext::from_values(values);
 
         assert!(body_payloads_from_properties("msg_123", &properties).is_empty());
+    }
+
+    #[test]
+    fn records_unavailable_reference_shaped_encrypted_body_values() {
+        let mut values = HashMap::new();
+        let reference = 0x31fu32.to_le_bytes().to_vec();
+        values.insert(
+            PR_ENCRYPTED_BODY,
+            PropertyValue {
+                tag: PR_ENCRYPTED_BODY,
+                name: "encrypted_body".to_string(),
+                raw: reference.clone(),
+                decoded: Some(MapiValue::Binary(reference)),
+                status: "selected".to_string(),
+            },
+        );
+        let properties = PropertyContext::from_values(values);
+        let payloads = body_payloads_from_properties("msg_123", &properties);
+        let report = body_coverage_report(&properties, &payloads);
+        let records = unresolved_body_records("msg_123", &report);
+
+        assert!(payloads.is_empty());
+        assert!(report.encrypted_body_property_present);
+        assert_eq!(report.supported_body_property_count, 1);
+        assert_eq!(report.unresolved_body_types, vec!["encrypted"]);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].body_type, "encrypted");
+        assert_eq!(
+            records[0].status,
+            "body_payload_property_present_but_unresolved; body_type=encrypted"
+        );
     }
 
     #[test]
