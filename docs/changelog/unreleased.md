@@ -2,6 +2,13 @@
 
 _Last reviewed: 1 September 2026._
 
+## CI maintenance
+
+- Remove the obsolete Vertical-37 temporary patch workflow. Its unindented embedded
+  Rust made the YAML invalid and caused every main push to report a spurious failure
+  before the retired branch filter could apply. The production membership parser
+  and normal validation workflows remain intact.
+
 ## Performance and correctness — PERF-01
 
 - Index canonical email ownership and attachment payload IDs with borrowed records;
