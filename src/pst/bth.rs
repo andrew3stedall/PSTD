@@ -83,7 +83,10 @@ impl BthMap {
             Self::parse_property_context_with_sources(heap, buf, base_offset)?;
         Ok(Self {
             header,
-            entries: properties.into_iter().map(|property| property.entry).collect(),
+            entries: properties
+                .into_iter()
+                .map(|property| property.entry)
+                .collect(),
         })
     }
 
@@ -346,9 +349,9 @@ fn property_context_entry(
 #[cfg(test)]
 mod tests {
     use super::{property_context_entry, BthMap, PropertyStorageStatus};
-    use crate::pst::tcinfo::HnidKind;
     use crate::pst::heap::{HeapAllocation, HeapHeader, HeapOnNode};
     use crate::pst::mapi::{PR_ATTACH_DATA_OBJ, PR_SUBJECT};
+    use crate::pst::tcinfo::HnidKind;
 
     #[test]
     fn parses_legacy_flat_bth_entries() {
@@ -452,9 +455,21 @@ mod tests {
         let bytes = property_context_heap();
         let heap = HeapOnNode::parse(&bytes, 0).unwrap();
         for (hnid, kind, status) in [
-            (0x64u32, HnidKind::NodeId, PropertyStorageStatus::NodeUnresolved),
-            (0x80, HnidKind::HeapId, PropertyStorageStatus::HeapUnresolved),
-            (0x10060, HnidKind::HeapId, PropertyStorageStatus::HeapUnresolved),
+            (
+                0x64u32,
+                HnidKind::NodeId,
+                PropertyStorageStatus::NodeUnresolved,
+            ),
+            (
+                0x80,
+                HnidKind::HeapId,
+                PropertyStorageStatus::HeapUnresolved,
+            ),
+            (
+                0x10060,
+                HnidKind::HeapId,
+                PropertyStorageStatus::HeapUnresolved,
+            ),
         ] {
             let mut raw = 0x0102u16.to_le_bytes().to_vec();
             raw.extend_from_slice(&hnid.to_le_bytes());

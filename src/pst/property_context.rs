@@ -83,7 +83,10 @@ impl PropertyContext {
             header,
             entries: entries.iter().map(|item| item.entry.clone()).collect(),
         };
-        let sources = entries.iter().map(|item| item.source.as_ref()).collect::<Vec<_>>();
+        let sources = entries
+            .iter()
+            .map(|item| item.source.as_ref())
+            .collect::<Vec<_>>();
         Self::decode_bth(&bth, &sources, fallback_charset)
     }
 
@@ -101,7 +104,11 @@ impl PropertyContext {
             let raw_tag =
                 u32::from_le_bytes([entry.key[0], entry.key[1], entry.key[2], entry.key[3]]);
             let interpreted = interpret_property_tag(raw_tag);
-            if sources.get(index).and_then(|source| *source).is_some_and(unresolved_source) {
+            if sources
+                .get(index)
+                .and_then(|source| *source)
+                .is_some_and(unresolved_source)
+            {
                 continue;
             }
             match interpreted.tag {
@@ -155,7 +162,9 @@ impl PropertyContext {
                         name: format!("unknown_0x{:08x}", interpreted.tag),
                         raw: entry.value.clone(),
                         decoded: None,
-                        status: unresolved.map(reference_status).unwrap_or_else(|| unknown_property_status(raw_tag, interpreted)),
+                        status: unresolved
+                            .map(reference_status)
+                            .unwrap_or_else(|| unknown_property_status(raw_tag, interpreted)),
                     },
                 );
                 continue;
@@ -167,27 +176,27 @@ impl PropertyContext {
                 None
             } else {
                 match decode_value_with_fallback(
-                def.value_type,
-                &entry.value,
-                Some(charset_resolution.charset.as_str()),
-            ) {
-                Ok(value) => {
-                    if def.value_type == MapiValueType::String8
-                        && decode_string8_with_status(
-                            &entry.value,
-                            Some(charset_resolution.charset.as_str()),
-                        )
-                        .1
-                    {
-                        charset_conversion_error_count += 1;
+                    def.value_type,
+                    &entry.value,
+                    Some(charset_resolution.charset.as_str()),
+                ) {
+                    Ok(value) => {
+                        if def.value_type == MapiValueType::String8
+                            && decode_string8_with_status(
+                                &entry.value,
+                                Some(charset_resolution.charset.as_str()),
+                            )
+                            .1
+                        {
+                            charset_conversion_error_count += 1;
+                        }
+                        Some(value)
                     }
-                    Some(value)
+                    Err(_) => {
+                        decode_error_count += 1;
+                        None
+                    }
                 }
-                Err(_) => {
-                    decode_error_count += 1;
-                    None
-                }
-            }
             };
             selected_property_count += 1;
             values.insert(
@@ -197,7 +206,9 @@ impl PropertyContext {
                     name: def.name.to_string(),
                     raw: entry.value.clone(),
                     decoded,
-                    status: unresolved.map(reference_status).unwrap_or_else(|| selected_property_status(raw_tag, interpreted)),
+                    status: unresolved
+                        .map(reference_status)
+                        .unwrap_or_else(|| selected_property_status(raw_tag, interpreted)),
                 },
             );
         }
@@ -208,7 +219,10 @@ impl PropertyContext {
         let tag_shape_status = format!(
             "tag_shape=plausible:{plausible_property_tag_count},suspicious:{suspicious_property_tag_count},byte_swapped_selected:{byte_swapped_selected_property_count}"
         );
-        let status = if decode_error_count == 0 && skipped_key_count == 0 && unresolved_reference_count == 0 {
+        let status = if decode_error_count == 0
+            && skipped_key_count == 0
+            && unresolved_reference_count == 0
+        {
             if unknown_property_count == 0 {
                 format!("property_context_parsed; {tag_shape_status}")
             } else {
@@ -781,24 +795,33 @@ mod tests {
         use crate::pst::bth::{BthPropertyEntry, PropertySource, PropertyStorageStatus};
         use crate::pst::tcinfo::HnidKind;
         let tags = [PR_SUBJECT, 0x1013_0102, 0x9999_0102];
-        let entries = tags.iter().map(|tag| BthPropertyEntry {
-            entry: BthEntry {
-                key: tag.to_le_bytes().to_vec(),
-                value: 0x64u32.to_le_bytes().to_vec(),
-            },
-            source: Some(PropertySource {
-                prop_id: (tag >> 16) as u16,
-                prop_type: *tag as u16,
-                value_hnid: 0x64,
-                hnid_kind: Some(HnidKind::NodeId),
-                status: PropertyStorageStatus::NodeUnresolved,
-            }),
-        }).collect::<Vec<_>>();
+        let entries = tags
+            .iter()
+            .map(|tag| BthPropertyEntry {
+                entry: BthEntry {
+                    key: tag.to_le_bytes().to_vec(),
+                    value: 0x64u32.to_le_bytes().to_vec(),
+                },
+                source: Some(PropertySource {
+                    prop_id: (tag >> 16) as u16,
+                    prop_type: *tag as u16,
+                    value_hnid: 0x64,
+                    hnid_kind: Some(HnidKind::NodeId),
+                    status: PropertyStorageStatus::NodeUnresolved,
+                }),
+            })
+            .collect::<Vec<_>>();
         let report = PropertyContext::from_property_entries(
-            BthHeader { key_size: 4, value_size: 6, entry_count: 3, root_allocation: 0 },
+            BthHeader {
+                key_size: 4,
+                value_size: 6,
+                entry_count: 3,
+                root_allocation: 0,
+            },
             &entries,
             None,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(report.unresolved_reference_count, 3);
         assert_eq!(report.decode_error_count, 0);
         for tag in tags {

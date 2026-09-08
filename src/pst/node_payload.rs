@@ -50,7 +50,9 @@ pub fn load_node_property_context_with_fallback_charset(
         match load_heap_bth_from_candidates(&payload.bytes, payload_base_offset) {
             Ok(parsed) => (
                 PropertyContext::from_property_entries(
-                    parsed.header, &parsed.entries, fallback_charset,
+                    parsed.header,
+                    &parsed.entries,
+                    fallback_charset,
                 )?,
                 parsed.traversal_status,
             ),
@@ -88,7 +90,10 @@ struct HeapPropertyContext {
     traversal_status: String,
 }
 
-fn load_heap_bth_from_candidates(buf: &[u8], base_offset: u64) -> Result<HeapPropertyContext, String> {
+fn load_heap_bth_from_candidates(
+    buf: &[u8],
+    base_offset: u64,
+) -> Result<HeapPropertyContext, String> {
     let candidates = heap_candidate_offsets_with_limit(buf, PQ12_MAX_HEAP_SCAN_OFFSET);
     if candidates.is_empty() {
         return Err(candidate_not_found_reason(buf));
@@ -110,7 +115,11 @@ fn load_heap_bth_from_candidates(buf: &[u8], base_offset: u64) -> Result<HeapPro
                     } else {
                         format!("heap_bth_property_context_at_offset_{candidate_offset}")
                     };
-                    return Ok(HeapPropertyContext { header, entries, traversal_status: status });
+                    return Ok(HeapPropertyContext {
+                        header,
+                        entries,
+                        traversal_status: status,
+                    });
                 }
                 Err(reason) => {
                     last_error = format!(
