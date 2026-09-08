@@ -257,7 +257,11 @@ impl PropertyContext {
             skipped_key_count,
             decode_error_count,
             unresolved_reference_count,
-            property_sources: sources.iter().filter_map(|source| *source).cloned().collect(),
+            property_sources: sources
+                .iter()
+                .filter_map(|source| *source)
+                .cloned()
+                .collect(),
             charset_conversion_error_count,
             charset_resolution,
             status,
@@ -349,7 +353,12 @@ fn unresolved_source(source: &PropertySource) -> bool {
 fn reference_status(source: &PropertySource) -> String {
     format!(
         "HNID_UNRESOLVED; storage={:?}; hnid=0x{:08x}; reason={}",
-        source.status, source.value_hnid, source.resolution_detail.as_deref().unwrap_or("source_context_unavailable")
+        source.status,
+        source.value_hnid,
+        source
+            .resolution_detail
+            .as_deref()
+            .unwrap_or("source_context_unavailable")
     )
 }
 

@@ -51,8 +51,13 @@ impl<'a> PropertyNodeResolver<'a> {
     ) -> Result<Self, ReferenceFailure> {
         let root = owner.subnode_block_id.ok_or(ReferenceFailure::Missing)?;
         let mut resolver = Self {
-            reader, bbt, limits, owner_node_id: owner.node_id.0,
-            entries: BTreeMap::new(), source_block_ids: Vec::new(), index_bytes: 0,
+            reader,
+            bbt,
+            limits,
+            owner_node_id: owner.node_id.0,
+            entries: BTreeMap::new(),
+            source_block_ids: Vec::new(),
+            index_bytes: 0,
         };
         let mut seen = HashSet::new();
         let root_payload = resolver.load_index(root, &mut seen)?;
@@ -104,7 +109,9 @@ impl<'a> PropertyNodeResolver<'a> {
         self.check_block(bid)?;
         let block = load_payload_block(self.reader, self.bbt, bid, self.limits)
             .map_err(|_| ReferenceFailure::PayloadInvalid)?;
-        self.index_bytes = self.index_bytes.checked_add(block.bytes.len() as u64)
+        self.index_bytes = self
+            .index_bytes
+            .checked_add(block.bytes.len() as u64)
             .ok_or(ReferenceFailure::ResourceLimit)?;
         if self.index_bytes > self.limits.max_block_bytes {
             return Err(ReferenceFailure::ResourceLimit);
@@ -114,7 +121,11 @@ impl<'a> PropertyNodeResolver<'a> {
     }
 
     fn check_block(&self, bid: BlockId) -> Result<(), ReferenceFailure> {
-        let mut matches = self.bbt.entries.iter().filter(|entry| entry.block_id == bid);
+        let mut matches = self
+            .bbt
+            .entries
+            .iter()
+            .filter(|entry| entry.block_id == bid);
         let block = matches.next().ok_or(ReferenceFailure::Missing)?;
         if matches.next().is_some() {
             return Err(ReferenceFailure::Duplicate);
@@ -135,7 +146,12 @@ impl<'a> PropertyNodeResolver<'a> {
             return Err(ReferenceFailure::Malformed);
         }
         let mut previous = None;
-        for UnicodeSubnodeEntry { node_id, data_block_id, .. } in entries {
+        for UnicodeSubnodeEntry {
+            node_id,
+            data_block_id,
+            ..
+        } in entries
+        {
             if previous.is_some_and(|key| node_id <= key) || self.entries.contains_key(&node_id) {
                 return Err(ReferenceFailure::Duplicate);
             }
@@ -149,7 +165,10 @@ impl<'a> PropertyNodeResolver<'a> {
         if node_id == 0 || node_id & 0x1f == 0 {
             return Err(ReferenceFailure::Malformed);
         }
-        let bid = *self.entries.get(&node_id).ok_or(ReferenceFailure::Missing)?;
+        let bid = *self
+            .entries
+            .get(&node_id)
+            .ok_or(ReferenceFailure::Missing)?;
         self.check_block(bid)?;
         let tree = load_attachment_data_payload(self.reader, self.bbt, bid, None, self.limits)
             .map_err(|_| ReferenceFailure::PayloadInvalid)?;
@@ -164,8 +183,12 @@ impl<'a> PropertyNodeResolver<'a> {
         source_block_ids.sort_unstable();
         source_block_ids.dedup();
         Ok(ResolvedNodeValue {
-            bytes: tree.bytes, owner_node_id: self.owner_node_id, node_id,
-            data_block_id: bid.0, source_block_ids, data_tree: bid.0 & 2 != 0,
+            bytes: tree.bytes,
+            owner_node_id: self.owner_node_id,
+            node_id,
+            data_block_id: bid.0,
+            source_block_ids,
+            data_tree: bid.0 & 2 != 0,
         })
     }
 }
@@ -191,34 +214,50 @@ mod tests {
         let mut entries = Vec::new();
         for (bid, payload) in blocks {
             entries.push(BbtEntry {
-                block_id: BlockId(bid), offset: ByteOffset(bytes.len() as u64),
+                block_id: BlockId(bid),
+                offset: ByteOffset(bytes.len() as u64),
                 size: payload.len() as u64,
             });
             bytes.extend_from_slice(&payload);
         }
         std::fs::write(file.path(), bytes).unwrap();
-        (file, BbtIndex {
-            root: None, entries, parsed_pages: 0, discovered_child_pages: 0,
-            traversal_error_count: 0, duplicate_entry_count: 0,
-            truncated_entry_count: 0, status: "test".into(),
-        }, NbtEntry {
-            node_id: NodeId(0x204), data_block_id: BlockId(100),
-            subnode_block_id: Some(BlockId(2)),
-        })
+        (
+            file,
+            BbtIndex {
+                root: None,
+                entries,
+                parsed_pages: 0,
+                discovered_child_pages: 0,
+                traversal_error_count: 0,
+                duplicate_entry_count: 0,
+                truncated_entry_count: 0,
+                status: "test".into(),
+            },
+            NbtEntry {
+                node_id: NodeId(0x204),
+                data_block_id: BlockId(100),
+                subnode_block_id: Some(BlockId(2)),
+            },
+        )
     }
 
     #[test]
     fn resolves_owner_scoped_nid_to_exact_bytes() {
         let (file, bbt, owner) = fixture(vec![(2, leaf(0x64, 8)), (8, b"body".to_vec())]);
         let reader = PstByteReader::open(file.path()).unwrap();
-        let resolver = PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default()).unwrap();
+        let resolver =
+            PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default())
+                .unwrap();
         let value = resolver.resolve(0x64).unwrap();
         assert_eq!(value.bytes, b"body");
         assert_eq!(value.owner_node_id, 0x204);
         assert_eq!(value.node_id, 0x64);
         assert_eq!(value.source_block_ids, vec![2, 8]);
         assert!(!value.data_tree);
-        assert_eq!(resolver.resolve(0x84).unwrap_err(), ReferenceFailure::Missing);
+        assert_eq!(
+            resolver.resolve(0x84).unwrap_err(),
+            ReferenceFailure::Missing
+        );
     }
 
     #[test]
@@ -228,10 +267,15 @@ mod tests {
         tree.extend_from_slice(&8u64.to_le_bytes());
         tree.extend_from_slice(&12u64.to_le_bytes());
         let (file, bbt, owner) = fixture(vec![
-            (2, leaf(0x64, 6)), (6, tree), (8, b"ab".to_vec()), (12, b"cd".to_vec()),
+            (2, leaf(0x64, 6)),
+            (6, tree),
+            (8, b"ab".to_vec()),
+            (12, b"cd".to_vec()),
         ]);
         let reader = PstByteReader::open(file.path()).unwrap();
-        let resolver = PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default()).unwrap();
+        let resolver =
+            PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default())
+                .unwrap();
         let value = resolver.resolve(0x64).unwrap();
         assert_eq!(value.bytes, b"abcd");
         assert!(value.data_tree);
@@ -245,12 +289,19 @@ mod tests {
         duplicate.extend_from_slice(&leaf(0x64, 12)[8..]);
         let (file, bbt, owner) = fixture(vec![(2, duplicate), (8, vec![1]), (12, vec![2])]);
         let reader = PstByteReader::open(file.path()).unwrap();
-        assert!(matches!(PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default()),
-            Err(ReferenceFailure::Duplicate)));
+        assert!(matches!(
+            PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default()),
+            Err(ReferenceFailure::Duplicate)
+        ));
         let (file, bbt, owner) = fixture(vec![(2, leaf(0x64, 8)), (8, vec![1]), (8, vec![2])]);
         let reader = PstByteReader::open(file.path()).unwrap();
-        let resolver = PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default()).unwrap();
-        assert_eq!(resolver.resolve(0x64).unwrap_err(), ReferenceFailure::Duplicate);
+        let resolver =
+            PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default())
+                .unwrap();
+        assert_eq!(
+            resolver.resolve(0x64).unwrap_err(),
+            ReferenceFailure::Duplicate
+        );
     }
 
     #[test]
@@ -260,11 +311,18 @@ mod tests {
         index.extend_from_slice(&2u64.to_le_bytes());
         let (file, bbt, owner) = fixture(vec![(2, index)]);
         let reader = PstByteReader::open(file.path()).unwrap();
-        assert!(matches!(PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default()),
-            Err(ReferenceFailure::Cycle)));
-        let limits = ParserLimits { max_btree_pages: 0, ..ParserLimits::default() };
-        assert!(matches!(PropertyNodeResolver::for_owner(&reader, &bbt, &owner, limits),
-            Err(ReferenceFailure::ResourceLimit)));
+        assert!(matches!(
+            PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default()),
+            Err(ReferenceFailure::Cycle)
+        ));
+        let limits = ParserLimits {
+            max_btree_pages: 0,
+            ..ParserLimits::default()
+        };
+        assert!(matches!(
+            PropertyNodeResolver::for_owner(&reader, &bbt, &owner, limits),
+            Err(ReferenceFailure::ResourceLimit)
+        ));
     }
 
     #[test]
@@ -275,12 +333,20 @@ mod tests {
         let mut entry = leaf(0x64, 8);
         entry[24..32].copy_from_slice(&10u64.to_le_bytes());
         let (file, bbt, owner) = fixture(vec![
-            (2, index), (6, entry), (8, b"owned".to_vec()),
-            (10, leaf(0x84, 12)), (12, b"other owner".to_vec()),
+            (2, index),
+            (6, entry),
+            (8, b"owned".to_vec()),
+            (10, leaf(0x84, 12)),
+            (12, b"other owner".to_vec()),
         ]);
         let reader = PstByteReader::open(file.path()).unwrap();
-        let resolver = PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default()).unwrap();
+        let resolver =
+            PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default())
+                .unwrap();
         assert_eq!(resolver.resolve(0x64).unwrap().bytes, b"owned");
-        assert_eq!(resolver.resolve(0x84).unwrap_err(), ReferenceFailure::Missing);
+        assert_eq!(
+            resolver.resolve(0x84).unwrap_err(),
+            ReferenceFailure::Missing
+        );
     }
 }
