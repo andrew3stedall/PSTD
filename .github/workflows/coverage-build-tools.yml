@@ -1,0 +1,32 @@
+name: Coverage temporary build tools
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+jobs:
+  tools:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'agent/coverage-foundation'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fetch
+      - name: Package public build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pstd-tools/toolchain /tmp/pstd-tools/cargo/registry
+          cp -a "$(rustc --print sysroot)/bin" "$(rustc --print sysroot)/lib" /tmp/pstd-tools/toolchain/
+          for part in cache src index; do
+            cp -a "$HOME/.cargo/registry/$part" /tmp/pstd-tools/cargo/registry/
+          done
+          tar -C /tmp/pstd-tools -czf /tmp/pstd-build-tools.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pstd-build-tools
+          path: /tmp/pstd-build-tools.tar.gz
+          retention-days: 1
+          compression-level: 0
