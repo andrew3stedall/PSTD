@@ -5,7 +5,7 @@ Updated: 2026-09-08
 ## Active delivery
 
 - Issue #600; parent epic #599; branch agent/coverage-foundation; draft PR #611.
-- Latest durable implementation: 92146e5717497633a33b527b58a3523a8ab0f5ac.
+- Latest durable implementation: ce99201b1eee3cbcee2d68ebedd88c2814aec6a4.
 - Previous implementation: c372cef34b962d22fe9009d78f215051535e9d18.
 - Scope: generic property storage/reference resolution only. #601–#610 are not active scope.
 - Existing older local checkout /workspace/scratch/10c9672c1630/pstd has unrelated uncommitted coverage work. Do not overwrite it or treat it as the live PR.
@@ -18,7 +18,7 @@ Updated: 2026-09-08
 - NIDs must not pass through permissive heap hid_index. Nonzero heap page indexes are unresolved at this single-page boundary.
 - Existing flattened parser remains available. Typed records distinguish Inline, Heap, NodeUnresolved, HeapUnresolved, Null, ObjectReference.
 - PropertyContext::from_property_entries accepts typed leaves and prevents semantic decoding of unresolved NID/HID/object references. It preserves raw reference bytes with HNID_UNRESOLVED status and counts them separately from decode errors.
-- This typed PropertyContext API is not wired to production callers yet. No generic NID/data-tree implementation or coverage-completion claim.
+- Typed PropertyContext API is wired to node_payload.rs. Owner-scoped Unicode PropertyNodeResolver is committed but not wired to this caller yet.
 
 ## Source boundary
 
@@ -31,16 +31,18 @@ Updated: 2026-09-08
 ## Validation
 
 - Actions run 34222579283, job 102048950884: "Format and test bounded implementation" succeeded on 1f049ea (BTH increment). Exact test count awaits logs.
-- PropertyContext increment 92146e5 not yet validated.
+- Actions 34222832271 succeeded: 7 BTH, 11 PropertyContext, 4 node_payload tests. Formatting persisted as 3d505c6. New resolver tests await validation.
 - Local Rust/cargo absent; direct GitHub git network timed out. Use connector and existing .github/workflows/coverage-build-tools.yml fallback.
 - Fallback now runs cargo fmt plus focused BTH and PropertyContext tests and commits only those Rust files. A stale runner push must fail normally; never force-push over new work.
 - Full merge gate and fixture validation NOT RUN.
 
 ## Next exact change
 
-Inspect focused job for the current branch head. Fix only reported compile/test failures and let the fallback persist formatting. Then wire node_payload.rs to keep typed entries from load_heap_bth_from_candidates and use PropertyContext::from_property_entries for heap-backed PC paths while preserving legacy flat parsing.
+Validate the five new property_node_resolver tests (temporary workflow now includes them). Then integrate PropertyNodeResolver into node_payload.rs: build once per owner only when a typed entry has NodeUnresolved; resolve raw HNID; preserve returned owner/BID provenance; feed successfully resolved bytes to typed PropertyContext decoding. Add Subnode/DataTree storage states to BTH and an end-to-end subnode subject/body test.
 
-Before returning to broader scope, commit that integration and update this checkpoint. Then implement generic owner-scoped subnode/data-tree resolution using the existing bounded loaders. Do not search unrelated payloads globally or interpret all four-byte values as references.
+Resolver currently accepts Unicode SLBLOCK and SIBLOCK. It reuses unicode_subnode_entries and load_attachment_data_payload, validates duplicate NIDs/BBT entries, bounds index pages/bytes, detects repeated index BIDs, never traverses another owner's subnode table. ANSI support, richer data-tree error classification, and attachment migration remain. Source for SIBLOCK layout: https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-pst/729fb9bd-060a-4bbc-9b3b-8f014b487dad .
+
+Commit the integration and update this checkpoint before further work.
 
 ## Merge-only work remaining
 
