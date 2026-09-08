@@ -1,6 +1,6 @@
 # PSTD Skills Index
 
-_Last reviewed: 18 July 2026._
+_Last reviewed: 8 September 2026._
 
 This folder contains reusable planning, implementation, review, documentation, data, and platform instructions for PSTD.
 
@@ -10,28 +10,38 @@ When instructions conflict, use this order:
 
 1. explicit user request;
 2. root `AGENTS.md`;
-3. current project status, roadmap, and public fixture log;
-4. the relevant skill;
-5. historical milestone, PQ, issue-plan, or implementation-plan documents.
+3. active branch checkpoint (`docs/operations/active-implementation-checkpoint.md`) and active issue for continuation work;
+4. current project status, roadmap, and public fixture log for fresh-start/current-truth questions;
+5. the relevant skill;
+6. historical milestone, PQ, parity-gap, issue-plan, or implementation-plan documents.
 
-Some skills were written during the completed M1-M25 milestone-planning lane. Their techniques remain useful, but current work uses evidence-led vertical extraction milestones.
+Some skills were written during the completed M1-M25 milestone-planning lane. Their techniques remain useful, but current work uses evidence-led vertical extraction milestones and checkpoint-first continuation.
 
 ## Current mode
 
 `vertical-extraction`
 
-Before implementing:
+### When continuing existing implementation
 
-- inspect open PRs, active branches, recent commits, and CI;
-- continue existing work rather than creating a conflicting branch;
-- identify the highest-value extraction gap from current fixture evidence;
-- complete one coherent vertical slice;
-- fail closed and reuse validated components;
-- use the root `AGENTS.md` GitHub connector implementation method when a large existing file requires an incremental edit and no usable local checkout exists;
-- rerun the full CI and public fixture workflow;
-- update current-state and point-in-time documentation.
+- read root `AGENTS.md`, the active checkpoint, and the active issue;
+- inspect the current diff/latest durable implementation commit and only the source areas named by the checkpoint;
+- continue from `Next exact change`;
+- keep one issue active at a time;
+- make every coherent implementation increment durable before broad research, full validation, environment work, or further delegation;
+- update the checkpoint after material changes;
+- run focused tests during implementation and reserve the full CI/public-fixture gate for merge readiness.
 
-Local testing must not be claimed when it was not run. A phone or connector workflow is not automatically a testing blocker: use the temporary same-repository Actions checkout-and-patch method and exact-head CI when available. CI must pass on the exact cleaned head before merge.
+Do **not** bulk-read the full epic, project history, PQ records, or `docs/readpst-gaps/` corpus on a valid continuation. Historical files should be fetched only when the current issue/checkpoint points to a specific evidence need.
+
+### When starting new implementation
+
+- inspect open PRs/branches to avoid conflicting work;
+- read the minimum current-state sources required by root `AGENTS.md` once;
+- identify exactly one highest-value extraction issue or coherent slice;
+- create the branch/PR and active checkpoint immediately;
+- then switch to the continuation workflow.
+
+Local testing must not be claimed when it was not run. A phone or connector workflow is not automatically a testing blocker. Full exact-head CI must pass before merge, but it does not gate intermediate checkpoint commits.
 
 ## References and assets
 
@@ -44,7 +54,7 @@ Use repository references before inventing output formats, CLI behaviour, proper
 - `planning-council`: structured multi-role planning when a genuinely new product/architecture decision is required.
 - `issue-writer`: developer-ready issue bodies.
 - `docs-writer`: current-state and point-in-time documentation.
-- `github-planning-loop`: mobile/connector repository workflow, including the preferred temporary Actions checkout-and-patch method for large files.
+- `github-planning-loop`: mobile/connector implementation loop with checkpoint-first continuation.
 
 ## Role skills
 
@@ -70,7 +80,7 @@ Use repository references before inventing output formats, CLI behaviour, proper
 - `process/readiness-check`
 - `process/feedback-refiner`
 
-Use these when the work requires planning. Do not force a planning council over a small, already evidenced vertical extraction change.
+Use these when the work genuinely requires planning. Do not force a planning council, epic-wide reread, or role fan-out over a bounded, already evidenced implementation issue.
 
 ## Execution skills
 
@@ -80,4 +90,4 @@ Use these when the work requires planning. Do not force a planning council over 
 - `execution/milestone-branch-manager`
 - `execution/deferred-testing`
 
-Treat “milestone” in older skill names as a scoped delivery unit. For current parser work, that unit should be one coherent vertical extraction milestone.
+Treat “milestone” in older skill names as a scoped delivery unit. For current parser work, the implementation unit should normally be one GitHub issue or one coherent vertical extraction slice, with the parent epic used for ordering and dependencies rather than as active context.
