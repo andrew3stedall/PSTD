@@ -1,13 +1,15 @@
 # PSTD Wiki Home
 
-_Last reviewed: 14 July 2026._
+_Last reviewed: 8 September 2026._
 
-This folder provides a compact repo-hosted navigation layer. For current truth, prefer the root README, project status, and public fixture progress log over historical milestone or PQ reports.
+This folder provides a compact repo-hosted navigation layer. Current product truth lives in the maintained current-state pages; in-progress implementation state lives in the branch-local active checkpoint.
 
 ## Main pages
 
 | Need | Page |
 |---|---|
+| Resume active implementation | `AGENTS.md` + branch-local `docs/operations/active-implementation-checkpoint.md` + active issue |
+| Checkpoint format | [Implementation Checkpoint Template](../operations/implementation-checkpoint-template.md) |
 | Project intent and headline progress | [Root README](../../README.md) |
 | Current merged capability and blocker | [Project Status](../product/project-status.md) |
 | Real-fixture evidence | [Public PST Progress Log](../operations/public-pst-progress-log.md) |
@@ -17,19 +19,18 @@ This folder provides a compact repo-hosted navigation layer. For current truth, 
 | System architecture | [System Overview](../architecture/system-overview.md) |
 | Output contract | [Output Contract Summary](../data/pstd-v1-output-contract-summary.md) |
 | Validation | [Local Validation](../operations/local-validation.md) |
-| Documentation history policy | [Documentation Status](../DOCUMENTATION_STATUS.md) |
-
-## Current state
-
-| Delivery lane | State |
-|---|---|
-| M1-M25 | Complete product foundation |
-| PQ1-PQ74 | Complete validated parser/Table Context foundation |
-| Vertical 1-13 | Complete on `main`; recipient role, name, address, and address-kind assembly validated |
-| Vertical 14 / PR #430 | Draft and unmerged; same-run complete-recipient projection |
-| Complete production recipient publication | Next boundary after Vertical 14 |
-| General PST-to-EML conversion | Not yet complete |
+| Documentation/context policy | [Documentation Status](../DOCUMENTATION_STATUS.md) |
 
 ## Working rule
 
-Read `AGENTS.md`, inspect active PR/CI state, and use the current-state pages before changing the code. Historical files remain valuable evidence but may describe blockers that have since been resolved.
+### Continuation
+
+Read `AGENTS.md`, the active checkpoint, and the active issue. Inspect the current diff/latest durable commit and only the source boundary or failing check named by the checkpoint. Continue from `Next exact change`.
+
+Do not bulk-read current-state history, the parent epic, PQ/vertical records, or the readpst-gap corpus on a valid continuation.
+
+### Fresh start
+
+Read the minimum current-state pages required by `AGENTS.md`, check existing PRs/branches, select one issue/slice, create its branch/PR/checkpoint, then use the continuation path.
+
+Current delivery counters and active PRs change frequently; use Project Status/GitHub rather than duplicating them here.
