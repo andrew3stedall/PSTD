@@ -28,6 +28,7 @@ Some skills were written during the completed M1-M25 milestone-planning lane. Th
 - continue from `Next exact change`;
 - keep one issue active at a time;
 - make every coherent implementation increment durable before broad research, full validation, environment work, or further delegation;
+- use `execution/subagent-model-routing` for delegated work, preferring Luna for bounded low-complexity leaf tasks;
 - update the checkpoint after material changes;
 - run focused tests during implementation and reserve the full CI/public-fixture gate for merge readiness.
 
@@ -85,6 +86,7 @@ Use these when the work genuinely requires planning. Do not force a planning cou
 ## Execution skills
 
 - `execution/continuation-checkpoint`
+- `execution/subagent-model-routing`
 - `execution/milestone-executor`
 - `execution/epic-workforce`
 - `execution/implementation-worker`
