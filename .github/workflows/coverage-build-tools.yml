@@ -23,12 +23,13 @@ jobs:
         run: |
           cargo fmt
           cargo test --lib pst::bth::tests
+          cargo test --lib pst::property_context::tests
       - name: Persist formatting only if branch still matches tested source
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          git add src/pst/bth.rs
+          git add src/pst/bth.rs src/pst/property_context.rs
           if ! git diff --cached --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
