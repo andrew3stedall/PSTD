@@ -5,7 +5,7 @@ Updated: 2026-09-08
 ## Active delivery
 
 - Issue #600; parent epic #599; branch agent/coverage-foundation; draft PR #611.
-- Latest durable implementation: ce99201b1eee3cbcee2d68ebedd88c2814aec6a4.
+- Latest durable implementation: ab71506365ab4754a3afa373ca9aa5b127d5c3c6 (plus synthetic header correction).
 - Previous implementation: c372cef34b962d22fe9009d78f215051535e9d18.
 - Scope: generic property storage/reference resolution only. #601–#610 are not active scope.
 - Existing older local checkout /workspace/scratch/10c9672c1630/pstd has unrelated uncommitted coverage work. Do not overwrite it or treat it as the live PR.
@@ -38,11 +38,11 @@ Updated: 2026-09-08
 
 ## Next exact change
 
-Validate the five new property_node_resolver tests (temporary workflow now includes them). Then integrate PropertyNodeResolver into node_payload.rs: build once per owner only when a typed entry has NodeUnresolved; resolve raw HNID; preserve returned owner/BID provenance; feed successfully resolved bytes to typed PropertyContext decoding. Add Subnode/DataTree storage states to BTH and an end-to-end subnode subject/body test.
+Validate current focused workflow. Node-backed resolution is now integrated in node_payload.rs with Subnode/DataTree statuses and owner/source BID provenance in PropertyContextParseReport.property_sources. Added end-to-end subnode subject extraction. Missing references preserve HNID_UNRESOLVED with resolver reason; total resolved bytes per PC are bounded.
 
-Resolver currently accepts Unicode SLBLOCK and SIBLOCK. It reuses unicode_subnode_entries and load_attachment_data_payload, validates duplicate NIDs/BBT entries, bounds index pages/bytes, detects repeated index BIDs, never traverses another owner's subnode table. ANSI support, richer data-tree error classification, and attachment migration remain. Source for SIBLOCK layout: https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-pst/729fb9bd-060a-4bbc-9b3b-8f014b487dad .
+Resolver tests: 4/5 passed in job 102204360537. Indexed-leaf test failed because its synthetic block at offset 512 overlapped crypt-method header offset 513. Fixed fixture start to 1024; rerun pending. Do not re-diagnose this as resolver decryption corruption.
 
-Commit the integration and update this checkpoint before further work.
+Next after focused success: add HTML/RTF/data-tree production-path regressions, verify ANSI handling (current resolver is explicitly Unicode), and migrate safe attachment consumers while preserving object semantics. Then run required full/fixture gates. Remaining generic boundary hardening: BTH traversal currently truncates on limits; data-tree errors currently collapse to PayloadInvalid.
 
 ## Merge-only work remaining
 
