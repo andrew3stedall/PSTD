@@ -25,6 +25,16 @@ Use specialist roles only when the active issue has a separable question that be
 
 Do not invoke all roles by default.
 
+## Model routing
+
+Apply `execution/subagent-model-routing` whenever Codex delegates a specialist task.
+
+- Prefer GPT-5.6 Luna for bounded low-complexity leaf tasks.
+- Use GPT-5.6 Terra for ordinary moderate-reasoning implementation work.
+- Reserve GPT-5.6 Sol or GPT-6 Astra for ambiguous semantics, consequential architecture/integration decisions, hard debugging, or merge-critical review.
+- Do not inherit the orchestrator's stronger model merely because it is available.
+- Escalate when the delegated task grows beyond its original complexity or correctness risk warrants it.
+
 ## Working rules
 
 - Follow the approved epic issue order and dependencies.
