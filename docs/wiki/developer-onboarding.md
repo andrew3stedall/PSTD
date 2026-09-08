@@ -1,33 +1,34 @@
 # Developer Onboarding
 
-_Last reviewed: 14 July 2026._
+_Last reviewed: 8 September 2026._
 
-## First 10 minutes
+## First decision: fresh start or continuation?
 
-1. Read the [root README](../../README.md).
-2. Read [Project Status](../product/project-status.md).
-3. Read the [Public PST Progress Log](../operations/public-pst-progress-log.md).
-4. Read the [Developer Guide](../engineering/developer-guide.md).
-5. Read the [Codebase Map](../engineering/codebase-map.md).
-6. Read [Local Validation](../operations/local-validation.md).
-7. Read `AGENTS.md` and check open PRs and CI.
+### Continuing an active implementation
+
+Do not repeat full onboarding. Read only:
+
+1. `AGENTS.md`.
+2. Branch-local `docs/operations/active-implementation-checkpoint.md`.
+3. The active GitHub issue.
+4. The current PR diff/latest durable implementation commit.
+5. The source files/functions and directly relevant failing checks named by the checkpoint.
+
+Begin from `Next exact change`. Do not reread the full parent epic, project history, public fixture history, PQ records, vertical records, or readpst-gap corpus unless the checkpoint/issue points to a specific evidence need.
+
+### Starting new implementation
+
+1. Read `AGENTS.md`.
+2. Read the [root README](../../README.md), [Project Status](../product/project-status.md), and [Public PST Progress Log](../operations/public-pst-progress-log.md) once to establish the current baseline.
+3. Use the [Developer Guide](../engineering/developer-guide.md) and [Codebase Map](../engineering/codebase-map.md) only as needed for the selected source area.
+4. Check open PRs/active branches to avoid conflicting work.
+5. Select exactly one active issue or smallest coherent vertical slice.
+6. Create the branch/draft PR and branch-local active checkpoint immediately.
+7. Switch to the continuation path above.
 
 ## Current baseline
 
-The product foundation is complete through M25, the parser-quality foundation is complete through PQ74, and merged vertical extraction is complete through Vertical 13 / PR #429.
-
-The public fixture currently validates:
-
-- 50 BBT entries and 63 NBT entries;
-- 11 folders and one extracted message;
-- two body payloads and zero attachments;
-- 16 selected and 19 unknown properties;
-- four 52-byte Table Context rows;
-- two To and two Cc recipient roles;
-- four recipient display names and four native email-address values;
-- fail-closed complete recipient record assembly.
-
-Draft PR #430 is active but unmerged. It projects complete recipient records from the same validated rows and heap in one invocation.
+Do not duplicate live counters or active-PR claims in onboarding. Use [Project Status](../product/project-status.md) for merged capability, [Public PST Progress Log](../operations/public-pst-progress-log.md) for fixture evidence, and the active checkpoint for in-progress implementation state.
 
 ## Command surface
 
@@ -55,16 +56,21 @@ python -m pstd --help
 
 ## Development workflow
 
-1. Confirm no implementation or CI run is already in progress for the same boundary.
-2. Identify one evidence-backed vertical extraction gap.
-3. Reuse validated components and keep scope narrow.
-4. Fail closed rather than adding heuristic fallback logic.
-5. Add focused regression tests.
-6. Run the complete validation gate.
-7. Inspect the public fixture artifact and record the exact delta.
-8. Update current-state and point-in-time documentation.
-9. Open a PR and merge only after the exact head is green.
+1. Keep one GitHub issue/slice active at a time.
+2. Reuse validated components and keep scope narrow.
+3. Fail closed rather than adding heuristic fallback logic.
+4. Add focused regression tests.
+5. Commit each coherent implementation increment before broad research, full validation, environment setup, or another delegation.
+6. Update the active checkpoint with durable commit/test state and the next exact change.
+7. During iteration, run focused validation rather than the full repository gate after every commit.
+8. When scope is complete, run the complete exact-head validation gate and relevant approved fixture workflows.
+9. Update final current-state/point-in-time documentation where behavior changed.
+10. Merge only after the cleaned exact head is green and review conditions are resolved.
 
-## Next boundary
+## Specialist agents
 
-Complete same-run recipient projection, then publish complete recipient records through production Table Context reporting. After that, choose the next highest-value missing email component from fixture evidence rather than following a precommitted infrastructure queue.
+Do not fan out across roles by default. Delegate only a separable question whose result can be persisted as a commit, durable issue/PR evidence, or a concise checkpoint conclusion. Persist that result before launching overlapping follow-up investigation.
+
+## Checkpoint format
+
+Use [Active Implementation Checkpoint Template](../operations/implementation-checkpoint-template.md). The active checkpoint is branch-local temporary execution state and should be deleted/reset when its implementation PR is completed.
