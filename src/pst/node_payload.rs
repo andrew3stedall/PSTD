@@ -1,6 +1,6 @@
 use crate::error::PstdResult;
 use crate::pst::bbt::BbtIndex;
-use crate::pst::bth::BthMap;
+use crate::pst::bth::{BthHeader, BthMap, BthPropertyEntry};
 use crate::pst::heap::{
     heap_candidate_offsets_with_limit, heap_signature_offsets_with_limit, HeapOnNode,
     PQ12_MAX_HEAP_SCAN_OFFSET,
@@ -46,15 +46,22 @@ pub fn load_node_property_context_with_fallback_charset(
 ) -> PstdResult<LoadedNodePayload> {
     let payload = load_payload_block(reader, bbt, entry.data_block_id, limits)?;
     let payload_base_offset = payload.block_ref.offset.0;
-    let (bth, traversal_status) =
+    let (property_report, traversal_status) =
         match load_heap_bth_from_candidates(&payload.bytes, payload_base_offset) {
-            Ok((bth, status)) => (bth, status),
+            Ok(parsed) => (
+                PropertyContext::from_property_entries(
+                    parsed.header, &parsed.entries, fallback_charset,
+                )?,
+                parsed.traversal_status,
+            ),
             Err(reason) => (
-                BthMap::parse(&payload.bytes, payload_base_offset)?,
+                PropertyContext::from_bth_with_fallback_charset(
+                    &BthMap::parse(&payload.bytes, payload_base_offset)?,
+                    fallback_charset,
+                )?,
                 format!("legacy_flat_bth_property_context; pq11_heap_probe={reason}"),
             ),
         };
-    let property_report = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset)?;
     let properties = property_report
         .context
         .clone()
@@ -75,7 +82,13 @@ pub fn load_node_property_context_with_fallback_charset(
     })
 }
 
-fn load_heap_bth_from_candidates(buf: &[u8], base_offset: u64) -> Result<(BthMap, String), String> {
+struct HeapPropertyContext {
+    header: BthHeader,
+    entries: Vec<BthPropertyEntry>,
+    traversal_status: String,
+}
+
+fn load_heap_bth_from_candidates(buf: &[u8], base_offset: u64) -> Result<HeapPropertyContext, String> {
     let candidates = heap_candidate_offsets_with_limit(buf, PQ12_MAX_HEAP_SCAN_OFFSET);
     if candidates.is_empty() {
         return Err(candidate_not_found_reason(buf));
@@ -86,18 +99,18 @@ fn load_heap_bth_from_candidates(buf: &[u8], base_offset: u64) -> Result<(BthMap
         let candidate_buf = &buf[candidate_offset..];
         let candidate_base_offset = base_offset + candidate_offset as u64;
         match HeapOnNode::parse(candidate_buf, candidate_base_offset) {
-            Ok(heap) => match BthMap::parse_property_context_from_heap(
+            Ok(heap) => match BthMap::parse_property_context_with_sources(
                 &heap,
                 candidate_buf,
                 candidate_base_offset,
             ) {
-                Ok(bth) => {
+                Ok((header, entries)) => {
                     let status = if candidate_offset == 0 {
                         "heap_bth_property_context".to_string()
                     } else {
                         format!("heap_bth_property_context_at_offset_{candidate_offset}")
                     };
-                    return Ok((bth, status));
+                    return Ok(HeapPropertyContext { header, entries, traversal_status: status });
                 }
                 Err(reason) => {
                     last_error = format!(
@@ -274,6 +287,29 @@ mod tests {
             loaded.properties.pq10_status(),
             "pq10_traversal=heap_bth_property_context_at_offset_16"
         );
+    }
+
+    #[test]
+    fn leaves_missing_subnode_subject_unresolved_in_node_extraction() {
+        let mut bytes = heap_bth_with_subject("must not be read");
+        bytes[28..32].copy_from_slice(&0x64u32.to_le_bytes());
+        let file = NamedTempFile::new().unwrap();
+        fs::write(file.path(), &bytes).unwrap();
+        let reader = PstByteReader::open(file.path()).unwrap();
+        let bbt = index_with_entry(BlockId(100), 0, bytes.len() as u64);
+        let entry = NbtEntry {
+            node_id: NodeId(200),
+            data_block_id: BlockId(100),
+            subnode_block_id: None,
+        };
+        let loaded =
+            load_node_property_context(&reader, &bbt, &entry, ParserLimits::default()).unwrap();
+        assert!(loaded.properties.string_value(PR_SUBJECT).is_none());
+        assert_eq!(loaded.property_report.unresolved_reference_count, 1);
+        assert_eq!(loaded.property_report.decode_error_count, 0);
+        let value = loaded.properties.value(PR_SUBJECT).unwrap();
+        assert_eq!(value.raw, 0x64u32.to_le_bytes());
+        assert!(value.status.starts_with("HNID_UNRESOLVED"));
     }
 
     fn bth_with_subject(value: &str) -> Vec<u8> {
