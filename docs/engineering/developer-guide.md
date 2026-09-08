@@ -1,24 +1,39 @@
 # PSTD Developer Guide
 
-_Last reviewed: 21 July 2026._
+_Last reviewed: 8 September 2026._
 
 ## Purpose
 
-Give developers and coding agents the minimum context needed to change PSTD safely without reintroducing invalid parser assumptions or confusing historical plans with current capability.
+Give developers and coding agents the minimum context needed to change PSTD safely without reintroducing invalid parser assumptions, confusing historical plans with current capability, or repeatedly reloading repository history during long-running implementation.
 
-## Read first
+## Continuation read path
 
-1. [Root README](../../README.md)
-2. [Project Status](../product/project-status.md)
-3. [Public PST Progress Log](../operations/public-pst-progress-log.md)
-4. [Roadmap](../product/pstd-v1-roadmap.md)
-5. [Compatibility Matrix](../product/compatibility-matrix.md)
-6. [Approved Attachment Fixture Gap](../operations/vertical-40-approved-fixture-gap.md)
-7. [Codebase Map](codebase-map.md)
-8. [Local Validation](../operations/local-validation.md)
-9. `AGENTS.md`
+When a branch/PR already contains `docs/operations/active-implementation-checkpoint.md`, use this minimal path:
 
-Before starting work, check open pull requests, active branches, recent commits, and CI. Continue an existing vertical implementation when one is already underway.
+1. `AGENTS.md`.
+2. `docs/operations/active-implementation-checkpoint.md`.
+3. The active GitHub issue.
+4. The current PR diff/latest durable implementation commit.
+5. Only the source files/functions and failing checks named by the checkpoint.
+
+Continue from `Next exact change`. Do not reread the full current-state set, parent epic, roadmap, compatibility matrix, public fixture history, or `docs/readpst-gaps/` corpus unless the checkpoint identifies a changed dependency or the active issue cites a specific evidence need.
+
+If the checkpoint is absent or stale, reconstruct it once from the branch/PR, persist it, and then continue from the minimal path.
+
+## Fresh-start read path
+
+Use this broader path only when selecting/starting new implementation:
+
+1. `AGENTS.md`.
+2. [Root README](../../README.md).
+3. [Project Status](../product/project-status.md).
+4. [Public PST Progress Log](../operations/public-pst-progress-log.md).
+5. [Roadmap](../product/pstd-v1-roadmap.md) when issue ordering is not already defined.
+6. [Compatibility Matrix](../product/compatibility-matrix.md) when capability classification is needed.
+7. [Codebase Map](codebase-map.md) for unfamiliar source areas.
+8. [Local Validation](../operations/local-validation.md) when preparing validation.
+
+Before creating work, check open pull requests and active branches to avoid conflict. Inspect recent commits/CI only as needed to select or safely create the implementation branch. Once the branch/PR exists, create the active checkpoint immediately and switch to the continuation read path.
 
 ## Repository shape
 
@@ -54,23 +69,46 @@ python -m pstd --help
 
 The M1-M25 milestone lane and PQ1-PQ74 parser-quality lane are complete. Active work uses vertical extraction milestones and evidence-led fixture qualification.
 
-A vertical milestone must:
+A vertical implementation must:
 
 - expose one new observable extraction behaviour or remove one concrete blocker;
+- use one GitHub issue or smallest coherent slice as the active implementation scope;
 - reuse existing validated storage and parser components;
 - preserve row order, property identity, address kind, encoding, and source boundaries;
 - fail closed without partial evidence;
 - remain tightly scoped;
 - include focused regression tests;
-- rerun every relevant approved fixture and update current-state documentation.
+- make each coherent implementation increment durable before broad research or full validation;
+- rerun every relevant approved fixture and update current-state documentation before merge.
 
 Do not add a new abstraction merely because a parser layer could be made more general. It must unlock a measured extraction need.
 
-The active compatibility lane is dependency-free Unicode email expansion. The next parser or MIME change requires approved immutable fixture evidence for a second by-value attachment layout, multiple exactly owned attachments, or exact inline attachment and Content-ID behaviour. ANSI traversal and typed non-mail enrichment remain backlog-only.
+Parent epics guide dependencies and order. They should not be treated as a requirement to load all child issues into implementation context.
+
+## Durable implementation checkpoints
+
+Every non-trivial active implementation branch should maintain `docs/operations/active-implementation-checkpoint.md`.
+
+The checkpoint is intentionally short. It records the active issue, latest durable implementation commit, established conclusions, exact source boundary, focused test state, blockers, and `Next exact change`.
+
+After each coherent code/test increment:
+
+1. run focused formatting/tests when readily available;
+2. commit the increment;
+3. update the checkpoint if state materially changed;
+4. only then undertake broad research, environment/toolchain work, full validation, or specialist delegation.
+
+Keep at most one bounded increment uncommitted. A coherent unverified checkpoint commit is preferable to losing implementation state; required validation still must pass before merge.
 
 ## Validation
 
-Run before claiming a branch is valid:
+### During implementation
+
+Run the smallest focused test/formatting command that exercises the changed boundary. Inspect relevant failure output and iterate. Do not run the full repository gate after every checkpoint commit unless a failure specifically requires it.
+
+### Before claiming merge readiness
+
+Run on the exact cleaned PR head:
 
 ```text
 cargo fmt --check
@@ -174,7 +212,7 @@ Current approved fixture evidence does not demonstrate a second by-value attachm
 
 ## Pull request checklist
 
-Every PR should include:
+Every merge-ready PR should include:
 
 - extraction objective;
 - evidence entering the change;
@@ -187,6 +225,8 @@ Every PR should include:
 - remaining blocker and next vertical candidate;
 - documentation updated.
 
+Draft PRs may use the active checkpoint for working-state handoff instead of repeatedly expanding the PR body.
+
 ## Documentation rule
 
-Update current truth in the root README, project status, public progress log, roadmap, compatibility matrix and affected technical guide. Add a point-in-time vertical record for the implementation. Historical milestone/PQ files should remain accurate records of their original decision boundary rather than being rewritten to appear current.
+Update current truth in the root README, project status, public progress log, roadmap, compatibility matrix and affected technical guide when behaviour materially changes. Add a point-in-time vertical record when useful. Historical milestone/PQ/parity-gap files should remain accurate records of their original decision boundary rather than being rewritten or reread by default on continuation.

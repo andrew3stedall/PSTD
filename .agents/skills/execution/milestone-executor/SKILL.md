@@ -1,47 +1,60 @@
 ---
 name: milestone-executor
-description: Use when implementing an approved PSTD milestone or epic from ChatGPT/GitHub connector work. Executes the milestone issue order on a milestone branch and documents testing that must be run later.
+description: Use when executing an approved PSTD milestone or epic. Coordinate ordered issues, but implement and checkpoint one issue at a time so continuation does not require reloading the whole milestone.
 ---
 
 # Milestone Executor
 
 ## Purpose
 
-Build an approved PSTD milestone or epic as a coherent body of work, rather than prompting for each issue one by one.
+Drive an approved milestone or epic through its issue order while keeping each implementation slice independently resumable and durable.
 
 ## Inputs required
 
 - Approved milestone or epic definition.
 - Ordered issue list.
 - Known scope and out-of-scope items.
-- Expected output branch name.
+- Current branch/PR state, if any.
 - Known validation commands, if available.
 
 ## Execution model
 
-1. Work from the milestone or epic definition.
-2. Follow the issue order defined by that milestone or epic.
-3. Use a milestone branch such as `milestone/<name>` or `epic/<name>`.
-4. Implement related issues together when the milestone says they belong together.
-5. Keep unrelated work out of the milestone branch.
-6. Update docs as behaviour or usage changes.
-7. Open a single milestone PR when the body of work is ready for review.
+1. Use the milestone/epic only to determine ordering and dependencies.
+2. Select exactly one ready issue as the active implementation scope.
+3. Continue an existing implementation branch/PR when present; otherwise create the dedicated branch/PR required by root `AGENTS.md`.
+4. Create or update `docs/operations/active-implementation-checkpoint.md` with the active issue and `Next exact change`.
+5. Implement the issue in bounded increments, committing each coherent increment before broad research, full validation, environment work, or further delegation.
+6. Use focused tests during implementation and record exact results in the checkpoint.
+7. When the active issue is complete, run the required merge-ready validation for that delivery boundary, update final docs, and merge if green.
+8. Move to the next issue only after the previous issue has durable completion/merge evidence or the dependency model explicitly requires a shared branch.
+
+Do not keep an entire epic's child issues, historical evidence, and source areas in active context. Do not re-read completed issue analysis when the checkpoint already records its conclusions.
+
+## Branching rule
+
+Prefer one branch/PR per issue or smallest coherent vertical slice. A shared milestone branch is allowed only when issues cannot safely land independently; record the coupled scope in the checkpoint. Even on a shared branch, only one issue should be active at a time and each issue boundary should have a durable commit.
+
+## Delegation rule
+
+Specialist roles are optional, not a default workforce fan-out. Delegate only separable questions and require durable output: a commit, durable issue/PR evidence, or a concise conclusion added to the checkpoint.
 
 ## Testing rule
 
-Local testing may be deferred until the user has Codex running on a laptop. When tests are not run, record that clearly in the PR and list the commands that should be run later.
+During implementation, use focused validation appropriate to the changed boundary. Full CI/public-fixture validation gates the merge-ready head, not every checkpoint commit.
 
-GitHub Actions CI is the normal validation gate for milestone PRs. After CI is green, inspect the `public-pst-progress` artifact and record the checked-in public PST fixture outcome in `docs/operations/public-pst-progress-log.md` before treating the milestone as complete.
+When a focused test cannot run, record the exact blocker and an unverified checkpoint commit rather than losing coherent implementation work. Required merge validation cannot remain deferred.
 
 ## Stop conditions
 
-Stop and report when:
+Stop and report only when:
 
-- The milestone definition is unclear.
-- Required files or repo context are missing.
-- The work requires secrets or production access.
-- The implementation path would exceed the milestone scope.
+- the active issue definition is genuinely ambiguous and no repo evidence can resolve it;
+- required files or repository permissions are missing;
+- the work requires secrets or production access outside authorization;
+- continuing would violate the active issue's explicit scope or safety boundary.
+
+Token/context pressure is not a stop condition: persist the current coherent increment and checkpoint before any long investigation.
 
 ## Output
 
-Return implementation summary, files changed, issues covered, validation performed, public PST progress result, deferred tests, docs changed, and follow-up work.
+Return active issue, latest durable commit, branch/PR, checkpoint state, implementation summary, focused validation, unresolved blocker, and next exact change. Report milestone-wide coverage separately and compactly.

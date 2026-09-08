@@ -1,13 +1,15 @@
 # PSTD Documentation
 
-_Last reviewed: 6 September 2026._
+_Last reviewed: 8 September 2026._
 
-This documentation tree contains both current operating guidance and historical delivery evidence. Use the current-state pages below for present capability and next work. Milestone, PQ, vertical, issue-plan, and implementation-plan files record what was known at the time they were written.
+This documentation tree contains current operating guidance, temporary branch-local execution state, and historical delivery evidence. Do not load all three classes for routine continuation work.
 
 ## Start here
 
 | Need | Authoritative page |
 |---|---|
+| Resume an active implementation branch | `AGENTS.md` + branch-local `operations/active-implementation-checkpoint.md` + active GitHub issue |
+| Create an active implementation checkpoint | [Checkpoint template](operations/implementation-checkpoint-template.md) |
 | Install, inspect, extract, generate EML, and call PSTD from Python | [Quickstart](quickstart.md) |
 | Project intent, headline progress, and commands | [Root README](../README.md) |
 | Current merged capability and active blocker | [Project Status](product/project-status.md) |
@@ -15,8 +17,8 @@ This documentation tree contains both current operating guidance and historical 
 | Approved upstream fixtures, provenance, hashes, and development order | [Upstream PST Fixture Corpus](operations/upstream-pst-fixture-corpus.md) |
 | Controlled ANSI fixture generation and admission | [ANSI PST Fixture Generation](fixtures/ansi-pst-generation.md) |
 | Current extraction roadmap | [PSTD Roadmap](product/pstd-v1-roadmap.md) |
-| Documentation freshness and history policy | [Documentation Status](DOCUMENTATION_STATUS.md) |
-| readpst compatibility gaps, closure plan, and agent workboard | [readpst parity gap register](readpst-gaps/README.md) |
+| Documentation freshness, history, and context-loading policy | [Documentation Status](DOCUMENTATION_STATUS.md) |
+| readpst compatibility gaps and durable parity evidence | [readpst parity gap register](readpst-gaps/README.md) |
 | Architecture | [System Overview](architecture/system-overview.md) |
 | Code navigation | [Codebase Map](engineering/codebase-map.md) |
 | Developer workflow | [Developer Guide](engineering/developer-guide.md) |
@@ -24,19 +26,31 @@ This documentation tree contains both current operating guidance and historical 
 | Structured output contract | [Output Contract Summary](data/pstd-v1-output-contract-summary.md) |
 | Known gaps and deferred systems | [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md) |
 
-## Current extraction state
+## Context-loading rule
 
-| Delivery phase | Current outcome |
-|---|---|
-| M1-M25 | Product foundation complete: CLI, Python wrapper, Docker, TAR/JSONL outputs, batch/resume, diagnostics, and operator handoff. |
-| PQ1-PQ74 | Validated parser foundation through bounded traversal, Table Context row transport, and fixed-width value decoding. |
-| Recipient verticals | Four structured To/Cc recipient records with names and usable addresses are emitted from the original public fixture. |
-| Readable message verticals | The original fixture retains its 956-byte plain/HTML baseline; current standalone `pstd-eml` output adds validated RTF and opaque encrypted body payloads as synthetic attachment-like MIME parts when present. |
-| Upstream fixture corpus | Three pinned public PSTs cover attachments, multiple folders/messages, body forms, appointments, recurrence, contacts, distribution lists, and legacy Exchange addresses. Non-mail objects remain outside the active email-to-EML milestone. |
-| Tika attachment fixture | Eight messages include seven top-level messages assigned by exact contents-table rows, one linked method-`5` child, nine directly owned recipients, ten body records, two exact attachment payloads, inline parent EML with both payloads, and one exact 453-byte child EML. |
-| Current milestone | Attachment payload extraction wave | RP-M7-03 remains NOT PARITY-COMPLETE for its reviewed baseline; the maintained matrix is 11 Implemented, 54 Partial, and 10 Gap rows after generic attachment resolver work and standalone synthetic RTF/opaque encrypted body artifact delivery. See `readpst-gaps/10-parity-matrix.md`. |
+### Continuing existing implementation
 
-The current roadmap, compatibility matrix, and approved-fixture gap record define the active evidence-led sequence. Historical milestone and PQ documents remain useful for implementation context but do not define the next task.
+Use the continuation fast path in `AGENTS.md`. Read the active checkpoint and issue, inspect the current diff/latest durable commit and only the named source boundary, then continue from `Next exact change`.
+
+Do **not** bulk-read the root README, project status, public fixture history, parent epic, PQ records, vertical history, or `readpst-gaps/` corpus when a valid checkpoint already captures the active scope.
+
+### Starting new implementation
+
+Read the minimum current-state sources required by `AGENTS.md`, inspect active PRs/branches to avoid conflict, select one issue/slice, create the branch/PR and checkpoint, then switch to the continuation fast path.
+
+## Documentation classes
+
+### Current truth
+
+Current product, capability, roadmap, architecture, validation, developer workflow, and output-contract pages describe the maintained repository state. See [Documentation Status](DOCUMENTATION_STATUS.md) for exact authority.
+
+### Temporary execution state
+
+`operations/active-implementation-checkpoint.md` exists only on an active non-trivial implementation branch. It is a concise handoff, not permanent product truth. Delete/reset it when its PR is completed.
+
+### Historical evidence
+
+Milestone, PQ, vertical, issue-plan, parity-plan, and implementation-plan documents record what was known at the time. Fetch them only for a specific evidence question. Do not use them alone to determine the current roadmap and do not ingest the historical corpus by default on continuation.
 
 ## Current guidance by audience
 
@@ -53,6 +67,7 @@ The current roadmap, compatibility matrix, and approved-fixture gap record defin
 - [System Overview](architecture/system-overview.md)
 - [Codebase Map](engineering/codebase-map.md)
 - [Developer Guide](engineering/developer-guide.md)
+- [Checkpoint template](operations/implementation-checkpoint-template.md)
 - [Table-led Extraction Note](architecture/table-led-extraction-note.md)
 - [PST Parser Research](research/pst-parser-research.md)
 
@@ -60,20 +75,11 @@ The current roadmap, compatibility matrix, and approved-fixture gap record defin
 
 - [Public PST Progress Log](operations/public-pst-progress-log.md)
 - [Upstream PST Fixture Corpus](operations/upstream-pst-fixture-corpus.md)
-- [Approved Attachment Fixture Gap](operations/vertical-40-approved-fixture-gap.md)
 - [ANSI PST Fixture Generation](fixtures/ansi-pst-generation.md)
 - [Local Validation](operations/local-validation.md)
 - [Local and Docker Operator Handoff](operations/local-docker-operator-handoff.md)
 - [Unsupported and Deferred Areas](operations/v1-unsupported-deferred-areas.md)
 - [readpst Parity Gap Register](readpst-gaps/README.md)
-- [Vertical 28: Plain-text and HTML EML](operations/vertical-28-emit-plain-html-eml.md)
-- [Vertical 34: Tika embedded message](operations/vertical-34-recover-tika-embedded-message.md)
-- [Vertical 35: Tika child plain-text EML](operations/vertical-35-emit-tika-child-eml.md)
-- [Vertical 36: Method-5 child EML payload](operations/vertical-36-materialise-method5-eml-payload.md)
-- [Vertical 37: Tika message-folder ownership](operations/vertical-37-resolve-tika-message-folder-ownership.md)
-- [Vertical 38: Reject unresolved binary body references](operations/vertical-38-reject-unresolved-binary-body-references.md)
-- [Vertical 45: Synthetic body attachments](operations/vertical-45-materialise-synthetic-body-attachments.md)
-- [Vertical 46: Reconstructible email content](operations/vertical-46-reconstructible-email-content.md)
 
 ### Data contract
 
@@ -88,19 +94,6 @@ The current roadmap, compatibility matrix, and approved-fixture gap record defin
 
 - [Unreleased Changelog](changelog/unreleased.md)
 
-## Historical records
-
-The following directories are retained as point-in-time evidence:
-
-- `milestones/` — completed M1-M25 and PQ milestone reports;
-- `issues/` — ordered issue plans written for earlier delivery phases;
-- `engineering/` — implementation plans, alongside current engineering guides;
-- `operations/` — fixture findings, PQ reports, vertical reports, and current operating guides;
-- `epics/` — early epic definitions;
-- `decisions/` — architecture and operating-model decisions.
-
-A historical document can accurately describe an old blocker even when that blocker has since been resolved. Do not use those files alone to determine the current roadmap.
-
 ## Repository skills
 
-Repo-scoped instructions live under `.agents/skills/`. Start with [the skills index](../.agents/skills/README.md). `AGENTS.md` and the current project-status documents override older skill wording when the delivery model has changed.
+Repo-scoped instructions live under `.agents/skills/`. Start with [the skills index](../.agents/skills/README.md). Root `AGENTS.md`, the active checkpoint, and the active issue define continuation behavior. Current-state documents override older skill wording for durable capability truth.
