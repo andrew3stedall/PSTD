@@ -1,6 +1,7 @@
 use crate::error::PstdResult;
 use crate::pst::bbt::BbtIndex;
-use crate::pst::bth::{BthHeader, BthMap, BthPropertyEntry};
+use crate::pst::bth::{BthHeader, BthMap, BthPropertyEntry, PropertyStorageStatus};
+use crate::pst::property_node_resolver::PropertyNodeResolver;
 use crate::pst::heap::{
     heap_candidate_offsets_with_limit, heap_signature_offsets_with_limit, HeapOnNode,
     PQ12_MAX_HEAP_SCAN_OFFSET,
@@ -48,14 +49,16 @@ pub fn load_node_property_context_with_fallback_charset(
     let payload_base_offset = payload.block_ref.offset.0;
     let (property_report, traversal_status) =
         match load_heap_bth_from_candidates(&payload.bytes, payload_base_offset) {
-            Ok(parsed) => (
+            Ok(mut parsed) => {
+                resolve_node_values(&mut parsed.entries, reader, bbt, entry, limits);
+                (
                 PropertyContext::from_property_entries(
                     parsed.header,
                     &parsed.entries,
                     fallback_charset,
                 )?,
                 parsed.traversal_status,
-            ),
+            )},
             Err(reason) => (
                 PropertyContext::from_bth_with_fallback_charset(
                     &BthMap::parse(&payload.bytes, payload_base_offset)?,
@@ -82,6 +85,49 @@ pub fn load_node_property_context_with_fallback_charset(
         property_report,
         report,
     })
+}
+
+fn resolve_node_values(
+    entries: &mut [BthPropertyEntry],
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    owner: &NbtEntry,
+    limits: ParserLimits,
+) {
+    let needs_subnodes = entries.iter().any(|entry| {
+        entry.source.as_ref().is_some_and(|source| source.status == PropertyStorageStatus::NodeUnresolved)
+    });
+    let resolver = needs_subnodes.then(|| PropertyNodeResolver::for_owner(reader, bbt, owner, limits));
+    let mut resolved_bytes = 0u64;
+    for entry in entries {
+        let Some(source) = entry.source.as_mut() else { continue };
+        source.owner_node_id = Some(owner.node_id.0);
+        source.source_block_ids = vec![owner.data_block_id.0];
+        if source.status != PropertyStorageStatus::NodeUnresolved {
+            continue;
+        }
+        let result = match resolver.as_ref().expect("NID entry requires resolver") {
+            Ok(resolver) => resolver.resolve(source.value_hnid),
+            Err(reason) => Err(*reason),
+        };
+        match result {
+            Ok(value) => {
+                resolved_bytes = resolved_bytes.saturating_add(value.bytes.len() as u64);
+                if resolved_bytes > limits.max_block_bytes {
+                    source.resolution_detail = Some("ResourceLimit".into());
+                    continue;
+                }
+                entry.entry.value = value.bytes;
+                source.status = if value.data_tree {
+                    PropertyStorageStatus::DataTree
+                } else {
+                    PropertyStorageStatus::Subnode
+                };
+                source.source_block_ids.extend(value.source_block_ids);
+            }
+            Err(reason) => source.resolution_detail = Some(format!("{reason:?}")),
+        }
+    }
 }
 
 struct HeapPropertyContext {
@@ -319,6 +365,38 @@ mod tests {
         let value = loaded.properties.value(PR_SUBJECT).unwrap();
         assert_eq!(value.raw, 0x64u32.to_le_bytes());
         assert!(value.status.starts_with("HNID_UNRESOLVED"));
+    }
+
+    #[test]
+    fn resolves_subnode_subject_in_node_extraction() {
+        let mut heap = heap_bth_with_subject("unused heap data");
+        heap[28..32].copy_from_slice(&0x64u32.to_le_bytes());
+        let subject = utf16le("Subnode subject");
+        let mut subnodes = vec![2, 0, 1, 0, 0, 0, 0, 0];
+        subnodes.extend_from_slice(&0x64u64.to_le_bytes());
+        subnodes.extend_from_slice(&8u64.to_le_bytes());
+        subnodes.extend_from_slice(&0u64.to_le_bytes());
+        let mut bytes = vec![0; 512];
+        let mut bbt = index_with_entry(BlockId(100), 512, heap.len() as u64);
+        bytes.extend_from_slice(&heap);
+        for (bid, payload) in [(2, subnodes), (8, subject)] {
+            bbt.entries.push(BbtEntry { block_id: BlockId(bid), offset: ByteOffset(bytes.len() as u64), size: payload.len() as u64 });
+            bytes.extend_from_slice(&payload);
+        }
+        let file = NamedTempFile::new().unwrap();
+        fs::write(file.path(), bytes).unwrap();
+        let reader = PstByteReader::open(file.path()).unwrap();
+        let owner = NbtEntry {
+            node_id: NodeId(200), data_block_id: BlockId(100), subnode_block_id: Some(BlockId(2)),
+        };
+        let loaded = load_node_property_context(&reader, &bbt, &owner, ParserLimits::default()).unwrap();
+        assert_eq!(loaded.properties.string_value(PR_SUBJECT).as_deref(), Some("Subnode subject"));
+        assert_eq!(loaded.property_report.unresolved_reference_count, 0);
+        let source = &loaded.property_report.property_sources[0];
+        assert_eq!(source.value_hnid, 0x64);
+        assert_eq!(source.owner_node_id, Some(200));
+        assert!(source.source_block_ids.contains(&8));
+        assert_eq!(source.status, crate::pst::bth::PropertyStorageStatus::Subnode);
     }
 
     fn bth_with_subject(value: &str) -> Vec<u8> {

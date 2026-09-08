@@ -40,6 +40,8 @@ pub struct PropertyContextParseReport {
     pub decode_error_count: usize,
     #[serde(default)]
     pub unresolved_reference_count: usize,
+    #[serde(default)]
+    pub property_sources: Vec<PropertySource>,
     pub charset_conversion_error_count: usize,
     pub charset_resolution: crate::pst::mapi::CharsetResolution,
     pub status: String,
@@ -255,6 +257,7 @@ impl PropertyContext {
             skipped_key_count,
             decode_error_count,
             unresolved_reference_count,
+            property_sources: sources.iter().filter_map(|source| *source).cloned().collect(),
             charset_conversion_error_count,
             charset_resolution,
             status,
@@ -345,8 +348,8 @@ fn unresolved_source(source: &PropertySource) -> bool {
 
 fn reference_status(source: &PropertySource) -> String {
     format!(
-        "HNID_UNRESOLVED; storage={:?}; hnid=0x{:08x}",
-        source.status, source.value_hnid
+        "HNID_UNRESOLVED; storage={:?}; hnid=0x{:08x}; reason={}",
+        source.status, source.value_hnid, source.resolution_detail.as_deref().unwrap_or("source_context_unavailable")
     )
 }
 
@@ -808,6 +811,9 @@ mod tests {
                     value_hnid: 0x64,
                     hnid_kind: Some(HnidKind::NodeId),
                     status: PropertyStorageStatus::NodeUnresolved,
+                    owner_node_id: None,
+                    source_block_ids: Vec::new(),
+                    resolution_detail: None,
                 }),
             })
             .collect::<Vec<_>>();

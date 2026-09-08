@@ -33,6 +33,8 @@ pub struct BthMap {
 pub enum PropertyStorageStatus {
     Inline,
     Heap,
+    Subnode,
+    DataTree,
     NodeUnresolved,
     HeapUnresolved,
     Null,
@@ -48,6 +50,12 @@ pub struct PropertySource {
     /// None for inline scalars: their bits must never be interpreted as an HNID.
     pub hnid_kind: Option<HnidKind>,
     pub status: PropertyStorageStatus,
+    #[serde(default)]
+    pub owner_node_id: Option<u64>,
+    #[serde(default)]
+    pub source_block_ids: Vec<u64>,
+    #[serde(default)]
+    pub resolution_detail: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -333,6 +341,9 @@ fn property_context_entry(
                 value_hnid,
                 hnid_kind,
                 status,
+                owner_node_id: None,
+                source_block_ids: Vec::new(),
+                resolution_detail: None,
             }),
         };
     }
