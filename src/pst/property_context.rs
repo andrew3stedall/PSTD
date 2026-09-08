@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::error::PstdResult;
-use crate::pst::bth::BthMap;
+use crate::pst::bth::{BthMap, BthPropertyEntry, PropertySource, PropertyStorageStatus};
 use crate::pst::mapi::{
     byte_swapped_tag, decode_string8_with_status, decode_value_with_fallback, has_known_value_type,
     property_def, resolve_string8_charset, value_summary, MapiValue, MapiValueType,
@@ -38,6 +38,8 @@ pub struct PropertyContextParseReport {
     pub byte_swapped_selected_property_count: usize,
     pub skipped_key_count: usize,
     pub decode_error_count: usize,
+    #[serde(default)]
+    pub unresolved_reference_count: usize,
     pub charset_conversion_error_count: usize,
     pub charset_resolution: crate::pst::mapi::CharsetResolution,
     pub status: String,
@@ -67,15 +69,41 @@ impl PropertyContext {
         bth: &BthMap,
         fallback_charset: Option<&str>,
     ) -> PstdResult<PropertyContextParseReport> {
+        Self::decode_bth(bth, &[], fallback_charset)
+    }
+
+    /// Decode typed PC leaves, preserving unresolved reference bytes as evidence
+    /// without exposing them as successfully decoded property data.
+    pub fn from_property_entries(
+        header: crate::pst::bth::BthHeader,
+        entries: &[BthPropertyEntry],
+        fallback_charset: Option<&str>,
+    ) -> PstdResult<PropertyContextParseReport> {
+        let bth = BthMap {
+            header,
+            entries: entries.iter().map(|item| item.entry.clone()).collect(),
+        };
+        let sources = entries.iter().map(|item| item.source.as_ref()).collect::<Vec<_>>();
+        Self::decode_bth(&bth, &sources, fallback_charset)
+    }
+
+    fn decode_bth(
+        bth: &BthMap,
+        sources: &[Option<&PropertySource>],
+        fallback_charset: Option<&str>,
+    ) -> PstdResult<PropertyContextParseReport> {
         let mut message_codepage = None;
         let mut internet_cpid = None;
-        for entry in &bth.entries {
+        for (index, entry) in bth.entries.iter().enumerate() {
             if entry.key.len() < 4 {
                 continue;
             }
             let raw_tag =
                 u32::from_le_bytes([entry.key[0], entry.key[1], entry.key[2], entry.key[3]]);
             let interpreted = interpret_property_tag(raw_tag);
+            if sources.get(index).and_then(|source| *source).is_some_and(unresolved_source) {
+                continue;
+            }
             match interpreted.tag {
                 PR_MESSAGE_CODEPAGE => message_codepage = Some(entry.value.as_slice()),
                 PR_INTERNET_CPID => internet_cpid = Some(entry.value.as_slice()),
@@ -93,9 +121,10 @@ impl PropertyContext {
         let mut byte_swapped_selected_property_count = 0usize;
         let mut skipped_key_count = 0usize;
         let mut decode_error_count = 0usize;
+        let mut unresolved_reference_count = 0usize;
         let mut charset_conversion_error_count = 0usize;
 
-        for entry in &bth.entries {
+        for (index, entry) in bth.entries.iter().enumerate() {
             if entry.key.len() < 4 {
                 skipped_key_count += 1;
                 continue;
@@ -109,6 +138,13 @@ impl PropertyContext {
                 suspicious_property_tag_count += 1;
             }
 
+            let unresolved = sources
+                .get(index)
+                .and_then(|source| *source)
+                .filter(|source| unresolved_source(source));
+            if unresolved.is_some() {
+                unresolved_reference_count += 1;
+            }
             let Some(def) = property_def(interpreted.tag) else {
                 unknown_property_count += 1;
                 unknown_property_tags.push(interpreted.tag);
@@ -119,7 +155,7 @@ impl PropertyContext {
                         name: format!("unknown_0x{:08x}", interpreted.tag),
                         raw: entry.value.clone(),
                         decoded: None,
-                        status: unknown_property_status(raw_tag, interpreted),
+                        status: unresolved.map(reference_status).unwrap_or_else(|| unknown_property_status(raw_tag, interpreted)),
                     },
                 );
                 continue;
@@ -127,7 +163,10 @@ impl PropertyContext {
             if interpreted.was_byte_swapped {
                 byte_swapped_selected_property_count += 1;
             }
-            let decoded = match decode_value_with_fallback(
+            let decoded = if unresolved.is_some() {
+                None
+            } else {
+                match decode_value_with_fallback(
                 def.value_type,
                 &entry.value,
                 Some(charset_resolution.charset.as_str()),
@@ -148,6 +187,7 @@ impl PropertyContext {
                     decode_error_count += 1;
                     None
                 }
+            }
             };
             selected_property_count += 1;
             values.insert(
@@ -157,7 +197,7 @@ impl PropertyContext {
                     name: def.name.to_string(),
                     raw: entry.value.clone(),
                     decoded,
-                    status: selected_property_status(raw_tag, interpreted),
+                    status: unresolved.map(reference_status).unwrap_or_else(|| selected_property_status(raw_tag, interpreted)),
                 },
             );
         }
@@ -168,7 +208,7 @@ impl PropertyContext {
         let tag_shape_status = format!(
             "tag_shape=plausible:{plausible_property_tag_count},suspicious:{suspicious_property_tag_count},byte_swapped_selected:{byte_swapped_selected_property_count}"
         );
-        let status = if decode_error_count == 0 && skipped_key_count == 0 {
+        let status = if decode_error_count == 0 && skipped_key_count == 0 && unresolved_reference_count == 0 {
             if unknown_property_count == 0 {
                 format!("property_context_parsed; {tag_shape_status}")
             } else {
@@ -184,7 +224,7 @@ impl PropertyContext {
             )
         };
         let status = format!(
-            "{status}; {}; charset_conversion_errors={charset_conversion_error_count}",
+            "{status}; {}; charset_conversion_errors={charset_conversion_error_count}; hnid_unresolved={unresolved_reference_count}",
             charset_resolution.status
         );
 
@@ -200,6 +240,7 @@ impl PropertyContext {
             byte_swapped_selected_property_count,
             skipped_key_count,
             decode_error_count,
+            unresolved_reference_count,
             charset_conversion_error_count,
             charset_resolution,
             status,
@@ -277,6 +318,22 @@ impl PropertyContext {
             .filter(|value| value.status.starts_with("selected_byte_swapped_tag"))
             .count()
     }
+}
+
+fn unresolved_source(source: &PropertySource) -> bool {
+    matches!(
+        source.status,
+        PropertyStorageStatus::NodeUnresolved
+            | PropertyStorageStatus::HeapUnresolved
+            | PropertyStorageStatus::ObjectReference
+    )
+}
+
+fn reference_status(source: &PropertySource) -> String {
+    format!(
+        "HNID_UNRESOLVED; storage={:?}; hnid=0x{:08x}",
+        source.status, source.value_hnid
+    )
 }
 
 fn pq9_next_blocker(plausible: usize, suspicious: usize) -> &'static str {
@@ -717,6 +774,39 @@ mod tests {
             "pq10_traversal=heap_bth_property_context"
         );
         assert!(context.pq9_status().contains("plausible:0,suspicious:0"));
+    }
+
+    #[test]
+    fn typed_references_are_not_semantically_decoded() {
+        use crate::pst::bth::{BthPropertyEntry, PropertySource, PropertyStorageStatus};
+        use crate::pst::tcinfo::HnidKind;
+        let tags = [PR_SUBJECT, 0x1013_0102, 0x9999_0102];
+        let entries = tags.iter().map(|tag| BthPropertyEntry {
+            entry: BthEntry {
+                key: tag.to_le_bytes().to_vec(),
+                value: 0x64u32.to_le_bytes().to_vec(),
+            },
+            source: Some(PropertySource {
+                prop_id: (tag >> 16) as u16,
+                prop_type: *tag as u16,
+                value_hnid: 0x64,
+                hnid_kind: Some(HnidKind::NodeId),
+                status: PropertyStorageStatus::NodeUnresolved,
+            }),
+        }).collect::<Vec<_>>();
+        let report = PropertyContext::from_property_entries(
+            BthHeader { key_size: 4, value_size: 6, entry_count: 3, root_allocation: 0 },
+            &entries,
+            None,
+        ).unwrap();
+        assert_eq!(report.unresolved_reference_count, 3);
+        assert_eq!(report.decode_error_count, 0);
+        for tag in tags {
+            let value = report.context.value(tag).unwrap();
+            assert_eq!(value.raw, 0x64u32.to_le_bytes());
+            assert!(value.decoded.is_none());
+            assert!(value.status.starts_with("HNID_UNRESOLVED"));
+        }
     }
 
     fn utf16le(value: &str) -> Vec<u8> {
