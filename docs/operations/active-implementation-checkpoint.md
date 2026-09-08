@@ -9,9 +9,9 @@ Updated: 2026-09-08
 - Branch: `agent/coverage-foundation`
 - PR: #611
 - Base: `7f5c197c1443dacba1f29c61c2f527a082f30e38`
-- Latest durable implementation commit: none — no Rust implementation is committed yet
+- Latest durable implementation commit: `c372cef34b962d22fe9009d78f215051535e9d18` — typed BTH property sources and focused regressions; not yet compiled
 - Latest branch commit: `d9ff1faf2ebb33994d1550d6042fcb76fb103a97` — temporary build-tools workflow only
-- Validation state: unverified implementation (implementation not started)
+- Validation state: first Rust increment committed; focused tests not yet run
 
 ## Scope
 
@@ -32,7 +32,7 @@ Implement one reusable property-value reference boundary for issue #600. It must
 - `src/pst/tcinfo.rs::classify_hnid` already provides the repository's `HeapId` / `NodeId` / `Null` union classification. Reuse or centralize this semantics rather than inventing incompatible HNID classification.
 - `src/pst/attachment_property_context.rs::resolve_attachment_payload`, `inline_object_heap_bytes`, and `resolved_subnode_data_reference` demonstrate existing special-case HID/NID/data-tree resolution. #600 should extract/reuse the generic mechanics rather than leave attachment-only copies as the architecture.
 - `PropertyContext::from_bth_with_fallback_charset` currently receives only the flattened `BthEntry.value`; it therefore cannot distinguish a genuine four-byte inline value from an unresolved four-byte HNID after `property_context_entry` has discarded provenance.
-- The branch contains no coverage implementation yet. Do not claim typed generic property resolution is implemented until Rust code/tests are committed.
+- Typed BTH sources are committed. Generic NID/data-tree loading and consumer migration remain unimplemented.
 - The temporary `.github/workflows/coverage-build-tools.yml` is fallback infrastructure only. It must not delay the first source checkpoint and must be removed before #611 is merged.
 - Do not reread #599, #601-#610, the full project-status/progress history, PQ corpus, or `docs/readpst-gaps/` corpus during normal continuation. Fetch a specific historical section only if a concrete #600 code decision requires it.
 
@@ -52,7 +52,8 @@ Implement one reusable property-value reference boundary for issue #600. It must
 
 ## Focused validation
 
-- NOT RUN: #600 Rust focused tests — no #600 Rust implementation exists yet.
+- NOT RUN: focused BTH tests at c372cef; local Rust toolchain unavailable.
+- Code committed before validation infrastructure work, per durable progress rule.
 - Merge-only full validation must not be run as a substitute for the first source increment.
 
 ## Blockers / unresolved evidence
@@ -62,7 +63,9 @@ Implement one reusable property-value reference boundary for issue #600. It must
 
 ## Next exact change
 
-Create the first bounded #600 Rust increment around `src/pst/bth.rs::property_context_entry`: introduce a typed property-reference/source record that preserves `prop_id`, `prop_type`, raw `value_hnid`, HNID kind, and the result of the existing heap/HID lookup instead of collapsing an unresolved reference to indistinguishable four-byte bytes. Expose that typed evidence through `BthMap` (or a dedicated `src/pst/property_value_resolution.rs` boundary registered in `src/pst/mod.rs`) while keeping the existing flattened `BthEntry` API compatible for current callers. Add focused unit tests proving: (1) inline/fixed values remain byte-identical, (2) valid HID values resolve byte-identically, and (3) an unresolved NodeId remains explicitly classified with its original HNID rather than being silently treated as decoded raw data. Commit this type + HID/NodeId provenance increment before attempting generic NID/data-tree loading or attachment migration.
+Run focused BTH tests and formatting for commit c372cef (Rust is absent locally; use existing CI fallback). The new public BthMap::parse_property_context_with_sources returns a header plus BthPropertyEntry values; each carries the compatible flattened entry and optional typed PropertySource. It distinguishes inline scalars, heap, unresolved NID/HID, null, and object references. Tests cover inline aliasing, indexed HID provenance, missing HID, NID aliasing, and nonzero heap page index. Inspect focused failures only and commit corrections.
+
+Then wire PropertyContext to consume this typed API before semantic decoding, keeping unresolved references out of decoded values. Fetch only property_context.rs and its direct parse callers for that increment. Add generic source-backed NID/data-tree loading after that boundary is safe.
 
 ## Merge-only work remaining
 
