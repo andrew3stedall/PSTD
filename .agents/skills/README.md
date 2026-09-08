@@ -84,6 +84,7 @@ Use these when the work genuinely requires planning. Do not force a planning cou
 
 ## Execution skills
 
+- `execution/continuation-checkpoint`
 - `execution/milestone-executor`
 - `execution/epic-workforce`
 - `execution/implementation-worker`
