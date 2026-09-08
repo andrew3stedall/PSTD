@@ -58,7 +58,10 @@ struct InterpretedTag {
 
 impl PropertyContext {
     pub fn from_values(values: HashMap<u32, PropertyValue>) -> Self {
-        Self { values, sources: HashMap::new() }
+        Self {
+            values,
+            sources: HashMap::new(),
+        }
     }
 
     pub fn from_bth(bth: &BthMap) -> PstdResult<Self> {
@@ -249,9 +252,16 @@ impl PropertyContext {
         Ok(PropertyContextParseReport {
             context: Self {
                 values,
-                sources: sources.iter().filter_map(|source| *source).map(|source| {
-                    (((source.prop_id as u32) << 16) | source.prop_type as u32, source.clone())
-                }).collect(),
+                sources: sources
+                    .iter()
+                    .filter_map(|source| *source)
+                    .map(|source| {
+                        (
+                            ((source.prop_id as u32) << 16) | source.prop_type as u32,
+                            source.clone(),
+                        )
+                    })
+                    .collect(),
             },
             bth_entry_count: bth.entries.len(),
             parsed_property_count,
@@ -295,7 +305,9 @@ impl PropertyContext {
 
     /// None denotes legacy bytes with no storage evidence.
     pub fn property_bytes_resolved(&self, tag: u32) -> Option<bool> {
-        self.sources.get(&tag).map(|source| !unresolved_source(source))
+        self.sources
+            .get(&tag)
+            .map(|source| !unresolved_source(source))
     }
 
     pub fn string_value(&self, tag: u32) -> Option<String> {
