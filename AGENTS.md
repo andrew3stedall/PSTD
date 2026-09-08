@@ -49,6 +49,18 @@ Update the checkpoint whenever the active issue, implementation boundary, durabl
 - If delegated analysis changes implementation direction, write the conclusion into the checkpoint before further delegation.
 - Prefer targeted file reads, exact symbol searches, diffs, and failing log excerpts over whole-directory or whole-history ingestion.
 
+## Subagent model routing
+
+Use the cheapest sufficiently capable subagent model for delegated work. Model choice is per delegated task; do not inherit the parent orchestrator's model by default when Codex exposes explicit model routing.
+
+- Prefer **GPT-5.6 Luna** for bounded, low-complexity leaf work: targeted code search, locating symbols/usages, small mechanical edits, straightforward unit tests, fixture inspection, concise documentation changes, or summarising a small known source boundary.
+- Prefer Luna even when the parent orchestrator is running Astra or Sol. Do not spend a stronger model merely because the parent uses one.
+- Keep Luna delegations narrow and leaf-like. Give them the minimum relevant context/fork rather than the full epic or long parent history, and do not use Luna as a recursive orchestrator.
+- Use **GPT-5.6 Terra** for ordinary implementation work that needs moderate multi-file reasoning but not consequential architectural judgment.
+- Use **GPT-5.6 Sol or GPT-6 Astra** for ambiguous PST/MAPI semantics, architecture or cross-component decisions, difficult debugging, consequential integration decisions, or merge-critical review where a weaker model is not sufficient.
+- Escalate a task when its actual complexity exceeds the assigned model, when the worker stalls, or when correctness risk is material. Cost preference never overrides correctness.
+- Delegated work must still satisfy the durable-output rule below. See `.agents/skills/execution/subagent-model-routing/SKILL.md` for the reusable routing policy.
+
 ## Durable progress rule
 
 Do not allow meaningful implementation progress to exist only in transient agent context.
