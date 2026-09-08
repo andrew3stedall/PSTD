@@ -3,30 +3,35 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: coverage-focused-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 jobs:
   tools:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'agent/coverage-foundation'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - run: cargo fetch
-      - name: Package public build dependencies
-        shell: bash
+      - uses: Swatinem/rust-cache@v2
+      - name: Format and test bounded implementation
+        run: |
+          cargo fmt
+          cargo test --lib pst::bth::tests
+      - name: Persist formatting only if branch still matches tested source
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          mkdir -p /tmp/pstd-tools/toolchain /tmp/pstd-tools/cargo/registry
-          cp -a "$(rustc --print sysroot)/bin" "$(rustc --print sysroot)/lib" /tmp/pstd-tools/toolchain/
-          for part in cache src index; do
-            cp -a "$HOME/.cargo/registry/$part" /tmp/pstd-tools/cargo/registry/
-          done
-          tar -C /tmp/pstd-tools -czf /tmp/pstd-build-tools.tar.gz .
-      - uses: actions/upload-artifact@v4
-        with:
-          name: pstd-build-tools
-          path: /tmp/pstd-build-tools.tar.gz
-          retention-days: 1
-          compression-level: 0
+          git add src/pst/bth.rs
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "[COVERAGE-01] Format tested BTH source increment"
+            git push origin HEAD:refs/heads/agent/coverage-foundation
+          fi
