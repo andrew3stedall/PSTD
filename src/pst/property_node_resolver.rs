@@ -187,7 +187,7 @@ mod tests {
 
     fn fixture(blocks: Vec<(u64, Vec<u8>)>) -> (NamedTempFile, BbtIndex, NbtEntry) {
         let file = NamedTempFile::new().unwrap();
-        let mut bytes = vec![0; 512];
+        let mut bytes = vec![0; 1024];
         let mut entries = Vec::new();
         for (bid, payload) in blocks {
             entries.push(BbtEntry {
