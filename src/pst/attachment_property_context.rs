@@ -1002,7 +1002,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        PropertyContext { values }
+        PropertyContext::from_values(values)
     }
 
     fn embedded_attachment_payload(block_id: u64, object_nid: u32) -> PayloadBlock {
@@ -1057,7 +1057,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        PropertyContext { values }
+        PropertyContext::from_values(values)
     }
 
     #[test]
@@ -1362,7 +1362,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        PropertyContext { values }
+        PropertyContext::from_values(values)
     }
 
     fn object_property_context_heap(object_hid: u32, object_bytes: &[u8]) -> Vec<u8> {
@@ -1459,7 +1459,7 @@ mod tests {
             PR_ATTACH_SIZE,
             property(PR_ATTACH_SIZE, "attachment_size", MapiValue::Integer32(1)),
         );
-        let record = filename_attachment_record("msg", 0, &PropertyContext { values: blank }, &[])
+        let record = filename_attachment_record("msg", 0, &PropertyContext::from_values(blank), &[])
             .expect("method and size validate an unnamed attachment");
         assert_eq!(record.filename_original, None);
         assert_eq!(record.filename_safe, "attachment_0");
@@ -1482,9 +1482,7 @@ mod tests {
         let record = filename_attachment_record(
             "msg",
             1,
-            &PropertyContext {
-                values: missing_filename,
-            },
+            &PropertyContext::from_values(missing_filename),
             &[],
         )
         .expect("missing filename must use the deterministic fallback");
@@ -1501,7 +1499,7 @@ mod tests {
             ),
         );
         assert!(
-            filename_attachment_record("msg", 0, &PropertyContext { values: incomplete }, &[])
+            filename_attachment_record("msg", 0, &PropertyContext::from_values(incomplete), &[])
                 .is_none()
         );
 
@@ -1531,7 +1529,7 @@ mod tests {
             ),
         );
         assert!(
-            filename_attachment_record("msg", 0, &PropertyContext { values: wrong_type }, &[])
+            filename_attachment_record("msg", 0, &PropertyContext::from_values(wrong_type), &[])
                 .is_none()
         );
     }

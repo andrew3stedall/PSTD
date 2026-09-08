@@ -23,6 +23,8 @@ pub struct PropertyValue {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct PropertyContext {
     pub values: HashMap<u32, PropertyValue>,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub sources: HashMap<u32, PropertySource>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -56,7 +58,7 @@ struct InterpretedTag {
 
 impl PropertyContext {
     pub fn from_values(values: HashMap<u32, PropertyValue>) -> Self {
-        Self { values }
+        Self { values, sources: HashMap::new() }
     }
 
     pub fn from_bth(bth: &BthMap) -> PstdResult<Self> {
@@ -245,7 +247,12 @@ impl PropertyContext {
         );
 
         Ok(PropertyContextParseReport {
-            context: Self { values },
+            context: Self {
+                values,
+                sources: sources.iter().filter_map(|source| *source).map(|source| {
+                    (((source.prop_id as u32) << 16) | source.prop_type as u32, source.clone())
+                }).collect(),
+            },
             bth_entry_count: bth.entries.len(),
             parsed_property_count,
             selected_property_count,
@@ -284,6 +291,11 @@ impl PropertyContext {
 
     pub fn value(&self, tag: u32) -> Option<&PropertyValue> {
         self.values.get(&tag)
+    }
+
+    /// None denotes legacy bytes with no storage evidence.
+    pub fn property_bytes_resolved(&self, tag: u32) -> Option<bool> {
+        self.sources.get(&tag).map(|source| !unresolved_source(source))
     }
 
     pub fn string_value(&self, tag: u32) -> Option<String> {

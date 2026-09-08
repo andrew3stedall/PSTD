@@ -324,7 +324,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext { values };
+        let properties = PropertyContext::from_values(values);
         let metadata = attachment_metadata_from_properties(&properties);
         assert_eq!(
             metadata.filename_original.as_deref(),
@@ -342,7 +342,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let metadata = attachment_metadata_from_properties(&PropertyContext { values });
+        let metadata = attachment_metadata_from_properties(&PropertyContext::from_values(values));
         assert_eq!(
             metadata.filename_original.as_deref(),
             Some("short report.pdf")
@@ -449,7 +449,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext { values };
+        let properties = PropertyContext::from_values(values);
 
         let payload = attachment_payload_from_properties("msg_123", 0, &properties).unwrap();
         assert_eq!(payload.record.filename_safe, "image.png");
@@ -491,7 +491,7 @@ mod tests {
             },
         );
         let payload =
-            attachment_payload_from_properties("msg_123", 0, &PropertyContext { values }).unwrap();
+            attachment_payload_from_properties("msg_123", 0, &PropertyContext::from_values(values)).unwrap();
         assert_eq!(payload.bytes, b"ole-object");
 
         let mut values = HashMap::new();
@@ -516,7 +516,7 @@ mod tests {
             },
         );
         let payload =
-            attachment_payload_from_properties("msg_123", 1, &PropertyContext { values }).unwrap();
+            attachment_payload_from_properties("msg_123", 1, &PropertyContext::from_values(values)).unwrap();
         assert_eq!(payload.bytes, [1, 2, 3, 4]);
     }
 
@@ -571,7 +571,7 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        let properties = PropertyContext { values };
+        let properties = PropertyContext::from_values(values);
 
         let record = unavailable_attachment_record_from_properties(
             "msg_123",
