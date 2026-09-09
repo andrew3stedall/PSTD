@@ -5,7 +5,7 @@ Updated: 2026-09-09
 ## Active delivery
 
 - Issue #600; parent #599; branch agent/coverage-foundation; draft PR #611.
-- Latest durable source/test commit: 00977a4ad0005fab33a86cf64329ae944df3809f.
+- Latest durable source/test commit: 49315520a5c99d3a15d5ca97198ee205e61c2e76.
 - Scope: generic property storage/reference resolution. Do not start #601–#610 yet.
 - Older local /workspace/scratch/10c9672c1630/pstd contains separate uncommitted work; do not overwrite or use as live PR.
 
@@ -26,16 +26,18 @@ Updated: 2026-09-09
 - That job then failed Clippy: two manual_is_multiple_of errors in bth.rs, plus 13 too_many_arguments diagnostics.
 - ffaef38 fixes both BTH lint errors.
 - 8d8ef58 aligns temporary workflow with the existing ci.yml exception for too_many_arguments. This is the existing CI policy; strict AGENTS command without the exception remains a documented gate discrepancy.
-- 00977a4 adds full attachment extraction tests for direct NID, data-tree, sibling NID isolation and duplicate owner rejection. Await its focused workflow.
+- 93c7921 extends the body test through RTF emission and verifies missing owners produce no HTML/RTF output.
+- 4931552 rejects overlapping indexed subnode leaf ranges and external BIDs used as index blocks, with regressions.
+- 00977a4 adds full attachment extraction tests for direct NID, data-tree, sibling NID isolation and duplicate owner rejection. Await the latest head focused workflow.
 - Temporary workflow runs cargo fmt, cargo test --lib, Clippy, and persists formatting of named Rust files. Bot commits may need a subsequent connector commit to trigger exact-head CI.
 - No local Rust toolchain; direct git network is unavailable. Use connector, not another environment bootstrap.
 - Full clean-head merge gate and approved fixture deltas not yet verified.
 
 ## Next exact change
 
-1. Inspect focused workflow for 00977a4 (or later formatting commit); fix any failing new attachment test or Clippy output.
+1. Inspect focused workflow for 4931552 (or later formatting commit); fix any failing new attachment test or Clippy output.
 2. Inspect actual fixture failures after lint/formatting succeeds, especially attachment and embedded-message fixtures. Preserve established object handling.
-3. Strengthen the existing node_payload body test to verify RTF body output as well as raw property bytes; add missing-reference negative output checks.
+3. Body output and missing-reference checks are committed in 93c7921; fix their failures if any instead of recreating them.
 4. Review remaining #600 acceptance boundaries: generic HID page support, ANSI owner context, deterministic failure categories and exported diagnostics. Do not claim #600 complete while these remain unresolved.
 
 ## Merge-only work
