@@ -423,6 +423,61 @@ mod tests {
         );
     }
 
+    #[test]
+    fn resolves_html_rtf_and_arbitrary_binary_subnode_properties() {
+        use crate::pst::mapi::{PR_HTML, PR_RTF_COMPRESSED};
+        for (tag, expected, tree_backed) in [
+            (PR_HTML, b"text".to_vec(), false),
+            (PR_RTF_COMPRESSED, b"raw compressed RTF property bytes".to_vec(), true),
+            (0x7777_0102, vec![0, 1, 2, 3, 255], false),
+        ] {
+            let mut heap = heap_bth_with_subject("unused");
+            heap[24..26].copy_from_slice(&((tag >> 16) as u16).to_le_bytes());
+            heap[26..28].copy_from_slice(&(tag as u16).to_le_bytes());
+            heap[28..32].copy_from_slice(&0x64u32.to_le_bytes());
+            let mut subnodes = vec![2, 0, 1, 0, 0, 0, 0, 0];
+            subnodes.extend_from_slice(&0x64u64.to_le_bytes());
+            subnodes.extend_from_slice(&(if tree_backed { 6u64 } else { 8u64 }).to_le_bytes());
+            subnodes.extend_from_slice(&0u64.to_le_bytes());
+            let mut blocks = vec![(100u64, heap), (2, subnodes)];
+            if tree_backed {
+                let mut tree = vec![1, 1, 2, 0];
+                tree.extend_from_slice(&(expected.len() as u32).to_le_bytes());
+                tree.extend_from_slice(&8u64.to_le_bytes());
+                tree.extend_from_slice(&12u64.to_le_bytes());
+                blocks.push((6, tree));
+                blocks.push((8, expected[..4].to_vec()));
+                blocks.push((12, expected[4..].to_vec()));
+            } else {
+                blocks.push((8, expected.clone()));
+            }
+            let mut bytes = vec![0; 1024];
+            let mut bbt = index_with_entry(BlockId(100), 0, 0);
+            bbt.entries.clear();
+            for (bid, payload) in blocks {
+                bbt.entries.push(BbtEntry {
+                    block_id: BlockId(bid), offset: ByteOffset(bytes.len() as u64),
+                    size: payload.len() as u64,
+                });
+                bytes.extend_from_slice(&payload);
+            }
+            let file = NamedTempFile::new().unwrap();
+            fs::write(file.path(), bytes).unwrap();
+            let reader = PstByteReader::open(file.path()).unwrap();
+            let owner = NbtEntry {
+                node_id: NodeId(200), data_block_id: BlockId(100), subnode_block_id: Some(BlockId(2)),
+            };
+            let loaded = load_node_property_context(&reader, &bbt, &owner, ParserLimits::default()).unwrap();
+            assert_eq!(loaded.properties.value(tag).unwrap().raw, expected);
+            assert_eq!(loaded.properties.property_bytes_resolved(tag), Some(true));
+            assert_eq!(loaded.property_report.unresolved_reference_count, 0);
+            if tag == PR_HTML {
+                let bodies = crate::pst::messages::body_payloads_from_properties("message", &loaded.properties);
+                assert!(bodies.iter().any(|body| body.bytes == expected));
+            }
+        }
+    }
+
     fn bth_with_subject(value: &str) -> Vec<u8> {
         let mut body = Vec::new();
         let mut value_bytes = utf16le_fixed(value, 32);
