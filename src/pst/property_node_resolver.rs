@@ -100,6 +100,9 @@ impl<'a> PropertyNodeResolver<'a> {
         bid: BlockId,
         seen: &mut HashSet<BlockId>,
     ) -> Result<PayloadBlock, ReferenceFailure> {
+        if bid.0 & 2 == 0 {
+            return Err(ReferenceFailure::Malformed);
+        }
         if !seen.insert(bid) {
             return Err(ReferenceFailure::Cycle);
         }
@@ -145,7 +148,8 @@ impl<'a> PropertyNodeResolver<'a> {
         if entries.is_empty() || expected_first.is_some_and(|key| entries[0].node_id != key) {
             return Err(ReferenceFailure::Malformed);
         }
-        let mut previous = None;
+        // SIBLOCK child ranges must also be ordered across leaf boundaries.
+        let mut previous = self.entries.last_key_value().map(|(key, _)| *key);
         for UnicodeSubnodeEntry {
             node_id,
             data_block_id,
@@ -302,6 +306,33 @@ mod tests {
             resolver.resolve(0x64).unwrap_err(),
             ReferenceFailure::Duplicate
         );
+    }
+
+    #[test]
+    fn rejects_overlapping_index_leaf_ranges_and_external_index_blocks() {
+        let mut index = vec![2, 1, 2, 0, 0, 0, 0, 0];
+        for (key, bid) in [(0x64u64, 6u64), (0x84, 10)] {
+            index.extend_from_slice(&key.to_le_bytes());
+            index.extend_from_slice(&bid.to_le_bytes());
+        }
+        let mut first = leaf(0x64, 8);
+        first[2..4].copy_from_slice(&2u16.to_le_bytes());
+        first.extend_from_slice(&leaf(0xa4, 12)[8..]);
+        let (file, bbt, owner) = fixture(vec![
+            (2, index), (6, first), (10, leaf(0x84, 16)),
+        ]);
+        let reader = PstByteReader::open(file.path()).unwrap();
+        assert!(matches!(
+            PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default()),
+            Err(ReferenceFailure::Duplicate)
+        ));
+        let (file, bbt, mut owner) = fixture(vec![(8, leaf(0x64, 12))]);
+        owner.subnode_block_id = Some(BlockId(8));
+        let reader = PstByteReader::open(file.path()).unwrap();
+        assert!(matches!(
+            PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default()),
+            Err(ReferenceFailure::Malformed)
+        ));
     }
 
     #[test]
