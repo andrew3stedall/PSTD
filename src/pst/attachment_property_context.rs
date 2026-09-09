@@ -217,13 +217,26 @@ pub fn attachment_payloads_from_property_context_subnodes_with_fallback_charset(
         }
         property_context_count += 1;
 
-        let Ok(bth) =
-            BthMap::parse_property_context_from_heap(&heap, &block.bytes, block.block_ref.offset.0)
+        let Ok((header, mut entries)) =
+            BthMap::parse_property_context_with_sources(&heap, &block.bytes, block.block_ref.offset.0)
         else {
             rejected_context_count += 1;
             continue;
         };
-        let Ok(report) = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset)
+        let owners = blocks.iter()
+            .filter_map(unicode_subnode_entries)
+            .flatten()
+            .filter(|owner| owner.data_block_id == block.block_id)
+            .collect::<Vec<_>>();
+        if let [owner] = owners.as_slice() {
+            let owner = crate::pst::nbt::NbtEntry {
+                node_id: crate::pst::primitives::NodeId(owner.node_id as u64),
+                data_block_id: owner.data_block_id,
+                subnode_block_id: owner.subnode_block_id,
+            };
+            crate::pst::node_payload::resolve_node_values(&mut entries, reader, bbt, &owner, limits);
+        }
+        let Ok(report) = PropertyContext::from_property_entries(header, &entries, fallback_charset)
         else {
             rejected_context_count += 1;
             continue;
@@ -699,6 +712,21 @@ pub(crate) fn resolve_attachment_payload(
     bbt: &BbtIndex,
     limits: ParserLimits,
 ) -> Result<(Vec<u8>, String), String> {
+    if let Some(resolved) = properties.property_bytes_resolved(PR_ATTACH_DATA_BIN) {
+        if !resolved {
+            return Err("HNID_UNRESOLVED; attachment property owner/reference unavailable".into());
+        }
+        if let Some(value) = properties.value(PR_ATTACH_DATA_BIN) {
+            let source = &properties.sources[&PR_ATTACH_DATA_BIN];
+            let status = match source.status {
+                crate::pst::bth::PropertyStorageStatus::Subnode |
+                crate::pst::bth::PropertyStorageStatus::DataTree => "attachment_payload_extracted_data_tree",
+                _ => "attachment_payload_extracted_inline_property",
+            };
+            return Ok((value.raw.clone(), format!("{status}; hnid=0x{:08x}; storage={:?}", source.value_hnid, source.status)));
+        }
+    }
+
     if let Some((data_nid, data_bid)) = resolved_subnode_data_reference(properties, blocks) {
         let tree = load_attachment_data_payload(
             reader,

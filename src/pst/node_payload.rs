@@ -60,13 +60,17 @@ pub fn load_node_property_context_with_fallback_charset(
                     parsed.traversal_status,
                 )
             }
-            Err(reason) => (
+            Err(reason) => {
+                if payload.bytes.get(2) == Some(&0xec) && payload.bytes.get(3) == Some(&0xbc) {
+                    return Err(crate::error::PstdError::pst_parse(Some(payload_base_offset), reason));
+                }
+                (
                 PropertyContext::from_bth_with_fallback_charset(
                     &BthMap::parse(&payload.bytes, payload_base_offset)?,
                     fallback_charset,
                 )?,
                 format!("legacy_flat_bth_property_context; pq11_heap_probe={reason}"),
-            ),
+            )},
         };
     let properties = property_report
         .context
@@ -88,7 +92,7 @@ pub fn load_node_property_context_with_fallback_charset(
     })
 }
 
-fn resolve_node_values(
+pub(crate) fn resolve_node_values(
     entries: &mut [BthPropertyEntry],
     reader: &PstByteReader,
     bbt: &BbtIndex,
