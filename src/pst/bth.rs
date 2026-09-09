@@ -538,7 +538,7 @@ mod tests {
 
     fn indexed_property_context_heap() -> Vec<u8> {
         let subject = utf16le("Indexed heap subject");
-        let subject_start = 40u16;
+        let subject_start = 38u16;
         let subject_end = subject_start + subject.len() as u16;
         let page_map_offset = 176u16;
         let mut buf = vec![0; 192];
@@ -556,9 +556,9 @@ mod tests {
         buf[24..26].copy_from_slice(&0x0037u16.to_le_bytes());
         buf[26..30].copy_from_slice(&0x60u32.to_le_bytes());
 
-        buf[32..34].copy_from_slice(&0x0037u16.to_le_bytes());
-        buf[34..36].copy_from_slice(&0x001fu16.to_le_bytes());
-        buf[36..40].copy_from_slice(&0x80u32.to_le_bytes());
+        buf[30..32].copy_from_slice(&0x0037u16.to_le_bytes());
+        buf[32..34].copy_from_slice(&0x001fu16.to_le_bytes());
+        buf[34..38].copy_from_slice(&0x80u32.to_le_bytes());
 
         buf[subject_start as usize..subject_end as usize].copy_from_slice(&subject);
 
@@ -566,8 +566,8 @@ mod tests {
         buf[178..180].copy_from_slice(&0u16.to_le_bytes());
         buf[180..182].copy_from_slice(&16u16.to_le_bytes());
         buf[182..184].copy_from_slice(&24u16.to_le_bytes());
-        buf[184..186].copy_from_slice(&32u16.to_le_bytes());
-        buf[186..188].copy_from_slice(&40u16.to_le_bytes());
+        buf[184..186].copy_from_slice(&30u16.to_le_bytes());
+        buf[186..188].copy_from_slice(&38u16.to_le_bytes());
         buf[188..190].copy_from_slice(&subject_end.to_le_bytes());
         buf
     }
