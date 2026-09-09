@@ -5,7 +5,7 @@ Updated: 2026-09-08
 ## Active delivery
 
 - Issue #600; parent epic #599; branch agent/coverage-foundation; draft PR #611.
-- Latest durable implementation: ab71506365ab4754a3afa373ca9aa5b127d5c3c6 (plus synthetic header correction).
+- Latest durable implementation: dcb5eed5facdefa3a117e55daaab60d5ee6fa23a.
 - Previous implementation: c372cef34b962d22fe9009d78f215051535e9d18.
 - Scope: generic property storage/reference resolution only. #601–#610 are not active scope.
 - Existing older local checkout /workspace/scratch/10c9672c1630/pstd has unrelated uncommitted coverage work. Do not overwrite it or treat it as the live PR.
@@ -38,11 +38,15 @@ Updated: 2026-09-08
 
 ## Next exact change
 
-Validate current focused workflow. Node-backed resolution is now integrated in node_payload.rs with Subnode/DataTree statuses and owner/source BID provenance in PropertyContextParseReport.property_sources. Added end-to-end subnode subject extraction. Missing references preserve HNID_UNRESOLVED with resolver reason; total resolved bytes per PC are bounded.
+Inspect current focused library/clippy workflow for dcb5eed (or subsequent formatting commit). Recent changes:
+- f772e61: PropertyContext.sources map carries typed source evidence to body consumers. Four-byte binary bodies are accepted only when storage resolution is proven; unresolved raw values are excluded from opaque-body output. Updated internal struct-literal callers to from_values.
+- c1cf002: fixes new Clippy constant-chunk iteration lint. Full Rust tests, Python wrapper and Docker had passed on f772e61; Clippy was the single observed Rust gate failure.
+- d9e0625: BTH walker rejects cycles/repeated HIDs, duplicate tags, truncated records, invalid PC widths and resource overruns instead of truncating.
+- dcb5eed: binary attachment extraction now uses typed PC leaves and the same owner-scoped resolver when a unique immediate owner is present in the supplied block set. Object-method special handling remains. Malformed root PC heaps no longer fall back to legacy flat parsing.
 
-Resolver tests: 4/5 passed in job 102204360537. Indexed-leaf test failed because its synthetic block at offset 512 overlapped crypt-method header offset 513. Fixed fixture start to 1024; rerun pending. Do not re-diagnose this as resolver decryption corruption.
+Workflow now runs cargo fmt, cargo test --lib and all-target/all-feature clippy. It commits formatting only for the known changed Rust files. Bot formatting pushes can produce action_required runs; inspect the substantive pre-format test result and never merge without cleaned-head validation.
 
-Next after focused success: add HTML/RTF/data-tree production-path regressions, verify ANSI handling (current resolver is explicitly Unicode), and migrate safe attachment consumers while preserving object semantics. Then run required full/fixture gates. Remaining generic boundary hardening: BTH traversal currently truncates on limits; data-tree errors currently collapse to PayloadInvalid.
+Fix focused failures next. Then add end-to-end binary body (HTML/RTF) and attachment NID/data-tree regression cases. Generic resolver currently supports Unicode SLBLOCK/SIBLOCK only; ANSI and nonzero heap page indices remain unresolved. These are explicit remaining #600 coverage boundaries, not completed behavior.
 
 ## Merge-only work remaining
 
