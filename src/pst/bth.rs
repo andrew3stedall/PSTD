@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::error::{PstdError, PstdResult};
 use crate::pst::binary::{slice_at, u16_le_at, u32_le_at, u8_at};
 use crate::pst::heap::HeapOnNode;
@@ -121,6 +123,9 @@ impl BthMap {
         }
         let key_size = bth_header[1];
         let value_size = bth_header[2];
+        if key_size != 2 || value_size != 6 {
+            return Err(PstdError::pst_parse(Some(base_offset), "invalid Property Context BTH record widths"));
+        }
         let index_levels = bth_header[3];
         if index_levels > MAX_BTH_INDEX_LEVELS {
             return Err(PstdError::pst_parse(
@@ -132,15 +137,15 @@ impl BthMap {
             u32::from_le_bytes([bth_header[4], bth_header[5], bth_header[6], bth_header[7]]);
 
         let root = heap.allocation_by_hid(buf, root_allocation, base_offset)?;
-        let entries = parse_heap_entries(
-            heap,
-            buf,
-            root,
-            key_size,
-            value_size,
-            index_levels,
-            base_offset,
-        )?;
+        let mut walker = HeapBthWalker {
+            heap, heap_buf: buf, key_size, value_size, base_offset,
+            seen: HashSet::from([root_allocation]), entry_count: 0,
+        };
+        let entries = walker.entries(root, index_levels)?;
+        let mut tags = HashSet::new();
+        if entries.iter().any(|property| !tags.insert(property.entry.key.clone())) {
+            return Err(PstdError::pst_parse(Some(base_offset), "duplicate Property Context tag"));
+        }
 
         Ok((
             BthHeader {
@@ -195,61 +200,49 @@ fn parse_flat_entries(
     Ok(entries)
 }
 
-fn parse_heap_entries(
-    heap: &HeapOnNode,
-    heap_buf: &[u8],
-    allocation: &[u8],
+struct HeapBthWalker<'a> {
+    heap: &'a HeapOnNode,
+    heap_buf: &'a [u8],
     key_size: u8,
     value_size: u8,
-    index_levels: u8,
     base_offset: u64,
-) -> PstdResult<Vec<BthPropertyEntry>> {
-    if index_levels == 0 {
-        return parse_heap_leaf_entries(
-            heap,
-            heap_buf,
-            allocation,
-            key_size,
-            value_size,
-            base_offset,
-        );
-    }
+    seen: HashSet<u32>,
+    entry_count: usize,
+}
 
-    let entry_size = key_size as usize + 4;
-    if entry_size == 0 {
-        return Err(PstdError::pst_parse(
-            Some(base_offset),
-            "heap BTH index entry size is zero",
-        ));
-    }
-
-    let mut entries = Vec::new();
-    let entry_count = allocation.len() / entry_size;
-    for idx in 0..entry_count.min(MAX_BTH_ENTRIES) {
-        let cursor = idx * entry_size;
-        let child_hid = u32::from_le_bytes([
-            allocation[cursor + key_size as usize],
-            allocation[cursor + key_size as usize + 1],
-            allocation[cursor + key_size as usize + 2],
-            allocation[cursor + key_size as usize + 3],
-        ]);
-        let child = heap.allocation_by_hid(heap_buf, child_hid, base_offset)?;
-        let mut child_entries = parse_heap_entries(
-            heap,
-            heap_buf,
-            child,
-            key_size,
-            value_size,
-            index_levels - 1,
-            base_offset,
-        )?;
-        entries.append(&mut child_entries);
-        if entries.len() >= MAX_BTH_ENTRIES {
-            entries.truncate(MAX_BTH_ENTRIES);
-            break;
+impl HeapBthWalker<'_> {
+    fn entries(&mut self, allocation: &[u8], index_levels: u8) -> PstdResult<Vec<BthPropertyEntry>> {
+        if index_levels == 0 {
+            let entries = parse_heap_leaf_entries(
+                self.heap, self.heap_buf, allocation, self.key_size, self.value_size, self.base_offset,
+            )?;
+            self.entry_count += entries.len();
+            if self.entry_count > MAX_BTH_ENTRIES {
+                return Err(PstdError::pst_parse(Some(self.base_offset), "BTH entry resource limit exceeded"));
+            }
+            return Ok(entries);
         }
+        let entry_size = self.key_size as usize + 4;
+        if allocation.len() % entry_size != 0 {
+            return Err(PstdError::pst_parse(Some(self.base_offset), "truncated BTH index entry"));
+        }
+        let mut entries = Vec::new();
+        for item in allocation.chunks_exact(entry_size) {
+            let child_hid = u32::from_le_bytes(item[self.key_size as usize..].try_into().unwrap());
+            if !self.seen.insert(child_hid) {
+                return Err(PstdError::pst_parse(Some(self.base_offset), "BTH cyclic or duplicate child HID"));
+            }
+            if self.seen.len() > MAX_BTH_ENTRIES {
+                return Err(PstdError::pst_parse(Some(self.base_offset), "BTH index resource limit exceeded"));
+            }
+            if child_hid == 0 || child_hid & 0x1f != 0 || child_hid >> 16 != 0 {
+                return Err(PstdError::pst_parse(Some(self.base_offset), "invalid BTH child HID"));
+            }
+            let child = self.heap.allocation_by_hid(self.heap_buf, child_hid, self.base_offset)?;
+            entries.extend(self.entries(child, index_levels - 1)?);
+        }
+        Ok(entries)
     }
-    Ok(entries)
 }
 
 fn parse_heap_leaf_entries(
@@ -269,8 +262,14 @@ fn parse_heap_leaf_entries(
     }
 
     let mut entries = Vec::new();
+    if allocation.len() % entry_size != 0 {
+        return Err(PstdError::pst_parse(Some(base_offset), "truncated BTH leaf entry"));
+    }
     let entry_count = allocation.len() / entry_size;
-    for idx in 0..entry_count.min(MAX_BTH_ENTRIES) {
+    if entry_count > MAX_BTH_ENTRIES {
+        return Err(PstdError::pst_parse(Some(base_offset), "BTH entry resource limit exceeded"));
+    }
+    for idx in 0..entry_count {
         let cursor = idx * entry_size;
         let raw_key = slice_at(allocation, cursor, key_size as usize, base_offset)?;
         let raw_value = slice_at(
@@ -491,6 +490,20 @@ mod tests {
             assert_eq!(source.hnid_kind, Some(kind));
             assert_eq!(source.status, status);
         }
+    }
+
+    #[test]
+    fn rejects_cyclic_and_truncated_heap_bth() {
+        let mut bytes = indexed_property_context_heap();
+        bytes[26..30].copy_from_slice(&0x40u32.to_le_bytes());
+        let heap = HeapOnNode::parse(&bytes, 0).unwrap();
+        assert!(BthMap::parse_property_context_from_heap(&heap, &bytes, 0)
+            .unwrap_err().to_string().contains("cyclic or duplicate"));
+        let mut bytes = property_context_heap();
+        bytes[152..154].copy_from_slice(&31u16.to_le_bytes());
+        let heap = HeapOnNode::parse(&bytes, 0).unwrap();
+        assert!(BthMap::parse_property_context_from_heap(&heap, &bytes, 0)
+            .unwrap_err().to_string().contains("truncated BTH leaf"));
     }
 
     fn property_context_heap() -> Vec<u8> {
