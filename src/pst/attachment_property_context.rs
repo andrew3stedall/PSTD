@@ -962,6 +962,89 @@ mod tests {
     use crate::pst::property_context::{PropertyContext, PropertyValue};
     use crate::pst::reader::PstByteReader;
 
+
+    #[test]
+    fn extracts_owner_scoped_binary_attachment_and_rejects_ambiguous_owner() {
+        for tree_backed in [false, true] {
+            // Three PC leaves: data HNID, method, size. No filename is required.
+            let mut heap = vec![0u8; 80];
+            heap[0..2].copy_from_slice(&64u16.to_le_bytes());
+            heap[2] = 0xec;
+            heap[3] = 0xbc;
+            heap[4..8].copy_from_slice(&0x20u32.to_le_bytes());
+            heap[16..20].copy_from_slice(&[0xb5, 2, 6, 0]);
+            heap[20..24].copy_from_slice(&0x40u32.to_le_bytes());
+            for (index, (tag, value)) in [
+                (PR_ATTACH_SIZE, 4u32),
+                (PR_ATTACH_DATA_BIN, 0x64),
+                (PR_ATTACH_METHOD, 1),
+            ].into_iter().enumerate() {
+                let start = 24 + index * 8;
+                heap[start..start + 2].copy_from_slice(&((tag >> 16) as u16).to_le_bytes());
+                heap[start + 2..start + 4].copy_from_slice(&(tag as u16).to_le_bytes());
+                heap[start + 4..start + 8].copy_from_slice(&value.to_le_bytes());
+            }
+            heap[64..66].copy_from_slice(&2u16.to_le_bytes());
+            for (index, offset) in [16u16, 24, 48].into_iter().enumerate() {
+                heap[68 + index * 2..70 + index * 2].copy_from_slice(&offset.to_le_bytes());
+            }
+            let mut blocks = vec![
+                payload(2, slblock_with_sub(0x671, 100, 6)),
+                payload(100, heap),
+                payload(6, slblock(0x64, if tree_backed { 10 } else { 8 })),
+                payload(8, if tree_backed { b"ab".to_vec() } else { b"abcd".to_vec() }),
+            ];
+            if tree_backed {
+                let mut tree = vec![1, 1, 2, 0];
+                tree.extend_from_slice(&4u32.to_le_bytes());
+                tree.extend_from_slice(&8u64.to_le_bytes());
+                tree.extend_from_slice(&12u64.to_le_bytes());
+                blocks.push(payload(10, tree));
+                blocks.push(payload(12, b"cd".to_vec()));
+            }
+            // A sibling owner has the same property NID. It must not be selected.
+            blocks.push(payload(14, slblock(0x64, 16)));
+            blocks.push(payload(16, b"wrong owner".to_vec()));
+            let mut bytes = vec![0; 1024];
+            let mut entries = Vec::new();
+            for block in &mut blocks {
+                block.block_ref.offset = ByteOffset(bytes.len() as u64);
+                entries.push(BbtEntry {
+                    block_id: block.block_id,
+                    offset: block.block_ref.offset,
+                    size: block.bytes.len() as u64,
+                });
+                bytes.extend_from_slice(&block.bytes);
+            }
+            let bbt = BbtIndex {
+                root: None, entries, parsed_pages: 0, discovered_child_pages: 0,
+                traversal_error_count: 0, duplicate_entry_count: 0,
+                truncated_entry_count: 0, status: "test".into(),
+            };
+            let file = NamedTempFile::new().unwrap();
+            fs::write(file.path(), bytes).unwrap();
+            let reader = PstByteReader::open(file.path()).unwrap();
+            let (extracted, unavailable, embedded, report) =
+                super::attachment_payloads_from_property_context_subnodes(
+                    "message", &blocks, &reader, &bbt, ParserLimits::default(),
+                );
+            assert_eq!(extracted.len(), 1);
+            assert_eq!(extracted[0].bytes, b"abcd");
+            assert!(unavailable.is_empty());
+            assert!(embedded.is_empty());
+            assert_eq!(report.payload_failure_count, 0);
+
+            blocks.push(payload(18, slblock_with_sub(0x691, 100, 14)));
+            let (extracted, unavailable, _, _) =
+                super::attachment_payloads_from_property_context_subnodes(
+                    "message", &blocks, &reader, &bbt, ParserLimits::default(),
+                );
+            assert!(extracted.is_empty());
+            assert_eq!(unavailable.len(), 1);
+            assert!(unavailable[0].extraction_status.contains("HNID_UNRESOLVED"));
+        }
+    }
+
     fn property(tag: u32, name: &str, decoded: MapiValue) -> PropertyValue {
         PropertyValue {
             tag,
