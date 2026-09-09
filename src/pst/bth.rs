@@ -223,7 +223,7 @@ impl HeapBthWalker<'_> {
             return Ok(entries);
         }
         let entry_size = self.key_size as usize + 4;
-        if allocation.len() % entry_size != 0 {
+        if !allocation.len().is_multiple_of(entry_size) {
             return Err(PstdError::pst_parse(Some(self.base_offset), "truncated BTH index entry"));
         }
         let mut entries = Vec::new();
@@ -262,7 +262,7 @@ fn parse_heap_leaf_entries(
     }
 
     let mut entries = Vec::new();
-    if allocation.len() % entry_size != 0 {
+    if !allocation.len().is_multiple_of(entry_size) {
         return Err(PstdError::pst_parse(Some(base_offset), "truncated BTH leaf entry"));
     }
     let entry_count = allocation.len() / entry_size;
