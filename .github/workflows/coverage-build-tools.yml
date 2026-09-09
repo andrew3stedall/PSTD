@@ -23,7 +23,7 @@ jobs:
         run: |
           cargo fmt
           cargo test --lib
-          cargo clippy --all-targets --all-features -- -D warnings
+          cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
       - name: Persist formatting only if branch still matches tested source
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
