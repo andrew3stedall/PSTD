@@ -62,15 +62,19 @@ pub fn load_node_property_context_with_fallback_charset(
             }
             Err(reason) => {
                 if payload.bytes.get(2) == Some(&0xec) && payload.bytes.get(3) == Some(&0xbc) {
-                    return Err(crate::error::PstdError::pst_parse(Some(payload_base_offset), reason));
+                    return Err(crate::error::PstdError::pst_parse(
+                        Some(payload_base_offset),
+                        reason,
+                    ));
                 }
                 (
-                PropertyContext::from_bth_with_fallback_charset(
-                    &BthMap::parse(&payload.bytes, payload_base_offset)?,
-                    fallback_charset,
-                )?,
-                format!("legacy_flat_bth_property_context; pq11_heap_probe={reason}"),
-            )},
+                    PropertyContext::from_bth_with_fallback_charset(
+                        &BthMap::parse(&payload.bytes, payload_base_offset)?,
+                        fallback_charset,
+                    )?,
+                    format!("legacy_flat_bth_property_context; pq11_heap_probe={reason}"),
+                )
+            }
         };
     let properties = property_report
         .context
@@ -428,7 +432,11 @@ mod tests {
         use crate::pst::mapi::{PR_HTML, PR_RTF_COMPRESSED};
         for (tag, expected, tree_backed) in [
             (PR_HTML, b"text".to_vec(), false),
-            (PR_RTF_COMPRESSED, b"raw compressed RTF property bytes".to_vec(), true),
+            (
+                PR_RTF_COMPRESSED,
+                b"raw compressed RTF property bytes".to_vec(),
+                true,
+            ),
             (0x7777_0102, vec![0, 1, 2, 3, 255], false),
         ] {
             let mut heap = heap_bth_with_subject("unused");
@@ -456,7 +464,8 @@ mod tests {
             bbt.entries.clear();
             for (bid, payload) in blocks {
                 bbt.entries.push(BbtEntry {
-                    block_id: BlockId(bid), offset: ByteOffset(bytes.len() as u64),
+                    block_id: BlockId(bid),
+                    offset: ByteOffset(bytes.len() as u64),
                     size: payload.len() as u64,
                 });
                 bytes.extend_from_slice(&payload);
@@ -465,27 +474,50 @@ mod tests {
             fs::write(file.path(), bytes).unwrap();
             let reader = PstByteReader::open(file.path()).unwrap();
             let owner = NbtEntry {
-                node_id: NodeId(200), data_block_id: BlockId(100), subnode_block_id: Some(BlockId(2)),
+                node_id: NodeId(200),
+                data_block_id: BlockId(100),
+                subnode_block_id: Some(BlockId(2)),
             };
-            let loaded = load_node_property_context(&reader, &bbt, &owner, ParserLimits::default()).unwrap();
+            let loaded =
+                load_node_property_context(&reader, &bbt, &owner, ParserLimits::default()).unwrap();
             assert_eq!(loaded.properties.value(tag).unwrap().raw, expected);
             assert_eq!(loaded.properties.property_bytes_resolved(tag), Some(true));
             assert_eq!(loaded.property_report.unresolved_reference_count, 0);
             if tag == PR_HTML || tag == PR_RTF_COMPRESSED {
-                let bodies = crate::pst::messages::body_payloads_from_properties("message", &loaded.properties);
+                let bodies = crate::pst::messages::body_payloads_from_properties(
+                    "message",
+                    &loaded.properties,
+                );
                 assert!(bodies.iter().any(|body| body.bytes == expected));
                 // Missing owner context must retain the reference but emit no body.
-                let missing_owner = NbtEntry { subnode_block_id: None, ..owner.clone() };
+                let missing_owner = NbtEntry {
+                    subnode_block_id: None,
+                    ..owner.clone()
+                };
                 let unresolved = load_node_property_context(
-                    &reader, &bbt, &missing_owner, ParserLimits::default(),
-                ).unwrap();
+                    &reader,
+                    &bbt,
+                    &missing_owner,
+                    ParserLimits::default(),
+                )
+                .unwrap();
                 assert_eq!(unresolved.property_report.unresolved_reference_count, 1);
                 assert_eq!(unresolved.property_report.decode_error_count, 0);
-                assert_eq!(unresolved.properties.value(tag).unwrap().raw, 0x64u32.to_le_bytes());
-                assert!(unresolved.properties.value(tag).unwrap().status.contains("HNID_UNRESOLVED"));
+                assert_eq!(
+                    unresolved.properties.value(tag).unwrap().raw,
+                    0x64u32.to_le_bytes()
+                );
+                assert!(unresolved
+                    .properties
+                    .value(tag)
+                    .unwrap()
+                    .status
+                    .contains("HNID_UNRESOLVED"));
                 assert!(crate::pst::messages::body_payloads_from_properties(
-                    "message", &unresolved.properties,
-                ).is_empty());
+                    "message",
+                    &unresolved.properties,
+                )
+                .is_empty());
             }
         }
     }

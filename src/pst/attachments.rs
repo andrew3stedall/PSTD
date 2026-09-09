@@ -491,7 +491,8 @@ mod tests {
             },
         );
         let payload =
-            attachment_payload_from_properties("msg_123", 0, &PropertyContext::from_values(values)).unwrap();
+            attachment_payload_from_properties("msg_123", 0, &PropertyContext::from_values(values))
+                .unwrap();
         assert_eq!(payload.bytes, b"ole-object");
 
         let mut values = HashMap::new();
@@ -516,7 +517,8 @@ mod tests {
             },
         );
         let payload =
-            attachment_payload_from_properties("msg_123", 1, &PropertyContext::from_values(values)).unwrap();
+            attachment_payload_from_properties("msg_123", 1, &PropertyContext::from_values(values))
+                .unwrap();
         assert_eq!(payload.bytes, [1, 2, 3, 4]);
     }
 

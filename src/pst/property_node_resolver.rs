@@ -318,9 +318,7 @@ mod tests {
         let mut first = leaf(0x64, 8);
         first[2..4].copy_from_slice(&2u16.to_le_bytes());
         first.extend_from_slice(&leaf(0xa4, 12)[8..]);
-        let (file, bbt, owner) = fixture(vec![
-            (2, index), (6, first), (10, leaf(0x84, 16)),
-        ]);
+        let (file, bbt, owner) = fixture(vec![(2, index), (6, first), (10, leaf(0x84, 16))]);
         let reader = PstByteReader::open(file.path()).unwrap();
         assert!(matches!(
             PropertyNodeResolver::for_owner(&reader, &bbt, &owner, ParserLimits::default()),

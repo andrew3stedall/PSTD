@@ -217,13 +217,16 @@ pub fn attachment_payloads_from_property_context_subnodes_with_fallback_charset(
         }
         property_context_count += 1;
 
-        let Ok((header, mut entries)) =
-            BthMap::parse_property_context_with_sources(&heap, &block.bytes, block.block_ref.offset.0)
-        else {
+        let Ok((header, mut entries)) = BthMap::parse_property_context_with_sources(
+            &heap,
+            &block.bytes,
+            block.block_ref.offset.0,
+        ) else {
             rejected_context_count += 1;
             continue;
         };
-        let owners = blocks.iter()
+        let owners = blocks
+            .iter()
             .filter_map(unicode_subnode_entries)
             .flatten()
             .filter(|owner| owner.data_block_id == block.block_id)
@@ -234,7 +237,13 @@ pub fn attachment_payloads_from_property_context_subnodes_with_fallback_charset(
                 data_block_id: owner.data_block_id,
                 subnode_block_id: owner.subnode_block_id,
             };
-            crate::pst::node_payload::resolve_node_values(&mut entries, reader, bbt, &owner, limits);
+            crate::pst::node_payload::resolve_node_values(
+                &mut entries,
+                reader,
+                bbt,
+                &owner,
+                limits,
+            );
         }
         let Ok(report) = PropertyContext::from_property_entries(header, &entries, fallback_charset)
         else {
@@ -719,11 +728,19 @@ pub(crate) fn resolve_attachment_payload(
         if let Some(value) = properties.value(PR_ATTACH_DATA_BIN) {
             let source = &properties.sources[&PR_ATTACH_DATA_BIN];
             let status = match source.status {
-                crate::pst::bth::PropertyStorageStatus::Subnode |
-                crate::pst::bth::PropertyStorageStatus::DataTree => "attachment_payload_extracted_data_tree",
+                crate::pst::bth::PropertyStorageStatus::Subnode
+                | crate::pst::bth::PropertyStorageStatus::DataTree => {
+                    "attachment_payload_extracted_data_tree"
+                }
                 _ => "attachment_payload_extracted_inline_property",
             };
-            return Ok((value.raw.clone(), format!("{status}; hnid=0x{:08x}; storage={:?}", source.value_hnid, source.status)));
+            return Ok((
+                value.raw.clone(),
+                format!(
+                    "{status}; hnid=0x{:08x}; storage={:?}",
+                    source.value_hnid, source.status
+                ),
+            ));
         }
     }
 
@@ -962,7 +979,6 @@ mod tests {
     use crate::pst::property_context::{PropertyContext, PropertyValue};
     use crate::pst::reader::PstByteReader;
 
-
     #[test]
     fn extracts_owner_scoped_binary_attachment_and_rejects_ambiguous_owner() {
         for tree_backed in [false, true] {
@@ -978,7 +994,10 @@ mod tests {
                 (PR_ATTACH_SIZE, 4u32),
                 (PR_ATTACH_DATA_BIN, 0x64),
                 (PR_ATTACH_METHOD, 1),
-            ].into_iter().enumerate() {
+            ]
+            .into_iter()
+            .enumerate()
+            {
                 let start = 24 + index * 8;
                 heap[start..start + 2].copy_from_slice(&((tag >> 16) as u16).to_le_bytes());
                 heap[start + 2..start + 4].copy_from_slice(&(tag as u16).to_le_bytes());
@@ -992,7 +1011,14 @@ mod tests {
                 payload(2, slblock_with_sub(0x671, 100, 6)),
                 payload(100, heap),
                 payload(6, slblock(0x64, if tree_backed { 10 } else { 8 })),
-                payload(8, if tree_backed { b"ab".to_vec() } else { b"abcd".to_vec() }),
+                payload(
+                    8,
+                    if tree_backed {
+                        b"ab".to_vec()
+                    } else {
+                        b"abcd".to_vec()
+                    },
+                ),
             ];
             if tree_backed {
                 let mut tree = vec![1, 1, 2, 0];
@@ -1017,16 +1043,25 @@ mod tests {
                 bytes.extend_from_slice(&block.bytes);
             }
             let bbt = BbtIndex {
-                root: None, entries, parsed_pages: 0, discovered_child_pages: 0,
-                traversal_error_count: 0, duplicate_entry_count: 0,
-                truncated_entry_count: 0, status: "test".into(),
+                root: None,
+                entries,
+                parsed_pages: 0,
+                discovered_child_pages: 0,
+                traversal_error_count: 0,
+                duplicate_entry_count: 0,
+                truncated_entry_count: 0,
+                status: "test".into(),
             };
             let file = NamedTempFile::new().unwrap();
             fs::write(file.path(), bytes).unwrap();
             let reader = PstByteReader::open(file.path()).unwrap();
             let (extracted, unavailable, embedded, report) =
                 super::attachment_payloads_from_property_context_subnodes(
-                    "message", &blocks, &reader, &bbt, ParserLimits::default(),
+                    "message",
+                    &blocks,
+                    &reader,
+                    &bbt,
+                    ParserLimits::default(),
                 );
             assert_eq!(extracted.len(), 1);
             assert_eq!(extracted[0].bytes, b"abcd");
@@ -1037,7 +1072,11 @@ mod tests {
             blocks.push(payload(18, slblock_with_sub(0x691, 100, 14)));
             let (extracted, unavailable, _, _) =
                 super::attachment_payloads_from_property_context_subnodes(
-                    "message", &blocks, &reader, &bbt, ParserLimits::default(),
+                    "message",
+                    &blocks,
+                    &reader,
+                    &bbt,
+                    ParserLimits::default(),
                 );
             assert!(extracted.is_empty());
             assert_eq!(unavailable.len(), 1);
@@ -1570,8 +1609,9 @@ mod tests {
             PR_ATTACH_SIZE,
             property(PR_ATTACH_SIZE, "attachment_size", MapiValue::Integer32(1)),
         );
-        let record = filename_attachment_record("msg", 0, &PropertyContext::from_values(blank), &[])
-            .expect("method and size validate an unnamed attachment");
+        let record =
+            filename_attachment_record("msg", 0, &PropertyContext::from_values(blank), &[])
+                .expect("method and size validate an unnamed attachment");
         assert_eq!(record.filename_original, None);
         assert_eq!(record.filename_safe, "attachment_0");
         assert_eq!(record.extension, None);
@@ -1609,10 +1649,13 @@ mod tests {
                 MapiValue::String("attachment.docx".to_string()),
             ),
         );
-        assert!(
-            filename_attachment_record("msg", 0, &PropertyContext::from_values(incomplete), &[])
-                .is_none()
-        );
+        assert!(filename_attachment_record(
+            "msg",
+            0,
+            &PropertyContext::from_values(incomplete),
+            &[]
+        )
+        .is_none());
 
         let mut wrong_type = HashMap::new();
         wrong_type.insert(
@@ -1639,9 +1682,12 @@ mod tests {
                 MapiValue::Integer32(15_503),
             ),
         );
-        assert!(
-            filename_attachment_record("msg", 0, &PropertyContext::from_values(wrong_type), &[])
-                .is_none()
-        );
+        assert!(filename_attachment_record(
+            "msg",
+            0,
+            &PropertyContext::from_values(wrong_type),
+            &[]
+        )
+        .is_none());
     }
 }
