@@ -78,7 +78,7 @@ impl<'a> PropertyNodeResolver<'a> {
                     return Err(ReferenceFailure::Malformed);
                 }
                 let mut previous_key = None;
-                for item in bytes[8..8 + count * 16].chunks_exact(16) {
+                for item in bytes[8..8 + count * 16].as_chunks::<16>().0 {
                     let key = u64::from_le_bytes(item[..8].try_into().unwrap());
                     let key = u32::try_from(key).map_err(|_| ReferenceFailure::Malformed)?;
                     if previous_key.is_some_and(|previous| key <= previous) {
