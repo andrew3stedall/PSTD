@@ -107,6 +107,15 @@ impl BthMap {
         buf: &[u8],
         base_offset: u64,
     ) -> PstdResult<(BthHeader, Vec<BthPropertyEntry>)> {
+        if heap.header.user_root == 0
+            || heap.header.user_root & 0x1f != 0
+            || heap.header.user_root >> 16 != 0
+        {
+            return Err(PstdError::pst_parse(
+                Some(base_offset),
+                "invalid Property Context user-root HID",
+            ));
+        }
         let bth_header = heap.allocation_by_hid(buf, heap.header.user_root, base_offset)?;
         if bth_header.len() < 8 {
             return Err(PstdError::pst_parse(
@@ -139,6 +148,12 @@ impl BthMap {
         let root_allocation =
             u32::from_le_bytes([bth_header[4], bth_header[5], bth_header[6], bth_header[7]]);
 
+        if root_allocation == 0 || root_allocation & 0x1f != 0 || root_allocation >> 16 != 0 {
+            return Err(PstdError::pst_parse(
+                Some(base_offset),
+                "invalid Property Context BTH-root HID",
+            ));
+        }
         let root = heap.allocation_by_hid(buf, root_allocation, base_offset)?;
         let mut walker = HeapBthWalker {
             heap,
@@ -554,6 +569,16 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("truncated BTH leaf"));
+    }
+
+    #[test]
+    fn rejects_node_ids_aliasing_property_context_root_allocations() {
+        for (offset, invalid) in [(4, 0x24u32), (20, 0x44u32)] {
+            let mut bytes = property_context_heap();
+            bytes[offset..offset + 4].copy_from_slice(&invalid.to_le_bytes());
+            let heap = HeapOnNode::parse(&bytes, 0).unwrap();
+            assert!(BthMap::parse_property_context_with_sources(&heap, &bytes, 0).is_err());
+        }
     }
 
     fn property_context_heap() -> Vec<u8> {
