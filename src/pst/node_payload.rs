@@ -471,9 +471,21 @@ mod tests {
             assert_eq!(loaded.properties.value(tag).unwrap().raw, expected);
             assert_eq!(loaded.properties.property_bytes_resolved(tag), Some(true));
             assert_eq!(loaded.property_report.unresolved_reference_count, 0);
-            if tag == PR_HTML {
+            if tag == PR_HTML || tag == PR_RTF_COMPRESSED {
                 let bodies = crate::pst::messages::body_payloads_from_properties("message", &loaded.properties);
                 assert!(bodies.iter().any(|body| body.bytes == expected));
+                // Missing owner context must retain the reference but emit no body.
+                let missing_owner = NbtEntry { subnode_block_id: None, ..owner.clone() };
+                let unresolved = load_node_property_context(
+                    &reader, &bbt, &missing_owner, ParserLimits::default(),
+                ).unwrap();
+                assert_eq!(unresolved.property_report.unresolved_reference_count, 1);
+                assert_eq!(unresolved.property_report.decode_error_count, 0);
+                assert_eq!(unresolved.properties.value(tag).unwrap().raw, 0x64u32.to_le_bytes());
+                assert!(unresolved.properties.value(tag).unwrap().status.contains("HNID_UNRESOLVED"));
+                assert!(crate::pst::messages::body_payloads_from_properties(
+                    "message", &unresolved.properties,
+                ).is_empty());
             }
         }
     }
