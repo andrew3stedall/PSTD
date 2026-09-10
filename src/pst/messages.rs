@@ -283,7 +283,8 @@ fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u
     match value.decoded.as_ref() {
         Some(MapiValue::Binary(bytes))
             if !bytes.is_empty()
-                && bytes.len() != PROPERTY_CONTEXT_HNID_BYTES
+                && (bytes.len() != PROPERTY_CONTEXT_HNID_BYTES
+                    || properties.property_bytes_resolved(tag) == Some(true))
                 && bytes.len() <= MAX_BINARY_BODY_BYTES =>
         {
             Some(bytes.clone())
@@ -294,6 +295,9 @@ fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u
 
 fn opaque_binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u8>> {
     let value = properties.value(tag)?;
+    if properties.property_bytes_resolved(tag) == Some(false) {
+        return None;
+    }
     let bytes = match value.decoded.as_ref() {
         Some(MapiValue::Binary(bytes)) => bytes.clone(),
         _ => value.raw.clone(),
@@ -301,7 +305,9 @@ fn opaque_binary_property_bytes(properties: &PropertyContext, tag: u32) -> Optio
     if bytes.len() > MAX_BINARY_BODY_BYTES {
         return None;
     }
-    if bytes.len() == PROPERTY_CONTEXT_HNID_BYTES {
+    if bytes.len() == PROPERTY_CONTEXT_HNID_BYTES
+        && properties.property_bytes_resolved(tag) != Some(true)
+    {
         let reference = u32::from_le_bytes(bytes.as_slice().try_into().ok()?);
         if reference == 0 || reference & 0x0f == 0x0f || reference & 0x1f != 0 {
             return None;
@@ -330,6 +336,44 @@ mod tests {
         PR_HTML_STRING, PR_HTML_STRING_A, PR_RTF_COMPRESSED,
     };
     use crate::pst::property_context::{PropertyContext, PropertyValue};
+
+    #[test]
+    fn distinguishes_resolved_four_byte_body_from_unresolved_hnid() {
+        use crate::pst::bth::{PropertySource, PropertyStorageStatus};
+        use crate::pst::tcinfo::HnidKind;
+        let mut values = HashMap::new();
+        values.insert(
+            PR_HTML,
+            crate::pst::property_context::PropertyValue {
+                tag: PR_HTML,
+                name: "PR_HTML".into(),
+                raw: b"text".to_vec(),
+                decoded: Some(MapiValue::Binary(b"text".to_vec())),
+                status: "selected".into(),
+            },
+        );
+        let mut context = crate::pst::property_context::PropertyContext::from_values(values);
+        context.sources.insert(
+            PR_HTML,
+            PropertySource {
+                prop_id: 0x1013,
+                prop_type: 0x0102,
+                value_hnid: 0x64,
+                hnid_kind: Some(HnidKind::NodeId),
+                status: PropertyStorageStatus::Subnode,
+                owner_node_id: Some(1),
+                source_block_ids: vec![8],
+                resolution_detail: None,
+            },
+        );
+        assert_eq!(
+            super::binary_property_bytes(&context, PR_HTML),
+            Some(b"text".to_vec())
+        );
+        context.sources.get_mut(&PR_HTML).unwrap().status = PropertyStorageStatus::NodeUnresolved;
+        context.values.get_mut(&PR_HTML).unwrap().decoded = None;
+        assert_eq!(super::opaque_binary_property_bytes(&context, PR_HTML), None);
+    }
 
     #[test]
     fn builds_text_body_payload() {

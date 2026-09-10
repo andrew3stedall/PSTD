@@ -94,7 +94,7 @@ def parse_property_heap(data: bytes) -> dict[int, bytes]:
         value_hid = u32(leaf, start + 4)
         properties[(property_id << 16) | property_type] = (
             value_hid.to_bytes(4, "little")
-            if property_type == 0x000D
+            if property_type in (0x0002, 0x0003, 0x0004, 0x000A, 0x000B, 0x000D)
             else hid(allocations, value_hid)
         )
     return properties
