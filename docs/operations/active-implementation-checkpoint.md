@@ -1,52 +1,37 @@
 # Active implementation checkpoint
 
-Updated: 2026-09-09
+Updated: 2026-09-10
 
 ## Active delivery
 
 - Issue #600; parent #599; branch agent/coverage-foundation; draft PR #611.
-- Latest durable source/test commit: 3778f42de2e742d61c34b700edcea9f098683908 (tested formatting of 2fe2f2b).
-- Scope: generic property storage/reference resolution. Do not start #601–#610 yet.
-- Older local /workspace/scratch/10c9672c1630/pstd contains separate uncommitted work; do not overwrite or use as live PR.
+- Last fully checked source: 5452630362c1705927dfbbc16638f71470e9b0ee. Main CI and focused workflow pass.
+- Current increment: correct ANSI fixture inline scalars (5297610, a4138fb), preserve attachment reference failure detail, and temporary bounded Tika diagnostics.
+- Do not use old local /workspace/scratch/10c9672c1630/pstd: separate uncommitted work.
 
 ## Established conclusions
 
-- Typed BTH leaves retain property identity, raw HNID and storage provenance.
-- PropertyContext preserves sources and excludes unresolved references from semantic decoding.
-- node_payload.rs resolves owner-scoped Unicode NIDs and data trees through PropertyNodeResolver.
-- attachment_property_context.rs uses the resolver only with a unique immediate owner; object-method handling remains separate.
-- Four-byte resolved binary bodies are accepted; unresolved references are not emitted as opaque content.
-- BTH rejects cycles, repeated children, duplicate tags, truncated leaves/indexes and resource overruns.
-- ANSI subnode layouts and nonzero heap page indices remain unsupported by this generic path.
-- PR_HTML, PR_RTF_COMPRESSED and arbitrary binary property NID/data-tree tests already exist in node_payload.rs (bdcb66d). Do not recreate them.
+- Typed BTH leaves preserve inline/HID/NID identity and provenance; unresolved values are excluded from body output and semantic decoding.
+- Production node loader and binary attachment loader use Unicode owner-scoped resolver and data trees.
+- Regressions cover NID/data-tree binary attachments, owner isolation/ambiguity, HTML/RTF output, missing body references, overlapping subnode ranges, external index BIDs, and root NID aliases.
+- ANSI generic owner layout and nonzero heap pages remain unsupported.
+- The ANSI fixture generator incorrectly put scalar method/size values in heap allocations; 5297610 fixes inline encoding, a4138fb updates independent validator. Never restore heuristic scalar dereferencing to accommodate this fixture.
+- Existing CI permits clippy::too_many_arguments; AGENTS strict command differs. No blanket lint suppression introduced.
 
 ## Validation
 
-- 2fe2f2b: focused Actions 34347271757 / job 102451756040 PASSED: cargo fmt, 371 library tests (0 failed), all-target/all-feature Clippy with existing CI exception. Formatting committed as 3778f42.
-- This checkpoint commit triggers CI on the formatted source. Next inspect its CI and fixture runs.
-
-- bdcb66d: Actions 34301699216 / job 102309778638 passed all 369 library tests.
-- That job then failed Clippy: two manual_is_multiple_of errors in bth.rs, plus 13 too_many_arguments diagnostics.
-- ffaef38 fixes both BTH lint errors.
-- 8d8ef58 aligns temporary workflow with the existing ci.yml exception for too_many_arguments. This is the existing CI policy; strict AGENTS command without the exception remains a documented gate discrepancy.
-- 93c7921 extends the body test through RTF emission and verifies missing owners produce no HTML/RTF output.
-- 4931552 rejects overlapping indexed subnode leaf ranges and external BIDs used as index blocks, with regressions.
-- 00977a4 adds full attachment extraction tests for direct NID, data-tree, sibling NID isolation and duplicate owner rejection. Await the latest head focused workflow.
-- Temporary workflow runs cargo fmt, cargo test --lib, Clippy, and persists formatting of named Rust files. Bot commits may need a subsequent connector commit to trigger exact-head CI.
-- No local Rust toolchain; direct git network is unavailable. Use connector, not another environment bootstrap.
-- Full clean-head merge gate and approved fixture deltas not yet verified.
+- 371 library tests passed before the root-alias regression; 5452630 focused workflow and main CI passed including that regression.
+- 5452630: Tika attachment (34347463481), embedded graph (34347463868), reconstructible content (34347463428), ANSI attachment (34347463452) FAILED actual fixture checks after lint/format success.
+- Tika: DOCX attachment size 0 vs expected 11862, missing embedded payload path. Reconstructible content fails because DOCX bytes unavailable.
+- ANSI: method=160 and declared_size=192 instead of scalar values; fixture encoding corrected, awaiting validation.
+- Other fixture workflows passed on 5452630.
+- Local Rust absent; direct GitHub unavailable. Connector artifact ZIP download produces a reference, but local URL fetch is 403. Use existing temporary workflow diagnostics, not environment bootstrap.
 
 ## Next exact change
 
-1. The focused workflow is green (371 tests); inspect CI and fixture runs triggered by this checkpoint commit on the formatted source.
-2. Inspect actual fixture failures after lint/formatting succeeds, especially attachment and embedded-message fixtures. Preserve established object handling.
-3. Body output and missing-reference checks are committed in 93c7921; fix their failures if any instead of recreating them.
-4. Review remaining #600 acceptance boundaries: generic HID page support, ANSI owner context, deterministic failure categories and exported diagnostics. Do not claim #600 complete while these remain unresolved.
+1. Inspect latest Coverage temporary build tools workflow; step "Inspect approved Tika attachment diagnostics" prints bounded attachment resolution statuses for the approved fixture. Fix the concrete typed resolver/owner failure.
+2. Check ANSI fixture workflow after scalar correction; preserve indirect method/object compatibility.
+3. Confirm Tika, embedded graph and reconstructible content recover their approved bytes; do not weaken fixture expectations to pass.
+4. Complete remaining #600 acceptance (generic HID pages/ANSI context and deterministic diagnostics), current docs, remove temporary workflow, then exact-head merge gates.
 
-## Merge-only work
-
-- Finish acceptance and current docs/diagnostics; preserve provenance.
-- Remove temporary coverage-build-tools.yml.
-- Resolve strict Clippy gate discrepancy with a scoped justified change, not blanket warning suppression.
-- Run cleaned exact-head full CI, approved fixture comparisons, review threads and final diff.
-- Merge #611 only when acceptance and required gates pass.
+Temporary workflow persists formatting only for named Rust files. Add tools/ansi_fixture.rs if cargo fmt changes it. Never force-push over a newer head. Keep this checkpoint updated before broad work.
