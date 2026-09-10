@@ -723,7 +723,8 @@ pub(crate) fn resolve_attachment_payload(
 ) -> Result<(Vec<u8>, String), String> {
     if let Some(resolved) = properties.property_bytes_resolved(PR_ATTACH_DATA_BIN) {
         if !resolved {
-            return Err(properties.value(PR_ATTACH_DATA_BIN)
+            return Err(properties
+                .value(PR_ATTACH_DATA_BIN)
                 .map(|value| value.status.clone())
                 .unwrap_or_else(|| "HNID_UNRESOLVED; attachment property unavailable".into()));
         }
