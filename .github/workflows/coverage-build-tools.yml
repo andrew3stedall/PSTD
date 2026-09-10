@@ -24,6 +24,23 @@ jobs:
           cargo fmt
           cargo test --lib
           cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - name: Inspect approved Tika attachment diagnostics
+        run: |
+          cargo run -- extract --input tests/fixtures/upstream/tika-testPST.pst --output /tmp/coverage-tika --overwrite >/tmp/coverage-tika.log 2>&1 || test "$?" = 2
+          python3 - <<'PY'
+          import json, tarfile
+          from pathlib import Path
+          for archive in Path('/tmp/coverage-tika/archives').glob('*.tar'):
+              with tarfile.open(archive) as tf:
+                  for name in ('data/attachments.jsonl', 'data/embedded_messages.jsonl'):
+                      try:
+                          stream = tf.extractfile(name)
+                      except KeyError:
+                          continue
+                      for line in stream:
+                          row = json.loads(line)
+                          print(json.dumps({k: v for k, v in row.items() if k in ('attachment_key', 'attachment_method', 'size_bytes', 'extraction_status', 'status', 'source_ref')}))
+          PY
       - name: Persist formatting only if branch still matches tested source
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
