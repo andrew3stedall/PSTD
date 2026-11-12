@@ -4,6 +4,7 @@ use crate::error::{PstdError, PstdResult};
 use crate::pst::binary::{u16_le_at, u32_le_at, u64_le_at};
 use crate::pst::layout::PstLayout;
 use crate::pst::limits::ParserLimits;
+use crate::pst::lookup_index::FirstKeyIndex;
 use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, PageRef, PstVariant};
 use crate::pst::reader::PstByteReader;
 use crate::pst::trailer::PageTrailer;
@@ -263,6 +264,9 @@ pub struct BbtIndex {
     pub duplicate_entry_count: u64,
     pub truncated_entry_count: u64,
     pub status: String,
+    /// Derived lookup cache; never serialized. See [`FirstKeyIndex`].
+    #[serde(skip)]
+    pub lookup_index: FirstKeyIndex,
 }
 
 impl BbtIndex {
@@ -341,6 +345,7 @@ impl BbtIndex {
                     duplicate_entry_count: 0,
                     truncated_entry_count: 0,
                     status: "root_unavailable".to_string(),
+                    lookup_index: FirstKeyIndex::new(),
                 },
                 Vec::new(),
             ));
@@ -431,16 +436,16 @@ impl BbtIndex {
                 duplicate_entry_count,
                 truncated_entry_count,
                 status,
+                lookup_index: FirstKeyIndex::new(),
             },
             page_diagnostics,
         ))
     }
 
     pub fn lookup(&self, block_id: BlockId) -> Option<BlockRef> {
-        self.entries
-            .iter()
-            .find(|entry| entry.block_id == block_id)
-            .map(BbtEntry::block_ref)
+        self.lookup_index
+            .first_position(&self.entries, block_id.0, |entry| entry.block_id.0)
+            .map(|position| self.entries[position].block_ref())
     }
 }
 

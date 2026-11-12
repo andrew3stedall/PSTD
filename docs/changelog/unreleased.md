@@ -9,6 +9,20 @@ _Last reviewed: 1 September 2026._
   before the retired branch filter could apply. The production membership parser
   and normal validation workflows remain intact.
 
+## Performance and footprint — PERF-02
+
+- Resolve NBT node and BBT block lookups through a lazily built first-occurrence
+  position index instead of scanning every entry per lookup. The first-match result
+  is unchanged; resolving every block of a 100,000-entry index is about 440× faster
+  in `examples/index_lookup_benchmark.rs`.
+- Read PST bytes with positional reads (one syscall) instead of duplicating the file
+  descriptor and seeking for every read, and read the header crypt method once per
+  reader instead of twice per payload block.
+- Add a release profile (LTO, single codegen unit, stripped symbols) and drop unused
+  dependency features (`chrono` clock/time-zone lookup, `tar` xattr). The stripped
+  release binary shrinks from 4.03 MB to 2.69 MB on aarch64 Linux.
+- Extraction output is byte-identical apart from run timing on all committed fixtures.
+
 ## Performance and correctness — PERF-01
 
 - Index canonical email ownership and attachment payload IDs with borrowed records;

@@ -735,6 +735,7 @@ mod tests {
             duplicate_entry_count: 0,
             truncated_entry_count: 0,
             status: "test".to_string(),
+            lookup_index: Default::default(),
         };
         let slblock = {
             let mut bytes = vec![0x02, 0x00, 0x01, 0x00, 0, 0, 0, 0];

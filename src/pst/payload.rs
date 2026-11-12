@@ -45,7 +45,7 @@ pub fn load_payload_block(
 
     let LoadedBlock { mut bytes, .. } = load_block(reader, block_ref)?;
     let internal = block_id.0 & BID_INTERNAL_MASK != 0;
-    let crypt_method = read_crypt_method(reader)?;
+    let crypt_method = reader.crypt_method_or_load(read_crypt_method)?;
     let status = if internal {
         "payload_loaded_internal".to_string()
     } else {
@@ -192,6 +192,7 @@ mod tests {
             duplicate_entry_count: 0,
             truncated_entry_count: 0,
             status: "test".to_string(),
+            lookup_index: Default::default(),
         }
     }
 }
