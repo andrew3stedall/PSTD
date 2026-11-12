@@ -11,12 +11,19 @@ const LINEAR_SCAN_MAX_ENTRIES: usize = 16;
 /// block or node resolution O(entries), which is quadratic over a whole PST. This cache
 /// preserves the first-match result while answering in O(1) after one O(entries) build.
 ///
-/// The cache is derived state: it is never serialized, compares nothing, and a clone
-/// starts empty. It is built from the entries seen by the first lookup. If the entry
-/// count later changes, or a cached position no longer holds the requested key, lookups
-/// fall back to the original linear scan, so a stale cache cannot return a wrong entry.
-/// Replacing entries in place with different keys while keeping the same length after
-/// the first lookup is not supported.
+/// The cache is derived state: it is never serialized and a clone or a deserialized
+/// index starts empty. It is built from the entries seen by the first lookup.
+///
+/// # Invariant
+///
+/// The owning index must not have its entries mutated after the first lookup. The
+/// indexes are built once by B-tree traversal and are read-only afterwards. Code that
+/// does mutate `entries` must replace the cache with `FirstKeyIndex::new()`.
+///
+/// As defence in depth only, a changed entry count or a cached position that no longer
+/// holds the requested key falls back to the linear scan. That does not detect every
+/// in-place edit (for example an earlier entry rewritten to the requested key), so it
+/// is not a substitute for the invariant.
 #[derive(Default)]
 pub struct FirstKeyIndex {
     cell: OnceLock<(usize, HashMap<u64, usize>)>,

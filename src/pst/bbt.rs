@@ -467,3 +467,49 @@ fn duplicate_block_count(entries: &[BbtEntry]) -> u64 {
         .filter(|entry| !seen.insert(entry.block_id))
         .count() as u64
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn index(count: u64) -> BbtIndex {
+        BbtIndex {
+            root: None,
+            // Every key appears twice so first-occurrence resolution is observable.
+            entries: (0..count)
+                .map(|ordinal| BbtEntry {
+                    block_id: BlockId((ordinal % (count / 2)) * 4),
+                    offset: ByteOffset(ordinal * 512),
+                    size: 64,
+                })
+                .collect(),
+            parsed_pages: 0,
+            discovered_child_pages: 0,
+            traversal_error_count: 0,
+            duplicate_entry_count: 0,
+            truncated_entry_count: 0,
+            status: "test".to_string(),
+            lookup_index: FirstKeyIndex::new(),
+        }
+    }
+
+    #[test]
+    fn lookup_returns_first_duplicate_and_survives_serde_round_trip() {
+        let original = index(200);
+        for ordinal in 0..100u64 {
+            let found = original.lookup(BlockId(ordinal * 4)).unwrap();
+            assert_eq!(found.offset.0, ordinal * 512);
+        }
+        assert!(original.lookup(BlockId(1)).is_none());
+
+        let json = serde_json::to_string(&original).unwrap();
+        assert!(!json.contains("lookup_index"));
+        let restored: BbtIndex = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.entries.len(), 200);
+        assert_eq!(restored.lookup(BlockId(396)).unwrap().offset.0, 99 * 512);
+        assert_eq!(
+            original.clone().lookup(BlockId(8)).unwrap().offset.0,
+            2 * 512
+        );
+    }
+}

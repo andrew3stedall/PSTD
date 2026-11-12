@@ -104,6 +104,8 @@ impl PstByteReader {
     ///
     /// The value is a property of the opened file's header, so it is read once per
     /// reader instead of once per payload block. A failed `load` is not cached.
+    /// This assumes the source file is not rewritten while the reader is open, as the
+    /// already loaded NBT/BBT indexes also do.
     pub(crate) fn crypt_method_or_load(
         &self,
         load: impl FnOnce(&Self) -> PstdResult<u8>,
