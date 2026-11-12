@@ -1,6 +1,6 @@
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use crate::error::{PstdError, PstdResult};
 use crate::pst::limits::InputLimits;
@@ -24,6 +24,7 @@ pub struct PstByteReader {
     file: File,
     file_size: u64,
     limits: InputLimits,
+    crypt_method: OnceLock<u8>,
 }
 
 impl PstByteReader {
@@ -53,6 +54,7 @@ impl PstByteReader {
             file,
             file_size,
             limits: *limits,
+            crypt_method: OnceLock::new(),
         })
     }
 
@@ -93,11 +95,26 @@ impl PstByteReader {
             ));
         }
 
-        let mut file = self.file.try_clone()?;
-        file.seek(SeekFrom::Start(offset))?;
         let mut buf = vec![0; len];
-        file.read_exact(&mut buf)?;
+        read_exact_at(&self.file, &mut buf, offset)?;
         Ok(buf)
+    }
+
+    /// Returns the header crypt method, reading it with `load` only on first use.
+    ///
+    /// The value is a property of the opened file's header, so it is read once per
+    /// reader instead of once per payload block. A failed `load` is not cached.
+    /// This assumes the source file is not rewritten while the reader is open, as the
+    /// already loaded NBT/BBT indexes also do.
+    pub(crate) fn crypt_method_or_load(
+        &self,
+        load: impl FnOnce(&Self) -> PstdResult<u8>,
+    ) -> PstdResult<u8> {
+        if let Some(method) = self.crypt_method.get() {
+            return Ok(*method);
+        }
+        let method = load(self)?;
+        Ok(*self.crypt_method.get_or_init(|| method))
     }
 
     pub fn read_prefix(&self, len: usize) -> PstdResult<Vec<u8>> {
@@ -107,5 +124,60 @@ impl PstByteReader {
             PstdError::pst_read(Some(0), "prefix length does not fit in platform usize")
         })?;
         self.read_at(0, bounded_len)
+    }
+}
+
+/// Positional read that neither duplicates the descriptor nor moves a shared cursor.
+#[cfg(unix)]
+fn read_exact_at(file: &File, buf: &mut [u8], offset: u64) -> std::io::Result<()> {
+    std::os::unix::fs::FileExt::read_exact_at(file, buf, offset)
+}
+
+#[cfg(windows)]
+fn read_exact_at(file: &File, mut buf: &mut [u8], mut offset: u64) -> std::io::Result<()> {
+    use std::os::windows::fs::FileExt;
+    while !buf.is_empty() {
+        match file.seek_read(buf, offset) {
+            Ok(0) => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    "failed to fill whole buffer",
+                ))
+            }
+            Ok(read) => {
+                buf = &mut buf[read..];
+                offset += read as u64;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(any(unix, windows)))]
+fn read_exact_at(file: &File, buf: &mut [u8], offset: u64) -> std::io::Result<()> {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut file = file.try_clone()?;
+    file.seek(SeekFrom::Start(offset))?;
+    file.read_exact(buf)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PstByteReader;
+
+    #[test]
+    fn positional_reads_are_independent_and_bounded() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(file.path(), b"0123456789").unwrap();
+        let reader = PstByteReader::open(file.path()).unwrap();
+
+        assert_eq!(reader.read_at(6, 4).unwrap(), b"6789");
+        assert_eq!(reader.read_at(0, 3).unwrap(), b"012");
+        assert_eq!(reader.read_at(6, 4).unwrap(), b"6789");
+        assert_eq!(reader.read_at(10, 0).unwrap(), b"");
+        assert!(reader.read_at(7, 4).is_err());
+        assert!(reader.read_at(u64::MAX, 1).is_err());
     }
 }

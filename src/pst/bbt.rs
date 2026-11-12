@@ -4,6 +4,7 @@ use crate::error::{PstdError, PstdResult};
 use crate::pst::binary::{u16_le_at, u32_le_at, u64_le_at};
 use crate::pst::layout::PstLayout;
 use crate::pst::limits::ParserLimits;
+use crate::pst::lookup_index::FirstKeyIndex;
 use crate::pst::primitives::{BlockId, BlockRef, ByteOffset, PageRef, PstVariant};
 use crate::pst::reader::PstByteReader;
 use crate::pst::trailer::PageTrailer;
@@ -263,6 +264,9 @@ pub struct BbtIndex {
     pub duplicate_entry_count: u64,
     pub truncated_entry_count: u64,
     pub status: String,
+    /// Derived lookup cache; never serialized. See [`FirstKeyIndex`].
+    #[serde(skip)]
+    pub lookup_index: FirstKeyIndex,
 }
 
 impl BbtIndex {
@@ -341,6 +345,7 @@ impl BbtIndex {
                     duplicate_entry_count: 0,
                     truncated_entry_count: 0,
                     status: "root_unavailable".to_string(),
+                    lookup_index: FirstKeyIndex::new(),
                 },
                 Vec::new(),
             ));
@@ -431,16 +436,16 @@ impl BbtIndex {
                 duplicate_entry_count,
                 truncated_entry_count,
                 status,
+                lookup_index: FirstKeyIndex::new(),
             },
             page_diagnostics,
         ))
     }
 
     pub fn lookup(&self, block_id: BlockId) -> Option<BlockRef> {
-        self.entries
-            .iter()
-            .find(|entry| entry.block_id == block_id)
-            .map(BbtEntry::block_ref)
+        self.lookup_index
+            .first_position(&self.entries, block_id.0, |entry| entry.block_id.0)
+            .map(|position| self.entries[position].block_ref())
     }
 }
 
@@ -461,4 +466,50 @@ fn duplicate_block_count(entries: &[BbtEntry]) -> u64 {
         .iter()
         .filter(|entry| !seen.insert(entry.block_id))
         .count() as u64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn index(count: u64) -> BbtIndex {
+        BbtIndex {
+            root: None,
+            // Every key appears twice so first-occurrence resolution is observable.
+            entries: (0..count)
+                .map(|ordinal| BbtEntry {
+                    block_id: BlockId((ordinal % (count / 2)) * 4),
+                    offset: ByteOffset(ordinal * 512),
+                    size: 64,
+                })
+                .collect(),
+            parsed_pages: 0,
+            discovered_child_pages: 0,
+            traversal_error_count: 0,
+            duplicate_entry_count: 0,
+            truncated_entry_count: 0,
+            status: "test".to_string(),
+            lookup_index: FirstKeyIndex::new(),
+        }
+    }
+
+    #[test]
+    fn lookup_returns_first_duplicate_and_survives_serde_round_trip() {
+        let original = index(200);
+        for ordinal in 0..100u64 {
+            let found = original.lookup(BlockId(ordinal * 4)).unwrap();
+            assert_eq!(found.offset.0, ordinal * 512);
+        }
+        assert!(original.lookup(BlockId(1)).is_none());
+
+        let json = serde_json::to_string(&original).unwrap();
+        assert!(!json.contains("lookup_index"));
+        let restored: BbtIndex = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.entries.len(), 200);
+        assert_eq!(restored.lookup(BlockId(396)).unwrap().offset.0, 99 * 512);
+        assert_eq!(
+            original.clone().lookup(BlockId(8)).unwrap().offset.0,
+            2 * 512
+        );
+    }
 }

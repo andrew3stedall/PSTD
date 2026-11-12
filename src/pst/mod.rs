@@ -23,6 +23,7 @@ pub mod item_routing;
 pub mod layout;
 pub mod limits;
 pub mod logical;
+pub mod lookup_index;
 pub mod mapi;
 pub mod message_metadata;
 pub mod message_ownership;

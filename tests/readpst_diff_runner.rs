@@ -107,6 +107,10 @@ fn configured_readpst_approved_fixture_differential() {
                 readpst_version.clone(),
                 vec![
                     readpst_bin.clone(),
+                    // readpst forks one worker per folder by default; the repeat was
+                    // observed to yield 7 and then 6 records. Run it in-process.
+                    "-j".to_string(),
+                    "0".to_string(),
                     "-e".to_string(),
                     "-8".to_string(),
                     "-o".to_string(),
@@ -154,8 +158,17 @@ fn configured_readpst_approved_fixture_differential() {
     let (readpst_b, pstd_b, readpst_normalized_b, pstd_normalized_b) = run_pair("b");
     assert!(readpst_a.execution.exit_status.is_some());
     assert!(pstd_a.execution.exit_status.is_some());
-    let deterministic_repeat =
-        readpst_normalized_a == readpst_normalized_b && pstd_normalized_a == pstd_normalized_b;
+    let readpst_repeat_matches = readpst_normalized_a == readpst_normalized_b;
+    let pstd_repeat_matches = pstd_normalized_a == pstd_normalized_b;
+    let repeat_difference = [
+        first_repeat_difference("readpst", &readpst_normalized_a, &readpst_normalized_b),
+        first_repeat_difference("pstd", &pstd_normalized_a, &pstd_normalized_b),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>()
+    .join("; ");
+    let deterministic_repeat = readpst_repeat_matches && pstd_repeat_matches;
     let report = build_differential_report(
         &fixture,
         &readpst_a,
@@ -188,8 +201,66 @@ fn configured_readpst_approved_fixture_differential() {
     assert!(report_path.is_file());
     assert!(
         deterministic_repeat,
-        "repeated normalized outputs are not deterministic; evidence was written to {}",
+        "repeated normalized outputs are not deterministic ({repeat_difference}); evidence was written to {}",
         report_path.display()
     );
     assert!(reports_are_deterministic(&report, &report_b).expect("compare repeated reports"));
+}
+
+/// Names the first record or artifact that differs between two normalized runs of the
+/// same tool. Only record kinds, identities, field names and artifact paths are
+/// reported, never field values.
+fn first_repeat_difference<T: serde::Serialize>(
+    tool: &str,
+    first: &T,
+    second: &T,
+) -> Option<String> {
+    let first = serde_json::to_value(first).ok()?;
+    let second = serde_json::to_value(second).ok()?;
+    if first == second {
+        return None;
+    }
+    for section in ["records", "artifacts", "diagnostics"] {
+        let empty = Vec::new();
+        let left = first[section].as_array().unwrap_or(&empty);
+        let right = second[section].as_array().unwrap_or(&empty);
+        if left.len() != right.len() {
+            return Some(format!(
+                "{tool} {section} count {} != {}",
+                left.len(),
+                right.len()
+            ));
+        }
+        for (index, (left, right)) in left.iter().zip(right).enumerate() {
+            if left == right {
+                continue;
+            }
+            let label = |value: &serde_json::Value| {
+                format!(
+                    "kind={} identity={} path={}",
+                    value["kind"], value["identity"], value["path"]
+                )
+            };
+            let changed_fields = match (left["fields"].as_object(), right["fields"].as_object()) {
+                (Some(left), Some(right)) => left
+                    .keys()
+                    .chain(right.keys())
+                    .filter(|key| left.get(*key) != right.get(*key))
+                    .cloned()
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .into_iter()
+                    .collect::<Vec<_>>()
+                    .join(","),
+                _ => String::new(),
+            };
+            return Some(format!(
+                "{tool} {section}[{index}] differs: {} vs {}; changed fields: [{changed_fields}]",
+                label(left),
+                label(right)
+            ));
+        }
+    }
+    Some(format!(
+        "{tool} differs outside records, artifacts and diagnostics"
+    ))
 }

@@ -56,7 +56,12 @@ def main():
             toolchain = subprocess.check_output(["rustc", "--version"], text=True).strip()
             binaries = {}
             for label, checkout in [("baseline", baseline), ("head", root)]:
-                run("cargo", "build", "--locked", "--release", "--example", "content_output_benchmark", cwd=checkout)
+                # The head lockfile pins every shared dependency version. When the two
+                # revisions enable different dependency features, the baseline may need
+                # packages the head no longer resolves, so only the head build is locked;
+                # Cargo keeps the pinned versions and adds just the missing packages.
+                locked = ["--locked"] if label == "head" else []
+                run("cargo", "build", *locked, "--release", "--example", "content_output_benchmark", cwd=checkout)
                 binary = temp / label / "content-output-benchmark" if label == "baseline" else temp / "head-benchmark"
                 shutil.copy2(checkout / "target/release/examples/content_output_benchmark", binary)
                 binaries[label] = binary

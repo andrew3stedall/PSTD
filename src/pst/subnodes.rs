@@ -771,6 +771,7 @@ mod tests {
             duplicate_entry_count: 0,
             truncated_entry_count: 0,
             status: "test".to_string(),
+            lookup_index: Default::default(),
         };
         let reference = SubnodeReference {
             node_id: NodeId(1),

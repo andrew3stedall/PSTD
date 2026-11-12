@@ -324,6 +324,7 @@ mod tests {
             truncated_entry_count: 0,
             page_diagnostics: Vec::new(),
             status: "test".to_string(),
+            lookup_index: Default::default(),
         }
     }
 }

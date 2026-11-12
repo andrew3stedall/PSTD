@@ -4,6 +4,7 @@ use crate::error::{PstdError, PstdResult};
 use crate::pst::binary::{u32_le_at, u64_le_at};
 use crate::pst::layout::PstLayout;
 use crate::pst::limits::ParserLimits;
+use crate::pst::lookup_index::FirstKeyIndex;
 use crate::pst::primitives::{BlockId, ByteOffset, NodeId, PageRef, PstVariant};
 use crate::pst::reader::PstByteReader;
 use crate::pst::trailer::PageTrailer;
@@ -259,6 +260,9 @@ pub struct NbtIndex {
     pub truncated_entry_count: u64,
     pub page_diagnostics: Vec<NbtPageDiagnostic>,
     pub status: String,
+    /// Derived lookup cache; never serialized. See [`FirstKeyIndex`].
+    #[serde(skip)]
+    pub lookup_index: FirstKeyIndex,
 }
 
 impl NbtIndex {
@@ -292,6 +296,7 @@ impl NbtIndex {
                 truncated_entry_count: 0,
                 page_diagnostics: Vec::new(),
                 status: "root_unavailable".to_string(),
+                lookup_index: FirstKeyIndex::new(),
             });
         };
         if root_ref.offset.0 >= reader.file_size() {
@@ -379,11 +384,14 @@ impl NbtIndex {
             truncated_entry_count,
             page_diagnostics,
             status,
+            lookup_index: FirstKeyIndex::new(),
         })
     }
 
     pub fn lookup(&self, node_id: NodeId) -> Option<&NbtEntry> {
-        self.entries.iter().find(|entry| entry.node_id == node_id)
+        self.lookup_index
+            .first_position(&self.entries, node_id.0, |entry| entry.node_id.0)
+            .map(|position| &self.entries[position])
     }
 }
 
