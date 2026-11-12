@@ -107,6 +107,10 @@ fn configured_readpst_approved_fixture_differential() {
                 readpst_version.clone(),
                 vec![
                     readpst_bin.clone(),
+                    // readpst forks one worker per folder by default; the repeat was
+                    // observed to yield 7 and then 6 records. Run it in-process.
+                    "-j".to_string(),
+                    "0".to_string(),
                     "-e".to_string(),
                     "-8".to_string(),
                     "-o".to_string(),
