@@ -127,6 +127,15 @@ PSTD is intended to become a dependable PST-to-email extraction engine that:
 - validates every material parser change against synthetic tests and approved public or controlled PST fixtures;
 - remains self-contained rather than delegating PST parsing or conversion to another implementation.
 
+## Synthetic robustness fixtures
+
+A [dependency-free Unicode PST generator](docs/fixtures/synthetic-pst-generation.md)
+creates reproducible mailboxes with Drafts, Deleted Items, nested folders and damaged
+attachments on valid messages. Manifest comparisons cover 72-message and
+1,200-message mailboxes; named exclusions track reader gaps in #622–#627 and #629.
+Independent libpff/readpst probes support fixture readability, without establishing
+Outlook or general PST compatibility. No reader behaviour changes in this addition.
+
 ## Validated fixture evidence
 
 The existing approved fixtures establish two material Unicode paths, but neither is a Microsoft Purview export and neither establishes broad Purview compatibility.
