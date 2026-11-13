@@ -250,7 +250,24 @@ pub fn attachment_payloads_from_property_context_subnodes_with_fallback_charset(
             continue;
         };
 
-        match resolve_attachment_payload(&report.context, blocks, reader, bbt, limits) {
+        // BIN values decoded from a PC are already resolved. Do not reinterpret
+        // a genuine four-byte payload as another HNID (table rows use a separate path).
+        let resolved_binary =
+            report.context.value(PR_ATTACH_DATA_BIN).and_then(|value| {
+                match value.decoded.as_ref() {
+                    Some(MapiValue::Binary(bytes)) => Some(bytes.clone()),
+                    _ => None,
+                }
+            });
+        let resolved = if let Some(bytes) = resolved_binary {
+            Ok((
+                bytes,
+                "attachment_payload_extracted_property_context".to_string(),
+            ))
+        } else {
+            resolve_attachment_payload(&report.context, blocks, reader, bbt, limits)
+        };
+        match resolved {
             Ok((bytes, source_status)) => {
                 let metadata = AttachmentMetadata {
                     filename_original: record.filename_original.clone(),
@@ -856,9 +873,6 @@ fn attachment_data_nid(properties: &PropertyContext) -> Option<u32> {
         let Some(value) = properties.value(tag) else {
             continue;
         };
-        if tag == PR_ATTACH_DATA_BIN && value.decoded.is_some() {
-            continue;
-        }
         if value.raw.len() != 4 {
             continue;
         }
