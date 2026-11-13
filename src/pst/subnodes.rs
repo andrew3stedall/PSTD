@@ -772,6 +772,7 @@ mod tests {
             truncated_entry_count: 0,
             status: "test".to_string(),
             lookup_index: Default::default(),
+            page_limit_reached: false,
         };
         let reference = SubnodeReference {
             node_id: NodeId(1),

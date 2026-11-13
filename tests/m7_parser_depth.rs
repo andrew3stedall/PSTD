@@ -139,6 +139,29 @@ fn nbt_index_traverses_internal_page_to_leaf_page() {
     assert!(index.status.contains("tree_traversed"));
 }
 
+#[test]
+fn bbt_index_with_exactly_the_page_limit_is_complete() {
+    let (bytes, root_offset) = deep_bbt(1200);
+    let reader = reader_with_pages(bytes);
+    let limits = pstd::pst::limits::ParserLimits {
+        max_btree_pages: 1264,
+        ..Default::default()
+    };
+    let index = BbtIndex::load_root_with_limits(
+        &reader,
+        Some(PageRef {
+            offset: ByteOffset(root_offset),
+        }),
+        limits,
+    )
+    .unwrap();
+
+    assert_eq!(index.parsed_pages, 1264);
+    assert_eq!(index.entries.len(), 1200);
+    assert!(!index.page_limit_reached);
+    assert_eq!(index.traversal_error_count, 0);
+}
+
 /// Builds a BBT with `leaf_count` single-entry leaf pages and as many 20-way internal
 /// levels as needed. Returns the file bytes and the root page offset.
 fn deep_bbt(leaf_count: usize) -> (Vec<u8>, u64) {
@@ -192,6 +215,7 @@ fn bbt_index_traverses_more_than_the_former_1024_page_limit() {
     .unwrap();
 
     assert_eq!(index.parsed_pages, 1264);
+    assert!(!index.page_limit_reached);
     assert_eq!(index.traversal_error_count, 0);
     assert_eq!(index.entries.len(), 1200);
     assert_eq!(index.duplicate_entry_count, 0);
@@ -221,6 +245,7 @@ fn bbt_index_reports_a_reached_page_limit_as_a_traversal_error() {
     .unwrap();
 
     assert_eq!(index.parsed_pages, 100);
+    assert!(index.page_limit_reached);
     assert!(index.traversal_error_count > 0);
     // Breadth-first: 64 internal pages are parsed before the first leaf.
     assert_eq!(index.entries.len(), 100 - 64);

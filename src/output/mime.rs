@@ -41,12 +41,29 @@ pub fn build_mime_parts(
     let mut ordered_messages = messages.iter().collect::<Vec<_>>();
     ordered_messages.sort_by(|left, right| left.message_key.cmp(&right.message_key));
 
+    // Group once in source order instead of scanning every record per message.
+    let mut bodies_by_message: BTreeMap<&str, Vec<&BodyRecord>> = BTreeMap::new();
+    for body in bodies {
+        bodies_by_message
+            .entry(body.message_key.as_str())
+            .or_default()
+            .push(body);
+    }
+    let mut attachments_by_message: BTreeMap<&str, Vec<&AttachmentRecord>> = BTreeMap::new();
+    for attachment in attachments {
+        attachments_by_message
+            .entry(attachment.message_key.as_str())
+            .or_default()
+            .push(attachment);
+    }
+
     let mut parts = Vec::new();
     for message in ordered_messages {
-        let mut body_records = bodies
-            .iter()
-            .filter(|body| body.message_key == message.message_key)
-            .cloned()
+        let mut body_records = bodies_by_message
+            .get(message.message_key.as_str())
+            .into_iter()
+            .flatten()
+            .map(|body| (*body).clone())
             .collect::<Vec<_>>();
         body_records.sort_by_key(|body| (body_order(&body.body_type), body.body_key.clone()));
         let mut body_specs = body_records
@@ -71,10 +88,11 @@ pub fn build_mime_parts(
             }
         }
 
-        let mut attachment_records = attachments
-            .iter()
-            .filter(|attachment| attachment.message_key == message.message_key)
-            .cloned()
+        let mut attachment_records = attachments_by_message
+            .get(message.message_key.as_str())
+            .into_iter()
+            .flatten()
+            .map(|attachment| (*attachment).clone())
             .collect::<Vec<_>>();
         attachment_records.sort_by_key(|attachment| {
             (

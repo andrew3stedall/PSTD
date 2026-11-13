@@ -33,6 +33,7 @@ pub fn resolve_folder_ownership(
     let candidate_types: HashMap<_, _> = message_candidates.iter().copied().collect();
     let mut evidence = Vec::new();
     let mut diagnostics = Vec::new();
+    let mut entry_by_identity: Option<HashMap<String, &crate::pst::nbt::NbtEntry>> = None;
 
     for table in &discovery.table_candidates {
         let Some(folder_key) = table.linked_folder_key.as_ref() else {
@@ -49,11 +50,18 @@ pub fn resolve_folder_ownership(
             ));
             continue;
         };
-        let Some(table_entry) = nbt
-            .entries
-            .iter()
-            .find(|entry| node_identity(entry.node_id) == table.node_identity)
-        else {
+        let table_entry = entry_by_identity
+            .get_or_insert_with(|| {
+                // First entry wins, matching the previous linear search.
+                let mut entries = HashMap::with_capacity(nbt.entries.len());
+                for entry in &nbt.entries {
+                    entries.entry(node_identity(entry.node_id)).or_insert(entry);
+                }
+                entries
+            })
+            .get(table.node_identity.as_str())
+            .copied();
+        let Some(table_entry) = table_entry else {
             diagnostics.push(format!(
                 "{}: message_table_membership_table_entry_unavailable",
                 table.node_identity

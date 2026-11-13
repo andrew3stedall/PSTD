@@ -169,8 +169,11 @@ fn extract_metadata_with_limits(
     let mut messages = Vec::new();
     let mut issues = Vec::new();
     // Limit warnings are recorded first so the diagnostic budget cannot drop them.
-    for (tree, parsed_pages) in [("BBT", bbt.parsed_pages), ("NBT", nbt.parsed_pages)] {
-        if parsed_pages >= limits.max_btree_pages as u64 {
+    for (tree, page_limit_reached) in [
+        ("BBT", bbt.page_limit_reached),
+        ("NBT", nbt.page_limit_reached),
+    ] {
+        if page_limit_reached {
             issues.push(limit_warning(
                 run_id,
                 "btree_page_limit_reached",
@@ -218,6 +221,13 @@ fn extract_metadata_with_limits(
 
     let subnode_report = subnode_references_from_index(&nbt);
     let subnode_plans = subnode_decode_plans(&subnode_report.references, limits);
+    // First reference per node wins, matching the previous per-message linear search.
+    let mut subnode_reference_by_node = HashMap::with_capacity(subnode_report.references.len());
+    for reference in &subnode_report.references {
+        subnode_reference_by_node
+            .entry(reference.node_id)
+            .or_insert(reference);
+    }
     let mut evidence = subnode_report
         .references
         .iter()
@@ -459,7 +469,7 @@ fn extract_metadata_with_limits(
                     let mut message_property_has_attachments = message.has_attachments;
                     if !message_property_has_attachments {
                         if let Some(reference) =
-                            subnode_reference_for_entry(&subnode_report.references, entry)
+                            subnode_reference_by_node.get(&entry.node_id).copied()
                         {
                             subnode_decode_attempts += 1;
                             pq14_message_subnode_probe_attempts += 1;
@@ -529,7 +539,7 @@ fn extract_metadata_with_limits(
 
                     if message_property_has_attachments {
                         if let Some(reference) =
-                            subnode_reference_for_entry(&subnode_report.references, entry)
+                            subnode_reference_by_node.get(&entry.node_id).copied()
                         {
                             subnode_decode_attempts += 1;
                             let loaded_subnodes =
@@ -799,19 +809,53 @@ fn extract_metadata_with_limits(
     let calendars = build_calendar_records(&messages);
     let non_mail = build_non_mail_records(&messages, &bodies);
 
+    // The item inventory also covers entries that are never decoded, so it needs its
+    // own bound: a crafted index can hold millions of node entries.
+    let max_inventory_items = max_candidate_items.saturating_mul(INVENTORY_ITEMS_PER_CANDIDATE);
+    let inventory_entries = &nbt.entries[..nbt.entries.len().min(max_inventory_items)];
+    let inventory_candidates = &message_table_discovery.message_candidates
+        [..message_table_discovery
+            .message_candidates
+            .len()
+            .min(max_inventory_items)];
+    let omitted_inventory_items = (nbt.entries.len() - inventory_entries.len())
+        + (message_table_discovery.message_candidates.len() - inventory_candidates.len());
+    if omitted_inventory_items > 0 {
+        issues.insert(
+            0,
+            limit_warning(
+                run_id,
+                "item_inventory_limit_reached",
+                format!(
+                    "Item inventory covers the first {max_inventory_items} node entries and message candidates; {omitted_inventory_items} further source entries have no item envelope."
+                ),
+            ),
+        );
+    }
     let items = build_item_envelopes(
         pst_id,
         &folders,
-        &nbt.entries,
-        &message_table_discovery.message_candidates,
+        inventory_entries,
+        inventory_candidates,
         &ownership_report.resolutions,
         &messages,
     );
     let item_routing_counts = build_item_routing_counts(&folders, &items);
+    // First payload per key wins, matching the previous linear searches.
+    let mut body_payload_by_key = HashMap::with_capacity(body_payloads.len());
+    for payload in &body_payloads {
+        body_payload_by_key
+            .entry(payload.record.body_key.as_str())
+            .or_insert(payload);
+    }
+    let mut attachment_payload_by_key = HashMap::with_capacity(attachment_payloads.len());
+    for payload in &attachment_payloads {
+        attachment_payload_by_key
+            .entry(payload.record.attachment_key.as_str())
+            .or_insert(payload);
+    }
     for body in &bodies {
-        let payload = body_payloads
-            .iter()
-            .find(|payload| payload.record.body_key == body.body_key);
+        let payload = body_payload_by_key.get(body.body_key.as_str()).copied();
         evidence.push(crate::pst::evidence::payload_record(
             &body.message_key,
             "body_payload",
@@ -822,9 +866,9 @@ fn extract_metadata_with_limits(
         ));
     }
     for attachment in &attachments {
-        let payload = attachment_payloads
-            .iter()
-            .find(|payload| payload.record.attachment_key == attachment.attachment_key);
+        let payload = attachment_payload_by_key
+            .get(attachment.attachment_key.as_str())
+            .copied();
         evidence.push(crate::pst::evidence::payload_record(
             &attachment.message_key,
             "attachment_payload",
@@ -1197,6 +1241,9 @@ fn discover_folder_hierarchy(
     }
 }
 
+/// Item envelopes allowed per decodable candidate; bounds the undecoded inventory.
+const INVENTORY_ITEMS_PER_CANDIDATE: usize = 10;
+
 fn limit_warning(run_id: &str, code: &str, message: String) -> StatusRecord {
     StatusRecord {
         severity: StatusSeverity::Warning,
@@ -1389,15 +1436,6 @@ fn recover_embedded_message(
         attachments,
         attachment_payloads,
     }
-}
-
-fn subnode_reference_for_entry<'a>(
-    references: &'a [SubnodeReference],
-    entry: &NbtEntry,
-) -> Option<&'a SubnodeReference> {
-    references
-        .iter()
-        .find(|reference| reference.node_id == entry.node_id)
 }
 
 fn candidate_message(
@@ -1757,6 +1795,12 @@ mod tests {
         assert_eq!(limited.messages.len(), 1);
         // Root folder plus the single decoded candidate.
         assert_eq!(limited.folders.len(), 2);
+        assert_eq!(limited.issues[0].code, "item_inventory_limit_reached");
+        assert!(limited.items.len() < full.items.len());
+        let limited = MetadataExtractionOutput {
+            issues: limited.issues[1..].to_vec(),
+            ..limited
+        };
         assert_eq!(limited.issues[0].code, "message_candidate_limit_reached");
         assert!(limited.issues[0]
             .message

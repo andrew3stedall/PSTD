@@ -325,6 +325,7 @@ mod tests {
             page_diagnostics: Vec::new(),
             status: "test".to_string(),
             lookup_index: Default::default(),
+            page_limit_reached: false,
         }
     }
 }

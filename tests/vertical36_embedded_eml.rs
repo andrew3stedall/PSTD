@@ -339,3 +339,23 @@ fn rejects_ambiguous_body_and_header_injection() {
     let bodies = vec![text_body_payload(child_key, "plain")];
     assert!(materialize(&mut attachments, &[unsafe_message], &recipients, &bodies,).is_empty());
 }
+
+#[test]
+fn embedded_node_budget_counts_embedded_children_not_mailbox_messages() {
+    use pstd::pst::embedded_graph::{build_embedded_graph, MAX_EMBEDDED_NODES};
+
+    // More top-level messages than the embedded node budget, one embedded child.
+    let mut messages = (0..MAX_EMBEDDED_NODES + 10)
+        .map(|index| message(&format!("m{index:05}")))
+        .collect::<Vec<_>>();
+    let mut child = message("child");
+    child.item_type = "embedded_message_metadata".to_string();
+    messages.push(child);
+    let attachments = vec![method5_attachment("a1", "m00000", Some("child"))];
+
+    let graph = build_embedded_graph(&messages, &attachments, &[], &[]);
+
+    assert_eq!(graph.len(), 1);
+    assert_eq!(graph[0].budget_status, "within_limits");
+    assert_eq!(graph[0].resolution_status, "child_message_resolved");
+}

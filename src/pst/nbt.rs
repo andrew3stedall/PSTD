@@ -263,6 +263,10 @@ pub struct NbtIndex {
     /// Derived lookup cache; never serialized. See [`FirstKeyIndex`].
     #[serde(skip)]
     pub lookup_index: FirstKeyIndex,
+    /// True when traversal stopped at `max_btree_pages` with an unvisited page
+    /// still queued, so the index is known to be incomplete.
+    #[serde(default)]
+    pub page_limit_reached: bool,
 }
 
 impl NbtIndex {
@@ -297,6 +301,7 @@ impl NbtIndex {
                 page_diagnostics: Vec::new(),
                 status: "root_unavailable".to_string(),
                 lookup_index: FirstKeyIndex::new(),
+                page_limit_reached: false,
             });
         };
         if root_ref.offset.0 >= reader.file_size() {
@@ -314,15 +319,18 @@ impl NbtIndex {
         let mut page_diagnostics = Vec::new();
         let mut seen_offsets = HashSet::new();
         let mut queue = VecDeque::from([root_ref]);
+        let mut page_limit_reached = false;
 
         while let Some(page_ref) = queue.pop_front() {
-            if parsed_pages as usize >= limits.max_btree_pages {
-                traversal_error_count += 1;
-                break;
-            }
-            if !seen_offsets.insert(page_ref.offset.0) {
+            if seen_offsets.contains(&page_ref.offset.0) {
                 continue;
             }
+            if parsed_pages as usize >= limits.max_btree_pages {
+                traversal_error_count += 1;
+                page_limit_reached = true;
+                break;
+            }
+            seen_offsets.insert(page_ref.offset.0);
             if page_ref.offset.0 >= reader.file_size() {
                 traversal_error_count += 1;
                 continue;
@@ -385,6 +393,7 @@ impl NbtIndex {
             page_diagnostics,
             status,
             lookup_index: FirstKeyIndex::new(),
+            page_limit_reached,
         })
     }
 
