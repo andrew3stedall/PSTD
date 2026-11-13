@@ -9,6 +9,28 @@ _Last reviewed: 1 September 2026._
   before the retired branch filter could apply. The production membership parser
   and normal validation workflows remain intact.
 
+## Extraction coverage at scale — SCALE-01
+
+- Extract up to `InputLimits::max_candidate_items` (100,000) message and folder
+  candidates instead of silently stopping at the first 1,000 of each.
+- Raise the default NBT/BBT traversal limit from 1,024 to 262,144 pages. The old limit
+  indexed only about 20,000 blocks and dropped the remainder of larger PST files.
+- Report `message_candidate_limit_reached`, `folder_candidate_limit_reached` and
+  `btree_page_limit_reached` as warning diagnostics, placed ahead of other diagnostics
+  so the diagnostic budget cannot omit them. Index status strings now report
+  `max_pages=262144`.
+- `page_limit_reached` on the NBT/BBT indexes is set only when an unvisited page is
+  still queued, so a tree with exactly the page limit is not reported as truncated.
+- Count embedded child messages, not all mailbox messages, against the 4,096 embedded
+  node budget. Mailboxes with more than 4,096 messages no longer have valid embedded
+  messages rejected as `node_budget_exceeded`.
+- Bound the item inventory to ten envelopes per decodable candidate and report
+  `item_inventory_limit_reached` when source entries are left without an envelope.
+- Replace per-message scans with one-pass indexes in MIME part and special-item
+  output, body/attachment payload evidence, subnode reference lookup, folder path
+  collision detection and message-table entry lookup. Remaining super-linear paths
+  are tracked in issue #618.
+
 ## Performance and footprint — PERF-02
 
 - Resolve NBT node and BBT block lookups through a lazily built first-occurrence

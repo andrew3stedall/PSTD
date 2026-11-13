@@ -267,6 +267,10 @@ pub struct BbtIndex {
     /// Derived lookup cache; never serialized. See [`FirstKeyIndex`].
     #[serde(skip)]
     pub lookup_index: FirstKeyIndex,
+    /// True when traversal stopped at `max_btree_pages` with an unvisited page
+    /// still queued, so the index is known to be incomplete.
+    #[serde(default)]
+    pub page_limit_reached: bool,
 }
 
 impl BbtIndex {
@@ -346,6 +350,7 @@ impl BbtIndex {
                     truncated_entry_count: 0,
                     status: "root_unavailable".to_string(),
                     lookup_index: FirstKeyIndex::new(),
+                    page_limit_reached: false,
                 },
                 Vec::new(),
             ));
@@ -366,15 +371,18 @@ impl BbtIndex {
         let mut page_diagnostics = Vec::new();
         let mut seen_offsets = HashSet::new();
         let mut queue = VecDeque::from([root_ref]);
+        let mut page_limit_reached = false;
 
         while let Some(page_ref) = queue.pop_front() {
-            if parsed_pages as usize >= limits.max_btree_pages {
-                traversal_error_count += 1;
-                break;
-            }
-            if !seen_offsets.insert(page_ref.offset.0) {
+            if seen_offsets.contains(&page_ref.offset.0) {
                 continue;
             }
+            if parsed_pages as usize >= limits.max_btree_pages {
+                traversal_error_count += 1;
+                page_limit_reached = true;
+                break;
+            }
+            seen_offsets.insert(page_ref.offset.0);
             if page_ref.offset.0 >= reader.file_size() {
                 traversal_error_count += 1;
                 continue;
@@ -437,6 +445,7 @@ impl BbtIndex {
                 truncated_entry_count,
                 status,
                 lookup_index: FirstKeyIndex::new(),
+                page_limit_reached,
             },
             page_diagnostics,
         ))
@@ -490,6 +499,7 @@ mod tests {
             truncated_entry_count: 0,
             status: "test".to_string(),
             lookup_index: FirstKeyIndex::new(),
+            page_limit_reached: false,
         }
     }
 

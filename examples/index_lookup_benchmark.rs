@@ -28,6 +28,7 @@ fn main() {
             truncated_entry_count: 0,
             status: "benchmark".to_string(),
             lookup_index: Default::default(),
+            page_limit_reached: false,
         };
 
         // Resolve every block once, as a whole-file extraction does.

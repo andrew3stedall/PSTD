@@ -139,6 +139,119 @@ fn nbt_index_traverses_internal_page_to_leaf_page() {
     assert!(index.status.contains("tree_traversed"));
 }
 
+#[test]
+fn bbt_index_with_exactly_the_page_limit_is_complete() {
+    let (bytes, root_offset) = deep_bbt(1200);
+    let reader = reader_with_pages(bytes);
+    let limits = pstd::pst::limits::ParserLimits {
+        max_btree_pages: 1264,
+        ..Default::default()
+    };
+    let index = BbtIndex::load_root_with_limits(
+        &reader,
+        Some(PageRef {
+            offset: ByteOffset(root_offset),
+        }),
+        limits,
+    )
+    .unwrap();
+
+    assert_eq!(index.parsed_pages, 1264);
+    assert_eq!(index.entries.len(), 1200);
+    assert!(!index.page_limit_reached);
+    assert_eq!(index.traversal_error_count, 0);
+}
+
+/// Builds a BBT with `leaf_count` single-entry leaf pages and as many 20-way internal
+/// levels as needed. Returns the file bytes and the root page offset.
+fn deep_bbt(leaf_count: usize) -> (Vec<u8>, u64) {
+    const FANOUT: usize = 20;
+    let mut pages: Vec<Vec<u8>> = Vec::new();
+    // (first key, page index) for every page of the level being linked.
+    let mut level: Vec<(u64, usize)> = Vec::with_capacity(leaf_count);
+    for leaf in 0..leaf_count {
+        let mut page = empty_page();
+        write_u64(&mut page, 0, leaf as u64 * 4);
+        write_u64(&mut page, 8, 4096 + leaf as u64);
+        write_u16(&mut page, 16, 64);
+        write_bt_page_metadata(&mut page, 1, 20, 24, 0, 0x80);
+        level.push((leaf as u64 * 4, pages.len()));
+        pages.push(page);
+    }
+    let mut page_level = 1u8;
+    while level.len() > 1 {
+        let mut parents = Vec::new();
+        for children in level.chunks(FANOUT) {
+            let mut page = empty_page();
+            for (slot, (key, child_index)) in children.iter().enumerate() {
+                let at = slot * 24;
+                write_u64(&mut page, at, *key);
+                write_u64(&mut page, at + 8, 0x99);
+                write_u64(&mut page, at + 16, (*child_index * 512) as u64);
+            }
+            write_bt_page_metadata(&mut page, children.len() as u8, 20, 24, page_level, 0x80);
+            parents.push((children[0].0, pages.len()));
+            pages.push(page);
+        }
+        level = parents;
+        page_level += 1;
+    }
+    let root_offset = (level[0].1 * 512) as u64;
+    (pages.concat(), root_offset)
+}
+
+#[test]
+fn bbt_index_traverses_more_than_the_former_1024_page_limit() {
+    // 1,200 leaves + 60 + 3 + 1 internal pages = 1,264 pages, which the former
+    // 1,024-page default truncated.
+    let (bytes, root_offset) = deep_bbt(1200);
+    let reader = reader_with_pages(bytes);
+    let index = BbtIndex::load_root(
+        &reader,
+        Some(PageRef {
+            offset: ByteOffset(root_offset),
+        }),
+    )
+    .unwrap();
+
+    assert_eq!(index.parsed_pages, 1264);
+    assert!(!index.page_limit_reached);
+    assert_eq!(index.traversal_error_count, 0);
+    assert_eq!(index.entries.len(), 1200);
+    assert_eq!(index.duplicate_entry_count, 0);
+    for leaf in [0u64, 599, 1199] {
+        let block = index
+            .lookup(pstd::pst::primitives::BlockId(leaf * 4))
+            .unwrap();
+        assert_eq!(block.offset.0, 4096 + leaf);
+    }
+}
+
+#[test]
+fn bbt_index_reports_a_reached_page_limit_as_a_traversal_error() {
+    let (bytes, root_offset) = deep_bbt(1200);
+    let reader = reader_with_pages(bytes);
+    let limits = pstd::pst::limits::ParserLimits {
+        max_btree_pages: 100,
+        ..Default::default()
+    };
+    let index = BbtIndex::load_root_with_limits(
+        &reader,
+        Some(PageRef {
+            offset: ByteOffset(root_offset),
+        }),
+        limits,
+    )
+    .unwrap();
+
+    assert_eq!(index.parsed_pages, 100);
+    assert!(index.page_limit_reached);
+    assert!(index.traversal_error_count > 0);
+    // Breadth-first: 64 internal pages are parsed before the first leaf.
+    assert_eq!(index.entries.len(), 100 - 64);
+    assert!(index.status.contains("max_pages=100"));
+}
+
 fn empty_page() -> Vec<u8> {
     vec![0; 512]
 }

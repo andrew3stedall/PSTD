@@ -415,16 +415,20 @@ fn reconcile_folder_relationships(envelopes: &mut [ItemEnvelope]) {
         }
     }
 
+    let colliding_indices: HashSet<usize> = paths
+        .values()
+        .filter(|indices| indices.len() > 1)
+        .flatten()
+        .copied()
+        .collect();
+
     for (index, envelope) in envelopes.iter_mut().enumerate() {
         if envelope.record_kind == EnvelopeRecordKind::Folder {
             envelope.child_envelope_keys = children_by_parent
                 .get(&envelope.envelope_key)
                 .cloned()
                 .unwrap_or_default();
-            if paths
-                .values()
-                .any(|indices| indices.len() > 1 && indices.contains(&index))
-            {
+            if colliding_indices.contains(&index) {
                 envelope
                     .provenance_status
                     .push_str("; folder_path_collision");

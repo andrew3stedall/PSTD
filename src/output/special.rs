@@ -19,6 +19,14 @@ pub fn build_special_items(
     let mut ordered_messages = messages.iter().collect::<Vec<_>>();
     ordered_messages.sort_by_key(|message| message.message_key.clone());
     let mut records = Vec::new();
+    // Group once in source order instead of scanning every body per message.
+    let mut bodies_by_message: BTreeMap<&str, Vec<&BodyRecord>> = BTreeMap::new();
+    for body in bodies {
+        bodies_by_message
+            .entry(body.message_key.as_str())
+            .or_default()
+            .push(body);
+    }
 
     for message in ordered_messages {
         let class = message
@@ -31,10 +39,10 @@ pub fn build_special_items(
             || class.contains("calendar")
             || class.contains("meeting");
         let is_encrypted = class.contains("encrypted");
-        let message_bodies = bodies
-            .iter()
-            .filter(|body| body.message_key == message.message_key)
-            .collect::<Vec<_>>();
+        let message_bodies = bodies_by_message
+            .get(message.message_key.as_str())
+            .cloned()
+            .unwrap_or_default();
 
         if is_report {
             append_body_kind(

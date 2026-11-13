@@ -55,6 +55,9 @@ pub fn build_embedded_graph(
         children.dedup();
     }
     let depths = message_depths(&message_keys, &adjacency);
+    // The node budget bounds the embedded graph, not the mailbox: count only messages
+    // that are referenced as embedded children.
+    let embedded_node_count = adjacency.values().flatten().collect::<BTreeSet<_>>().len();
     let body_bytes = body_payloads
         .iter()
         .fold(BTreeMap::new(), |mut bytes, payload| {
@@ -107,7 +110,7 @@ pub fn build_embedded_graph(
                         + attachment_bytes.get(key).copied().unwrap_or(0)
                 })
                 .unwrap_or(0);
-            let budget_status = budget_status(message_keys.len(), raw_bytes_observed, depth);
+            let budget_status = budget_status(embedded_node_count, raw_bytes_observed, depth);
             let cycle_status = if cycle { "cycle_detected" } else { "acyclic" };
             let resolution_status = resolution_status(
                 child_key.is_some(),
@@ -156,8 +159,8 @@ pub fn build_embedded_graph(
         .collect()
 }
 
-fn budget_status(message_count: usize, raw_bytes: u64, depth: u64) -> &'static str {
-    if message_count > MAX_EMBEDDED_NODES {
+fn budget_status(embedded_node_count: usize, raw_bytes: u64, depth: u64) -> &'static str {
+    if embedded_node_count > MAX_EMBEDDED_NODES {
         "node_budget_exceeded"
     } else if raw_bytes > MAX_EMBEDDED_BYTES {
         "byte_budget_exceeded"

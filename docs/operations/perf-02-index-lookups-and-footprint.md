@@ -49,6 +49,6 @@ Reproduce the lookup table with
 
 ## Not addressed
 
-- B-tree traversal stops at `max_btree_pages = 1024` and message extraction is capped
-  at the first 1,000 candidates; both bound real-world PST coverage.
+- B-tree traversal stopped at `max_btree_pages = 1024` and message extraction was
+  capped at the first 1,000 candidates. Both were lifted afterwards under issue #616.
 - Extraction still buffers all records and attachment payloads in memory.

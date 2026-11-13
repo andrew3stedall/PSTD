@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::eml::materialize_embedded_message_payloads;
 use crate::engine::message_folder_ownership::resolve_folder_ownership;
-use crate::error::{PstdError, PstdResult, StatusRecord};
+use crate::error::{PstdError, PstdResult, StatusRecord, StatusSeverity};
 use crate::output::calendar::build_calendar_records;
 use crate::output::cid::build_cid_references;
 use crate::output::contact::build_contact_records;
@@ -37,7 +37,7 @@ use crate::pst::folder_tree::{
 use crate::pst::header::PstHeader;
 use crate::pst::header_projection;
 use crate::pst::item_envelope::{build_item_envelopes, build_item_routing_counts};
-use crate::pst::limits::ParserLimits;
+use crate::pst::limits::{InputLimits, ParserLimits};
 use crate::pst::message_metadata::{message_from_properties, status_row};
 use crate::pst::message_ownership::MessageOwnershipResolution;
 use crate::pst::message_table::{classify_message_candidate, discover_message_tables};
@@ -114,6 +114,7 @@ struct FolderDiscoveryOutput {
     candidate_count: usize,
     property_loaded_count: usize,
     property_unavailable_count: usize,
+    omitted_candidate_count: usize,
     status: String,
 }
 
@@ -131,9 +132,26 @@ pub fn extract_metadata_with_fallback_charset(
     pst_id: &str,
     fallback_charset: Option<&str>,
 ) -> PstdResult<MetadataExtractionOutput> {
+    extract_metadata_with_limits(
+        input_path,
+        run_id,
+        pst_id,
+        fallback_charset,
+        ParserLimits::default(),
+        InputLimits::default().max_candidate_items,
+    )
+}
+
+fn extract_metadata_with_limits(
+    input_path: &str,
+    run_id: &str,
+    pst_id: &str,
+    fallback_charset: Option<&str>,
+    limits: ParserLimits,
+    max_candidate_items: usize,
+) -> PstdResult<MetadataExtractionOutput> {
     let reader = PstByteReader::open(input_path)?;
     let header = PstHeader::parse(&reader)?;
-    let limits = ParserLimits::default();
     let bbt = BbtIndex::load_root_with_limits_for_variant(
         &reader,
         header.roots.bbt_root,
@@ -150,6 +168,22 @@ pub fn extract_metadata_with_fallback_charset(
     let (mut root_folder, mut root_inventory) = root_folder_from_header(pst_id, &header);
     let mut messages = Vec::new();
     let mut issues = Vec::new();
+    // Limit warnings are recorded first so the diagnostic budget cannot drop them.
+    for (tree, page_limit_reached) in [
+        ("BBT", bbt.page_limit_reached),
+        ("NBT", nbt.page_limit_reached),
+    ] {
+        if page_limit_reached {
+            issues.push(limit_warning(
+                run_id,
+                "btree_page_limit_reached",
+                format!(
+                    "{tree} traversal stopped at the {}-page limit; blocks or nodes beyond it are not indexed and extraction is incomplete.",
+                    limits.max_btree_pages
+                ),
+            ));
+        }
+    }
     let mut headers = Vec::new();
     let mut recipients: Vec<RecipientRecord> = Vec::new();
     let message_references: Vec<MessageReferenceRecord> = Vec::new();
@@ -187,6 +221,13 @@ pub fn extract_metadata_with_fallback_charset(
 
     let subnode_report = subnode_references_from_index(&nbt);
     let subnode_plans = subnode_decode_plans(&subnode_report.references, limits);
+    // First reference per node wins, matching the previous per-message linear search.
+    let mut subnode_reference_by_node = HashMap::with_capacity(subnode_report.references.len());
+    for reference in &subnode_report.references {
+        subnode_reference_by_node
+            .entry(reference.node_id)
+            .or_insert(reference);
+    }
     let mut evidence = subnode_report
         .references
         .iter()
@@ -208,7 +249,18 @@ pub fn extract_metadata_with_fallback_charset(
         pst_id,
         &root_folder.folder_key,
         fallback_charset,
+        max_candidate_items,
     );
+    if folder_discovery.omitted_candidate_count > 0 {
+        issues.push(limit_warning(
+            run_id,
+            "folder_candidate_limit_reached",
+            format!(
+                "Decoded the first {max_candidate_items} folder candidates; {} further candidates were not decoded.",
+                folder_discovery.omitted_candidate_count
+            ),
+        ));
+    }
     issues.extend(folder_discovery.issues.clone());
     let discovered_child_folders = folder_discovery.folders.len() as u64;
     root_folder.child_folder_count = Some(discovered_child_folders);
@@ -286,7 +338,28 @@ pub fn extract_metadata_with_fallback_charset(
             "Folder root was emitted, but node index entries were unavailable for message metadata.",
         ));
     } else {
-        for entry in message_table_discovery.message_candidates.iter().take(1000) {
+        let omitted_message_candidates = message_table_discovery
+            .message_candidates
+            .len()
+            .saturating_sub(max_candidate_items);
+        if omitted_message_candidates > 0 {
+            // Inserted first so the diagnostic budget cannot drop it.
+            issues.insert(
+                0,
+                limit_warning(
+                run_id,
+                "message_candidate_limit_reached",
+                format!(
+                    "Extracted the first {max_candidate_items} message candidates; {omitted_message_candidates} further candidates were not extracted."
+                ),
+                ),
+            );
+        }
+        for entry in message_table_discovery
+            .message_candidates
+            .iter()
+            .take(max_candidate_items)
+        {
             let message_key = ids::message_key(pst_id, &node_identity(entry));
             let (owner_folder_key, owner_folder_path, ownership_status) =
                 match ownership_report.resolutions.get(&entry.node_id) {
@@ -396,7 +469,7 @@ pub fn extract_metadata_with_fallback_charset(
                     let mut message_property_has_attachments = message.has_attachments;
                     if !message_property_has_attachments {
                         if let Some(reference) =
-                            subnode_reference_for_entry(&subnode_report.references, entry)
+                            subnode_reference_by_node.get(&entry.node_id).copied()
                         {
                             subnode_decode_attempts += 1;
                             pq14_message_subnode_probe_attempts += 1;
@@ -466,7 +539,7 @@ pub fn extract_metadata_with_fallback_charset(
 
                     if message_property_has_attachments {
                         if let Some(reference) =
-                            subnode_reference_for_entry(&subnode_report.references, entry)
+                            subnode_reference_by_node.get(&entry.node_id).copied()
                         {
                             subnode_decode_attempts += 1;
                             let loaded_subnodes =
@@ -736,19 +809,54 @@ pub fn extract_metadata_with_fallback_charset(
     let calendars = build_calendar_records(&messages);
     let non_mail = build_non_mail_records(&messages, &bodies);
 
+    // The item inventory also covers entries that are never decoded, so it needs its
+    // own bound: a crafted index can hold millions of node entries.
+    let max_inventory_items = max_candidate_items.saturating_mul(INVENTORY_ITEMS_PER_CANDIDATE);
+    let inventory_entries = &nbt.entries[..nbt.entries.len().min(max_inventory_items)];
+    let inventory_candidates = &message_table_discovery.message_candidates
+        [..message_table_discovery
+            .message_candidates
+            .len()
+            .min(max_inventory_items)];
+    let omitted_inventory_entries = nbt.entries.len() - inventory_entries.len();
+    let omitted_inventory_candidates =
+        message_table_discovery.message_candidates.len() - inventory_candidates.len();
+    if omitted_inventory_entries > 0 || omitted_inventory_candidates > 0 {
+        issues.insert(
+            0,
+            limit_warning(
+                run_id,
+                "item_inventory_limit_reached",
+                format!(
+                    "Item inventory input is limited to the first {max_inventory_items} node entries and the first {max_inventory_items} message candidates; {omitted_inventory_entries} node entries and {omitted_inventory_candidates} message candidates beyond those limits were not inventoried."
+                ),
+            ),
+        );
+    }
     let items = build_item_envelopes(
         pst_id,
         &folders,
-        &nbt.entries,
-        &message_table_discovery.message_candidates,
+        inventory_entries,
+        inventory_candidates,
         &ownership_report.resolutions,
         &messages,
     );
     let item_routing_counts = build_item_routing_counts(&folders, &items);
+    // First payload per key wins, matching the previous linear searches.
+    let mut body_payload_by_key = HashMap::with_capacity(body_payloads.len());
+    for payload in &body_payloads {
+        body_payload_by_key
+            .entry(payload.record.body_key.as_str())
+            .or_insert(payload);
+    }
+    let mut attachment_payload_by_key = HashMap::with_capacity(attachment_payloads.len());
+    for payload in &attachment_payloads {
+        attachment_payload_by_key
+            .entry(payload.record.attachment_key.as_str())
+            .or_insert(payload);
+    }
     for body in &bodies {
-        let payload = body_payloads
-            .iter()
-            .find(|payload| payload.record.body_key == body.body_key);
+        let payload = body_payload_by_key.get(body.body_key.as_str()).copied();
         evidence.push(crate::pst::evidence::payload_record(
             &body.message_key,
             "body_payload",
@@ -759,9 +867,9 @@ pub fn extract_metadata_with_fallback_charset(
         ));
     }
     for attachment in &attachments {
-        let payload = attachment_payloads
-            .iter()
-            .find(|payload| payload.record.attachment_key == attachment.attachment_key);
+        let payload = attachment_payload_by_key
+            .get(attachment.attachment_key.as_str())
+            .copied();
         evidence.push(crate::pst::evidence::payload_record(
             &attachment.message_key,
             "attachment_payload",
@@ -1042,6 +1150,7 @@ fn discover_folder_hierarchy(
     pst_id: &str,
     root_folder_key: &str,
     fallback_charset: Option<&str>,
+    max_candidates: usize,
 ) -> FolderDiscoveryOutput {
     let mut folders = Vec::new();
     let mut inventory = Vec::new();
@@ -1051,11 +1160,17 @@ fn discover_folder_hierarchy(
     let mut property_loaded_count = 0usize;
     let mut property_unavailable_count = 0usize;
 
+    let omitted_candidate_count = nbt
+        .entries
+        .iter()
+        .filter(|entry| is_folder_candidate(entry))
+        .count()
+        .saturating_sub(max_candidates);
     for entry in nbt
         .entries
         .iter()
         .filter(|entry| is_folder_candidate(entry))
-        .take(1000)
+        .take(max_candidates)
     {
         candidate_count += 1;
         match load_node_property_context_with_fallback_charset(
@@ -1122,7 +1237,18 @@ fn discover_folder_hierarchy(
         candidate_count,
         property_loaded_count,
         property_unavailable_count,
+        omitted_candidate_count,
         status,
+    }
+}
+
+/// Item envelopes allowed per decodable candidate; bounds the undecoded inventory.
+const INVENTORY_ITEMS_PER_CANDIDATE: usize = 10;
+
+fn limit_warning(run_id: &str, code: &str, message: String) -> StatusRecord {
+    StatusRecord {
+        severity: StatusSeverity::Warning,
+        ..StatusRecord::info(run_id, code, message)
     }
 }
 
@@ -1311,15 +1437,6 @@ fn recover_embedded_message(
         attachments,
         attachment_payloads,
     }
-}
-
-fn subnode_reference_for_entry<'a>(
-    references: &'a [SubnodeReference],
-    entry: &NbtEntry,
-) -> Option<&'a SubnodeReference> {
-    references
-        .iter()
-        .find(|reference| reference.node_id == entry.node_id)
 }
 
 fn candidate_message(
@@ -1640,5 +1757,85 @@ pub fn fallback_metadata(
         messages_discovered: 0,
         messages_extracted: 0,
         status: "metadata_unavailable".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/upstream/tika-testPST.pst"
+    );
+
+    fn warning_codes(output: &MetadataExtractionOutput) -> Vec<&str> {
+        output
+            .issues
+            .iter()
+            .filter(|issue| matches!(issue.severity, StatusSeverity::Warning))
+            .map(|issue| issue.code.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn default_limits_extract_every_candidate_without_limit_warnings() {
+        let output = extract_metadata(FIXTURE, "run", "pst").unwrap();
+        assert!(output.messages.len() > 1);
+        assert!(output.folders.len() > 2);
+        assert!(warning_codes(&output).is_empty());
+    }
+
+    #[test]
+    fn reached_candidate_limits_are_reported_before_other_diagnostics() {
+        let full = extract_metadata(FIXTURE, "run", "pst").unwrap();
+        let limited =
+            extract_metadata_with_limits(FIXTURE, "run", "pst", None, ParserLimits::default(), 1)
+                .unwrap();
+
+        assert_eq!(limited.messages.len(), 1);
+        // Root folder plus the single decoded candidate.
+        assert_eq!(limited.folders.len(), 2);
+        assert_eq!(limited.issues[0].code, "item_inventory_limit_reached");
+        assert!(limited.items.len() < full.items.len());
+        let limited = MetadataExtractionOutput {
+            issues: limited.issues[1..].to_vec(),
+            ..limited
+        };
+        assert_eq!(limited.issues[0].code, "message_candidate_limit_reached");
+        assert!(limited.issues[0]
+            .message
+            .starts_with("Extracted the first 1 message candidates; "));
+        assert!(limited.messages.len() < full.messages.len());
+        assert!(limited.folders.len() < full.folders.len());
+        assert_eq!(limited.issues[1].code, "folder_candidate_limit_reached");
+        assert_eq!(
+            warning_codes(&limited),
+            [
+                "message_candidate_limit_reached",
+                "folder_candidate_limit_reached"
+            ]
+        );
+    }
+
+    #[test]
+    fn reached_btree_page_limit_is_reported() {
+        let limits = ParserLimits {
+            max_btree_pages: 2,
+            ..ParserLimits::default()
+        };
+        let output =
+            extract_metadata_with_limits(FIXTURE, "run", "pst", None, limits, usize::MAX).unwrap();
+        let codes = warning_codes(&output);
+        assert_eq!(
+            codes,
+            ["btree_page_limit_reached", "btree_page_limit_reached"]
+        );
+        assert!(output.issues[0]
+            .message
+            .starts_with("BBT traversal stopped"));
+        assert!(output.issues[1]
+            .message
+            .starts_with("NBT traversal stopped"));
     }
 }
