@@ -1,4 +1,4 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::pst::bbt::BbtIndex;
 use crate::pst::heap::HeapOnNode;
@@ -409,12 +409,17 @@ pub fn loaded_subnode_subtree(
     let mut subtree = Vec::new();
     let mut queue = VecDeque::from([root_block_id]);
     let mut seen = HashSet::new();
+    // First payload per block id wins, matching the previous linear search.
+    let mut payload_by_block = HashMap::with_capacity(payloads.len());
+    for payload in payloads {
+        payload_by_block.entry(payload.block_id).or_insert(payload);
+    }
 
     while let Some(block_id) = queue.pop_front() {
         if !seen.insert(block_id) {
             continue;
         }
-        let Some(payload) = payloads.iter().find(|payload| payload.block_id == block_id) else {
+        let Some(payload) = payload_by_block.get(&block_id).copied() else {
             continue;
         };
         let layout = classify_subnode_block_layout(payload);

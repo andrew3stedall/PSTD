@@ -6,6 +6,15 @@ pub fn build_non_mail_records(
     messages: &[MessageRecord],
     bodies: &[BodyRecord],
 ) -> Vec<NonMailRecord> {
+    // Group once in source order instead of scanning every body per item.
+    let mut body_keys_by_message: std::collections::HashMap<&str, Vec<&str>> =
+        std::collections::HashMap::new();
+    for body in bodies {
+        body_keys_by_message
+            .entry(body.message_key.as_str())
+            .or_default()
+            .push(body.body_key.as_str());
+    }
     let mut records = messages
         .iter()
         .filter_map(|message| {
@@ -65,10 +74,11 @@ pub fn build_non_mail_records(
                 ),
             ];
             raw_evidence_refs.extend(
-                bodies
-                    .iter()
-                    .filter(|body| body.message_key == message.message_key)
-                    .map(|body| format!("body_record:{}", body.body_key)),
+                body_keys_by_message
+                    .get(message.message_key.as_str())
+                    .into_iter()
+                    .flatten()
+                    .map(|body_key| format!("body_record:{body_key}")),
             );
             raw_evidence_refs.sort();
 

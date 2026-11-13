@@ -818,16 +818,17 @@ fn extract_metadata_with_limits(
             .message_candidates
             .len()
             .min(max_inventory_items)];
-    let omitted_inventory_items = (nbt.entries.len() - inventory_entries.len())
-        + (message_table_discovery.message_candidates.len() - inventory_candidates.len());
-    if omitted_inventory_items > 0 {
+    let omitted_inventory_entries = nbt.entries.len() - inventory_entries.len();
+    let omitted_inventory_candidates =
+        message_table_discovery.message_candidates.len() - inventory_candidates.len();
+    if omitted_inventory_entries > 0 || omitted_inventory_candidates > 0 {
         issues.insert(
             0,
             limit_warning(
                 run_id,
                 "item_inventory_limit_reached",
                 format!(
-                    "Item inventory covers the first {max_inventory_items} node entries and message candidates; {omitted_inventory_items} further source entries have no item envelope."
+                    "Item inventory input is limited to the first {max_inventory_items} node entries and the first {max_inventory_items} message candidates; {omitted_inventory_entries} node entries and {omitted_inventory_candidates} message candidates beyond those limits were not inventoried."
                 ),
             ),
         );
