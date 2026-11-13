@@ -331,6 +331,6 @@ mod tests {
                 status: "selected".to_string(),
             },
         );
-        PropertyContext { values }
+        PropertyContext::from_values(values)
     }
 }

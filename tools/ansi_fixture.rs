@@ -325,12 +325,12 @@ fn make_property_context_heap(properties: &[(u16, u16, Vec<u8>)]) -> Vec<u8> {
     let mut allocations = vec![bth_header, Vec::new()];
 
     for (property_id, property_type, value) in properties {
-        let value_hid = if *property_type == 0x000d {
+        let value_hid = if matches!(*property_type, 0x0002 | 0x0003 | 0x0004 | 0x000a | 0x000b | 0x000d) {
             u32::from_le_bytes(
                 value
                     .as_slice()
                     .try_into()
-                    .expect("ANSI object HNID is four bytes"),
+                    .expect("ANSI inline value or object HNID is four bytes"),
             )
         } else {
             let hid = u32::try_from((allocations.len() + 1) * 0x20)

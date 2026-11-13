@@ -646,7 +646,7 @@ pub fn property_context_from_table_row_with_fallback_charset(
         );
     }
 
-    PropertyContext { values }
+    PropertyContext::from_values(values)
 }
 
 #[cfg(test)]

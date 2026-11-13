@@ -1,0 +1,55 @@
+name: Coverage temporary build tools
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: write
+concurrency:
+  group: coverage-focused-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  tools:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'agent/coverage-foundation'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format and test bounded implementation
+        run: |
+          cargo fmt
+          cargo test --lib
+          cargo clippy --all-targets --all-features -- -D warnings -A clippy::too_many_arguments
+      - name: Inspect approved Tika attachment diagnostics
+        run: |
+          cargo run -- extract --input tests/fixtures/upstream/tika-testPST.pst --output /tmp/coverage-tika --overwrite >/tmp/coverage-tika.log 2>&1 || test "$?" = 2
+          python3 - <<'PY'
+          import json, tarfile
+          from pathlib import Path
+          for archive in Path('/tmp/coverage-tika/archives').glob('*.tar'):
+              with tarfile.open(archive) as tf:
+                  for name in ('data/attachments.jsonl', 'data/embedded_messages.jsonl'):
+                      try:
+                          stream = tf.extractfile(name)
+                      except KeyError:
+                          continue
+                      for line in stream:
+                          row = json.loads(line)
+                          print(json.dumps({k: v for k, v in row.items() if k in ('attachment_key', 'attachment_method', 'size_bytes', 'extraction_status', 'status', 'source_ref')}))
+          PY
+      - name: Persist formatting only if branch still matches tested source
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git add src/pst/bth.rs src/pst/property_context.rs src/pst/node_payload.rs src/pst/property_node_resolver.rs src/pst/messages.rs src/pst/attachment_property_context.rs src/pst/attachment_table.rs src/pst/attachments.rs src/pst/folder_tree.rs
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "[COVERAGE-01] Format tested BTH source increment"
+            git push origin HEAD:refs/heads/agent/coverage-foundation
+          fi
