@@ -17,6 +17,9 @@ pub struct BthHeader {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BthEntry {
+    /// Unresolved out-of-line value, never payload bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unresolved_hnid: Option<u32>,
     pub key: Vec<u8>,
     pub value: Vec<u8>,
 }
@@ -134,7 +137,11 @@ fn parse_flat_entries(
             base_offset,
         )?
         .to_vec();
-        entries.push(BthEntry { key, value });
+        entries.push(BthEntry {
+            unresolved_hnid: None,
+            key,
+            value,
+        });
         cursor += entry_size;
     }
     Ok(entries)
@@ -248,20 +255,27 @@ fn property_context_entry(
         let value_hnid =
             u32::from_le_bytes([raw_value[2], raw_value[3], raw_value[4], raw_value[5]]);
         let tag = ((prop_id as u32) << 16) | prop_type as u32;
-        let value = if prop_type == PTYP_OBJECT {
+        let inline = matches!(prop_type, 0x0002 | 0x0003 | 0x0004 | 0x000a | 0x000b);
+        let mut unresolved_hnid = None;
+        let value = if prop_type == PTYP_OBJECT || inline {
             value_hnid.to_le_bytes().to_vec()
+        } else if value_hnid == 0 {
+            Vec::new()
+        } else if let Some(bytes) = heap.try_allocation_by_hnid(buf, value_hnid, base_offset) {
+            bytes.to_vec()
         } else {
-            heap.try_allocation_by_hnid(buf, value_hnid, base_offset)
-                .map(|bytes| bytes.to_vec())
-                .unwrap_or_else(|| value_hnid.to_le_bytes().to_vec())
+            unresolved_hnid = Some(value_hnid);
+            value_hnid.to_le_bytes().to_vec()
         };
         return BthEntry {
+            unresolved_hnid,
             key: tag.to_le_bytes().to_vec(),
             value,
         };
     }
 
     BthEntry {
+        unresolved_hnid: None,
         key: raw_key.to_vec(),
         value: raw_value.to_vec(),
     }

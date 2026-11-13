@@ -46,7 +46,7 @@ pub fn load_node_property_context_with_fallback_charset(
 ) -> PstdResult<LoadedNodePayload> {
     let payload = load_payload_block(reader, bbt, entry.data_block_id, limits)?;
     let payload_base_offset = payload.block_ref.offset.0;
-    let (bth, traversal_status) =
+    let (mut bth, traversal_status) =
         match load_heap_bth_from_candidates(&payload.bytes, payload_base_offset) {
             Ok((bth, status)) => (bth, status),
             Err(reason) => (
@@ -54,6 +54,15 @@ pub fn load_node_property_context_with_fallback_charset(
                 format!("legacy_flat_bth_property_context; pq11_heap_probe={reason}"),
             ),
         };
+    if traversal_status.starts_with("heap_bth") {
+        crate::pst::property_source::resolve_values(
+            &mut bth,
+            entry.subnode_block_id,
+            reader,
+            bbt,
+            limits,
+        );
+    }
     let property_report = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset)?;
     let properties = property_report
         .context

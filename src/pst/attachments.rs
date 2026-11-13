@@ -211,6 +211,9 @@ pub fn file_extension(filename: &str) -> Option<String> {
 
 fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u8>> {
     let value = properties.value(tag)?;
+    if value.status == "property_value_reference_unresolved" {
+        return None;
+    }
     match value.decoded.as_ref() {
         Some(MapiValue::Binary(bytes)) => Some(bytes.clone()),
         _ if !value.raw.is_empty() => Some(value.raw.clone()),
@@ -237,6 +240,9 @@ fn indirect_attachment_method(properties: &PropertyContext) -> bool {
 
 fn bool_property(properties: &PropertyContext, tag: u32) -> Option<bool> {
     let value = properties.value(tag)?;
+    if value.status == "property_value_reference_unresolved" {
+        return None;
+    }
     match value.decoded.as_ref() {
         Some(MapiValue::Boolean(value)) => Some(*value),
         _ => None,
@@ -245,6 +251,9 @@ fn bool_property(properties: &PropertyContext, tag: u32) -> Option<bool> {
 
 fn i32_property(properties: &PropertyContext, tag: u32) -> Option<i32> {
     let value = properties.value(tag)?;
+    if value.status == "property_value_reference_unresolved" {
+        return None;
+    }
     match value.decoded.as_ref() {
         Some(MapiValue::Integer32(value)) => Some(*value),
         _ => None,

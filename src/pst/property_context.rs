@@ -109,6 +109,22 @@ impl PropertyContext {
                 suspicious_property_tag_count += 1;
             }
 
+            if entry.unresolved_hnid.is_some() {
+                decode_error_count += 1;
+                values.insert(
+                    interpreted.tag,
+                    PropertyValue {
+                        tag: interpreted.tag,
+                        name: property_def(interpreted.tag)
+                            .map(|def| def.name.to_string())
+                            .unwrap_or_else(|| format!("unknown_0x{:08x}", interpreted.tag)),
+                        raw: entry.value.clone(),
+                        decoded: None,
+                        status: "property_value_reference_unresolved".to_string(),
+                    },
+                );
+                continue;
+            }
             let Some(def) = property_def(interpreted.tag) else {
                 unknown_property_count += 1;
                 unknown_property_tags.push(interpreted.tag);
@@ -368,14 +384,17 @@ mod tests {
             },
             entries: vec![
                 BthEntry {
+                    unresolved_hnid: None,
                     key: PR_SUBJECT.to_le_bytes().to_vec(),
                     value: utf16le("Hello"),
                 },
                 BthEntry {
+                    unresolved_hnid: None,
                     key: 0x9999_001fu32.to_le_bytes().to_vec(),
                     value: utf16le("Unknown"),
                 },
                 BthEntry {
+                    unresolved_hnid: None,
                     key: vec![1, 2],
                     value: vec![3, 4],
                 },
@@ -416,6 +435,7 @@ mod tests {
                 root_allocation: 0,
             },
             entries: vec![BthEntry {
+                unresolved_hnid: None,
                 key: PR_SUBJECT_A.to_le_bytes().to_vec(),
                 value: b"Hi\0".to_vec(),
             }],
@@ -441,6 +461,7 @@ mod tests {
                 root_allocation: 0,
             },
             entries: vec![BthEntry {
+                unresolved_hnid: None,
                 key: PR_SUBJECT_A.to_le_bytes().to_vec(),
                 value: vec![0x80, 0],
             }],
@@ -465,10 +486,12 @@ mod tests {
             },
             entries: vec![
                 BthEntry {
+                    unresolved_hnid: None,
                     key: PR_MESSAGE_CODEPAGE.to_le_bytes().to_vec(),
                     value: 1252i32.to_le_bytes().to_vec(),
                 },
                 BthEntry {
+                    unresolved_hnid: None,
                     key: PR_SUBJECT_A.to_le_bytes().to_vec(),
                     value: vec![0x80, 0],
                 },
@@ -500,10 +523,12 @@ mod tests {
             },
             entries: vec![
                 BthEntry {
+                    unresolved_hnid: None,
                     key: PR_INTERNET_CPID.to_le_bytes().to_vec(),
                     value: 65001i32.to_le_bytes().to_vec(),
                 },
                 BthEntry {
+                    unresolved_hnid: None,
                     key: PR_SUBJECT_A.to_le_bytes().to_vec(),
                     value: vec![0xc3, 0xa9, 0],
                 },
@@ -525,14 +550,17 @@ mod tests {
             },
             entries: vec![
                 BthEntry {
+                    unresolved_hnid: None,
                     key: PR_MESSAGE_CODEPAGE.to_le_bytes().to_vec(),
                     value: 1252i32.to_le_bytes().to_vec(),
                 },
                 BthEntry {
+                    unresolved_hnid: None,
                     key: PR_INTERNET_CPID.to_le_bytes().to_vec(),
                     value: 65001i32.to_le_bytes().to_vec(),
                 },
                 BthEntry {
+                    unresolved_hnid: None,
                     key: PR_SUBJECT_A.to_le_bytes().to_vec(),
                     value: vec![0x80, 0],
                 },
@@ -559,10 +587,12 @@ mod tests {
             },
             entries: vec![
                 BthEntry {
+                    unresolved_hnid: None,
                     key: PR_MESSAGE_CODEPAGE.to_le_bytes().to_vec(),
                     value: 9500i32.to_le_bytes().to_vec(),
                 },
                 BthEntry {
+                    unresolved_hnid: None,
                     key: PR_SUBJECT_A.to_le_bytes().to_vec(),
                     value: vec![0x80, 0],
                 },
@@ -598,10 +628,12 @@ mod tests {
                 },
                 entries: vec![
                     BthEntry {
+                        unresolved_hnid: None,
                         key: PR_MESSAGE_CODEPAGE.to_le_bytes().to_vec(),
                         value: code_page.to_le_bytes().to_vec(),
                     },
                     BthEntry {
+                        unresolved_hnid: None,
                         key: PR_SUBJECT_A.to_le_bytes().to_vec(),
                         value: raw.to_vec(),
                     },
@@ -626,10 +658,12 @@ mod tests {
             },
             entries: vec![
                 BthEntry {
+                    unresolved_hnid: None,
                     key: PR_MESSAGE_CODEPAGE.to_le_bytes().to_vec(),
                     value: 932i32.to_le_bytes().to_vec(),
                 },
                 BthEntry {
+                    unresolved_hnid: None,
                     key: PR_SUBJECT_A.to_le_bytes().to_vec(),
                     value: vec![0x82, 0x20],
                 },
@@ -656,6 +690,7 @@ mod tests {
                 root_allocation: 0,
             },
             entries: vec![BthEntry {
+                unresolved_hnid: None,
                 key: 0x001f_0037u32.to_le_bytes().to_vec(),
                 value: utf16le("Wrong shape"),
             }],
@@ -685,6 +720,7 @@ mod tests {
                 root_allocation: 0,
             },
             entries: vec![BthEntry {
+                unresolved_hnid: None,
                 key: PR_SUBJECT.swap_bytes().to_le_bytes().to_vec(),
                 value: utf16le("Swapped subject"),
             }],

@@ -280,6 +280,9 @@ fn body_type_summary(payloads: &[BodyPayload]) -> String {
 
 fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u8>> {
     let value = properties.value(tag)?;
+    if value.status == "property_value_reference_unresolved" {
+        return None;
+    }
     match value.decoded.as_ref() {
         Some(MapiValue::Binary(bytes))
             if !bytes.is_empty()
@@ -294,6 +297,9 @@ fn binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u
 
 fn opaque_binary_property_bytes(properties: &PropertyContext, tag: u32) -> Option<Vec<u8>> {
     let value = properties.value(tag)?;
+    if value.status == "property_value_reference_unresolved" {
+        return None;
+    }
     let bytes = match value.decoded.as_ref() {
         Some(MapiValue::Binary(bytes)) => bytes.clone(),
         _ => value.raw.clone(),

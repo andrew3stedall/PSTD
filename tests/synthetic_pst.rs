@@ -20,9 +20,9 @@ use synthetic_pst::{fnv1a64, Config, Fault, Manifest, ManifestMessage, Scenario}
 
 /// #622: a body larger than one heap allocation lives in a subnode stream and is
 /// extracted as the four reference bytes.
-const BODY_GAPS: &[Scenario] = &[Scenario::LargeBody];
+const BODY_GAPS: &[Scenario] = &[];
 /// #622: an empty attachment value is emitted as four literal bytes.
-const INTACT_ATTACHMENT_GAPS: &[Scenario] = &[Scenario::ZeroLengthAttachment];
+const INTACT_ATTACHMENT_GAPS: &[Scenario] = &[];
 /// #629 and #623: recipient rows are not read by column tag, so recipient counts are
 /// not asserted for populated tables. Empty tables must still emit no recipients.
 const RECIPIENT_GAP: bool = true;
@@ -348,6 +348,22 @@ fn check_attachments(
                 .find(|row| row["filename_original"] == attachment.filename.as_str())
                 .unwrap_or_else(|| panic!("{context}: no record for the embedded message"));
             assert_eq!(row["attachment_method"], 5, "{context}: embedded method");
+            continue;
+        }
+        if attachment.fault == Fault::MissingBlock {
+            if let Some(row) = rows
+                .iter()
+                .find(|row| row["filename_original"] == attachment.filename.as_str())
+            {
+                assert!(
+                    extraction.payload(row["archive_path"].as_str()).is_none(),
+                    "{context}: unresolved reference emitted as payload"
+                );
+                assert!(!row["extraction_status"]
+                    .as_str()
+                    .unwrap_or("")
+                    .starts_with("attachment_payload_extracted"));
+            }
             continue;
         }
         let damaged = attachment.fault != Fault::None || attachment.dangling_row;
