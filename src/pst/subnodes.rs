@@ -7,6 +7,7 @@ use crate::pst::nbt::{NbtEntry, NbtIndex};
 use crate::pst::payload::{load_payload_block, PayloadBlock};
 use crate::pst::primitives::{BlockId, NodeId};
 use crate::pst::reader::PstByteReader;
+use crate::pst::status_marker::marker_value;
 use crate::pst::table_context::TableContext;
 
 const SYNTHETIC_CHILD_REF_MAGIC: &[u8; 4] = b"SNOD";
@@ -466,7 +467,7 @@ fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayout {
                 .map(|row| row.values.len())
                 .sum::<usize>();
             let prefix_len = payload.bytes.len().min(TABLE_PAYLOAD_PREFIX_BYTES);
-            let prefix_hex = hex::encode(&payload.bytes[..prefix_len]);
+            let prefix_hex = crate::hexenc::encode(&payload.bytes[..prefix_len]);
             let prefix_truncated = usize::from(prefix_len < payload.bytes.len());
             SubnodeBlockLayout {
                 block_id: payload.block_id,
@@ -585,7 +586,7 @@ fn unsupported_payload_layout(payload: &PayloadBlock, reason: &str) -> SubnodeBl
             "subnode_layout_unsupported; reason={reason}; subnode_payload_block_id={}; subnode_payload_byte_len={}; subnode_payload_prefix_hex={}",
             payload.block_id.0,
             payload.bytes.len(),
-            hex::encode(&payload.bytes[..prefix_len])
+            crate::hexenc::encode(&payload.bytes[..prefix_len])
         ),
     }
 }
@@ -697,21 +698,13 @@ fn status_sum(layouts: &[SubnodeBlockLayout], key: &str) -> usize {
 }
 
 fn status_counter(status: &str, key: &str) -> usize {
-    let marker = format!("{key}=");
-    status
-        .split(&marker)
-        .nth(1)
-        .and_then(|tail| tail.split([';', ',']).next())
+    marker_value(status, key, '=')
         .and_then(|value| value.trim().parse::<usize>().ok())
         .unwrap_or(0)
 }
 
 fn status_value(status: &str, key: &str) -> String {
-    let marker = format!("{key}=");
-    status
-        .split(&marker)
-        .nth(1)
-        .and_then(|tail| tail.split([';', ',']).next())
+    marker_value(status, key, '=')
         .map(str::trim)
         .unwrap_or("")
         .to_string()

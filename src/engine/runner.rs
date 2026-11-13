@@ -28,6 +28,7 @@ use crate::pst::item_envelope::{
 };
 use crate::pst::item_routing::ItemTypeFilter;
 use crate::pst::limits::InputLimits;
+use crate::pst::status_marker::marker_value;
 
 pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     validate_config(&config)?;
@@ -930,13 +931,8 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
 }
 
 fn status_counter(status: &str, key: &str) -> usize {
-    let colon = format!("{key}:");
-    let equals = format!("{key}=");
-    status
-        .split(&colon)
-        .nth(1)
-        .or_else(|| status.split(&equals).nth(1))
-        .and_then(|tail| tail.split([',', ';']).next())
+    marker_value(status, key, ':')
+        .or_else(|| marker_value(status, key, '='))
         .and_then(|value| value.parse::<usize>().ok())
         .unwrap_or(0)
 }
@@ -1215,5 +1211,5 @@ fn write_root_progress(config: &ExtractConfig, event: &ProgressEvent) -> PstdRes
 pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    hex::encode(hasher.finalize())
+    crate::hexenc::encode(hasher.finalize())
 }

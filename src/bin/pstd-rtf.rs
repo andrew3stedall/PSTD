@@ -73,7 +73,7 @@ fn run() -> Result<(), String> {
 
 fn payload_diagnostic(payload: &BodyPayload) -> String {
     let prefix_len = payload.bytes.len().min(64);
-    let prefix = hex::encode(&payload.bytes[..prefix_len]);
+    let prefix = pstd::hexenc::encode(&payload.bytes[..prefix_len]);
     let header = if payload.bytes.len() >= 16 {
         format!(
             "compressed_size={:?};raw_size={:?};magic={:?};crc={:?}",

@@ -1,11 +1,15 @@
 use std::fs::{self, File};
-use std::io::Cursor;
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use tar::{Builder, Header};
 
 use crate::error::{PstdError, PstdResult};
 use crate::output::paths::{archive_path, archive_path_preserve_hidden, validate_archive_path};
+
+/// Archive entries are a 512-byte header, the data and padding; buffering turns those
+/// three or more writes per entry into one write per buffer.
+const TAR_WRITE_BUFFER_BYTES: usize = 256 * 1024;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ShardInfo {
@@ -22,7 +26,7 @@ pub struct TarShardWriter {
     current_size: u64,
     current_path: PathBuf,
     current_temp_path: PathBuf,
-    builder: Option<Builder<File>>,
+    builder: Option<Builder<BufWriter<File>>>,
     shards: Vec<ShardInfo>,
 }
 
@@ -48,7 +52,10 @@ impl TarShardWriter {
             current_size: 0,
             current_path,
             current_temp_path,
-            builder: Some(Builder::new(file)),
+            builder: Some(Builder::new(BufWriter::with_capacity(
+                TAR_WRITE_BUFFER_BYTES,
+                file,
+            ))),
             shards: Vec::new(),
         })
     }
@@ -80,7 +87,7 @@ impl TarShardWriter {
         self.builder
             .as_mut()
             .expect("tar builder is active")
-            .append_data(&mut header, path, Cursor::new(bytes))
+            .append_data(&mut header, path, bytes)
             .map_err(|err| PstdError::OutputWrite(err.to_string()))?;
         self.current_size = self.current_size.saturating_add(bytes.len() as u64);
         Ok(())
@@ -103,14 +110,19 @@ impl TarShardWriter {
             self.prefix, self.current_index
         ));
         let file = File::create(&self.current_temp_path)?;
-        self.builder = Some(Builder::new(file));
+        self.builder = Some(Builder::new(BufWriter::with_capacity(
+            TAR_WRITE_BUFFER_BYTES,
+            file,
+        )));
         Ok(())
     }
 
     fn finish_current(&mut self) -> PstdResult<()> {
-        if let Some(mut builder) = self.builder.take() {
-            builder.finish()?;
-            let file = builder.into_inner()?;
+        if let Some(builder) = self.builder.take() {
+            // `into_inner` writes the end-of-archive blocks; the explicit flush surfaces
+            // a write error instead of losing it when the buffer is dropped.
+            let mut file = builder.into_inner()?;
+            file.flush()?;
             drop(file);
             fs::rename(&self.current_temp_path, &self.current_path)?;
         }

@@ -153,7 +153,7 @@ fn materializes_exact_shared_eml_bytes_and_updates_record() {
     );
     assert_eq!(
         payloads[0].record.sha256,
-        hex::encode(Sha256::digest(&expected))
+        pstd::hexenc::encode(Sha256::digest(&expected))
     );
     assert_eq!(attachments[0].sha256, payloads[0].record.sha256);
 }

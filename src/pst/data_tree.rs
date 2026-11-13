@@ -365,7 +365,7 @@ pub fn load_unicode_xblock_payload(
             None,
             format!(
                 "resolved attachment payload has unexpected signature {}",
-                hex::encode(&payload.bytes[..payload.bytes.len().min(4)])
+                crate::hexenc::encode(&payload.bytes[..payload.bytes.len().min(4)])
             ),
         ));
     }

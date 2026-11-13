@@ -313,7 +313,7 @@ fn opaque_binary_property_bytes(properties: &PropertyContext, tag: u32) -> Optio
 fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    hex::encode(hasher.finalize())
+    crate::hexenc::encode(hasher.finalize())
 }
 
 #[cfg(test)]

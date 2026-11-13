@@ -105,7 +105,7 @@ fn main() {
         serde_json::json!({
             "mode": mode, "records": count, "body_bytes": body_bytes,
             "elapsed_ms": elapsed_ms, "output_bytes": bytes.len(),
-            "output_sha256": hex::encode(Sha256::digest(&bytes))
+            "output_sha256": pstd::hexenc::encode(Sha256::digest(&bytes))
         })
     );
 }
