@@ -123,7 +123,7 @@ fn artifact(path: &str, output_kind: &str, bytes: Vec<u8>, status: &str) -> Mail
             message_key: None,
             folder_path: "typed".to_string(),
             output_kind: output_kind.to_string(),
-            sha256: hex::encode(hasher.finalize()),
+            sha256: crate::hexenc::encode(hasher.finalize()),
             size_bytes: bytes.len() as u64,
             status: status.to_string(),
         },

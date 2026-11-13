@@ -1139,7 +1139,7 @@ fn push_header(output: &mut Vec<u8>, name: &str, value: &str) {
 fn artifact_sha256(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    hex::encode(hasher.finalize())
+    crate::hexenc::encode(hasher.finalize())
 }
 
 fn attachment_payload_matches_record(

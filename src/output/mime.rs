@@ -649,7 +649,7 @@ fn text_transfer_encoding(bytes: &[u8]) -> String {
 fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    hex::encode(hasher.finalize())
+    crate::hexenc::encode(hasher.finalize())
 }
 
 #[cfg(test)]

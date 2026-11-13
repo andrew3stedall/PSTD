@@ -953,7 +953,7 @@ fn base64_lines(bytes: &[u8]) -> String {
 fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    hex::encode(hasher.finalize())
+    pstd::hexenc::encode(hasher.finalize())
 }
 
 fn push_part(output: &mut String, content_type: &str, body: &str) {

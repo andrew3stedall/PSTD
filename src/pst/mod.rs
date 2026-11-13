@@ -38,6 +38,7 @@ pub mod property_context;
 pub mod reader;
 pub mod recipients;
 pub mod rtf;
+pub mod status_marker;
 pub mod subnodes;
 pub mod table_context;
 pub mod tc_bth;

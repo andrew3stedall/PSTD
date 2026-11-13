@@ -28,6 +28,7 @@ use crate::pst::item_envelope::{
 };
 use crate::pst::item_routing::ItemTypeFilter;
 use crate::pst::limits::InputLimits;
+use crate::pst::status_marker::{MarkerStyle, MarkerTotals};
 
 pub fn run_extract(config: ExtractConfig) -> PstdResult<ExtractionSummary> {
     validate_config(&config)?;
@@ -644,19 +645,67 @@ fn capability_error(capability: &InputCapability) -> PstdError {
     }
 }
 
+/// Every counter key read by `status_with_property_diagnostics`.
+const STATUS_COUNTER_KEYS: [&str; 40] = [
+    "plausible",
+    "suspicious",
+    "byte_swapped_selected",
+    "subnode_table_declared_columns",
+    "subnode_table_columns",
+    "subnode_table_declared_rows",
+    "subnode_table_rows",
+    "subnode_table_values",
+    "subnode_table_omitted_values",
+    "subnode_table_selected_columns",
+    "subnode_table_plausible_columns",
+    "subnode_table_unknown_columns",
+    "subnode_table_selected_values",
+    "subnode_table_plausible_values",
+    "subnode_table_unknown_values",
+    "subnode_table_byte_swapped_selected_columns",
+    "subnode_table_byte_swapped_plausible_columns",
+    "subnode_table_low_word_known_type_columns",
+    "subnode_table_high_word_known_type_columns",
+    "subnode_table_byte_swapped_selected_values",
+    "subnode_table_byte_swapped_plausible_values",
+    "subnode_table_low_word_known_type_values",
+    "subnode_table_high_word_known_type_values",
+    "subnode_table_first_unknown_tag",
+    "subnode_table_second_unknown_tag",
+    "subnode_table_first_unknown_tag_low_word",
+    "subnode_table_first_unknown_tag_high_word",
+    "subnode_table_second_unknown_tag_low_word",
+    "subnode_table_second_unknown_tag_high_word",
+    "subnode_table_row_width",
+    "subnode_table_first_unknown_offset",
+    "subnode_table_first_unknown_width",
+    "subnode_table_second_unknown_offset",
+    "subnode_table_second_unknown_width",
+    "subnode_references",
+    "subnode_decode_plans",
+    "subnode_decode_attempts",
+    "subnode_decoded_blocks",
+    "subnode_unsupported_layouts",
+    "subnode_child_references",
+];
+
 fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord]) -> String {
-    let plausible = messages
-        .iter()
-        .map(|message| status_counter(&message.extraction_status, "plausible"))
-        .sum::<usize>();
-    let suspicious = messages
-        .iter()
-        .map(|message| status_counter(&message.extraction_status, "suspicious"))
-        .sum::<usize>();
-    let byte_swapped_selected = messages
-        .iter()
-        .map(|message| status_counter(&message.extraction_status, "byte_swapped_selected"))
-        .sum::<usize>();
+    let style = MarkerStyle::ColonThenEquals;
+    let mut base_totals = MarkerTotals::new(&STATUS_COUNTER_KEYS, style);
+    base_totals.add(base_status);
+    let mut extraction_totals = MarkerTotals::new(&STATUS_COUNTER_KEYS, style);
+    let mut message_totals = MarkerTotals::new(&STATUS_COUNTER_KEYS, style);
+    for message in messages {
+        extraction_totals.add(&message.extraction_status);
+        message_totals.add(&message.extraction_status);
+        message_totals.add(&message.metadata_status);
+        message_totals.add(&message.body_status);
+        message_totals.add(&message.attachment_status);
+    }
+    let combined_total = |key: &str| base_totals.total(key) + message_totals.total(key);
+    let plausible = extraction_totals.total("plausible");
+    let suspicious = extraction_totals.total("suspicious");
+    let byte_swapped_selected = extraction_totals.total("byte_swapped_selected");
     let heap_bth_contexts =
         status_contains_count(messages, "pq10_traversal=heap_bth_property_context");
     let legacy_flat_bth_contexts =
@@ -683,15 +732,14 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         status_contains_count(messages, "pq12_boundary=candidate_heap_failed");
     let pq12_candidate_bth_failed =
         status_contains_count(messages, "pq12_boundary=candidate_bth_failed");
-    let pq13_subnode_references = status_counter(base_status, "subnode_references");
-    let pq13_subnode_decode_plans = status_counter(base_status, "subnode_decode_plans");
-    let pq13_subnode_decode_attempts = status_counter(base_status, "subnode_decode_attempts");
-    let pq15_decoded_subnode_blocks = status_counter(base_status, "subnode_decoded_blocks");
-    let pq15_unsupported_subnode_layouts =
-        status_counter(base_status, "subnode_unsupported_layouts");
+    let pq13_subnode_references = base_totals.total("subnode_references");
+    let pq13_subnode_decode_plans = base_totals.total("subnode_decode_plans");
+    let pq13_subnode_decode_attempts = base_totals.total("subnode_decode_attempts");
+    let pq15_decoded_subnode_blocks = base_totals.total("subnode_decoded_blocks");
+    let pq15_unsupported_subnode_layouts = base_totals.total("subnode_unsupported_layouts");
     let pq15_supported_subnode_layouts =
         pq15_decoded_subnode_blocks.saturating_sub(pq15_unsupported_subnode_layouts);
-    let pq16_child_references = status_counter(base_status, "subnode_child_references");
+    let pq16_child_references = base_totals.total("subnode_child_references");
     let pq16_table_like_subnode_layouts =
         if pq15_supported_subnode_layouts > 0 && pq16_child_references == 0 {
             pq15_supported_subnode_layouts
@@ -703,101 +751,49 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
     let pq17_table_parse_attempts = pq15_decoded_subnode_blocks;
     let pq17_table_parse_successes = pq16_table_like_subnode_layouts;
     let pq17_table_parse_failures = pq15_unsupported_subnode_layouts;
-    let pq21_table_declared_columns =
-        aggregate_status_counter(base_status, messages, "subnode_table_declared_columns");
-    let pq21_table_columns =
-        aggregate_status_counter(base_status, messages, "subnode_table_columns");
-    let pq21_table_declared_rows =
-        aggregate_status_counter(base_status, messages, "subnode_table_declared_rows");
-    let pq21_table_rows = aggregate_status_counter(base_status, messages, "subnode_table_rows");
-    let pq21_table_values = aggregate_status_counter(base_status, messages, "subnode_table_values");
-    let pq21_table_omitted_values =
-        aggregate_status_counter(base_status, messages, "subnode_table_omitted_values");
-    let pq24_selected_columns =
-        aggregate_status_counter(base_status, messages, "subnode_table_selected_columns");
-    let pq24_plausible_columns =
-        aggregate_status_counter(base_status, messages, "subnode_table_plausible_columns");
-    let pq24_unknown_columns =
-        aggregate_status_counter(base_status, messages, "subnode_table_unknown_columns");
-    let pq24_selected_values =
-        aggregate_status_counter(base_status, messages, "subnode_table_selected_values");
-    let pq24_plausible_values =
-        aggregate_status_counter(base_status, messages, "subnode_table_plausible_values");
-    let pq24_unknown_values =
-        aggregate_status_counter(base_status, messages, "subnode_table_unknown_values");
-    let pq25_byte_swapped_selected_columns = aggregate_status_counter(
-        base_status,
-        messages,
-        "subnode_table_byte_swapped_selected_columns",
-    );
-    let pq25_byte_swapped_plausible_columns = aggregate_status_counter(
-        base_status,
-        messages,
-        "subnode_table_byte_swapped_plausible_columns",
-    );
-    let pq25_low_word_known_type_columns = aggregate_status_counter(
-        base_status,
-        messages,
-        "subnode_table_low_word_known_type_columns",
-    );
-    let pq25_high_word_known_type_columns = aggregate_status_counter(
-        base_status,
-        messages,
-        "subnode_table_high_word_known_type_columns",
-    );
-    let pq25_byte_swapped_selected_values = aggregate_status_counter(
-        base_status,
-        messages,
-        "subnode_table_byte_swapped_selected_values",
-    );
-    let pq25_byte_swapped_plausible_values = aggregate_status_counter(
-        base_status,
-        messages,
-        "subnode_table_byte_swapped_plausible_values",
-    );
-    let pq25_low_word_known_type_values = aggregate_status_counter(
-        base_status,
-        messages,
-        "subnode_table_low_word_known_type_values",
-    );
-    let pq25_high_word_known_type_values = aggregate_status_counter(
-        base_status,
-        messages,
-        "subnode_table_high_word_known_type_values",
-    );
-    let pq27_first_unknown_tag =
-        aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_tag");
-    let pq27_second_unknown_tag =
-        aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_tag");
-    let pq27_first_unknown_tag_low_word = aggregate_status_counter(
-        base_status,
-        messages,
-        "subnode_table_first_unknown_tag_low_word",
-    );
-    let pq27_first_unknown_tag_high_word = aggregate_status_counter(
-        base_status,
-        messages,
-        "subnode_table_first_unknown_tag_high_word",
-    );
-    let pq27_second_unknown_tag_low_word = aggregate_status_counter(
-        base_status,
-        messages,
-        "subnode_table_second_unknown_tag_low_word",
-    );
-    let pq27_second_unknown_tag_high_word = aggregate_status_counter(
-        base_status,
-        messages,
-        "subnode_table_second_unknown_tag_high_word",
-    );
-    let pq31_row_width = aggregate_status_counter(base_status, messages, "subnode_table_row_width");
-    let pq31_first_unknown_offset =
-        aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_offset");
-    let pq31_first_unknown_width =
-        aggregate_status_counter(base_status, messages, "subnode_table_first_unknown_width");
-    let pq31_second_unknown_offset =
-        aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_offset");
-    let pq31_second_unknown_width =
-        aggregate_status_counter(base_status, messages, "subnode_table_second_unknown_width");
+    let pq21_table_declared_columns = combined_total("subnode_table_declared_columns");
+    let pq21_table_columns = combined_total("subnode_table_columns");
+    let pq21_table_declared_rows = combined_total("subnode_table_declared_rows");
+    let pq21_table_rows = combined_total("subnode_table_rows");
+    let pq21_table_values = combined_total("subnode_table_values");
+    let pq21_table_omitted_values = combined_total("subnode_table_omitted_values");
+    let pq24_selected_columns = combined_total("subnode_table_selected_columns");
+    let pq24_plausible_columns = combined_total("subnode_table_plausible_columns");
+    let pq24_unknown_columns = combined_total("subnode_table_unknown_columns");
+    let pq24_selected_values = combined_total("subnode_table_selected_values");
+    let pq24_plausible_values = combined_total("subnode_table_plausible_values");
+    let pq24_unknown_values = combined_total("subnode_table_unknown_values");
+    let pq25_byte_swapped_selected_columns =
+        combined_total("subnode_table_byte_swapped_selected_columns");
+    let pq25_byte_swapped_plausible_columns =
+        combined_total("subnode_table_byte_swapped_plausible_columns");
+    let pq25_low_word_known_type_columns =
+        combined_total("subnode_table_low_word_known_type_columns");
+    let pq25_high_word_known_type_columns =
+        combined_total("subnode_table_high_word_known_type_columns");
+    let pq25_byte_swapped_selected_values =
+        combined_total("subnode_table_byte_swapped_selected_values");
+    let pq25_byte_swapped_plausible_values =
+        combined_total("subnode_table_byte_swapped_plausible_values");
+    let pq25_low_word_known_type_values =
+        combined_total("subnode_table_low_word_known_type_values");
+    let pq25_high_word_known_type_values =
+        combined_total("subnode_table_high_word_known_type_values");
+    let pq27_first_unknown_tag = combined_total("subnode_table_first_unknown_tag");
+    let pq27_second_unknown_tag = combined_total("subnode_table_second_unknown_tag");
+    let pq27_first_unknown_tag_low_word =
+        combined_total("subnode_table_first_unknown_tag_low_word");
+    let pq27_first_unknown_tag_high_word =
+        combined_total("subnode_table_first_unknown_tag_high_word");
+    let pq27_second_unknown_tag_low_word =
+        combined_total("subnode_table_second_unknown_tag_low_word");
+    let pq27_second_unknown_tag_high_word =
+        combined_total("subnode_table_second_unknown_tag_high_word");
+    let pq31_row_width = combined_total("subnode_table_row_width");
+    let pq31_first_unknown_offset = combined_total("subnode_table_first_unknown_offset");
+    let pq31_first_unknown_width = combined_total("subnode_table_first_unknown_width");
+    let pq31_second_unknown_offset = combined_total("subnode_table_second_unknown_offset");
+    let pq31_second_unknown_width = combined_total("subnode_table_second_unknown_width");
     let pq17_table_columns = pq21_table_columns;
     let pq17_table_rows = pq21_table_rows;
     let pq18_candidate_rows = pq17_table_rows;
@@ -927,31 +923,6 @@ fn status_with_property_diagnostics(base_status: &str, messages: &[MessageRecord
         status.push_str(&format!("; pq27_status=table_descriptor_tag_source_visible; subnode_table_first_unknown_tag={pq27_first_unknown_tag}; subnode_table_second_unknown_tag={pq27_second_unknown_tag}; subnode_table_first_unknown_tag_low_word={pq27_first_unknown_tag_low_word}; subnode_table_first_unknown_tag_high_word={pq27_first_unknown_tag_high_word}; subnode_table_second_unknown_tag_low_word={pq27_second_unknown_tag_low_word}; subnode_table_second_unknown_tag_high_word={pq27_second_unknown_tag_high_word}; subnode_table_row_width={pq31_row_width}; subnode_table_first_unknown_offset={pq31_first_unknown_offset}; subnode_table_first_unknown_width={pq31_first_unknown_width}; subnode_table_second_unknown_offset={pq31_second_unknown_offset}; subnode_table_second_unknown_width={pq31_second_unknown_width}; pq27_next_blocker={}", pq27_next_blocker(pq27_first_unknown_tag, pq27_second_unknown_tag, pq24_unknown_values)));
     }
     status
-}
-
-fn status_counter(status: &str, key: &str) -> usize {
-    let colon = format!("{key}:");
-    let equals = format!("{key}=");
-    status
-        .split(&colon)
-        .nth(1)
-        .or_else(|| status.split(&equals).nth(1))
-        .and_then(|tail| tail.split([',', ';']).next())
-        .and_then(|value| value.parse::<usize>().ok())
-        .unwrap_or(0)
-}
-
-fn aggregate_status_counter(base_status: &str, messages: &[MessageRecord], key: &str) -> usize {
-    status_counter(base_status, key)
-        + messages
-            .iter()
-            .map(|message| {
-                status_counter(&message.extraction_status, key)
-                    + status_counter(&message.metadata_status, key)
-                    + status_counter(&message.body_status, key)
-                    + status_counter(&message.attachment_status, key)
-            })
-            .sum::<usize>()
 }
 
 fn status_contains_count(messages: &[MessageRecord], needle: &str) -> usize {
@@ -1215,5 +1186,5 @@ fn write_root_progress(config: &ExtractConfig, event: &ProgressEvent) -> PstdRes
 pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    hex::encode(hasher.finalize())
+    crate::hexenc::encode(hasher.finalize())
 }

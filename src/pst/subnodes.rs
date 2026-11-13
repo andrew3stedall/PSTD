@@ -7,6 +7,7 @@ use crate::pst::nbt::{NbtEntry, NbtIndex};
 use crate::pst::payload::{load_payload_block, PayloadBlock};
 use crate::pst::primitives::{BlockId, NodeId};
 use crate::pst::reader::PstByteReader;
+use crate::pst::status_marker::{marker_value, MarkerStyle, MarkerTotals};
 use crate::pst::table_context::TableContext;
 
 const SYNTHETIC_CHILD_REF_MAGIC: &[u8; 4] = b"SNOD";
@@ -292,6 +293,10 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
     } else {
         "subnode_layouts_unsupported"
     };
+    let mut layout_totals = MarkerTotals::new(&LAYOUT_COUNTER_KEYS, MarkerStyle::EqualsTrimmed);
+    for layout in &layouts {
+        layout_totals.add(&layout.status);
+    }
     let first_table_layout_status = layouts
         .iter()
         .find(|layout| layout.layout_kind == "table_context")
@@ -316,43 +321,43 @@ pub fn classify_subnode_payloads(payloads: &[PayloadBlock]) -> SubnodeLayoutRepo
             .iter()
             .filter(|layout| layout.layout_kind == "heap_bth")
             .count(),
-        status_sum(&layouts, "subnode_slblock_entries"),
-        status_sum(&layouts, "subnode_slblock_data_references"),
-        status_sum(&layouts, "subnode_slblock_sub_references"),
+        layout_totals.total("subnode_slblock_entries"),
+        layout_totals.total("subnode_slblock_data_references"),
+        layout_totals.total("subnode_slblock_sub_references"),
         status_counter(first_unsupported_layout_status, "subnode_payload_block_id"),
         status_counter(first_unsupported_layout_status, "subnode_payload_byte_len"),
         status_value(first_unsupported_layout_status, "subnode_payload_prefix_hex"),
-        status_sum(&layouts, "subnode_table_declared_columns"),
-        status_sum(&layouts, "subnode_table_columns"),
-        status_sum(&layouts, "subnode_table_declared_rows"),
-        status_sum(&layouts, "subnode_table_rows"),
-        status_sum(&layouts, "subnode_table_row_width"),
-        status_sum(&layouts, "subnode_table_values"),
-        status_sum(&layouts, "subnode_table_omitted_values"),
-        status_sum(&layouts, "subnode_table_selected_columns"),
-        status_sum(&layouts, "subnode_table_plausible_columns"),
-        status_sum(&layouts, "subnode_table_unknown_columns"),
-        status_sum(&layouts, "subnode_table_selected_values"),
-        status_sum(&layouts, "subnode_table_plausible_values"),
-        status_sum(&layouts, "subnode_table_unknown_values"),
-        status_sum(&layouts, "subnode_table_byte_swapped_selected_columns"),
-        status_sum(&layouts, "subnode_table_byte_swapped_plausible_columns"),
-        status_sum(&layouts, "subnode_table_low_word_known_type_columns"),
-        status_sum(&layouts, "subnode_table_high_word_known_type_columns"),
-        status_sum(&layouts, "subnode_table_byte_swapped_selected_values"),
-        status_sum(&layouts, "subnode_table_byte_swapped_plausible_values"),
-        status_sum(&layouts, "subnode_table_low_word_known_type_values"),
-        status_sum(&layouts, "subnode_table_high_word_known_type_values"),
-        status_sum(&layouts, "subnode_table_first_unknown_tag"),
-        status_sum(&layouts, "subnode_table_second_unknown_tag"),
-        status_sum(&layouts, "subnode_table_first_unknown_tag_low_word"),
-        status_sum(&layouts, "subnode_table_first_unknown_tag_high_word"),
-        status_sum(&layouts, "subnode_table_second_unknown_tag_low_word"),
-        status_sum(&layouts, "subnode_table_second_unknown_tag_high_word"),
-        status_sum(&layouts, "subnode_table_first_unknown_offset"),
-        status_sum(&layouts, "subnode_table_first_unknown_width"),
-        status_sum(&layouts, "subnode_table_second_unknown_offset"),
-        status_sum(&layouts, "subnode_table_second_unknown_width"),
+        layout_totals.total("subnode_table_declared_columns"),
+        layout_totals.total("subnode_table_columns"),
+        layout_totals.total("subnode_table_declared_rows"),
+        layout_totals.total("subnode_table_rows"),
+        layout_totals.total("subnode_table_row_width"),
+        layout_totals.total("subnode_table_values"),
+        layout_totals.total("subnode_table_omitted_values"),
+        layout_totals.total("subnode_table_selected_columns"),
+        layout_totals.total("subnode_table_plausible_columns"),
+        layout_totals.total("subnode_table_unknown_columns"),
+        layout_totals.total("subnode_table_selected_values"),
+        layout_totals.total("subnode_table_plausible_values"),
+        layout_totals.total("subnode_table_unknown_values"),
+        layout_totals.total("subnode_table_byte_swapped_selected_columns"),
+        layout_totals.total("subnode_table_byte_swapped_plausible_columns"),
+        layout_totals.total("subnode_table_low_word_known_type_columns"),
+        layout_totals.total("subnode_table_high_word_known_type_columns"),
+        layout_totals.total("subnode_table_byte_swapped_selected_values"),
+        layout_totals.total("subnode_table_byte_swapped_plausible_values"),
+        layout_totals.total("subnode_table_low_word_known_type_values"),
+        layout_totals.total("subnode_table_high_word_known_type_values"),
+        layout_totals.total("subnode_table_first_unknown_tag"),
+        layout_totals.total("subnode_table_second_unknown_tag"),
+        layout_totals.total("subnode_table_first_unknown_tag_low_word"),
+        layout_totals.total("subnode_table_first_unknown_tag_high_word"),
+        layout_totals.total("subnode_table_second_unknown_tag_low_word"),
+        layout_totals.total("subnode_table_second_unknown_tag_high_word"),
+        layout_totals.total("subnode_table_first_unknown_offset"),
+        layout_totals.total("subnode_table_first_unknown_width"),
+        layout_totals.total("subnode_table_second_unknown_offset"),
+        layout_totals.total("subnode_table_second_unknown_width"),
         status_counter(first_table_layout_status, "subnode_table_payload_byte_len"),
         status_counter(first_table_layout_status, "subnode_table_payload_prefix_byte_len"),
         status_counter(first_table_layout_status, "subnode_table_payload_prefix_truncated"),
@@ -466,7 +471,7 @@ fn classify_subnode_block_layout(payload: &PayloadBlock) -> SubnodeBlockLayout {
                 .map(|row| row.values.len())
                 .sum::<usize>();
             let prefix_len = payload.bytes.len().min(TABLE_PAYLOAD_PREFIX_BYTES);
-            let prefix_hex = hex::encode(&payload.bytes[..prefix_len]);
+            let prefix_hex = crate::hexenc::encode(&payload.bytes[..prefix_len]);
             let prefix_truncated = usize::from(prefix_len < payload.bytes.len());
             SubnodeBlockLayout {
                 block_id: payload.block_id,
@@ -585,7 +590,7 @@ fn unsupported_payload_layout(payload: &PayloadBlock, reason: &str) -> SubnodeBl
             "subnode_layout_unsupported; reason={reason}; subnode_payload_block_id={}; subnode_payload_byte_len={}; subnode_payload_prefix_hex={}",
             payload.block_id.0,
             payload.bytes.len(),
-            hex::encode(&payload.bytes[..prefix_len])
+            crate::hexenc::encode(&payload.bytes[..prefix_len])
         ),
     }
 }
@@ -689,29 +694,52 @@ fn empty_layout_report() -> SubnodeLayoutReport {
     }
 }
 
-fn status_sum(layouts: &[SubnodeBlockLayout], key: &str) -> usize {
-    layouts
-        .iter()
-        .map(|layout| status_counter(&layout.status, key))
-        .sum()
-}
+/// Every counter key summed over subnode layout statuses.
+const LAYOUT_COUNTER_KEYS: [&str; 34] = [
+    "subnode_slblock_entries",
+    "subnode_slblock_data_references",
+    "subnode_slblock_sub_references",
+    "subnode_table_declared_columns",
+    "subnode_table_columns",
+    "subnode_table_declared_rows",
+    "subnode_table_rows",
+    "subnode_table_row_width",
+    "subnode_table_values",
+    "subnode_table_omitted_values",
+    "subnode_table_selected_columns",
+    "subnode_table_plausible_columns",
+    "subnode_table_unknown_columns",
+    "subnode_table_selected_values",
+    "subnode_table_plausible_values",
+    "subnode_table_unknown_values",
+    "subnode_table_byte_swapped_selected_columns",
+    "subnode_table_byte_swapped_plausible_columns",
+    "subnode_table_low_word_known_type_columns",
+    "subnode_table_high_word_known_type_columns",
+    "subnode_table_byte_swapped_selected_values",
+    "subnode_table_byte_swapped_plausible_values",
+    "subnode_table_low_word_known_type_values",
+    "subnode_table_high_word_known_type_values",
+    "subnode_table_first_unknown_tag",
+    "subnode_table_second_unknown_tag",
+    "subnode_table_first_unknown_tag_low_word",
+    "subnode_table_first_unknown_tag_high_word",
+    "subnode_table_second_unknown_tag_low_word",
+    "subnode_table_second_unknown_tag_high_word",
+    "subnode_table_first_unknown_offset",
+    "subnode_table_first_unknown_width",
+    "subnode_table_second_unknown_offset",
+    "subnode_table_second_unknown_width",
+];
 
 fn status_counter(status: &str, key: &str) -> usize {
-    let marker = format!("{key}=");
-    status
-        .split(&marker)
-        .nth(1)
-        .and_then(|tail| tail.split([';', ',']).next())
+    marker_value(status, key, '=')
         .and_then(|value| value.trim().parse::<usize>().ok())
         .unwrap_or(0)
 }
 
 fn status_value(status: &str, key: &str) -> String {
-    let marker = format!("{key}=");
-    status
-        .split(&marker)
-        .nth(1)
-        .and_then(|tail| tail.split([';', ',']).next())
+    marker_value(status, key, '=')
         .map(str::trim)
         .unwrap_or("")
         .to_string()

@@ -775,7 +775,7 @@ fn property_stream(header: &[u8], mut properties: Vec<Property>) -> Vec<u8> {
 fn sha256(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    hex::encode(hasher.finalize())
+    crate::hexenc::encode(hasher.finalize())
 }
 
 #[derive(Debug)]

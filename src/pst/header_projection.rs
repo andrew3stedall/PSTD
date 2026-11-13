@@ -283,9 +283,13 @@ fn unicode_raw_is_well_formed(raw: &[u8]) -> bool {
 fn raw_fields(raw: &[u8]) -> (u64, Option<String>, Option<String>) {
     let mut hasher = Sha256::new();
     hasher.update(raw);
-    let digest = hex::encode(hasher.finalize());
+    let digest = crate::hexenc::encode(hasher.finalize());
     let bounded = &raw[..raw.len().min(MAX_RAW_HEADER_BYTES)];
-    (raw.len() as u64, Some(digest), Some(hex::encode(bounded)))
+    (
+        raw.len() as u64,
+        Some(digest),
+        Some(crate::hexenc::encode(bounded)),
+    )
 }
 
 #[cfg(test)]

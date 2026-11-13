@@ -113,11 +113,11 @@ fn evidence_record(
 fn raw_fields(bytes: &[u8]) -> (u64, Option<String>, Option<String>) {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    let raw_sha256 = hex::encode(hasher.finalize());
+    let raw_sha256 = crate::hexenc::encode(hasher.finalize());
     let raw_bytes_hex = if bytes.len() <= MAX_RAW_EVIDENCE_BYTES {
-        Some(hex::encode(bytes))
+        Some(crate::hexenc::encode(bytes))
     } else {
-        Some(hex::encode(&bytes[..MAX_RAW_EVIDENCE_BYTES]))
+        Some(crate::hexenc::encode(&bytes[..MAX_RAW_EVIDENCE_BYTES]))
     };
     (bytes.len() as u64, Some(raw_sha256), raw_bytes_hex)
 }

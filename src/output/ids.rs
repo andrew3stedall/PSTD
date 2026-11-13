@@ -7,7 +7,7 @@ pub fn stable_id(prefix: &str, parts: &[&str]) -> String {
         hasher.update([0x1f]);
     }
     let digest = hasher.finalize();
-    let short = &hex::encode(digest)[..16];
+    let short = &crate::hexenc::encode(digest)[..16];
     format!("{prefix}_{short}")
 }
 
