@@ -111,6 +111,12 @@ impl PropertyContext {
 
             if entry.unresolved_hnid.is_some() {
                 decode_error_count += 1;
+                if property_def(interpreted.tag).is_some() {
+                    selected_property_count += 1;
+                } else {
+                    unknown_property_count += 1;
+                    unknown_property_tags.push(interpreted.tag);
+                }
                 values.insert(
                     interpreted.tag,
                     PropertyValue {

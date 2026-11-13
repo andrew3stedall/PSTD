@@ -354,6 +354,28 @@ mod tests {
         assert_eq!(entry.value, 0x684u32.to_le_bytes());
     }
 
+    #[test]
+    fn distinguishes_empty_unresolved_and_inline_values_from_heap_ids() {
+        let bytes = property_context_heap();
+        let heap = HeapOnNode::parse(&bytes, 0).unwrap();
+        let entry = |ty: u16, hnid: u32| {
+            let mut raw = ty.to_le_bytes().to_vec();
+            raw.extend(hnid.to_le_bytes());
+            property_context_entry(&heap, &bytes, &0x1000u16.to_le_bytes(), &raw, 0)
+        };
+        for ty in [0x001e, 0x001f, 0x0102] {
+            let empty = entry(ty, 0);
+            assert!(empty.value.is_empty());
+            assert_eq!(empty.unresolved_hnid, None);
+            let missing = entry(ty, 0x31f);
+            assert_eq!(missing.unresolved_hnid, Some(0x31f));
+        }
+        // An integer that happens to equal a valid HID remains inline.
+        let integer = entry(0x0003, 0x60);
+        assert_eq!(integer.value, 0x60u32.to_le_bytes());
+        assert_eq!(integer.unresolved_hnid, None);
+    }
+
     fn property_context_heap() -> Vec<u8> {
         let subject = utf16le("Heap subject");
         let subject_end = 32u16 + subject.len() as u16;

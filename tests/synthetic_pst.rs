@@ -18,11 +18,6 @@ use synthetic_pst::{fnv1a64, Config, Fault, Manifest, ManifestMessage, Scenario}
 // Known reader gaps. Each constant names the only assertions it switches off and the
 // issue that tracks it; remove the entry when the issue is fixed.
 
-/// #622: a body larger than one heap allocation lives in a subnode stream and is
-/// extracted as the four reference bytes.
-const BODY_GAPS: &[Scenario] = &[];
-/// #622: an empty attachment value is emitted as four literal bytes.
-const INTACT_ATTACHMENT_GAPS: &[Scenario] = &[];
 /// #629 and #623: recipient rows are not read by column tag, so recipient counts are
 /// not asserted for populated tables. Empty tables must still emit no recipients.
 const RECIPIENT_GAP: bool = true;
@@ -31,7 +26,7 @@ const RECIPIENT_GAP: bool = true;
 const LARGE_FOLDER_GAP: bool = true;
 /// #626: folder nesting is not rebuilt, so folders are compared by name, not path.
 const FOLDER_NESTING_GAP: bool = true;
-/// #622, #624 and #625: what the reader reports for a damaged attachment itself
+/// #624 and #625: what the reader reports for a damaged attachment itself
 /// (wrong bytes, altered bytes, or no record) is not asserted. Its message, body and
 /// intact sibling attachments are.
 const DAMAGED_ATTACHMENT_GAP: bool = true;
@@ -315,7 +310,7 @@ fn check_body(
             .filter(|row| row["body_type"] == kind)
             .find_map(|row| extraction.payload(row["archive_path"].as_str()))
     };
-    if !expected.body_text.is_empty() && !BODY_GAPS.contains(&expected.scenario) {
+    if !expected.body_text.is_empty() {
         let text = payload("text").unwrap_or_else(|| panic!("{context}: no text body payload"));
         assert_eq!(
             fnv1a64(text),
@@ -367,9 +362,7 @@ fn check_attachments(
             continue;
         }
         let damaged = attachment.fault != Fault::None || attachment.dangling_row;
-        if (damaged && DAMAGED_ATTACHMENT_GAP)
-            || INTACT_ATTACHMENT_GAPS.contains(&expected.scenario)
-        {
+        if damaged && DAMAGED_ATTACHMENT_GAP {
             continue;
         }
         assert!(
