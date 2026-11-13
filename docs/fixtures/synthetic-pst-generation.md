@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`tools/synthetic_pst.rs` writes a Unicode PST of any size from a seed, together with a
+`tools/synthetic_pst.rs` writes a Unicode PST of configurable size from a seed, together with a
 manifest of what a correct reader must recover. It exists to measure extraction at
 scale and to pin robustness behaviour. No committed fixture is larger than 2.3 MB, and
 none contains deliberately damaged items.
@@ -41,7 +41,7 @@ rustc --edition=2021 -O --deny warnings tools/synthetic_pst.rs -o /tmp/synthetic
 /tmp/synthetic-pst --messages 20000 --seed 7 --manifest /tmp/mailbox.json /tmp/mailbox.pst
 ```
 
-The emitter refuses to overwrite an existing output. Tests include the same file as a
+The emitter refuses to overwrite either an existing PST output or manifest. Tests include the same file as a
 module (`tests/synthetic_pst.rs`) and call `generate` directly.
 
 ## Mailbox content
@@ -63,7 +63,7 @@ scenario in rotation:
 | `no_subject`, `empty_body`, `unicode_subject`, `long_subject`, `html_only` | Absent and unusual text properties |
 | `large_body` | A 60 KB body stored in a subnode data tree |
 | `many_recipients` | 300 recipients; table rows stored in a subnode |
-| `no_recipients` | A received message without a recipient table |
+| `no_recipients` | A received message with an empty recipient table |
 | `embedded_message` | An attachment that is itself a message |
 | `duplicate_message_id`, `orphan_message` | Repeated message id; a message in no contents table |
 | `zero_length_attachment`, `large_attachment`, `many_attachments` | Attachment size extremes and 25 attachments |

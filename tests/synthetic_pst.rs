@@ -24,7 +24,7 @@ const BODY_GAPS: &[Scenario] = &[Scenario::LargeBody];
 /// #622: an empty attachment value is emitted as four literal bytes.
 const INTACT_ATTACHMENT_GAPS: &[Scenario] = &[Scenario::ZeroLengthAttachment];
 /// #629 and #623: recipient rows are not read by column tag, so recipient counts are
-/// not asserted for any message.
+/// not asserted for populated tables. Empty tables must still emit no recipients.
 const RECIPIENT_GAP: bool = true;
 /// #623: contents-table rows stored in a subnode are not read, so messages in large
 /// folders have no folder. Folder ownership is asserted only for the small mailbox.
@@ -290,7 +290,7 @@ fn extraction_matches_the_manifest_and_contains_every_fault() {
 
         check_body(&extraction, &bodies, &key, expected, &context);
 
-        if !RECIPIENT_GAP {
+        if !RECIPIENT_GAP || expected.recipient_count == 0 {
             assert_eq!(
                 recipients.get(&key).copied().unwrap_or(0),
                 expected.recipient_count,

@@ -34,7 +34,7 @@ _Last reviewed: 1 September 2026._
 ## Synthetic PST generator — FIXTURE-01
 
 - Add `tools/synthetic_pst.rs`, a dependency-free deterministic emitter for Unicode
-  PST files of any size, with Drafts, Deleted Items, nested and non-ASCII folders,
+  PST files of configurable size, with Drafts, Deleted Items, nested and non-ASCII folders,
   edge-case messages, and deliberately damaged attachments and messages. It writes a
   manifest of what a reader must recover. See
   `docs/fixtures/synthetic-pst-generation.md`.

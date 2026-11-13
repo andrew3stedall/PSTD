@@ -8,8 +8,9 @@
 - Source boundary: tools/synthetic_pst.rs; tests/synthetic_pst.rs; docs/fixtures/synthetic-pst-generation.md; docs/changelog/unreleased.md.
 - Validation at implementation head: all 35 GitHub checks successful, including Rust, CLI/public progress, Python, Docker and fixture workflows. Handoff reports 503 tests passed locally; local clippy used existing too_many_arguments/unknown_lints allowances. No new local validation in resumed turn yet.
 - Scale evidence: same 20,000-message run: 125,989,888-byte PST, 9.8 s wall, 7.9 s user CPU, 1,482 MB RSS, 687,823,360-byte archive. Measurement is not a compatibility claim.
+- Resumed validation: cargo fmt --check passed; 4 synthetic integration tests passed before and after the final assertions; standalone rustc --deny warnings passed. CLI probes verified existing-manifest preservation, identical PST/manifest paths failing without overwriting PST, and fresh-output success. Empty recipient tables (including drafts) now assert zero recipients despite populated-table exclusions.
 - Blockers: none established; PR narrative is stale, final review pending. Cargo.lock is untracked pre-existing workspace output; keep it out of commits.
 
 ## Next exact change
 
-Review generator/tests for remaining correctness issues; refresh PR validation/result narrative to match 85f818e. Verify exact-head CI and review threads. Add concise current-state documentation if needed, remove this temporary checkpoint before merge, push final changes, and squash merge only when the exact head is green.
+Final bounded review fixes complete: CLI manifests use create_new, empty recipient tables remain asserted, current docs link evidence. Refresh PR narrative, remove checkpoint for merge readiness, push, verify exact-head CI, then squash merge. Verify exact-head CI and review threads. Add concise current-state documentation if needed, remove this temporary checkpoint before merge, push final changes, and squash merge only when the exact head is green.

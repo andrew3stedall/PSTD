@@ -46,6 +46,18 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 
 The method-5 record `att_a9c94a13d70f1cb3` publishes a 17,032-byte `message/rfc822` payload with SHA-256 `44f7e7bd7d8fbb8a8b7c506ffd6283024a86721f27870dd7dfb9da62065588db`. The recovered child now includes its validated attachment; the older 453-byte child baseline is historical. Those bytes are identical to standalone child `msg_0ff529af59d373d5.eml`. Inline parent EML now carries both the validated DOCX and recovered embedded-message payload; external mode publishes the same bytes at manifest-linked paths.
 
+## Synthetic robustness evidence — FIXTURE-01
+
+The [Unicode fixture generator](../fixtures/synthetic-pst-generation.md) adds
+configurable deterministic mailboxes including drafts, deleted mail and corrupt
+attachments on otherwise valid messages. The manifest tests preserve explicit
+exclusions for property subnodes/empty values (#622), table row subnodes (#623),
+checksums (#624), damaged-attachment records (#625), folder nesting (#626), and
+recipient column identity (#629). Scale measurements are recorded under #627.
+This fixture-only change does not fix those extraction gaps or establish general
+producer compatibility. Independent libpff/readpst probes are documented separately
+from PSTD acceptance.
+
 ## Latest completed work
 
 Attachment reference resolution now accepts the validated compact 4-byte SLENTRY form as well as the existing Unicode wide-entry form, with ambiguity and truncation remaining explicit failures. Method-6 `PR_ATTACH_DATA_OBJ` property-context references now have exact-byte wide/compact OLE data-tree regression coverage and reject duplicate mappings; broad reference/OLE producer coverage remains Partial.

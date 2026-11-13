@@ -2516,7 +2516,11 @@ fn main() -> io::Result<()> {
         .open(&output)?;
     let manifest = generate(io::BufWriter::with_capacity(1 << 20, file), config)?;
     if let Some(path) = manifest_path {
-        std::fs::write(path, manifest.to_json())?;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)?;
+        file.write_all(manifest.to_json().as_bytes())?;
     }
     println!(
         "wrote {output}: {} bytes, {} messages, {} folders, seed {}",
