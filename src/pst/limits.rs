@@ -44,7 +44,11 @@ pub struct ParserLimits {
 impl Default for ParserLimits {
     fn default() -> Self {
         Self {
-            max_btree_pages: 1024,
+            // A Unicode leaf page holds at most 20 BBT entries, so 1,024 pages indexed
+            // only ~20,000 blocks and silently dropped the rest of any larger PST.
+            // 262,144 pages covers ~5 million blocks; traversal is still bounded by the
+            // file size because every page offset is visited at most once.
+            max_btree_pages: 262_144,
             max_block_bytes: 64 * 1024 * 1024,
             max_subnode_depth: 16,
         }
@@ -83,7 +87,7 @@ mod tests {
     #[test]
     fn exposes_default_parser_limits() {
         let limits = ParserLimits::default();
-        assert_eq!(limits.max_btree_pages, 1024);
+        assert_eq!(limits.max_btree_pages, 262_144);
         assert_eq!(limits.max_block_bytes, 64 * 1024 * 1024);
         assert_eq!(limits.max_subnode_depth, 16);
     }
