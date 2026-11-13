@@ -40,8 +40,10 @@ _Last reviewed: 1 September 2026._
   `docs/fixtures/synthetic-pst-generation.md`.
 - Add `tests/synthetic_pst.rs`, which extracts a generated mailbox and compares the
   result with the manifest.
-- First use exposed reader gaps recorded as issues #622 to #627. No extraction
-  behaviour changes in this entry.
+- libpff and readpst open the generated files and export their folders, bodies and
+  intact attachments; this was checked by hand and is not yet a CI job.
+- First use exposed reader gaps recorded as issues #622 to #627 and #629. No
+  extraction behaviour changes in this entry.
 
 ## CPU hot spots — PERF-03
 

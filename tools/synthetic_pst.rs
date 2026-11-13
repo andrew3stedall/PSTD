@@ -126,11 +126,105 @@ const PR_NAMEID_STREAM_GUID: u32 = 0x0002_0102;
 const PR_NAMEID_STREAM_ENTRY: u32 = 0x0003_0102;
 const PR_NAMEID_STREAM_STRING: u32 = 0x0004_0102;
 
+const PR_MESSAGE_STATUS: u32 = 0x0e17_0003;
+const PR_SEARCH_KEY: u32 = 0x300b_0102;
+const PR_ENTRYID: u32 = 0x0fff_0102;
+const PR_7BIT_DISPLAY_NAME: u32 = 0x39ff_001f;
+const PR_SEND_RICH_INFO: u32 = 0x3a40_000b;
+const PR_SENSITIVITY: u32 = 0x0036_0003;
+
+const NID_SEARCH_MANAGEMENT_QUEUE: u32 = 0x1e1;
+const NID_SEARCH_ACTIVITY_LIST: u32 = 0x201;
+const NID_SPAM_SEARCH_FOLDER: u32 = 0x2223;
+const NID_SPAM_SEARCH_UPDATE_QUEUE: u32 = 0x2226;
+const NID_SPAM_SEARCH_CRITERIA: u32 = 0x2227;
+const NID_SPAM_SEARCH_CONTENTS_TABLE: u32 = 0x2230;
+const NID_HIERARCHY_TABLE_TEMPLATE: u32 = 0x60d;
+const NID_CONTENTS_TABLE_TEMPLATE: u32 = 0x60e;
+const NID_ASSOC_CONTENTS_TABLE_TEMPLATE: u32 = 0x60f;
+const NID_SEARCH_CONTENTS_TABLE_TEMPLATE: u32 = 0x610;
+
+/// Column sets of the MS-PST table templates. Populated tables declare the same
+/// columns; cells the generator has no value for stay absent.
+const HIERARCHY_SCHEMA: &[u32] = &[
+    0x0e30_0003,
+    0x0e33_0014,
+    0x0e34_0102,
+    0x0e38_0003,
+    PR_DISPLAY_NAME,
+    PR_CONTENT_COUNT,
+    PR_CONTENT_UNREAD,
+    PR_SUBFOLDERS,
+    0x3613_001f,
+    0x6635_0003,
+    0x6636_0003,
+];
+const CONTENTS_SCHEMA: &[u32] = &[
+    PR_IMPORTANCE,
+    PR_MESSAGE_CLASS,
+    PR_SENSITIVITY,
+    PR_SUBJECT,
+    PR_CLIENT_SUBMIT_TIME,
+    PR_SENT_REPRESENTING_NAME,
+    0x0057_000b,
+    0x0058_000b,
+    0x0070_001f,
+    0x0071_0102,
+    PR_DISPLAY_CC,
+    PR_DISPLAY_TO,
+    PR_MESSAGE_DELIVERY_TIME,
+    PR_MESSAGE_FLAGS,
+    PR_MESSAGE_SIZE,
+    PR_MESSAGE_STATUS,
+    0x0e30_0003,
+    0x0e33_0014,
+    0x0e34_0102,
+    0x0e38_0003,
+    0x0e3c_0102,
+    0x0e3d_0102,
+    0x1097_0003,
+    PR_LAST_MODIFICATION_TIME,
+    0x65c6_0003,
+];
+const ASSOC_CONTENTS_SCHEMA: &[u32] = &[
+    PR_MESSAGE_CLASS,
+    PR_MESSAGE_FLAGS,
+    PR_MESSAGE_STATUS,
+    PR_DISPLAY_NAME,
+    0x6800_001f,
+    0x6803_000b,
+    0x6805_1003,
+    0x7003_0003,
+    0x7004_0102,
+    0x7005_0102,
+    0x7006_001f,
+    0x7007_0003,
+];
+const RECIPIENT_SCHEMA: &[u32] = &[
+    PR_RECIPIENT_TYPE,
+    PR_RESPONSIBILITY,
+    PR_RECORD_KEY,
+    PR_OBJECT_TYPE,
+    PR_ENTRYID,
+    PR_DISPLAY_NAME,
+    PR_ADDRTYPE,
+    PR_EMAIL_ADDRESS,
+    PR_SEARCH_KEY,
+    PR_DISPLAY_TYPE,
+    PR_SMTP_ADDRESS,
+    PR_7BIT_DISPLAY_NAME,
+    PR_SEND_RICH_INFO,
+];
+const ATTACHMENT_SCHEMA: &[u32] = &[
+    PR_ATTACH_SIZE,
+    PR_ATTACH_FILENAME,
+    PR_ATTACH_METHOD,
+    PR_RENDERING_POSITION,
+];
+
 const MSGFLAG_READ: u32 = 0x01;
 const MSGFLAG_UNSENT: u32 = 0x08;
 const MSGFLAG_HASATTACH: u32 = 0x10;
-
-const EMBEDDED_OBJECT_NOMINAL_BYTES: u32 = 4096;
 
 /// 2020-01-01T00:00:00Z as a FILETIME.
 const BASE_FILETIME: u64 = 132_223_104_000_000_000;
@@ -404,7 +498,39 @@ impl Heap {
             assert!(block.len() <= MAX_BLOCK_DATA);
             out.push(block);
         }
+        // Fill-level maps: one nibble per block, low nibble first. The first header
+        // covers blocks 0..8; each bitmap header covers itself and the next 127 blocks.
+        let levels: Vec<u8> = out
+            .iter()
+            .map(|block| Self::fill_level(MAX_BLOCK_DATA - block.len()))
+            .collect();
+        for (block_index, block) in out.iter_mut().enumerate() {
+            let (map_offset, first, count) = if block_index == 0 {
+                (8, 0, 8)
+            } else if block_index % 128 == 8 {
+                (2, block_index, 128)
+            } else {
+                continue;
+            };
+            for slot in 0..count {
+                let Some(level) = levels.get(first + slot) else {
+                    break;
+                };
+                block[map_offset + slot / 2] |= level << ((slot % 2) * 4);
+            }
+        }
         out
+    }
+
+    /// Fill-level nibble for a block with `free` unused bytes.
+    fn fill_level(free: usize) -> u8 {
+        const THRESHOLDS: [usize; 15] = [
+            3584, 2560, 2048, 1792, 1536, 1280, 1024, 768, 512, 256, 128, 64, 32, 16, 8,
+        ];
+        THRESHOLDS
+            .iter()
+            .position(|threshold| free >= *threshold)
+            .unwrap_or(15) as u8
     }
 }
 
@@ -492,6 +618,17 @@ impl NodeData {
             children,
             fault: Fault::None,
         }
+    }
+
+    /// Data bytes of this node and, recursively, of its subnodes.
+    fn total_bytes(&self) -> usize {
+        self.blocks.iter().map(Vec::len).sum::<usize>()
+            + self
+                .children
+                .nodes
+                .iter()
+                .map(|(_, node)| node.total_bytes())
+                .sum::<usize>()
     }
 }
 
@@ -638,6 +775,19 @@ struct TableRow {
     row_id: u32,
     /// One value per declared column; `None` leaves the cell absent.
     values: Vec<Option<Vec<u8>>>,
+}
+
+/// A row for `schema` holding the given cells; other columns stay absent.
+fn schema_row(schema: &[u32], row_id: u32, cells: Vec<(u32, Vec<u8>)>) -> TableRow {
+    let mut values = vec![None; schema.len()];
+    for (tag, value) in cells {
+        let column = schema
+            .iter()
+            .position(|candidate| *candidate == tag)
+            .expect("cell tag is part of the schema");
+        values[column] = Some(value);
+    }
+    TableRow { row_id, values }
 }
 
 fn column_width(tag: u32) -> usize {
@@ -870,7 +1020,10 @@ impl<W: Write + Seek> Emitter<W> {
             children,
             fault,
         } = node;
-        assert!(!blocks.is_empty(), "a node has at least one data block");
+        if blocks.is_empty() {
+            // A node without data, such as an empty queue, has no data block.
+            return Ok((0, self.write_subnodes(children)?));
+        }
         if fault == Fault::Garbage {
             for block in &mut blocks {
                 *block = self.garbage.bytes(block.len());
@@ -1057,8 +1210,14 @@ impl<W: Write + Seek> Emitter<W> {
         header[15] = 1;
         put_u64(&mut header, 32, self.next_page_bid);
         put_u32(&mut header, 40, 1);
-        for slot in 0..32 {
-            put_u32(&mut header, 44 + slot * 4, 0x0010_0000);
+        // rgnid: next free index per node id type; untouched types keep the initial 0x400.
+        let mut next_index = [0x400u32; 32];
+        for (nid, _, _, _) in &self.nbt {
+            let slot = (nid & 0x1f) as usize;
+            next_index[slot] = next_index[slot].max((nid >> 5) + 1);
+        }
+        for (slot, index) in next_index.iter().enumerate() {
+            put_u32(&mut header, 44 + slot * 4, *index);
         }
         put_u64(&mut header, 184, self.offset);
         put_u64(&mut header, 216, nbt_bid);
@@ -1206,6 +1365,7 @@ struct FolderSpec {
 
 const FOLDER_ROOT: usize = 0;
 const FOLDER_IPM_SUBTREE: usize = 1;
+const FOLDER_SEARCH_ROOT: usize = 2;
 const FOLDER_DELETED: usize = 3;
 
 const FOLDERS: &[FolderSpec] = &[
@@ -1418,11 +1578,12 @@ fn build_attachment(plan: &AttachmentPlan, embedded: Option<NodeData>) -> NodeDa
         prop_i32(PR_RENDERING_POSITION, -1),
     ];
     if let Some(message) = embedded {
+        // ulSize: the data bytes of the embedded message and its subnodes.
+        let embedded_bytes = message.total_bytes();
         let nid = children.next_nid(NID_TYPE_NORMAL_MESSAGE);
         children.add(nid, message);
         let mut object = nid.to_le_bytes().to_vec();
-        // ulSize: the nominal size of the embedded object; readers reject zero.
-        object.extend_from_slice(&EMBEDDED_OBJECT_NOMINAL_BYTES.to_le_bytes());
+        object.extend_from_slice(&(embedded_bytes as u32).to_le_bytes());
         props.push(Prop {
             tag: PR_ATTACH_DATA_OBJ,
             value: object,
@@ -1566,7 +1727,8 @@ fn build_message(
         })
         .collect();
     let internet_message_id = match scenario {
-        Scenario::DuplicateMessageId => "<duplicate.synthetic@example.com>".to_string(),
+        // Shares the id of message 0, so every mailbox holds a duplicate pair.
+        Scenario::DuplicateMessageId => format!("<synthetic.{seed}.0.0@example.com>"),
         _ => format!("<synthetic.{seed}.{index}.{depth}@example.com>"),
     };
     let time = BASE_FILETIME + (index as u64) * 7 * FILETIME_MINUTE;
@@ -1756,6 +1918,11 @@ fn build_message(
         prop_time(PR_CREATION_TIME, time),
         prop_time(PR_LAST_MODIFICATION_TIME, time + FILETIME_MINUTE),
         prop_str(PR_INTERNET_MESSAGE_ID, &internet_message_id),
+        prop_i32(PR_MESSAGE_STATUS, 0),
+        prop_bin(
+            PR_SEARCH_KEY,
+            &Rng::new(seed ^ (index as u64) ^ 0x5ea2_c4b1_d00d).bytes(16),
+        ),
     ];
     if !subject.is_empty() {
         props.push(prop_str(PR_SUBJECT, &subject));
@@ -1803,49 +1970,37 @@ fn build_message(
         + 512) as u32;
     props.push(prop_i32(PR_MESSAGE_SIZE, size as i32));
 
-    // Recipient table (present on every message except the no-recipients shapes).
-    if scenario != Scenario::NoRecipients || draft {
-        let columns = [
-            PR_RECIPIENT_TYPE,
-            PR_RESPONSIBILITY,
-            PR_OBJECT_TYPE,
-            PR_DISPLAY_NAME,
-            PR_ADDRTYPE,
-            PR_EMAIL_ADDRESS,
-            PR_DISPLAY_TYPE,
-            PR_SMTP_ADDRESS,
-        ];
-        let rows: Vec<TableRow> = recipients
-            .iter()
-            .enumerate()
-            .map(|(position, (name, email, kind))| TableRow {
-                row_id: position as u32,
-                values: vec![
-                    Some(kind.to_le_bytes().to_vec()),
-                    Some(vec![1]),
-                    Some(6i32.to_le_bytes().to_vec()),
-                    Some(utf16(name)),
-                    Some(utf16("SMTP")),
-                    Some(utf16(email)),
-                    Some(0i32.to_le_bytes().to_vec()),
-                    Some(utf16(email)),
+    // Recipient table: required on every message, with zero rows when there are none.
+    let rows: Vec<TableRow> = recipients
+        .iter()
+        .enumerate()
+        .map(|(position, (name, email, kind))| {
+            schema_row(
+                RECIPIENT_SCHEMA,
+                position as u32,
+                vec![
+                    (PR_RECIPIENT_TYPE, kind.to_le_bytes().to_vec()),
+                    (PR_RESPONSIBILITY, vec![1]),
+                    (PR_OBJECT_TYPE, 6i32.to_le_bytes().to_vec()),
+                    (PR_DISPLAY_NAME, utf16(name)),
+                    (PR_ADDRTYPE, utf16("SMTP")),
+                    (PR_EMAIL_ADDRESS, utf16(email)),
+                    (PR_DISPLAY_TYPE, 0i32.to_le_bytes().to_vec()),
+                    (PR_SMTP_ADDRESS, utf16(email)),
+                    (PR_7BIT_DISPLAY_NAME, utf16(name)),
+                    (PR_SEND_RICH_INFO, vec![0]),
                 ],
-            })
-            .collect();
-        let mut table_children = SubnodeSet::new();
-        let blocks = build_table_context(&columns, &rows, &mut table_children);
-        children.add(NID_RECIPIENT_TABLE, NodeData::new(blocks, table_children));
-    }
+            )
+        })
+        .collect();
+    let mut table_children = SubnodeSet::new();
+    let blocks = build_table_context(RECIPIENT_SCHEMA, &rows, &mut table_children);
+    children.add(NID_RECIPIENT_TABLE, NodeData::new(blocks, table_children));
 
     // Attachment table and attachment nodes.
     let mut manifest_attachments = Vec::new();
     if !plans.is_empty() {
-        let columns = [
-            PR_ATTACH_SIZE,
-            PR_ATTACH_FILENAME,
-            PR_ATTACH_METHOD,
-            PR_RENDERING_POSITION,
-        ];
+        let columns = ATTACHMENT_SCHEMA;
         let mut rows = Vec::new();
         for (position, attachment) in plans.iter().enumerate() {
             let nid = children.next_nid(NID_TYPE_ATTACHMENT);
@@ -1885,7 +2040,7 @@ fn build_message(
             });
         }
         let mut table_children = SubnodeSet::new();
-        let blocks = build_table_context(&columns, &rows, &mut table_children);
+        let blocks = build_table_context(columns, &rows, &mut table_children);
         children.add(NID_ATTACHMENT_TABLE, NodeData::new(blocks, table_children));
     }
 
@@ -1919,6 +2074,7 @@ fn build_message(
 
 struct ContentsRow {
     row_id: u32,
+    message_class: String,
     subject: String,
     flags: u32,
     size: u32,
@@ -1930,6 +2086,64 @@ fn entry_id(nid: u32) -> Vec<u8> {
     bytes.extend_from_slice(b"SYNTHETIC-PST-01");
     bytes.extend_from_slice(&nid.to_le_bytes());
     bytes
+}
+
+/// Named-property map with one numeric and one string name in PSETID_Common, laid
+/// out as the GUID, entry and string streams plus the hash buckets that index them.
+fn name_to_id_map_properties() -> Vec<Prop> {
+    const BUCKETS: u32 = 251;
+    // PSETID_Common {00062008-0000-0000-C000-000000000046}.
+    let guid: [u8; 16] = [
+        0x08, 0x20, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x46,
+    ];
+    let name = utf16("SyntheticGeneratorSeed");
+    let mut strings = (name.len() as u32).to_le_bytes().to_vec();
+    strings.extend_from_slice(&name);
+    while !strings.len().is_multiple_of(4) {
+        strings.push(0);
+    }
+    // wGuid field: bit 0 marks a string name; the remaining bits hold the GUID index,
+    // where 3 is the first entry of the GUID stream.
+    let numeric_guid: u16 = 3 << 1;
+    let string_guid: u16 = (3 << 1) | 1;
+    let entry = |id: u32, guid_field: u16, index: u16| {
+        let mut bytes = id.to_le_bytes().to_vec();
+        bytes.extend_from_slice(&guid_field.to_le_bytes());
+        bytes.extend_from_slice(&index.to_le_bytes());
+        bytes
+    };
+    let numeric = entry(0x8501, numeric_guid, 0);
+    let string = entry(0, string_guid, 1);
+    let mut entries = numeric.clone();
+    entries.extend_from_slice(&string);
+
+    let mut buckets: Vec<(u32, Vec<u8>)> = Vec::new();
+    let mut add = |hash: u32, guid_field: u16, record: &[u8]| {
+        let bucket = (hash ^ u32::from(guid_field)) % BUCKETS;
+        match buckets.iter_mut().find(|(index, _)| *index == bucket) {
+            Some((_, bytes)) => bytes.extend_from_slice(record),
+            None => buckets.push((bucket, record.to_vec())),
+        }
+    };
+    add(0x8501, numeric_guid, &numeric);
+    // A string name is hashed by its CRC and stored with that hash as its id.
+    let name_hash = crc32(&name);
+    add(name_hash, string_guid, &entry(name_hash, string_guid, 1));
+
+    let mut props = vec![
+        prop_i32(PR_NAMEID_BUCKET_COUNT, BUCKETS as i32),
+        prop_bin(PR_NAMEID_STREAM_GUID, &guid),
+        prop_bin(PR_NAMEID_STREAM_ENTRY, &entries),
+        prop_bin(PR_NAMEID_STREAM_STRING, &strings),
+    ];
+    for (bucket, bytes) in buckets {
+        props.push(prop_bin(
+            ((0x1000 + bucket) << 16) | u32::from(PT_BINARY),
+            &bytes,
+        ));
+    }
+    props
 }
 
 /// Writes a synthetic mailbox to `out` and returns what a reader should recover.
@@ -1950,6 +2164,7 @@ pub fn generate<W: Write + Seek>(out: W, config: Config) -> io::Result<Manifest>
         if manifest.in_contents_table {
             contents[folder].push(ContentsRow {
                 row_id: nid,
+                message_class: manifest.message_class.clone(),
                 subject: manifest.subject.clone(),
                 flags: built.flags,
                 size: built.size,
@@ -1961,6 +2176,7 @@ pub fn generate<W: Write + Seek>(out: W, config: Config) -> io::Result<Manifest>
             let ghost = ((0x0100_0000 + index as u32) << 5) | NID_TYPE_NORMAL_MESSAGE;
             contents[folder].push(ContentsRow {
                 row_id: ghost,
+                message_class: "IPM.Note".to_string(),
                 subject: format!("ghost row {index}"),
                 flags: MSGFLAG_READ,
                 size: 0,
@@ -1986,7 +2202,7 @@ pub fn generate<W: Write + Seek>(out: W, config: Config) -> io::Result<Manifest>
                 PR_IPM_WASTEBASKET_ENTRYID,
                 &entry_id(folder_nid(FOLDER_DELETED)),
             ),
-            prop_bin(PR_FINDER_ENTRYID, &entry_id(folder_nid(2))),
+            prop_bin(PR_FINDER_ENTRYID, &entry_id(folder_nid(FOLDER_SEARCH_ROOT))),
             prop_i32(PR_VALID_FOLDER_MASK, 0x89),
             prop_i32(PR_PST_PASSWORD, 0),
         ],
@@ -1994,18 +2210,63 @@ pub fn generate<W: Write + Seek>(out: W, config: Config) -> io::Result<Manifest>
     );
     emitter.add_node(NID_MESSAGE_STORE, 0, NodeData::new(store, store_children))?;
 
-    // Named property map with no named properties.
     let mut map_children = SubnodeSet::new();
-    let map = build_property_context(
-        vec![
-            prop_i32(PR_NAMEID_BUCKET_COUNT, 251),
-            prop_bin(PR_NAMEID_STREAM_GUID, &[]),
-            prop_bin(PR_NAMEID_STREAM_ENTRY, &[]),
-            prop_bin(PR_NAMEID_STREAM_STRING, &[]),
-        ],
-        &mut map_children,
-    );
+    let map = build_property_context(name_to_id_map_properties(), &mut map_children);
     emitter.add_node(NID_NAME_TO_ID_MAP, 0, NodeData::new(map, map_children))?;
+
+    // Search management nodes (empty) and the table templates.
+    for nid in [NID_SEARCH_MANAGEMENT_QUEUE, NID_SEARCH_ACTIVITY_LIST] {
+        emitter.add_node(nid, 0, NodeData::new(Vec::new(), SubnodeSet::default()))?;
+    }
+    for (nid, schema) in [
+        (NID_HIERARCHY_TABLE_TEMPLATE, HIERARCHY_SCHEMA),
+        (NID_CONTENTS_TABLE_TEMPLATE, CONTENTS_SCHEMA),
+        (NID_ASSOC_CONTENTS_TABLE_TEMPLATE, ASSOC_CONTENTS_SCHEMA),
+        (NID_SEARCH_CONTENTS_TABLE_TEMPLATE, CONTENTS_SCHEMA),
+        (NID_ATTACHMENT_TABLE, ATTACHMENT_SCHEMA),
+        (NID_RECIPIENT_TABLE, RECIPIENT_SCHEMA),
+    ] {
+        let mut table_children = SubnodeSet::new();
+        let table = build_table_context(schema, &[], &mut table_children);
+        emitter.add_node(nid, 0, NodeData::new(table, table_children))?;
+    }
+
+    // The search folder object the minimum hierarchy requires, with its empty
+    // update queue, criteria object and search contents table.
+    let mut search_children = SubnodeSet::new();
+    let search_folder = build_property_context(
+        vec![
+            prop_str(PR_DISPLAY_NAME, "Spam Search Folder 2"),
+            prop_i32(PR_CONTENT_COUNT, 0),
+            prop_i32(PR_CONTENT_UNREAD, 0),
+            prop_bool(PR_SUBFOLDERS, false),
+        ],
+        &mut search_children,
+    );
+    emitter.add_node(
+        NID_SPAM_SEARCH_FOLDER,
+        folder_nid(FOLDER_SEARCH_ROOT),
+        NodeData::new(search_folder, search_children),
+    )?;
+    for nid in [NID_SPAM_SEARCH_UPDATE_QUEUE, NID_SPAM_SEARCH_CRITERIA] {
+        emitter.add_node(nid, 0, NodeData::new(Vec::new(), SubnodeSet::default()))?;
+    }
+    let mut table_children = SubnodeSet::new();
+    let table = build_table_context(CONTENTS_SCHEMA, &[], &mut table_children);
+    emitter.add_node(
+        NID_SPAM_SEARCH_CONTENTS_TABLE,
+        0,
+        NodeData::new(table, table_children),
+    )?;
+
+    let unread_counts: Vec<usize> = contents
+        .iter()
+        .map(|rows| {
+            rows.iter()
+                .filter(|row| row.flags & MSGFLAG_READ == 0)
+                .count()
+        })
+        .collect();
 
     // Folders with their hierarchy, contents and associated-contents tables.
     for (folder, spec) in FOLDERS.iter().enumerate() {
@@ -2015,10 +2276,7 @@ pub fn generate<W: Write + Seek>(out: W, config: Config) -> io::Result<Manifest>
             .filter(|candidate| FOLDERS[*candidate].parent == Some(folder))
             .collect();
         let rows = &contents[folder];
-        let unread = rows
-            .iter()
-            .filter(|row| row.flags & MSGFLAG_READ == 0)
-            .count();
+        let unread = unread_counts[folder];
 
         let mut children = SubnodeSet::new();
         let pc = build_property_context(
@@ -2034,29 +2292,28 @@ pub fn generate<W: Write + Seek>(out: W, config: Config) -> io::Result<Manifest>
 
         let hierarchy_rows: Vec<TableRow> = child_folders
             .iter()
-            .map(|child| TableRow {
-                row_id: folder_nid(*child),
-                values: vec![
-                    Some(utf16(FOLDERS[*child].name)),
-                    Some((contents[*child].len() as i32).to_le_bytes().to_vec()),
-                    Some(0i32.to_le_bytes().to_vec()),
-                    Some(vec![u8::from(
-                        FOLDERS.iter().any(|other| other.parent == Some(*child)),
-                    )]),
-                ],
+            .map(|child| {
+                let has_children = FOLDERS.iter().any(|other| other.parent == Some(*child));
+                schema_row(
+                    HIERARCHY_SCHEMA,
+                    folder_nid(*child),
+                    vec![
+                        (PR_DISPLAY_NAME, utf16(FOLDERS[*child].name)),
+                        (
+                            PR_CONTENT_COUNT,
+                            (contents[*child].len() as i32).to_le_bytes().to_vec(),
+                        ),
+                        (
+                            PR_CONTENT_UNREAD,
+                            (unread_counts[*child] as i32).to_le_bytes().to_vec(),
+                        ),
+                        (PR_SUBFOLDERS, vec![u8::from(has_children)]),
+                    ],
+                )
             })
             .collect();
         let mut table_children = SubnodeSet::new();
-        let table = build_table_context(
-            &[
-                PR_DISPLAY_NAME,
-                PR_CONTENT_COUNT,
-                PR_CONTENT_UNREAD,
-                PR_SUBFOLDERS,
-            ],
-            &hierarchy_rows,
-            &mut table_children,
-        );
+        let table = build_table_context(HIERARCHY_SCHEMA, &hierarchy_rows, &mut table_children);
         emitter.add_node(
             (spec.index << 5) | NID_TYPE_HIERARCHY_TABLE,
             0,
@@ -2065,29 +2322,31 @@ pub fn generate<W: Write + Seek>(out: W, config: Config) -> io::Result<Manifest>
 
         let contents_rows: Vec<TableRow> = rows
             .iter()
-            .map(|row| TableRow {
-                row_id: row.row_id,
-                values: vec![
-                    Some(1i32.to_le_bytes().to_vec()),
-                    Some(utf16(&row.subject)),
-                    Some(row.delivery_time.to_le_bytes().to_vec()),
-                    Some((row.flags as i32).to_le_bytes().to_vec()),
-                    Some((row.size as i32).to_le_bytes().to_vec()),
-                ],
+            .map(|row| {
+                schema_row(
+                    CONTENTS_SCHEMA,
+                    row.row_id,
+                    vec![
+                        (PR_IMPORTANCE, 1i32.to_le_bytes().to_vec()),
+                        (PR_MESSAGE_CLASS, utf16(&row.message_class)),
+                        (PR_SUBJECT, utf16(&row.subject)),
+                        (
+                            PR_MESSAGE_DELIVERY_TIME,
+                            row.delivery_time.to_le_bytes().to_vec(),
+                        ),
+                        (PR_MESSAGE_FLAGS, (row.flags as i32).to_le_bytes().to_vec()),
+                        (PR_MESSAGE_SIZE, (row.size as i32).to_le_bytes().to_vec()),
+                        (PR_MESSAGE_STATUS, 0i32.to_le_bytes().to_vec()),
+                        (
+                            PR_LAST_MODIFICATION_TIME,
+                            row.delivery_time.to_le_bytes().to_vec(),
+                        ),
+                    ],
+                )
             })
             .collect();
         let mut table_children = SubnodeSet::new();
-        let table = build_table_context(
-            &[
-                PR_IMPORTANCE,
-                PR_SUBJECT,
-                PR_MESSAGE_DELIVERY_TIME,
-                PR_MESSAGE_FLAGS,
-                PR_MESSAGE_SIZE,
-            ],
-            &contents_rows,
-            &mut table_children,
-        );
+        let table = build_table_context(CONTENTS_SCHEMA, &contents_rows, &mut table_children);
         emitter.add_node(
             (spec.index << 5) | NID_TYPE_CONTENTS_TABLE,
             0,
@@ -2095,7 +2354,7 @@ pub fn generate<W: Write + Seek>(out: W, config: Config) -> io::Result<Manifest>
         )?;
 
         let mut table_children = SubnodeSet::new();
-        let table = build_table_context(&[PR_MESSAGE_CLASS], &[], &mut table_children);
+        let table = build_table_context(ASSOC_CONTENTS_SCHEMA, &[], &mut table_children);
         emitter.add_node(
             (spec.index << 5) | NID_TYPE_ASSOC_CONTENTS_TABLE,
             0,

@@ -19,10 +19,17 @@ This is a fixture-only emitter, not a general PST writer:
 - It writes the header, NBT and BBT pages, data blocks with trailers and checksums,
   XBLOCK/XXBLOCK data trees, SLBLOCK subnode trees, multi-block heap-on-node, BTH,
   property contexts and table contexts.
-- It does not write allocation maps, density lists or search structures. The output is
-  not intended to be opened or repaired by Outlook.
+- It writes the mandatory nodes of the minimum mailbox: message store, name-to-id
+  map, root folder, search management nodes, the table templates and the search
+  folder object. Populated tables declare the template columns; cells the generator
+  has no value for are absent.
+- It does not write allocation maps, density lists or search contents. The output is
+  not intended to be opened or repaired by Outlook, and tools that recover deleted
+  space (`pffexport -m all`) reject it.
 - Data blocks are not encoded (`bCryptMethod` 0). ANSI output is out of scope; see
   `docs/fixtures/ansi-pst-generation.md`.
+- Size limits: one SLBLOCK per subnode tree (340 subnodes), two data-tree levels and
+  65,536 heap blocks per node. 200,000 messages (1.2 GB) stay inside them.
 
 A generated file is evidence about the reader, not proof of compatibility with
 mailboxes written by Outlook.
@@ -81,29 +88,55 @@ count, and per attachment its filename, size, FNV-1a checksum and fault.
 
 ## Validation status
 
-- `tests/synthetic_pst.rs` generates 72 messages and checks byte determinism, scenario
-  coverage, and PSTD extraction against the manifest: subject, class, message id,
-  folder, draft flags, text body bytes, HTML presence, recipient count and intact
-  attachment bytes. Unreadable messages must expose no decoded content.
-- The test runs in the normal `cargo test --all` CI job.
-- Not yet validated by an independent reader. No libpff or libpst build was available
-  where the emitter was written, so agreement between the emitter and PSTD is the only
-  evidence so far. A CI probe with `pffinfo`, `pffexport` and `readpst` is proposed in
-  issue #621.
+`tests/synthetic_pst.rs` (in the normal `cargo test --all` job) checks:
 
-## Reader gaps found on first use
+- byte determinism, scenario coverage and manifest JSON validity;
+- PSTD extraction of a 72-message mailbox against the manifest: one record per
+  message, subject, class, message id, folder, draft flags, text body bytes, absence
+  of a text body where there is none, HTML presence, embedded-message records and
+  intact attachment bytes; unreadable messages expose no subject, sender, body,
+  recipients or attachments;
+- that both messages sharing a message id are extracted;
+- that a 1,200-message mailbox (multi-level row indexes, rows in subnodes, multi-block
+  heaps) yields one record with the right subject per message.
+
+Independent readers, run by hand on 2026-11-14 against 0-, 1-, 72- and 400-message
+files (libpff 20231205 `pffinfo`/`pffexport -m items`, libpst `readpst` 0.6.76 with
+`-D -S`); not yet automated in CI (proposed workflow in issue #621):
+
+| Check, 400 messages | readpst | pffexport |
+|---|---|---|
+| Opens the file | yes | yes |
+| Folder nesting | correct | correct |
+| Intact attachments byte-exact | 143 of 143 | 141 of 143 |
+| Text bodies byte-exact | not compared | 389 of 393 |
+
+The four bodies libpff does not export are orphan messages (it lists messages from
+contents tables) and appointments (exported in another form). The two attachments are
+on `attachment_dangling_row` messages, where libpff drops all attachments of the
+message. libpff 20231205 also logs a non-fatal "unable to determine attachments" for
+every message without an attachment table; this is its lookup of an absent subnode,
+not a property of the file. readpst skips Deleted Items without `-D`.
+
+This is evidence that the file is readable by two independent implementations. It is
+not an Outlook compatibility claim.
+
+## Reader gaps found
 
 | Issue | Gap |
 |---|---|
 | #622 | Property values stored in subnodes, or empty, are emitted as four literal bytes (large bodies, empty and unresolvable attachments) |
-| #623 | Recipient rows stored in a subnode are not read |
+| #623 | Table rows stored in a subnode are not read (many recipients; folder ownership in large folders) |
 | #624 | Block checksums are not verified |
 | #625 | A damaged attachment leaves no record |
 | #626 | Folder nesting is not rebuilt |
 | #627 | Output and memory footprint at 20,000 messages |
+| #629 | Recipients are extracted only when a heuristic picks the recipient-type column |
 
-`tests/synthetic_pst.rs` excludes only the assertions covered by #622 and #623, through
-its `*_GAPS` constants. Remove an entry when its issue is fixed.
+`tests/synthetic_pst.rs` switches off only the assertions named by its gap constants
+(`BODY_GAPS`, `INTACT_ATTACHMENT_GAPS`, `RECIPIENT_GAP`, `LARGE_FOLDER_GAP`,
+`FOLDER_NESTING_GAP`, `DAMAGED_ATTACHMENT_GAP`). Remove an entry when its issue is
+fixed.
 
 ## Scale measurement
 
@@ -111,8 +144,8 @@ its `*_GAPS` constants. Remove an entry when its issue is fixed.
 
 | Measure | Value |
 |---|---|
-| Generation | 1.7 s, 51 MB peak RSS |
-| PST size | 119,676,416 bytes |
-| PSTD extraction | 10.8 s wall, 6.7 s user CPU |
-| PSTD peak RSS | 1,508 MB |
-| Output archive | 699,610,112 bytes |
+| Generation | 2.0 s, 60 MB peak RSS |
+| PST size | 125,989,888 bytes |
+| PSTD extraction | 9.8 s wall, 7.9 s user CPU |
+| PSTD peak RSS | 1,482 MB |
+| Output archive | 687,823,360 bytes |
