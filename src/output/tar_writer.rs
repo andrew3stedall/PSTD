@@ -121,9 +121,13 @@ impl TarShardWriter {
         if let Some(builder) = self.builder.take() {
             // `into_inner` writes the end-of-archive blocks; the explicit flush surfaces
             // a write error instead of losing it when the buffer is dropped.
-            let mut file = builder.into_inner()?;
-            file.flush()?;
-            drop(file);
+            let written = builder.into_inner().and_then(|mut file| file.flush());
+            if let Err(err) = written {
+                // Buffered writes can fail only here, after the builder is gone, so the
+                // partial shard is removed here rather than in `Drop`.
+                let _ = fs::remove_file(&self.current_temp_path);
+                return Err(err.into());
+            }
             fs::rename(&self.current_temp_path, &self.current_path)?;
         }
         if !self
@@ -146,5 +150,29 @@ impl Drop for TarShardWriter {
         if self.builder.is_some() {
             let _ = fs::remove_file(&self.current_temp_path);
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::TarShardWriter;
+
+    #[test]
+    fn deferred_write_failure_removes_the_partial_shard() {
+        let full = std::path::Path::new("/dev/full");
+        if !full.exists() {
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let part = dir.path().join("pst_000001.tar.part");
+        // The shard is created through this link, so every flushed write fails.
+        std::os::unix::fs::symlink(full, &part).unwrap();
+
+        let mut writer = TarShardWriter::new(dir.path(), "pst", 1024).unwrap();
+        writer.append_bytes(&["data", "a.txt"], b"data").unwrap();
+        assert!(writer.finish().is_err());
+
+        assert!(std::fs::symlink_metadata(&part).is_err());
+        assert!(!dir.path().join("pst_000001.tar").exists());
     }
 }

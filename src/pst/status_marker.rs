@@ -62,6 +62,7 @@ pub(crate) struct MarkerTotals {
     tail_len: usize,
     by_tail: std::collections::HashMap<&'static [u8], Vec<usize>>,
     totals: Vec<usize>,
+    overflowed: Vec<bool>,
     /// Per key: byte index just past the first `:` marker and the first `=` marker.
     first: Vec<[Option<usize>; 2]>,
     touched: Vec<usize>,
@@ -87,6 +88,7 @@ impl MarkerTotals {
             tail_len,
             by_tail,
             totals: vec![0; keys.len()],
+            overflowed: vec![false; keys.len()],
             first: vec![[None; 2]; keys.len()],
             touched: Vec::new(),
         }
@@ -128,19 +130,27 @@ impl MarkerTotals {
                 MarkerStyle::ColonThenEquals => value,
                 MarkerStyle::EqualsTrimmed => value.trim(),
             };
-            // Wrapping keeps the release behaviour of the summed `usize` iterator.
-            self.totals[key_index] =
-                self.totals[key_index].wrapping_add(value.parse::<usize>().unwrap_or(0));
+            let (total, overflowed) =
+                self.totals[key_index].overflowing_add(value.parse::<usize>().unwrap_or(0));
+            self.totals[key_index] = total;
+            self.overflowed[key_index] |= overflowed;
         }
     }
 
     /// Total for `key`. Panics when `key` was not registered, which is a coding error.
+    /// A total combined with another must use `+`, as the replaced code did.
     pub(crate) fn total(&self, key: &str) -> usize {
         let index = self
             .keys
             .iter()
             .position(|candidate| *candidate == key)
             .unwrap_or_else(|| panic!("status marker key {key} is not registered"));
+        // Same policy as the plain `usize` sum this replaces: overflow panics in debug
+        // builds and wraps in release builds, and only for a total that is read.
+        debug_assert!(
+            !self.overflowed[index],
+            "attempt to add with overflow in status marker {key}"
+        );
         self.totals[index]
     }
 }
@@ -279,5 +289,20 @@ mod tests {
     #[should_panic(expected = "is not registered")]
     fn unregistered_key_is_a_coding_error() {
         MarkerTotals::new(&KEYS, MarkerStyle::EqualsTrimmed).total("missing");
+    }
+
+    #[test]
+    fn overflow_wraps_in_release_and_panics_in_debug_only_when_read() {
+        let mut totals = MarkerTotals::new(&KEYS, MarkerStyle::EqualsTrimmed);
+        totals.add(&format!("rows={}", usize::MAX));
+        totals.add("rows=2; columns=1");
+        // A key that did not overflow is unaffected.
+        assert_eq!(totals.total("columns"), 1);
+        let read = std::panic::catch_unwind(|| totals.total("rows"));
+        if cfg!(debug_assertions) {
+            assert!(read.is_err());
+        } else {
+            assert_eq!(read.unwrap(), 1);
+        }
     }
 }
