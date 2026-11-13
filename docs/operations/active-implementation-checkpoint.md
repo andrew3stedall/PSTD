@@ -14,3 +14,5 @@
 ## Next exact change
 
 Final bounded review fixes complete: CLI manifests use create_new, empty recipient tables remain asserted, current docs link evidence. Refresh PR narrative, remove checkpoint for merge readiness, push, verify exact-head CI, then squash merge. Verify exact-head CI and review threads. Add concise current-state documentation if needed, remove this temporary checkpoint before merge, push final changes, and squash merge only when the exact head is green.
+
+Final local gate evidence: cargo test --all 503 passed/0 failed; formatting and allowance-based clippy passed. Strict clippy fails only in unchanged reader files (unknown lint annotations on local Rust 1.94 and existing too_many_arguments); PR records this limitation. Final source/doc review complete with no unresolved review threads.
