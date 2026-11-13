@@ -431,10 +431,19 @@ pub enum MapiValue {
 }
 
 pub fn property_def(tag: u32) -> Option<MapiPropertyDef> {
-    SELECTED_PROPERTIES
-        .iter()
+    // Looked up for every property and table column; the first definition of a tag wins.
+    static BY_TAG: std::sync::OnceLock<std::collections::HashMap<u32, MapiPropertyDef>> =
+        std::sync::OnceLock::new();
+    BY_TAG
+        .get_or_init(|| {
+            let mut by_tag = std::collections::HashMap::with_capacity(SELECTED_PROPERTIES.len());
+            for def in SELECTED_PROPERTIES.iter().copied() {
+                by_tag.entry(def.tag).or_insert(def);
+            }
+            by_tag
+        })
+        .get(&tag)
         .copied()
-        .find(|def| def.tag == tag)
         .or_else(|| string8_property_def(tag))
 }
 
@@ -800,6 +809,20 @@ mod tests {
         MapiValue, MapiValueType, PR_ATTACH_DATA_OBJ, PR_BODY_A, PR_INTERNET_CPID,
         PR_MESSAGE_CODEPAGE, PR_SUBJECT, PR_SUBJECT_A,
     };
+
+    #[test]
+    fn property_def_returns_the_first_definition_of_every_selected_tag() {
+        for def in super::SELECTED_PROPERTIES {
+            let first = super::SELECTED_PROPERTIES
+                .iter()
+                .find(|candidate| candidate.tag == def.tag)
+                .expect("tag is present");
+            let found = property_def(def.tag).expect("selected tag resolves");
+            assert_eq!(found.tag, first.tag);
+            assert_eq!(found.name, first.name);
+        }
+        assert!(property_def(0xdead_beef).is_none());
+    }
 
     #[test]
     fn maps_string8_aliases_to_selected_property_defs() {

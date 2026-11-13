@@ -31,6 +31,25 @@ _Last reviewed: 1 September 2026._
   collision detection and message-table entry lookup. Remaining super-linear paths
   are tracked in issue #618.
 
+## CPU hot spots — PERF-03
+
+- Sum status-string counters in one pass per status string
+  (`src/pst/status_marker.rs`) instead of one substring search per counter. A sampling
+  profile attributed about 28% of extraction CPU time to these scans. The values are
+  unchanged: first `key:` marker, otherwise first `key=`, matched as a substring.
+- Resolve MAPI property definitions through a first-definition-wins map instead of
+  scanning the selected-property table for every property and table column.
+- Write archive shards through a 256 KiB buffer instead of issuing separate writes
+  for each entry's header, data and padding.
+- Encode hexadecimal with a lookup table (`src/hexenc.rs`) and drop the `hex`
+  dependency.
+- Move to `sha2` 0.11, which uses the CPU's SHA-256 instructions on aarch64 as well
+  as x86-64.
+- User CPU time per fixture extraction fell from about 18.2 ms to 10.0 ms
+  (`tika-testPST.pst`) and 14.2 ms to 8.4 ms (`java-libpst-dist-list.pst`) on the
+  development sandbox, process start-up included. Archives are byte-identical apart
+  from run ids, timestamps and duration.
+
 ## Performance and footprint — PERF-02
 
 - Resolve NBT node and BBT block lookups through a lazily built first-occurrence
