@@ -130,6 +130,8 @@ const MSGFLAG_READ: u32 = 0x01;
 const MSGFLAG_UNSENT: u32 = 0x08;
 const MSGFLAG_HASATTACH: u32 = 0x10;
 
+const EMBEDDED_OBJECT_NOMINAL_BYTES: u32 = 4096;
+
 /// 2020-01-01T00:00:00Z as a FILETIME.
 const BASE_FILETIME: u64 = 132_223_104_000_000_000;
 const FILETIME_MINUTE: u64 = 600_000_000;
@@ -1419,7 +1421,8 @@ fn build_attachment(plan: &AttachmentPlan, embedded: Option<NodeData>) -> NodeDa
         let nid = children.next_nid(NID_TYPE_NORMAL_MESSAGE);
         children.add(nid, message);
         let mut object = nid.to_le_bytes().to_vec();
-        object.extend_from_slice(&(plan.bytes.len() as u32).to_le_bytes());
+        // ulSize: the nominal size of the embedded object; readers reject zero.
+        object.extend_from_slice(&EMBEDDED_OBJECT_NOMINAL_BYTES.to_le_bytes());
         props.push(Prop {
             tag: PR_ATTACH_DATA_OBJ,
             value: object,
@@ -1529,8 +1532,8 @@ fn build_message(
             body
         }
     };
-    let has_html =
-        scenario == Scenario::HtmlOnly || (scenario == Scenario::Regular && index % 5 == 0);
+    let has_html = scenario == Scenario::HtmlOnly
+        || (scenario == Scenario::Regular && index.is_multiple_of(5));
     let html = format!(
         "<html><body><p>{}</p></body></html>",
         if body_text.is_empty() {
@@ -1735,7 +1738,7 @@ fn build_message(
 
     let mut flags = if draft {
         MSGFLAG_UNSENT
-    } else if index % 3 == 0 {
+    } else if index.is_multiple_of(3) {
         0
     } else {
         MSGFLAG_READ
