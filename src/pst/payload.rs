@@ -163,6 +163,19 @@ fn block_crc32(bytes: &[u8]) -> u32 {
     crc
 }
 
+/// Test support: `data` laid out as a stored Unicode block, padded to the block
+/// alignment and ending in a trailer with the matching size and CRC.
+#[cfg(test)]
+pub(crate) fn unicode_block_for_tests(data: &[u8]) -> Vec<u8> {
+    let aligned = (data.len() + BlockTrailer::LEN).div_ceil(64) * 64;
+    let mut block = vec![0u8; aligned];
+    block[..data.len()].copy_from_slice(data);
+    let trailer = aligned - BlockTrailer::LEN;
+    block[trailer..trailer + 2].copy_from_slice(&(data.len() as u16).to_le_bytes());
+    block[trailer + 4..trailer + 8].copy_from_slice(&block_crc32(data).to_le_bytes());
+    block
+}
+
 fn read_crypt_method(reader: &PstByteReader) -> PstdResult<u8> {
     let index_type = if reader.file_size() > PST_INDEX_TYPE_OFFSET as u64 {
         reader.read_at(PST_INDEX_TYPE_OFFSET as u64, 1)?[0]

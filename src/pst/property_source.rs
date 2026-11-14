@@ -177,7 +177,7 @@ mod tests {
         };
         for (bid, payload) in blocks {
             let offset = bytes.len();
-            bytes.extend(payload);
+            bytes.extend(crate::pst::payload::unicode_block_for_tests(payload));
             bbt.entries.push(BbtEntry {
                 block_id: BlockId(*bid),
                 offset: ByteOffset(offset as u64),
