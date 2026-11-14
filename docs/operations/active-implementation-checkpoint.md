@@ -14,10 +14,11 @@
 
 ## Tests
 
-- See latest commit message for the exact results.
+- `cargo fmt --check`: pass. `cargo test --all`: 20 suites pass, 0 failed (379 lib tests).
+- `cargo clippy --all-targets --all-features -- -D warnings`: fails locally only on pre-existing code (`unknown lint: clippy::chunks_exact_to_as_chunks`, `too_many_arguments`) under the older local clippy; none in changed files. CI is the authority.
+- Tika fixture local extract: 8 messages, 9 recipients (unchanged counts).
 
 ## Next exact change
 
-1. Set `RECIPIENT_GAP` and `LARGE_FOLDER_GAP` to `false` in `tests/synthetic_pst.rs`, run `cargo test --test synthetic_pst`.
-2. Refresh exact fixture metrics that change because `tika-testPST.pst` now yields recipients.
-3. Update README / project-status / progress log / changelog, run the full gate, open the PR.
+1. Confirm CI on the PR head (clippy, Docker build, fixture workflows were not run locally).
+2. Delete this checkpoint before merge.

@@ -591,6 +591,19 @@ Synthetic regression coverage checks large bodies, zero-byte attachments, and mi
 attachment blocks. This does not close the separate table-row, checksum, or corrupt
 attachment robustness issues, nor establish broad producer compatibility.
 
+### ROBUST-02: Table Context rows read by structure (#623)
+
+A general Table Context reader follows the heap-on-node across data blocks,
+multi-level row-index BTHs, and a row matrix stored either in the heap or in a
+subnode whose blocks each hold whole rows. Cells are read by column tag and only
+when the row's existence bitmap sets them. Folder membership and message recipients
+use it: a 300-recipient message yields 300 recipients, and a 1,200-message mailbox
+keeps every message's folder. A table whose index, matrix or layout disagree yields
+no rows. Recipients are not read for a message whose own Property Context is not a
+resolved heap; such messages keep the earlier evidence-selected path. This does not
+close checksum (#624), damaged-attachment (#625) or folder-nesting (#626) gaps, nor
+establish broad producer compatibility.
+
 ## ROBUST-01 validation follow-up
 
 - Resolve property values despite unrelated empty sibling entries; compare wide

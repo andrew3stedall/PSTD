@@ -189,3 +189,12 @@ attachments / 40,756 bytes and the exact DOCX and embedded EML hashes are retain
 The attachment diagnostic now reports resolved Property Context extraction.
 The original sample fixture progress workflow passes with four structured recipients.
 These measurements describe individual fixture runs, not general compatibility.
+
+## ROBUST-02 (#623)
+
+Local extract of the approved Tika fixture after the Table Context reader: eight
+messages and nine recipients, the same counts as before. One recipient's native
+Exchange address is still emitted by the earlier evidence-selected path because
+that message's Property Context is read through the legacy flat path. The synthetic
+manifest comparison now asserts recipient counts and large-folder ownership without
+exclusions. The deterministic progress workflow has not been re-run locally.
