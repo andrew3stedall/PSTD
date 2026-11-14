@@ -80,6 +80,18 @@ fn find_data_bid(
     bbt: &BbtIndex,
     limits: ParserLimits,
 ) -> Option<BlockId> {
+    find_subnode_entry(root, nid, reader, bbt, limits).map(|(data, _)| data)
+}
+
+/// Find the one subnode with this NID under `root`: its data block and, when it
+/// has one, its own subnode block.
+pub(crate) fn find_subnode_entry(
+    root: BlockId,
+    nid: u32,
+    reader: &PstByteReader,
+    bbt: &BbtIndex,
+    limits: ParserLimits,
+) -> Option<(BlockId, Option<BlockId>)> {
     let version = reader.read_at(10, 2).ok()?;
     let width = if matches!(u16::from_le_bytes(version.try_into().ok()?), 14 | 15) {
         4
@@ -128,7 +140,8 @@ fn find_data_bid(
             if level == 1 {
                 pending.push((data, depth + 1));
             } else if key == u64::from(nid) {
-                matches.push(data);
+                let sub = number(start + 2 * width)?;
+                matches.push((data, (sub != 0).then_some(BlockId(sub))));
             }
         }
     }

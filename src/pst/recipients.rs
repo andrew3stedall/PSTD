@@ -1,10 +1,88 @@
+use crate::error::PstdResult;
 use crate::output::ids;
 use crate::output::metadata::RecipientRecord;
+use crate::pst::mapi::decode_string8_with_status;
 use crate::pst::mapi::{
     decode_value, MapiValue, MapiValueType, PR_DISPLAY_NAME, PR_RECIPIENT_ADDRTYPE,
     PR_RECIPIENT_DISPLAY_NAME, PR_RECIPIENT_EMAIL_ADDRESS, PR_RECIPIENT_TYPE, PR_SMTP_ADDRESS,
 };
+use crate::pst::primitives::BlockId;
+use crate::pst::property_source::find_subnode_entry;
 use crate::pst::table_context::{TableContext, TableRow};
+use crate::pst::tc_reader::{read_table, TcSource, TcTable};
+
+/// Recipient-type flag bits (MAPI_P1, MAPI_SUBMITTED) that are not part of the role.
+const RECIPIENT_TYPE_FLAGS: u32 = 0xf000_0000;
+
+const NID_RECIPIENT_TABLE: u32 = 0x692;
+
+/// Read a message's recipient table from its subnode tree.
+///
+/// `None` means the message has no readable recipient table: the subnode is
+/// absent, or the table is inconsistent and exposes no partial recipients.
+pub fn message_recipients(
+    message_key: &str,
+    source: TcSource<'_>,
+    subnode_root: BlockId,
+    fallback_charset: Option<&str>,
+) -> Option<Vec<RecipientRecord>> {
+    let (data_bid, table_subnodes) = find_subnode_entry(
+        subnode_root,
+        NID_RECIPIENT_TABLE,
+        source.reader,
+        source.bbt,
+        source.limits,
+    )?;
+    let table = read_table(source, data_bid, table_subnodes).ok()?;
+    recipients_from_tc(message_key, source, &table, fallback_charset).ok()
+}
+
+/// Build recipient records from a message's recipient table, reading each
+/// column by its property tag. Rows keep the table's row order.
+pub fn recipients_from_tc(
+    message_key: &str,
+    source: TcSource<'_>,
+    table: &TcTable,
+    fallback_charset: Option<&str>,
+) -> PstdResult<Vec<RecipientRecord>> {
+    let decode = |raw: &[u8]| decode_string8_with_status(raw, fallback_charset).0;
+    let mut records = Vec::with_capacity(table.rows.len());
+    for (ordinal, row) in table.rows.iter().enumerate() {
+        let string = |tag: u32| -> PstdResult<Option<String>> {
+            Ok(table
+                .string(source, row, (tag >> 16) as u16, decode)?
+                .and_then(clean_string))
+        };
+        let recipient_type = match table.u32(row, PR_RECIPIENT_TYPE) {
+            Some(value) if value & !RECIPIENT_TYPE_FLAGS == 0 => "originator".to_string(),
+            Some(value) => recipient_type_label(Some((value & !RECIPIENT_TYPE_FLAGS) as i32)),
+            None => recipient_type_label(None),
+        };
+        let display_name = match string(PR_DISPLAY_NAME)? {
+            Some(name) => Some(name),
+            None => string(PR_RECIPIENT_DISPLAY_NAME)?,
+        };
+        let raw_address = string(PR_RECIPIENT_EMAIL_ADDRESS)?;
+        let address_type = string(PR_RECIPIENT_ADDRTYPE)?;
+        let smtp_address = match string(PR_SMTP_ADDRESS)? {
+            Some(address) => Some(address),
+            None => smtp_from_raw(&raw_address, &address_type),
+        };
+        let resolution_status = resolution_status(&raw_address, &address_type, &smtp_address);
+        records.push(RecipientRecord {
+            message_key: message_key.to_string(),
+            recipient_key: ids::recipient_key(message_key, &recipient_type, ordinal),
+            recipient_type,
+            display_name,
+            raw_address,
+            address_type,
+            smtp_address,
+            resolution_status,
+            ordinal: ordinal as u64,
+        });
+    }
+    Ok(records)
+}
 
 pub fn recipients_from_table(message_key: &str, table: &TableContext) -> Vec<RecipientRecord> {
     table

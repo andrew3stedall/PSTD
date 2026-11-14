@@ -55,6 +55,7 @@ pub mod tc_message_recipient_selection;
 pub mod tc_message_recipients;
 pub mod tc_probe_collection;
 pub mod tc_property_classification;
+pub mod tc_reader;
 pub mod tc_recipient_identity_diagnostic;
 pub mod tc_recipient_identity_projection;
 pub mod tc_recipient_identity_reference;

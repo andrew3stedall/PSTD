@@ -5,10 +5,9 @@ use crate::pst::bbt::BbtIndex;
 use crate::pst::limits::ParserLimits;
 use crate::pst::message_table::MessageTableNodeType;
 use crate::pst::nbt::NbtEntry;
-use crate::pst::payload::load_payload_block;
 use crate::pst::primitives::NodeId;
 use crate::pst::reader::PstByteReader;
-use crate::pst::tc_heap::resolve_tcinfo_from_heap;
+use crate::pst::tc_reader::{read_row_ids, TcSource};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MessageTableMembership {
@@ -36,20 +35,14 @@ pub fn load_message_table_membership(
         });
     }
 
-    let payload = load_payload_block(reader, bbt, entry.data_block_id, limits)?;
-    let report = resolve_tcinfo_from_heap(&payload.bytes, payload.block_ref.offset.0)?;
-    let Some(row_index) = report.row_index_report else {
-        return Ok(MessageTableMembership {
-            member_node_ids: Vec::new(),
-            status: "message_table_membership_row_index_unavailable".to_string(),
-        });
-    };
-    if row_index.truncated {
-        return Ok(MessageTableMembership {
-            member_node_ids: Vec::new(),
-            status: "message_table_membership_row_index_truncated".to_string(),
-        });
-    }
+    let row_ids = read_row_ids(
+        TcSource {
+            reader,
+            bbt,
+            limits,
+        },
+        entry.data_block_id,
+    )?;
 
     let expected_type = match table_type {
         MessageTableNodeType::ContentsTable => 0x04,
@@ -59,34 +52,34 @@ pub fn load_message_table_membership(
         }
     };
     let mut seen = HashSet::new();
-    let mut member_node_ids = Vec::with_capacity(row_index.entries.len());
-    for row in row_index.entries {
-        if row.row_key == 0 {
+    let mut member_node_ids = Vec::with_capacity(row_ids.len());
+    for row_key in row_ids {
+        if row_key == 0 {
             return Ok(MessageTableMembership {
                 member_node_ids: Vec::new(),
                 status: "message_table_membership_zero_row_key".to_string(),
             });
         }
-        if row.row_key & 0x1f != expected_type {
+        if row_key & 0x1f != expected_type {
             return Ok(MessageTableMembership {
                 member_node_ids: Vec::new(),
                 status: format!(
                     "message_table_membership_row_type_mismatch; row_key=0x{:08x}; table_type={}",
-                    row.row_key,
+                    row_key,
                     table_type.status_label()
                 ),
             });
         }
-        if !seen.insert(row.row_key) {
+        if !seen.insert(row_key) {
             return Ok(MessageTableMembership {
                 member_node_ids: Vec::new(),
                 status: format!(
                     "message_table_membership_duplicate_row_key; row_key=0x{:08x}",
-                    row.row_key
+                    row_key
                 ),
             });
         }
-        member_node_ids.push(NodeId(u64::from(row.row_key)));
+        member_node_ids.push(NodeId(u64::from(row_key)));
     }
 
     Ok(MessageTableMembership {
