@@ -517,12 +517,7 @@ jobs:
               'rendering_position': 0,
               'ordinal': 0,
               'archive_path': 'attachments/msg_c6163b9157944cc9/att_0695091e19397627_attachment.docx',
-              'extraction_status': (
-                  'attachment_payload_extracted_data_tree; data_nid=0x0000833f; '
-                  'data_bid=0x632; child_blocks=2; '
-                  'attachment_data_tree_loaded__root_bid_0x632__header_0x0101__'
-                  'child_blocks_2__total_bytes_11862__metadata_size_differs_fro'
-              ),
+              'extraction_status': 'attachment_payload_extracted_property_context',
           }
           for name, value in expected.items():
               if attachment.get(name) != value:
