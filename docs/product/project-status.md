@@ -32,7 +32,7 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Folders | 8 exact |
 | Messages | 8, including one embedded child |
 | Body records | 10 |
-| Valid body payload files / bytes | 6 / 271 |
+| Valid body payload files / bytes | 4 / 816 |
 | Explicit unresolved HTML forms | 2 |
 | Recipient records | 9 |
 | Attachment records | 3 |

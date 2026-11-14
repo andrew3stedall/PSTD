@@ -8,7 +8,6 @@ use crate::pst::limits::ParserLimits;
 use crate::pst::payload::{load_payload_block, PayloadBlock};
 use crate::pst::primitives::BlockId;
 use crate::pst::reader::PstByteReader;
-use crate::pst::subnodes::unicode_subnode_entries;
 
 pub(crate) fn resolve_values(
     bth: &mut BthMap,
@@ -25,7 +24,8 @@ pub(crate) fn resolve_values(
             continue;
         } // Invalid heap ID, not a subnode.
         let Some(root) = root else { continue };
-        let Some(bid) = find_data_bid(root, hnid, reader, bbt, limits) else {
+        let candidate = find_data_bid(root, hnid, reader, bbt, limits);
+        let Some(bid) = candidate else {
             continue;
         };
         if let Ok(payload) = load_attachment_data_payload(reader, bbt, bid, None, limits) {
@@ -42,12 +42,32 @@ pub(crate) fn owning_subnode_root(
 ) -> Option<BlockId> {
     let owners: Vec<_> = blocks
         .iter()
-        .filter_map(unicode_subnode_entries)
+        .filter_map(|payload| {
+            // Empty sibling nodes may have a zero data BID. They do not invalidate
+            // the owning entry, but must never serve as a value source themselves.
+            let bytes = &payload.bytes;
+            if bytes.len() < 8 || bytes[0..2] != [2, 0] || bytes[4..8] != [0; 4] {
+                return None;
+            }
+            let count = u16::from_le_bytes(bytes[2..4].try_into().ok()?) as usize;
+            if count == 0 || 8 + count * 24 > bytes.len() {
+                return None;
+            }
+            let mut owners = Vec::new();
+            for index in 0..count {
+                let start = 8 + index * 24;
+                let data = u64::from_le_bytes(bytes[start + 8..start + 16].try_into().ok()?);
+                let sub = u64::from_le_bytes(bytes[start + 16..start + 24].try_into().ok()?);
+                if data == block.block_id.0 {
+                    owners.push((sub != 0).then_some(BlockId(sub)));
+                }
+            }
+            Some(owners)
+        })
         .flatten()
-        .filter(|entry| entry.data_block_id == block.block_id)
         .collect();
     if owners.len() == 1 {
-        owners[0].subnode_block_id
+        owners[0]
     } else {
         None
     }
@@ -95,14 +115,19 @@ fn find_data_bid(
                     u64::from_le_bytes(field.try_into().ok()?)
                 })
             };
-            let key = u32::try_from(number(start)?).ok()?;
+            // Compare the complete stored key. An unrelated wide key must not
+            // be truncated or mistaken for the requested local NID.
+            let key = number(start)?;
             let data = BlockId(number(start + width)?);
             if data.0 == 0 {
-                return None;
+                if level == 1 || key == u64::from(nid) {
+                    return None;
+                }
+                continue;
             }
             if level == 1 {
                 pending.push((data, depth + 1));
-            } else if key == nid {
+            } else if key == u64::from(nid) {
                 matches.push(data);
             }
         }
@@ -201,6 +226,30 @@ mod tests {
             resolve_values(&mut bth, root, &reader, &bbt, limits);
             assert_eq!(bth.entries[0].unresolved_hnid, Some(hnid));
         }
+    }
+
+    #[test]
+    fn preserves_exact_wide_keys_and_ignores_unrelated_empty_siblings() {
+        let mut values = leaf(&[(0x31f, 0x200), (0x31f, 0x204), (0x33f, 0)]);
+        // This unrelated wide key must neither abort resolution nor alias 0x31f.
+        values[36..40].copy_from_slice(&1u32.to_le_bytes());
+        let mut owner = leaf(&[(0x8021, 0x200), (0x805f, 0)]);
+        owner[24..32].copy_from_slice(&0x102u64.to_le_bytes());
+        let (file, bbt) = fixture(&[
+            (0x102, values),
+            (0x106, owner),
+            (0x200, b"exact".to_vec()),
+            (0x204, b"other".to_vec()),
+        ]);
+        let reader = PstByteReader::open(file.path()).unwrap();
+        let limits = ParserLimits::default();
+        let pc = load_payload_block(&reader, &bbt, BlockId(0x200), limits).unwrap();
+        let owners = vec![load_payload_block(&reader, &bbt, BlockId(0x106), limits).unwrap()];
+        assert_eq!(owning_subnode_root(&pc, &owners), Some(BlockId(0x102)));
+        let mut bth = map(0x31f);
+        resolve_values(&mut bth, Some(BlockId(0x102)), &reader, &bbt, limits);
+        assert_eq!(bth.entries[0].value, b"exact");
+        assert_eq!(bth.entries[0].unresolved_hnid, None);
     }
 
     #[test]

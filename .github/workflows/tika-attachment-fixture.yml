@@ -517,12 +517,7 @@ jobs:
               'rendering_position': 0,
               'ordinal': 0,
               'archive_path': 'attachments/msg_c6163b9157944cc9/att_0695091e19397627_attachment.docx',
-              'extraction_status': (
-                  'attachment_payload_extracted_data_tree; data_nid=0x0000833f; '
-                  'data_bid=0x632; child_blocks=2; '
-                  'attachment_data_tree_loaded__root_bid_0x632__header_0x0101__'
-                  'child_blocks_2__total_bytes_11862__metadata_size_differs_fro'
-              ),
+              'extraction_status': 'attachment_payload_extracted_property_context',
           }
           for name, value in expected.items():
               if attachment.get(name) != value:
@@ -605,12 +600,7 @@ jobs:
                   'attachments/msg_0ff529af59d373d5/'
                   'att_cd792b3e3dd1e12b_attachment.docx'
               ),
-              'extraction_status': (
-                  'attachment_payload_extracted_data_tree; data_nid=0x0000833f; '
-                  'data_bid=0x632; child_blocks=2; '
-                  'attachment_data_tree_loaded__root_bid_0x632__header_0x0101__'
-                  'child_blocks_2__total_bytes_11862__metadata_size_differs_fro'
-              ),
+              'extraction_status': 'attachment_payload_extracted_property_context',
           }
           for name, value in expected_child_attachment.items():
               if child_attachment.get(name) != value:
@@ -670,7 +660,7 @@ jobs:
               'metadata_status': (
                   'embedded_property_context_loaded; data_bid=0x670; '
                   'property_count=58; selected_properties=23; '
-                  'unknown_properties=35; decode_errors=0'
+                  'unknown_properties=35; decode_errors=1'
               ),
               'body_status': (
                   'body_payload_extracted; payloads=1; '
@@ -946,18 +936,18 @@ jobs:
               'body_records': 10,
               'recipient_records': 9,
               'attachment_records': 3,
-              'body_payload_files': 6,
-              'body_payload_bytes': 271,
+              'body_payload_files': 4,
+              'body_payload_bytes': 816,
               'attachment_payload_files': 3,
               'attachment_payload_bytes': 40756,
               'eml_files': 2,
-              'messages_jsonl_bytes': 28778,
-              'bodies_jsonl_bytes': 2922,
+              'messages_jsonl_bytes': 29068,
+              'bodies_jsonl_bytes': 3020,
               'recipients_jsonl_bytes': 2708,
-              'attachments_jsonl_bytes': 2409,
-              'headers_jsonl_bytes': 4596,
-              'tar_bytes': 687104,
-              'stable_archive_bytes': 687104,
+              'attachments_jsonl_bytes': 2073,
+              'headers_jsonl_bytes': 4396,
+              'tar_bytes': 689152,
+              'stable_archive_bytes': 689152,
           }
           stable_metrics = {
               key: value

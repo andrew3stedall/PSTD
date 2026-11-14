@@ -52,7 +52,7 @@ The original fixture publishes these four complete row-aligned records through t
 | Folders | 8 exact |
 | Messages | 8, including one embedded child |
 | Body records | 10 |
-| Valid body payload files / bytes | 6 / 271 |
+| Valid body payload files / bytes | 4 / 816 |
 | Explicit unresolved HTML forms | 2 |
 | Recipient records | 9 |
 | Attachment records | 2 |
@@ -179,3 +179,13 @@ The PERF-01 original-fixture artifact `9993831193` from run `34048431238`
 was compared directly with baseline artifact `9989674797`: all run-summary fields
 except run ID, timestamps and duration match, and recipients JSONL is byte-identical.
 Recorded output bytes remain 115,998 with one TAR shard; there is no extraction delta.
+
+## ROBUST-01 follow-up (#622 / #631)
+
+The approved Tika fixture now emits four body files / 816 bytes instead of six /
+271 bytes: two text values resolve through their owning subnodes, and unresolved
+locator bytes are excluded from payloads. Eight messages, nine recipients, three
+attachments / 40,756 bytes and the exact DOCX and embedded EML hashes are retained.
+The attachment diagnostic now reports resolved Property Context extraction.
+The original sample fixture progress workflow passes with four structured recipients.
+These measurements describe individual fixture runs, not general compatibility.
