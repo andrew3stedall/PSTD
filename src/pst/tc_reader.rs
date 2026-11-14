@@ -460,7 +460,7 @@ mod tests {
                     offset: ByteOffset(bytes.len() as u64),
                     size: payload.len() as u64,
                 });
-                bytes.extend(payload);
+                bytes.extend(crate::pst::payload::unicode_block_for_tests(payload));
             }
             std::fs::write(file.path(), bytes).unwrap();
             let reader = PstByteReader::open(file.path()).unwrap();

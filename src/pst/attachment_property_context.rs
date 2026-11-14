@@ -740,6 +740,25 @@ pub(crate) fn resolve_attachment_payload(
     bbt: &BbtIndex,
     limits: ParserLimits,
 ) -> Result<(Vec<u8>, String), String> {
+    // The data block is referenced but was not loaded with the message's subnodes.
+    // When that is because the block failed its integrity check, say so instead of
+    // reporting a generic unresolved reference.
+    if let Some(data_bid) = unloaded_subnode_data_bid(properties, blocks) {
+        if let Err(error) = crate::pst::payload::load_payload_block(
+            reader,
+            bbt,
+            crate::pst::primitives::BlockId(data_bid),
+            limits,
+        ) {
+            let reason = error.to_string();
+            if reason.contains(crate::pst::payload::BLOCK_CHECKSUM_MISMATCH)
+                || reason.contains(crate::pst::payload::BLOCK_TRAILER_SIZE_MISMATCH)
+            {
+                return Err(reason);
+            }
+        }
+    }
+
     if properties
         .value(PR_ATTACH_DATA_BIN)
         .is_some_and(|value| value.status == "property_value_reference_unresolved")
@@ -867,6 +886,23 @@ fn resolved_subnode_data_reference(
         .count()
         == 1)
         .then_some((data_nid, data_bid))
+}
+
+/// The single data BID the attachment's subnode entry names, when no loaded block
+/// carries it.
+fn unloaded_subnode_data_bid(properties: &PropertyContext, blocks: &[PayloadBlock]) -> Option<u64> {
+    let data_nid = attachment_data_nid(properties)?;
+    let references = blocks
+        .iter()
+        .flat_map(|block| slblock_data_bids_for_nid(&block.bytes, data_nid))
+        .collect::<Vec<_>>();
+    let [data_bid] = references[..] else {
+        return None;
+    };
+    blocks
+        .iter()
+        .all(|block| block.block_id.0 != data_bid)
+        .then_some(data_bid)
 }
 
 fn attachment_data_nid(properties: &PropertyContext) -> Option<u32> {
