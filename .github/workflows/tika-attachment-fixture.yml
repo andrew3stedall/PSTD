@@ -943,11 +943,11 @@ jobs:
               'eml_files': 2,
               'messages_jsonl_bytes': 29068,
               'bodies_jsonl_bytes': 3020,
-              'recipients_jsonl_bytes': 2708,
+              'recipients_jsonl_bytes': 2696,
               'attachments_jsonl_bytes': 2073,
               'headers_jsonl_bytes': 4396,
-              'tar_bytes': 689152,
-              'stable_archive_bytes': 689152,
+              'tar_bytes': 689664,
+              'stable_archive_bytes': 689664,
           }
           stable_metrics = {
               key: value
