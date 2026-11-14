@@ -178,7 +178,7 @@ jobs:
               },
               {
                   'folder_key': 'folder_f65c580d3cda4ace',
-                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'parent_folder_key': 'folder_65667efd8c5a5a02',
                   'folder_node_id': 'node_2223',
                   'folder_name': 'SPAM Search Folder 2',
                   'folder_path': '/SPAM Search Folder 2',
@@ -187,7 +187,7 @@ jobs:
               },
               {
                   'folder_key': 'folder_b6721eebbda60057',
-                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'parent_folder_key': 'folder_65667efd8c5a5a02',
                   'folder_node_id': 'node_8022',
                   'folder_name': 'Début du fichier de données Outlook',
                   'folder_path': '/Début du fichier de données Outlook',
@@ -196,7 +196,7 @@ jobs:
               },
               {
                   'folder_key': 'folder_5769a9840120442c',
-                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'parent_folder_key': 'folder_65667efd8c5a5a02',
                   'folder_node_id': 'node_8042',
                   'folder_name': 'Racine (pour la recherche)',
                   'folder_path': '/Racine (pour la recherche)',
@@ -205,16 +205,16 @@ jobs:
               },
               {
                   'folder_key': 'folder_e04c6c42560935fe',
-                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'parent_folder_key': 'folder_b6721eebbda60057',
                   'folder_node_id': 'node_8062',
                   'folder_name': 'Éléments supprimés',
-                  'folder_path': '/Éléments supprimés',
+                  'folder_path': '/Début du fichier de données Outlook/Éléments supprimés',
                   'item_count_total': 0,
                   'child_folder_count': None,
               },
               {
                   'folder_key': 'folder_dcc9052e2b2f88d3',
-                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'parent_folder_key': 'folder_65667efd8c5a5a02',
                   'folder_node_id': 'node_8082',
                   'folder_name': 'IPM_COMMON_VIEWS',
                   'folder_path': '/IPM_COMMON_VIEWS',
@@ -223,7 +223,7 @@ jobs:
               },
               {
                   'folder_key': 'folder_04676627187d2114',
-                  'parent_folder_key': 'folder_0235fadc0c8f7958',
+                  'parent_folder_key': 'folder_65667efd8c5a5a02',
                   'folder_node_id': 'node_80023',
                   'folder_name': 'ItemProcSearch',
                   'folder_path': '/ItemProcSearch',
