@@ -217,12 +217,19 @@ pub fn attachment_payloads_from_property_context_subnodes_with_fallback_charset(
         }
         property_context_count += 1;
 
-        let Ok(bth) =
+        let Ok(mut bth) =
             BthMap::parse_property_context_from_heap(&heap, &block.bytes, block.block_ref.offset.0)
         else {
             rejected_context_count += 1;
             continue;
         };
+        crate::pst::property_source::resolve_values(
+            &mut bth,
+            crate::pst::property_source::owning_subnode_root(block, blocks),
+            reader,
+            bbt,
+            limits,
+        );
         let Ok(report) = PropertyContext::from_bth_with_fallback_charset(&bth, fallback_charset)
         else {
             rejected_context_count += 1;
@@ -243,7 +250,24 @@ pub fn attachment_payloads_from_property_context_subnodes_with_fallback_charset(
             continue;
         };
 
-        match resolve_attachment_payload(&report.context, blocks, reader, bbt, limits) {
+        // BIN values decoded from a PC are already resolved. Do not reinterpret
+        // a genuine four-byte payload as another HNID (table rows use a separate path).
+        let resolved_binary =
+            report.context.value(PR_ATTACH_DATA_BIN).and_then(|value| {
+                match value.decoded.as_ref() {
+                    Some(MapiValue::Binary(bytes)) => Some(bytes.clone()),
+                    _ => None,
+                }
+            });
+        let resolved = if let Some(bytes) = resolved_binary {
+            Ok((
+                bytes,
+                "attachment_payload_extracted_property_context".to_string(),
+            ))
+        } else {
+            resolve_attachment_payload(&report.context, blocks, reader, bbt, limits)
+        };
+        match resolved {
             Ok((bytes, source_status)) => {
                 let metadata = AttachmentMetadata {
                     filename_original: record.filename_original.clone(),
@@ -282,7 +306,23 @@ pub fn attachment_payloads_from_property_context_subnodes_with_fallback_charset(
             blocks,
             fallback_charset,
         ) {
-            Ok(candidate) => {
+            Ok(mut candidate) => {
+                let child_entry = crate::pst::nbt::NbtEntry {
+                    node_id: crate::pst::primitives::NodeId(candidate.data_nid as u64),
+                    data_block_id: crate::pst::primitives::BlockId(candidate.data_bid),
+                    subnode_block_id: candidate.subnode_bid.map(crate::pst::primitives::BlockId),
+                };
+                if let Ok(loaded) =
+                    crate::pst::node_payload::load_node_property_context_with_fallback_charset(
+                        reader,
+                        bbt,
+                        &child_entry,
+                        limits,
+                        fallback_charset,
+                    )
+                {
+                    candidate.property_report = loaded.property_report;
+                }
                 records.push(candidate.attachment_record.clone());
                 embedded_messages.push(candidate);
             }
@@ -699,6 +739,12 @@ pub(crate) fn resolve_attachment_payload(
     bbt: &BbtIndex,
     limits: ParserLimits,
 ) -> Result<(Vec<u8>, String), String> {
+    if properties
+        .value(PR_ATTACH_DATA_BIN)
+        .is_some_and(|value| value.status == "property_value_reference_unresolved")
+    {
+        return Err("attachment_payload_reference_unresolved".to_string());
+    }
     if let Some((data_nid, data_bid)) = resolved_subnode_data_reference(properties, blocks) {
         let tree = load_attachment_data_payload(
             reader,
@@ -780,6 +826,9 @@ fn inline_attachment_bytes(properties: &PropertyContext) -> Option<Vec<u8>> {
         let Some(value) = properties.value(tag) else {
             continue;
         };
+        if value.status == "property_value_reference_unresolved" {
+            continue;
+        }
         if value.raw.len() != 4 || !indirect_attachment_method(properties) {
             return Some(value.raw.clone());
         }

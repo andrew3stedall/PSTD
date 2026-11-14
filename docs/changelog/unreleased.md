@@ -579,3 +579,14 @@ All seven top-level messages belong to `/Début du fichier de données Outlook` 
   statuses, and base64-safe MIME projection without claiming decryption.
 - Rejected reference-shaped encrypted values fail-closed and added focused body
   and special-item regression coverage.
+
+
+### ROBUST-01: Property Context value sources (#622)
+
+Variable-size Property Context values now resolve through the owning node's
+subnode tree and the existing bounded direct/XBLOCK data loader. Large text bodies
+are recovered exactly, HNID zero represents an empty value, and unresolved references
+retain raw evidence with an unavailable status rather than becoming payload bytes.
+Synthetic regression coverage checks large bodies, zero-byte attachments, and missing
+attachment blocks. This does not close the separate table-row, checksum, or corrupt
+attachment robustness issues, nor establish broad producer compatibility.

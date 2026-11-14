@@ -252,3 +252,14 @@ Approved fixtures must also pass inspect, extract, batch, deterministic output, 
 - [readpst parity gap register](docs/readpst-gaps/README.md)
   The RP-M0-01 evidence contract and approved Unicode baseline, RP-M0-02 semantic differential runner, and RP-M0-03 reviewed upstream source ledger/drift boundary are CI-validated; parity remains open until downstream evidence and adapter gates pass.
 - [Documentation status and history policy](docs/DOCUMENTATION_STATUS.md)
+
+
+### ROBUST-01: Property Context value sources (#622)
+
+Variable-size Property Context values now resolve through the owning node's
+subnode tree and the existing bounded direct/XBLOCK data loader. Large text bodies
+are recovered exactly, HNID zero represents an empty value, and unresolved references
+retain raw evidence with an unavailable status rather than becoming payload bytes.
+Synthetic regression coverage checks large bodies, zero-byte attachments, and missing
+attachment blocks. This does not close the separate table-row, checksum, or corrupt
+attachment robustness issues, nor establish broad producer compatibility.
