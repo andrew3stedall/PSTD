@@ -390,10 +390,10 @@ jobs:
                   'message_key': 'msg_c6163b9157944cc9',
                   'recipient_type': 'to',
                   'display_name': "'lfcnassif@gmail.com'",
-                  'address_type': 'native_email_address',
-                  'smtp_address': None,
+                  'address_type': 'SMTP',
+                  'smtp_address': 'lfcnassif@gmail.com',
                   'raw_address': 'lfcnassif@gmail.com',
-                  'resolution_status': 'raw_address_preserved',
+                  'resolution_status': 'smtp_available',
                   'ordinal': 0,
               },
               {
@@ -401,10 +401,10 @@ jobs:
                   'message_key': 'msg_0ff529af59d373d5',
                   'recipient_type': 'to',
                   'display_name': "'lfcnassif@gmail.com'",
-                  'address_type': 'native_email_address',
-                  'smtp_address': None,
+                  'address_type': 'SMTP',
+                  'smtp_address': 'lfcnassif@gmail.com',
                   'raw_address': 'lfcnassif@gmail.com',
-                  'resolution_status': 'raw_address_preserved',
+                  'resolution_status': 'smtp_available',
                   'ordinal': 0,
               },
           ]
@@ -943,11 +943,11 @@ jobs:
               'eml_files': 2,
               'messages_jsonl_bytes': 29068,
               'bodies_jsonl_bytes': 3020,
-              'recipients_jsonl_bytes': 2708,
+              'recipients_jsonl_bytes': 2696,
               'attachments_jsonl_bytes': 2073,
               'headers_jsonl_bytes': 4396,
-              'tar_bytes': 689152,
-              'stable_archive_bytes': 689152,
+              'tar_bytes': 689664,
+              'stable_archive_bytes': 689664,
           }
           stable_metrics = {
               key: value

@@ -189,3 +189,19 @@ attachments / 40,756 bytes and the exact DOCX and embedded EML hashes are retain
 The attachment diagnostic now reports resolved Property Context extraction.
 The original sample fixture progress workflow passes with four structured recipients.
 These measurements describe individual fixture runs, not general compatibility.
+
+## ROBUST-02 (#623)
+
+Local extract of the approved Tika fixture after the Table Context reader: eight
+messages and nine recipients, the same counts as before. Two recipient records
+change: `lfcnassif@gmail.com` (top-level and embedded copy) now reports
+`address_type=SMTP`, `smtp_address` set and `smtp_available`. Their rows set
+`PidTagSmtpAddress` in the existence bitmap when it is read most-significant bit
+first, as MS-PST specifies; the earlier evidence path read it in the opposite order.
+The Tika workflow expectation still encodes the earlier values and must be updated
+for these two records before its job can pass. One recipient's native
+Exchange address is still emitted by the earlier evidence-selected path because
+that message's Property Context is read through the legacy flat path. The sample
+fixture keeps its four recipients unchanged. The synthetic manifest comparison now
+asserts recipient counts and large-folder ownership without exclusions. The
+deterministic progress workflow was not re-run locally.

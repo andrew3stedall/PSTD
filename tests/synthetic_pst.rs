@@ -18,12 +18,6 @@ use synthetic_pst::{fnv1a64, Config, Fault, Manifest, ManifestMessage, Scenario}
 // Known reader gaps. Each constant names the only assertions it switches off and the
 // issue that tracks it; remove the entry when the issue is fixed.
 
-/// #629 and #623: recipient rows are not read by column tag, so recipient counts are
-/// not asserted for populated tables. Empty tables must still emit no recipients.
-const RECIPIENT_GAP: bool = true;
-/// #623: contents-table rows stored in a subnode are not read, so messages in large
-/// folders have no folder. Folder ownership is asserted only for the small mailbox.
-const LARGE_FOLDER_GAP: bool = true;
 /// #626: folder nesting is not rebuilt, so folders are compared by name, not path.
 const FOLDER_NESTING_GAP: bool = true;
 /// #624 and #625: what the reader reports for a damaged attachment itself
@@ -285,13 +279,11 @@ fn extraction_matches_the_manifest_and_contains_every_fault() {
 
         check_body(&extraction, &bodies, &key, expected, &context);
 
-        if !RECIPIENT_GAP || expected.recipient_count == 0 {
-            assert_eq!(
-                recipients.get(&key).copied().unwrap_or(0),
-                expected.recipient_count,
-                "{context}: recipients"
-            );
-        }
+        assert_eq!(
+            recipients.get(&key).copied().unwrap_or(0),
+            expected.recipient_count,
+            "{context}: recipients"
+        );
 
         check_attachments(&extraction, attachments.get(&key), expected, &context);
     }
@@ -446,7 +438,7 @@ fn large_mailbox_keeps_every_message() {
             .get(&format!("node_{:x}", expected.node_id))
             .unwrap_or_else(|| panic!("{context}: no message record"));
         assert_eq!(text(row, "subject"), expected.subject, "{context}: subject");
-        if expected.in_contents_table && !LARGE_FOLDER_GAP {
+        if expected.in_contents_table {
             assert_eq!(
                 leaf(&text(row, "folder_path")),
                 leaf(&expected.folder),

@@ -48,6 +48,7 @@ use crate::pst::messages::{
 use crate::pst::nbt::{NbtEntry, NbtIndex};
 use crate::pst::node_payload::load_node_property_context_with_fallback_charset;
 use crate::pst::reader::PstByteReader;
+use crate::pst::recipients::message_recipients;
 use crate::pst::subnodes::{
     load_recursive_subnode_blocks, subnode_decode_plans, subnode_references_from_index,
     SubnodeReference,
@@ -57,6 +58,7 @@ use crate::pst::tc_message_recipient_output::{
     build_message_recipient_output, MESSAGE_RECIPIENT_OUTPUT_ATTACHED,
 };
 use crate::pst::tc_probe_collection::record_subnode_payload_probe;
+use crate::pst::tc_reader::TcSource;
 use crate::pst::tc_run_reporting::TcRunProbeCollector;
 
 #[derive(Debug, Clone)]
@@ -464,6 +466,17 @@ fn extract_metadata_with_limits(
                         bodies.extend(unresolved_body_records);
                     }
 
+                    // A message whose own property context is not a real heap is
+                    // unreadable; its subnodes must not be presented as its content.
+                    let tc_source = loaded
+                        .report
+                        .status
+                        .contains("traversal=heap_bth")
+                        .then_some(TcSource {
+                            reader: &reader,
+                            bbt: &bbt,
+                            limits,
+                        });
                     let mut message_subnode_probe_status = None;
                     let mut recipient_probe_completed = false;
                     let mut message_property_has_attachments = message.has_attachments;
@@ -480,11 +493,13 @@ fn extract_metadata_with_limits(
                                 reference,
                                 &loaded_subnodes.payloads,
                             );
-                            let recipient_output =
-                                build_message_recipient_output(&message.message_key, &probe);
-                            if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
-                                recipients.extend(recipient_output.recipients);
-                            }
+                            recipients.extend(message_recipient_records(
+                                &message.message_key,
+                                tc_source,
+                                reference.subnode_block_id,
+                                selected_charset,
+                                &probe,
+                            ));
                             recipient_probe_completed = true;
                             let (property_context_attachments, attachment_property_report) =
                                 attachment_records_from_property_context_subnodes_with_fallback_charset(
@@ -550,11 +565,13 @@ fn extract_metadata_with_limits(
                                     reference,
                                     &loaded_subnodes.payloads,
                                 );
-                                let recipient_output =
-                                    build_message_recipient_output(&message.message_key, &probe);
-                                if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
-                                    recipients.extend(recipient_output.recipients);
-                                }
+                                recipients.extend(message_recipient_records(
+                                    &message.message_key,
+                                    tc_source,
+                                    reference.subnode_block_id,
+                                    selected_charset,
+                                    &probe,
+                                ));
                             }
                             let (
                                 mut property_context_payloads,
@@ -1345,10 +1362,17 @@ fn recover_embedded_message(
             &reference,
             &candidate.subnode_payloads,
         );
-        let recipient_output = build_message_recipient_output(&message.message_key, &probe);
-        if recipient_output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
-            recipients = recipient_output.recipients;
-        }
+        recipients = message_recipient_records(
+            &message.message_key,
+            Some(TcSource {
+                reader,
+                bbt,
+                limits,
+            }),
+            reference.subnode_block_id,
+            selected_charset,
+            &probe,
+        );
     }
 
     let mut attachments = Vec::new();
@@ -1757,6 +1781,28 @@ pub fn fallback_metadata(
         messages_discovered: 0,
         messages_extracted: 0,
         status: "metadata_unavailable".to_string(),
+    }
+}
+
+/// Recipients for one message: the recipient table read by column tag, or the
+/// evidence-selected projection when the message has no readable recipient table.
+fn message_recipient_records(
+    message_key: &str,
+    source: Option<TcSource<'_>>,
+    subnode_root: crate::pst::primitives::BlockId,
+    fallback_charset: Option<&str>,
+    probe: &crate::pst::tc_reporting::TcSubnodeProbeReport,
+) -> Vec<RecipientRecord> {
+    if let Some(recipients) = source
+        .and_then(|source| message_recipients(message_key, source, subnode_root, fallback_charset))
+    {
+        return recipients;
+    }
+    let output = build_message_recipient_output(message_key, probe);
+    if output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
+        output.recipients
+    } else {
+        Vec::new()
     }
 }
 
