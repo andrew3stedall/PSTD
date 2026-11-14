@@ -169,3 +169,15 @@ missing attachments are reported without row metadata rather than attributed by
 guesswork. Nothing changes for a message whose table and records agree in count.
 Attachments nested inside embedded messages are not reconciled yet, and checksum
 or truncated-tree damage (#624) is separate.
+
+### ROBUST-03: Block trailer checksums are verified (#624)
+
+Every payload block of a Unicode PST is checked against its 16-byte trailer before
+its bytes are used: the trailer's data size must equal the block-index size and its
+CRC must match the stored bytes. A block that fails is withheld, not emitted: the
+load returns `block_checksum_mismatch` or `block_trailer_size_mismatch`, the item
+that needed the block reports it (an attachment keeps its record with
+`data_tree_error=…block_checksum_mismatch`, no payload), and the run continues.
+ANSI and 4K-page files are not checked, nor is a block whose aligned extent runs
+past the end of the file. The trailer's block id and signature are not compared.
+Raw block reads that bypass the payload loader are not covered.

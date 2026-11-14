@@ -25,6 +25,7 @@ pub struct PstByteReader {
     file_size: u64,
     limits: InputLimits,
     crypt_method: OnceLock<u8>,
+    unicode_block_trailers: OnceLock<bool>,
 }
 
 impl PstByteReader {
@@ -55,6 +56,7 @@ impl PstByteReader {
             file_size,
             limits: *limits,
             crypt_method: OnceLock::new(),
+            unicode_block_trailers: OnceLock::new(),
         })
     }
 
@@ -115,6 +117,20 @@ impl PstByteReader {
         }
         let method = load(self)?;
         Ok(*self.crypt_method.get_or_init(|| method))
+    }
+
+    /// Returns whether the file uses the Unicode block layout (64-byte aligned
+    /// blocks ending in a 16-byte trailer), reading the header with `load` only on
+    /// first use. A failed `load` is not cached.
+    pub(crate) fn unicode_block_trailers_or_load(
+        &self,
+        load: impl FnOnce(&Self) -> PstdResult<bool>,
+    ) -> PstdResult<bool> {
+        if let Some(value) = self.unicode_block_trailers.get() {
+            return Ok(*value);
+        }
+        let value = load(self)?;
+        Ok(*self.unicode_block_trailers.get_or_init(|| value))
     }
 
     pub fn read_prefix(&self, len: usize) -> PstdResult<Vec<u8>> {

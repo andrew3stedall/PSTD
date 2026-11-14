@@ -18,11 +18,6 @@ use synthetic_pst::{fnv1a64, Config, Fault, Manifest, ManifestMessage, Scenario}
 // Known reader gaps. Each constant names the only assertions it switches off and the
 // issue that tracks it; remove the entry when the issue is fixed.
 
-/// #624: what the reader reports for an attachment whose data tree is truncated or
-/// whose block fails its checksum (wrong or altered bytes) is not asserted. Its
-/// message, body and intact sibling attachments are.
-const DAMAGED_ATTACHMENT_GAP: bool = true;
-
 const MESSAGES: usize = 72;
 const LARGE_MESSAGES: usize = 1_200;
 const SEED: u64 = 7;
@@ -370,12 +365,37 @@ fn check_attachments(
             );
             continue;
         }
-        let damaged = attachment.fault != Fault::None || attachment.dangling_row;
-        if damaged && DAMAGED_ATTACHMENT_GAP {
+        if matches!(
+            attachment.fault,
+            Fault::ChecksumMismatch | Fault::TruncatedTree
+        ) {
+            // The attachment itself is readable but its data is not: a record
+            // must exist, without a payload and without an extracted status.
+            let row = rows
+                .iter()
+                .find(|row| row["filename_original"] == attachment.filename.as_str())
+                .unwrap_or_else(|| {
+                    panic!("{context}: no record for damaged {}", attachment.filename)
+                });
+            assert!(
+                extraction.payload(row["archive_path"].as_str()).is_none(),
+                "{context}: damaged attachment data emitted as payload"
+            );
+            let status = row["extraction_status"].as_str().unwrap_or("");
+            assert!(
+                !status.starts_with("attachment_payload_extracted"),
+                "{context}: damaged attachment status {status}"
+            );
+            if attachment.fault == Fault::ChecksumMismatch {
+                assert!(
+                    status.contains("block_checksum_mismatch"),
+                    "{context}: checksum mismatch is not named in {status}"
+                );
+            }
             continue;
         }
         assert!(
-            !damaged,
+            attachment.fault == Fault::None,
             "{context}: damaged attachments need explicit assertions"
         );
         let row = rows
