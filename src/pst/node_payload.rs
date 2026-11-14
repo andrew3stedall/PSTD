@@ -198,6 +198,7 @@ mod tests {
             node_id: NodeId(200),
             data_block_id: BlockId(100),
             subnode_block_id: None,
+            parent_node_id: None,
         };
 
         let loaded =
@@ -235,6 +236,7 @@ mod tests {
             node_id: NodeId(200),
             data_block_id: BlockId(100),
             subnode_block_id: None,
+            parent_node_id: None,
         };
 
         let loaded =
@@ -271,6 +273,7 @@ mod tests {
             node_id: NodeId(200),
             data_block_id: BlockId(100),
             subnode_block_id: None,
+            parent_node_id: None,
         };
 
         let loaded =

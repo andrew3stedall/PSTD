@@ -14,6 +14,9 @@ pub struct NbtEntry {
     pub node_id: NodeId,
     pub data_block_id: BlockId,
     pub subnode_block_id: Option<BlockId>,
+    /// `nidParent` of the leaf entry: the folder that contains this node.
+    #[serde(default)]
+    pub parent_node_id: Option<NodeId>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -168,10 +171,23 @@ impl NbtPage {
                 } else {
                     Some(BlockId(raw_subnode))
                 };
+                // nidParent is a 4-byte NID after the three ids in both layouts.
+                let parent_offset = layout.id_width * 3;
+                let parent_node_id = if entry_size as usize >= parent_offset + 4 {
+                    Some(NodeId(read_uint(
+                        page,
+                        start + parent_offset,
+                        4,
+                        source_offset,
+                    )?))
+                } else {
+                    None
+                };
                 entries.push(NbtEntry {
                     node_id,
                     data_block_id,
                     subnode_block_id,
+                    parent_node_id,
                 });
             }
         }

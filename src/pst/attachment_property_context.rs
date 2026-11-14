@@ -311,6 +311,7 @@ pub fn attachment_payloads_from_property_context_subnodes_with_fallback_charset(
                     node_id: crate::pst::primitives::NodeId(candidate.data_nid as u64),
                     data_block_id: crate::pst::primitives::BlockId(candidate.data_bid),
                     subnode_block_id: candidate.subnode_bid.map(crate::pst::primitives::BlockId),
+                    parent_node_id: None,
                 };
                 if let Ok(loaded) =
                     crate::pst::node_payload::load_node_property_context_with_fallback_charset(

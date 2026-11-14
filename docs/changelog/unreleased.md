@@ -604,6 +604,15 @@ resolved heap; such messages keep the earlier evidence-selected path. This does 
 close checksum (#624), damaged-attachment (#625) or folder-nesting (#626) gaps, nor
 establish broad producer compatibility.
 
+### ROBUST-05: Folder nesting from NBT parents (#626)
+
+Folder paths are rebuilt from each folder node's NBT parent: `Archive/2023` is
+reported as `/…/Archive/2023` with `parent_folder_key` naming the containing
+folder, so same-named folders no longer collide. The self-parented mailbox root
+adds no path segment. A folder whose parent is not a discovered folder, or whose
+parent chain loops, keeps its previous flat path. Message `folder_path` follows the
+nested folder path. Fixture expectations that hard-code flat paths change with this.
+
 ## ROBUST-01 validation follow-up
 
 - Resolve property values despite unrelated empty sibling entries; compare wide
