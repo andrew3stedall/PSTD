@@ -221,9 +221,8 @@ impl TcTable {
             if raw.len() % 2 != 0 {
                 return Err(parse_error("UTF-16 table cell has an odd length"));
             }
-            let units: Vec<u16> = raw
-                .chunks_exact(2)
-                .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+            let units: Vec<u16> = (0..raw.len() / 2)
+                .map(|index| u16::from_le_bytes([raw[2 * index], raw[2 * index + 1]]))
                 .collect();
             return Ok(Some(String::from_utf16_lossy(&units)));
         }
