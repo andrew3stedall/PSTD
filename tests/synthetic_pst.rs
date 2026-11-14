@@ -18,9 +18,9 @@ use synthetic_pst::{fnv1a64, Config, Fault, Manifest, ManifestMessage, Scenario}
 // Known reader gaps. Each constant names the only assertions it switches off and the
 // issue that tracks it; remove the entry when the issue is fixed.
 
-/// #624 and #625: what the reader reports for a damaged attachment itself
-/// (wrong bytes, altered bytes, or no record) is not asserted. Its message, body and
-/// intact sibling attachments are.
+/// #624: what the reader reports for an attachment whose data tree is truncated or
+/// whose block fails its checksum (wrong or altered bytes) is not asserted. Its
+/// message, body and intact sibling attachments are.
 const DAMAGED_ATTACHMENT_GAP: bool = true;
 
 const MESSAGES: usize = 72;
@@ -346,6 +346,28 @@ fn check_attachments(
                     .unwrap_or("")
                     .starts_with("attachment_payload_extracted"));
             }
+            continue;
+        }
+        if attachment.fault == Fault::Garbage || attachment.dangling_row {
+            let row = rows
+                .iter()
+                .find(|row| row["filename_original"] == attachment.filename.as_str())
+                .unwrap_or_else(|| {
+                    panic!("{context}: no record for damaged {}", attachment.filename)
+                });
+            assert!(
+                extraction.payload(row["archive_path"].as_str()).is_none(),
+                "{context}: damaged attachment emitted a payload"
+            );
+            assert_eq!(row["size_bytes"], 0, "{context}: damaged attachment size");
+            assert!(
+                row["extraction_status"]
+                    .as_str()
+                    .unwrap_or("")
+                    .starts_with("attachment_table_row_without_readable_attachment"),
+                "{context}: damaged attachment status {}",
+                row["extraction_status"]
+            );
             continue;
         }
         let damaged = attachment.fault != Fault::None || attachment.dangling_row;

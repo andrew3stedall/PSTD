@@ -2,13 +2,17 @@ use sha2::{Digest, Sha256};
 
 use crate::output::ids;
 use crate::output::metadata::AttachmentRecord;
+use crate::pst::mapi::decode_string8_with_status;
 use crate::pst::mapi::{
     MapiValue, PR_ATTACHMENT_HIDDEN, PR_ATTACH_CONTENT_ID, PR_ATTACH_CONTENT_ID_A,
     PR_ATTACH_DATA_BIN, PR_ATTACH_DATA_OBJ, PR_ATTACH_FILENAME, PR_ATTACH_FILENAME_A,
     PR_ATTACH_LONG_FILENAME, PR_ATTACH_LONG_FILENAME_A, PR_ATTACH_METHOD, PR_ATTACH_MIME_SEQUENCE,
     PR_ATTACH_MIME_TAG, PR_ATTACH_MIME_TAG_A, PR_ATTACH_SIZE, PR_RENDERING_POSITION,
 };
+use crate::pst::primitives::BlockId;
 use crate::pst::property_context::PropertyContext;
+use crate::pst::property_source::find_subnode_entry;
+use crate::pst::tc_reader::{read_table, TcSource};
 
 pub const ATTACH_METHOD_EMBEDDED_MESSAGE: i32 = 5;
 
@@ -646,5 +650,182 @@ mod tests {
 
         assert!(payload.record.is_inline);
         assert_eq!(payload.record.content_id.as_deref(), Some("cid-1"));
+    }
+}
+
+/// Subnode id of a message's attachment table.
+const NID_ATTACHMENT_TABLE: u32 = 0x671;
+
+/// Status of a record built from an attachment-table row whose attachment
+/// object could not be read. Such a record never carries a payload.
+pub const ATTACHMENT_TABLE_ROW_ONLY_STATUS: &str =
+    "attachment_table_row_without_readable_attachment";
+
+/// One row of a message's attachment table: the attachment subnode it names and
+/// the metadata the row itself carries.
+#[derive(Debug, Clone)]
+pub struct AttachmentTableRow {
+    pub node_id: u32,
+    pub metadata: AttachmentMetadata,
+}
+
+/// Read a message's attachment table by column tag.
+///
+/// `None` means the message has no readable attachment table: the subnode is
+/// absent, or the table is inconsistent and exposes no partial rows.
+pub fn attachment_table_rows(
+    source: TcSource<'_>,
+    subnode_root: BlockId,
+    fallback_charset: Option<&str>,
+) -> Option<Vec<AttachmentTableRow>> {
+    let (data_bid, table_subnodes) = find_subnode_entry(
+        subnode_root,
+        NID_ATTACHMENT_TABLE,
+        source.reader,
+        source.bbt,
+        source.limits,
+    )?;
+    let table = read_table(source, data_bid, table_subnodes).ok()?;
+    let decode = |raw: &[u8]| decode_string8_with_status(raw, fallback_charset).0;
+    let mut rows = Vec::with_capacity(table.rows.len());
+    for row in &table.rows {
+        let string = |tag: u32| {
+            table
+                .string(source, row, (tag >> 16) as u16, decode)
+                .map(|value| value.filter(|value| !value.is_empty()))
+        };
+        let filename_original = match string(PR_ATTACH_LONG_FILENAME).ok()? {
+            Some(name) => Some(name),
+            None => string(PR_ATTACH_FILENAME).ok()?,
+        };
+        rows.push(AttachmentTableRow {
+            node_id: row.row_id,
+            metadata: AttachmentMetadata {
+                filename_original,
+                attachment_method: table
+                    .u32(row, PR_ATTACH_METHOD)
+                    .and_then(|value| i32::try_from(value).ok()),
+                declared_size_bytes: table.u32(row, PR_ATTACH_SIZE).map(u64::from),
+                ..AttachmentMetadata::default()
+            },
+        });
+    }
+    Some(rows)
+}
+
+/// Records for attachment-table rows that no emitted attachment record covers.
+///
+/// `records` are the records already emitted for the message. Nothing is added
+/// unless the table lists more attachments than were emitted. Each emitted record
+/// consumes one row with the same filename; when the rows left over are exactly
+/// the missing ones they are reported with their own filename, declared size and
+/// method. When the pairing is ambiguous the missing attachments are still
+/// reported, but without row metadata, so no row is attributed by guesswork.
+pub fn records_for_uncovered_table_rows(
+    message_key: &str,
+    rows: &[AttachmentTableRow],
+    records: &[AttachmentRecord],
+) -> Vec<AttachmentRecord> {
+    let missing = rows.len().saturating_sub(records.len());
+    if missing == 0 {
+        return Vec::new();
+    }
+    let mut uncovered: Vec<&AttachmentTableRow> = rows.iter().collect();
+    for record in records {
+        if let Some(position) = uncovered
+            .iter()
+            .position(|row| row.metadata.filename_original == record.filename_original)
+        {
+            uncovered.remove(position);
+        }
+    }
+    let first_ordinal = records
+        .iter()
+        .map(|record| record.ordinal as usize + 1)
+        .max()
+        .unwrap_or(0);
+    let attributable = uncovered.len() == missing;
+    (0..missing)
+        .map(|index| {
+            let (metadata, status) = if attributable {
+                (
+                    uncovered[index].metadata.clone(),
+                    format!(
+                        "{ATTACHMENT_TABLE_ROW_ONLY_STATUS}; attachment_nid=0x{:x}",
+                        uncovered[index].node_id
+                    ),
+                )
+            } else {
+                (
+                    AttachmentMetadata::default(),
+                    format!("{ATTACHMENT_TABLE_ROW_ONLY_STATUS}; row_unattributed"),
+                )
+            };
+            attachment_record(message_key, first_ordinal + index, metadata, None, &status)
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod table_row_tests {
+    use super::{
+        records_for_uncovered_table_rows, unavailable_attachment_record, AttachmentMetadata,
+        AttachmentTableRow, ATTACHMENT_TABLE_ROW_ONLY_STATUS,
+    };
+
+    fn row(node_id: u32, name: &str, size: u64) -> AttachmentTableRow {
+        AttachmentTableRow {
+            node_id,
+            metadata: AttachmentMetadata {
+                filename_original: Some(name.to_string()),
+                attachment_method: Some(1),
+                declared_size_bytes: Some(size),
+                ..AttachmentMetadata::default()
+            },
+        }
+    }
+
+    #[test]
+    fn reports_the_table_row_that_has_no_attachment_record() {
+        let rows = [row(0x8025, "kept.bin", 10), row(0x8045, "lost.bin", 20)];
+        let emitted = [unavailable_attachment_record(
+            "m",
+            0,
+            Some("kept.bin".to_string()),
+            "extracted",
+        )];
+        let added = records_for_uncovered_table_rows("m", &rows, &emitted);
+        assert_eq!(added.len(), 1);
+        assert_eq!(added[0].filename_original.as_deref(), Some("lost.bin"));
+        assert_eq!(added[0].declared_size_bytes, Some(20));
+        assert_eq!(added[0].size_bytes, 0);
+        assert_eq!(added[0].ordinal, 1);
+        assert_ne!(added[0].attachment_key, emitted[0].attachment_key);
+        assert_eq!(
+            added[0].extraction_status,
+            format!("{ATTACHMENT_TABLE_ROW_ONLY_STATUS}; attachment_nid=0x8045")
+        );
+    }
+
+    #[test]
+    fn adds_nothing_when_every_row_has_a_record_and_withholds_ambiguous_metadata() {
+        let rows = [row(0x8025, "a.bin", 1), row(0x8045, "b.bin", 2)];
+        let both = [
+            unavailable_attachment_record("m", 0, Some("a.bin".to_string()), "extracted"),
+            unavailable_attachment_record("m", 1, Some("renamed.bin".to_string()), "extracted"),
+        ];
+        assert!(records_for_uncovered_table_rows("m", &rows, &both).is_empty());
+
+        let renamed = [unavailable_attachment_record(
+            "m",
+            0,
+            Some("renamed.bin".to_string()),
+            "extracted",
+        )];
+        let added = records_for_uncovered_table_rows("m", &rows, &renamed);
+        assert_eq!(added.len(), 1);
+        assert_eq!(added[0].filename_original, None);
+        assert_eq!(added[0].declared_size_bytes, None);
+        assert!(added[0].extraction_status.ends_with("row_unattributed"));
     }
 }

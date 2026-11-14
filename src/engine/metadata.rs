@@ -22,7 +22,10 @@ use crate::pst::attachment_property_context::{
     EmbeddedMessageCandidate,
 };
 use crate::pst::attachment_table::attachment_payloads_from_subnode_blocks_with_reader;
-use crate::pst::attachments::{unavailable_attachment_record, AttachmentPayload};
+use crate::pst::attachments::{
+    attachment_table_rows, records_for_uncovered_table_rows, unavailable_attachment_record,
+    AttachmentPayload,
+};
 use crate::pst::bbt::BbtIndex;
 use crate::pst::compatibility::{
     decoder_backlog_from_triage_records, decoder_backlog_review_summary,
@@ -558,6 +561,7 @@ fn extract_metadata_with_limits(
                             subnode_reference_by_node.get(&entry.node_id).copied()
                         {
                             subnode_decode_attempts += 1;
+                            let message_attachment_start = attachments.len();
                             let loaded_subnodes =
                                 load_recursive_subnode_blocks(&reader, &bbt, reference, 1, limits);
                             if !recipient_probe_completed {
@@ -710,6 +714,44 @@ fn extract_metadata_with_limits(
                                     attachment_payloads.push(payload);
                                 }
                                 attachments.append(&mut unavailable_attachment_records);
+                            }
+                            // The attachment table lists every attachment. A row whose
+                            // attachment object was unreadable or absent still gets a
+                            // record, so the loss is visible downstream.
+                            if let Some(rows) = tc_source.and_then(|source| {
+                                attachment_table_rows(
+                                    source,
+                                    reference.subnode_block_id,
+                                    selected_charset,
+                                )
+                            }) {
+                                // A lone placeholder stands for "attachments expected,
+                                // none read"; the table rows replace it.
+                                let placeholder_only = attachments[message_attachment_start..]
+                                    .iter()
+                                    .all(|record| {
+                                        record.filename_original.is_none()
+                                            && record.size_bytes == 0
+                                            && record.attachment_method.is_none()
+                                    });
+                                if placeholder_only && !rows.is_empty() {
+                                    attachments.truncate(message_attachment_start);
+                                }
+                                let mut row_only = records_for_uncovered_table_rows(
+                                    &message.message_key,
+                                    &rows,
+                                    &attachments[message_attachment_start..],
+                                );
+                                if !row_only.is_empty() {
+                                    message.attachment_status = format!(
+                                        "{}; table_rows_without_attachment={}",
+                                        message.attachment_status,
+                                        row_only.len()
+                                    );
+                                    attachments.append(&mut row_only);
+                                    message.attachment_count =
+                                        (attachments.len() - message_attachment_start) as u64;
+                                }
                             }
                         } else {
                             message.attachment_status =

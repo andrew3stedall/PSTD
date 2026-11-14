@@ -156,3 +156,16 @@ folder, so same-named folders no longer collide. The self-parented mailbox root
 adds no path segment. A folder whose parent is not a discovered folder, or whose
 parent chain loops, keeps its previous flat path. Message `folder_path` follows the
 nested folder path. Fixture expectations that hard-code flat paths change with this.
+
+### ROBUST-04: Attachment-table rows without a readable attachment (#625)
+
+A message's attachment table is read by column tag and compared with the attachment
+records already emitted. When the table lists more attachments than were emitted,
+each uncovered row gets a record with its filename, declared size and method, no
+payload, and the status `attachment_table_row_without_readable_attachment`, so an
+attachment whose property context is unreadable or whose node is absent is no longer
+silently dropped. If rows cannot be paired with emitted records unambiguously, the
+missing attachments are reported without row metadata rather than attributed by
+guesswork. Nothing changes for a message whose table and records agree in count.
+Attachments nested inside embedded messages are not reconciled yet, and checksum
+or truncated-tree damage (#624) is separate.
