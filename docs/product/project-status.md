@@ -51,9 +51,9 @@ The method-5 record `att_a9c94a13d70f1cb3` publishes a 17,032-byte `message/rfc8
 The [Unicode fixture generator](../fixtures/synthetic-pst-generation.md) adds
 configurable deterministic mailboxes including drafts, deleted mail and corrupt
 attachments on otherwise valid messages. The manifest tests preserve explicit
-exclusions for property subnodes/empty values (#622), table row subnodes (#623),
-checksums (#624), damaged-attachment records (#625), folder nesting (#626), and
-recipient column identity (#629). Scale measurements are recorded under #627.
+exclusions for checksums (#624), damaged-attachment records (#625) and folder
+nesting (#626); the table-row (#623) and recipient-column (#629) exclusions were
+removed by ROBUST-02. Scale measurements are recorded under #627.
 This fixture-only change does not fix those extraction gaps or establish general
 producer compatibility. Independent libpff/readpst probes are documented separately
 from PSTD acceptance.
@@ -134,3 +134,16 @@ retain raw evidence with an unavailable status rather than becoming payload byte
 Synthetic regression coverage checks large bodies, zero-byte attachments, and missing
 attachment blocks. This does not close the separate table-row, checksum, or corrupt
 attachment robustness issues, nor establish broad producer compatibility.
+
+### ROBUST-02: Table Context rows read by structure (#623)
+
+A general Table Context reader follows the heap-on-node across data blocks,
+multi-level row-index BTHs, and a row matrix stored either in the heap or in a
+subnode whose blocks each hold whole rows. Cells are read by column tag and only
+when the row's existence bitmap sets them. Folder membership and message recipients
+use it: a 300-recipient message yields 300 recipients, and a 1,200-message mailbox
+keeps every message's folder. A table whose index, matrix or layout disagree yields
+no rows. Recipients are not read for a message whose own Property Context is not a
+resolved heap; such messages keep the earlier evidence-selected path. This does not
+close checksum (#624), damaged-attachment (#625) or folder-nesting (#626) gaps, nor
+establish broad producer compatibility.
