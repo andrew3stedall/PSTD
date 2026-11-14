@@ -590,3 +590,12 @@ retain raw evidence with an unavailable status rather than becoming payload byte
 Synthetic regression coverage checks large bodies, zero-byte attachments, and missing
 attachment blocks. This does not close the separate table-row, checksum, or corrupt
 attachment robustness issues, nor establish broad producer compatibility.
+
+## ROBUST-01 validation follow-up
+
+- Resolve property values despite unrelated empty sibling entries; compare wide
+  sibling keys without truncation. Missing and duplicate requested references
+  remain unavailable.
+- Correct ANSI fixture method/size scalar encoding to inline PT_LONG values.
+- Refresh exact Tika evidence: four body payloads / 816 bytes, with unchanged
+  DOCX and embedded EML payload hashes.
