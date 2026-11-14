@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::output::ids;
 use crate::output::metadata::FolderRecord;
 use crate::pst::header::PstHeader;
@@ -198,6 +200,78 @@ pub fn folder_from_properties(
     (folder, inventory)
 }
 
+/// Rebuild folder nesting from each folder node's NBT parent.
+///
+/// `parent_by_identity` maps a folder's node identity to its parent's. A folder
+/// whose parent is another discovered folder is placed under it; a folder that is
+/// its own parent is the mailbox root and adds no path segment. A folder whose
+/// parent is unknown, or whose parent chain loops, keeps its flat path and parent.
+pub fn apply_folder_nesting(
+    folders: &mut [FolderRecord],
+    inventory: &mut [FolderInventoryRecord],
+    parent_by_identity: &HashMap<String, String>,
+) {
+    let index_by_identity: HashMap<&str, usize> = folders
+        .iter()
+        .enumerate()
+        .filter_map(|(index, folder)| Some((folder.folder_node_id.as_deref()?, index)))
+        .collect();
+    let parent_index = |index: usize| -> Option<usize> {
+        let identity = folders[index].folder_node_id.as_deref()?;
+        let parent = *index_by_identity.get(parent_by_identity.get(identity)?.as_str())?;
+        (parent != index).then_some(parent)
+    };
+    let is_mailbox_root = |index: usize| {
+        folders[index]
+            .folder_node_id
+            .as_ref()
+            .is_some_and(|identity| parent_by_identity.get(identity) == Some(identity))
+    };
+
+    let mut updates = Vec::new();
+    for index in 0..folders.len() {
+        let Some(parent) = parent_index(index) else {
+            continue;
+        };
+        let mut segments = vec![folders[index].folder_path.trim_start_matches('/')];
+        let mut current = Some(parent);
+        let mut steps = 0;
+        while let Some(ancestor) = current {
+            steps += 1;
+            if steps > folders.len() {
+                break;
+            }
+            if !is_mailbox_root(ancestor) {
+                segments.push(folders[ancestor].folder_path.trim_start_matches('/'));
+            }
+            current = parent_index(ancestor);
+        }
+        if steps > folders.len() {
+            continue;
+        }
+        segments.reverse();
+        updates.push((
+            index,
+            format!("/{}", segments.join("/")),
+            folders[parent].folder_key.clone(),
+        ));
+    }
+
+    let path_by_key: HashMap<String, String> = updates
+        .iter()
+        .map(|(index, path, _)| (folders[*index].folder_key.clone(), path.clone()))
+        .collect();
+    for (index, path, parent_key) in updates {
+        folders[index].folder_path = path;
+        folders[index].parent_folder_key = Some(parent_key);
+    }
+    for record in inventory {
+        if let Some(path) = path_by_key.get(&record.folder_key) {
+            record.folder_path = path.clone();
+        }
+    }
+}
+
 fn safe_folder_path_segment(value: &str) -> String {
     let cleaned = value
         .split('/')
@@ -218,7 +292,8 @@ mod tests {
     use std::collections::HashMap;
 
     use super::{
-        classify_folder_candidate, folder_from_nbt_candidate, folder_node_type, FolderNodeType,
+        apply_folder_nesting, classify_folder_candidate, folder_from_nbt_candidate,
+        folder_node_type, FolderInventoryRecord, FolderNodeType,
     };
     use crate::pst::mapi::{MapiValue, PR_CONTENT_COUNT, PR_DISPLAY_NAME, PR_DISPLAY_NAME_A};
     use crate::pst::nbt::NbtEntry;
@@ -301,11 +376,80 @@ mod tests {
         assert_eq!(inventory.inventory_status, folder.status);
     }
 
+    #[test]
+    fn nests_folders_under_their_nbt_parents_and_keeps_unknown_parents_flat() {
+        let record = |identity: &str, name: &str| {
+            let entry =
+                entry(u64::from_str_radix(identity.trim_start_matches("node_"), 16).unwrap());
+            let (mut folder, inventory) =
+                folder_from_nbt_candidate("pst", &entry, Some("root".to_string()), None);
+            folder.folder_path = format!("/{name}");
+            (
+                folder,
+                FolderInventoryRecord {
+                    folder_path: format!("/{name}"),
+                    ..inventory
+                },
+            )
+        };
+        let (mut folders, mut inventory): (Vec<_>, Vec<_>) = [
+            record("node_122", "node_122"),
+            record("node_8022", "Top"),
+            record("node_8042", "Archive"),
+            record("node_8062", "2023"),
+            record("node_8082", "Orphan"),
+            record("node_80a2", "LoopA"),
+            record("node_80c2", "LoopB"),
+        ]
+        .into_iter()
+        .unzip();
+        let parents: HashMap<String, String> = [
+            ("node_122", "node_122"),
+            ("node_8022", "node_122"),
+            ("node_8042", "node_8022"),
+            ("node_8062", "node_8042"),
+            ("node_8082", "node_9999"),
+            ("node_80a2", "node_80c2"),
+            ("node_80c2", "node_80a2"),
+        ]
+        .into_iter()
+        .map(|(child, parent)| (child.to_string(), parent.to_string()))
+        .collect();
+
+        apply_folder_nesting(&mut folders, &mut inventory, &parents);
+
+        let paths: Vec<_> = folders.iter().map(|f| f.folder_path.as_str()).collect();
+        assert_eq!(
+            paths,
+            vec![
+                "/node_122",
+                "/Top",
+                "/Top/Archive",
+                "/Top/Archive/2023",
+                "/Orphan",
+                "/LoopA",
+                "/LoopB"
+            ]
+        );
+        assert_eq!(inventory[3].folder_path, "/Top/Archive/2023");
+        assert_eq!(
+            folders[3].parent_folder_key,
+            Some(folders[2].folder_key.clone())
+        );
+        assert_eq!(
+            folders[1].parent_folder_key,
+            Some(folders[0].folder_key.clone())
+        );
+        assert_eq!(folders[4].parent_folder_key.as_deref(), Some("root"));
+        assert_eq!(folders[5].parent_folder_key.as_deref(), Some("root"));
+    }
+
     fn entry(node_id: u64) -> NbtEntry {
         NbtEntry {
             node_id: NodeId(node_id),
             data_block_id: BlockId(0x1000),
             subnode_block_id: None,
+            parent_node_id: None,
         }
     }
 

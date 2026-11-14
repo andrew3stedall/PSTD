@@ -32,7 +32,8 @@ use crate::pst::compatibility::{
 };
 use crate::pst::embedded_graph::build_embedded_graph;
 use crate::pst::folder_tree::{
-    folder_from_nbt_candidate, is_folder_candidate, root_folder_from_header, FolderInventoryRecord,
+    apply_folder_nesting, folder_from_nbt_candidate, is_folder_candidate, root_folder_from_header,
+    FolderInventoryRecord,
 };
 use crate::pst::header::PstHeader;
 use crate::pst::header_projection;
@@ -1220,6 +1221,20 @@ fn discover_folder_hierarchy(
             }
         }
     }
+
+    let parent_by_identity: HashMap<String, String> = nbt
+        .entries
+        .iter()
+        .filter(|entry| is_folder_candidate(entry))
+        .filter_map(|entry| {
+            let parent = entry.parent_node_id?;
+            Some((
+                format!("node_{:x}", entry.node_id.0),
+                format!("node_{:x}", parent.0),
+            ))
+        })
+        .collect();
+    apply_folder_nesting(&mut folders, &mut inventory, &parent_by_identity);
 
     let status = if candidate_count == 0 {
         "root_only_no_decoded_folder_candidates".to_string()

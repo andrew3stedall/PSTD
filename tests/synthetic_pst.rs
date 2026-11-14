@@ -24,8 +24,6 @@ const RECIPIENT_GAP: bool = true;
 /// #623: contents-table rows stored in a subnode are not read, so messages in large
 /// folders have no folder. Folder ownership is asserted only for the small mailbox.
 const LARGE_FOLDER_GAP: bool = true;
-/// #626: folder nesting is not rebuilt, so folders are compared by name, not path.
-const FOLDER_NESTING_GAP: bool = true;
 /// #624 and #625: what the reader reports for a damaged attachment itself
 /// (wrong bytes, altered bytes, or no record) is not asserted. Its message, body and
 /// intact sibling attachments are.
@@ -119,13 +117,10 @@ fn text(value: &Value, field: &str) -> String {
     value[field].as_str().unwrap_or("").to_string()
 }
 
-/// The folder identity compared between manifest and extraction.
+/// The folder path compared between manifest and extraction. The manifest writes
+/// paths without the leading separator.
 fn leaf(folder: &str) -> &str {
-    if FOLDER_NESTING_GAP {
-        folder.rsplit('/').next().unwrap_or(folder)
-    } else {
-        folder
-    }
+    folder.trim_start_matches('/')
 }
 
 /// Message records keyed by node id. Embedded messages surface as extra records with

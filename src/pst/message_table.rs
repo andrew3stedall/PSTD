@@ -310,6 +310,7 @@ mod tests {
             node_id: NodeId(node_id),
             data_block_id: BlockId(0x1000),
             subnode_block_id: None,
+            parent_node_id: None,
         }
     }
 

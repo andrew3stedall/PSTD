@@ -122,6 +122,7 @@ mod tests {
                 node_id: NodeId(0x24),
                 data_block_id: BlockId(0x1000),
                 subnode_block_id: None,
+                parent_node_id: None,
             }],
             table_candidates: Vec::new(),
             linked_table_count: 0,
