@@ -1,11 +1,11 @@
 # Active implementation checkpoint
 
 - Issue: #622 follow-up; original fix merged as #630 (2b73d4b).
-- Branch: t3/issue-622; PR: #631; latest implementation: 0e64136.
+- Branch: t3/issue-622; PR: #631; latest implementation: 0e64136; main reconciliation: b81befc.
 - Scope: repair property lookup with unrelated empty/wide sibling entries; validate full original fix. Excludes #623 and other robustness issues.
 - Established: original #630 merged with failing Tika/content/embedded-graph fixture checks. Only source delta from main is property_source.rs and its regression. Table-row BIN references retain their existing interpretation.
 - Source: src/pst/property_source.rs, owning_subnode_root/find_data_bid.
-- Validation: cargo fmt --check passed. Resolver and full suite compiling/running with CARGO_TARGET_DIR=/tmp/pstd-622-target. Docker unavailable locally; use CI. Prior baseline full suite passed; current fixture delta pending.
+- Validation: cargo fmt --check passed. Resolver tests: 3 passed, 0 failed. Full suite running with CARGO_TARGET_DIR=/tmp/pstd-622-target. Docker unavailable locally; use CI. Prior baseline full suite passed; current fixture delta pending.
 - Blockers: no source blocker. Local Rust 1.94 has pre-existing unknown lint / too_many_arguments clippy differences; CI stable is authoritative.
 
 ## Next exact change
