@@ -62,13 +62,27 @@ pub fn recipients_from_tc(
             Some(name) => Some(name),
             None => string(PR_RECIPIENT_DISPLAY_NAME)?,
         };
-        let raw_address = string(PR_RECIPIENT_EMAIL_ADDRESS)?;
-        let address_type = string(PR_RECIPIENT_ADDRTYPE)?;
-        let smtp_address = match string(PR_SMTP_ADDRESS)? {
-            Some(address) => Some(address),
-            None => smtp_from_raw(&raw_address, &address_type),
-        };
-        let resolution_status = resolution_status(&raw_address, &address_type, &smtp_address);
+        // Same address contract as the evidence-selected path: an address is SMTP
+        // only when the row carries PidTagSmtpAddress; otherwise the stored
+        // address is preserved as a native address and never relabelled.
+        let (raw_address, address_type, smtp_address, resolution_status) =
+            match string(PR_SMTP_ADDRESS)? {
+                Some(address) => (
+                    Some(address.clone()),
+                    Some("SMTP".to_string()),
+                    Some(address),
+                    "smtp_available".to_string(),
+                ),
+                None => match string(PR_RECIPIENT_EMAIL_ADDRESS)? {
+                    Some(address) => (
+                        Some(address),
+                        Some("native_email_address".to_string()),
+                        None,
+                        "raw_address_preserved".to_string(),
+                    ),
+                    None => (None, None, None, "address_unavailable".to_string()),
+                },
+            };
         records.push(RecipientRecord {
             message_key: message_key.to_string(),
             recipient_key: ids::recipient_key(message_key, &recipient_type, ordinal),
