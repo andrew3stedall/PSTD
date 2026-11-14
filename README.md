@@ -263,3 +263,12 @@ retain raw evidence with an unavailable status rather than becoming payload byte
 Synthetic regression coverage checks large bodies, zero-byte attachments, and missing
 attachment blocks. This does not close the separate table-row, checksum, or corrupt
 attachment robustness issues, nor establish broad producer compatibility.
+
+### ROBUST-05: Folder nesting from NBT parents (#626)
+
+Folder paths are rebuilt from each folder node's NBT parent: `Archive/2023` is
+reported as `/…/Archive/2023` with `parent_folder_key` naming the containing
+folder, so same-named folders no longer collide. The self-parented mailbox root
+adds no path segment. A folder whose parent is not a discovered folder, or whose
+parent chain loops, keeps its previous flat path. Message `folder_path` follows the
+nested folder path. Fixture expectations that hard-code flat paths change with this.
