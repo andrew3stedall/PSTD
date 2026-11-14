@@ -740,6 +740,25 @@ pub(crate) fn resolve_attachment_payload(
     bbt: &BbtIndex,
     limits: ParserLimits,
 ) -> Result<(Vec<u8>, String), String> {
+    // The data block is referenced but was not loaded with the message's subnodes.
+    // When that is because the block failed its integrity check, say so instead of
+    // reporting a generic unresolved reference.
+    if let Some(data_bid) = unloaded_subnode_data_bid(properties, blocks) {
+        if let Err(error) = crate::pst::payload::load_payload_block(
+            reader,
+            bbt,
+            crate::pst::primitives::BlockId(data_bid),
+            limits,
+        ) {
+            let reason = error.to_string();
+            if reason.contains(crate::pst::payload::BLOCK_CHECKSUM_MISMATCH)
+                || reason.contains(crate::pst::payload::BLOCK_TRAILER_SIZE_MISMATCH)
+            {
+                return Err(reason);
+            }
+        }
+    }
+
     if properties
         .value(PR_ATTACH_DATA_BIN)
         .is_some_and(|value| value.status == "property_value_reference_unresolved")
@@ -763,25 +782,6 @@ pub(crate) fn resolve_attachment_payload(
                 sanitized_status_reason(&tree.status)
             ),
         ));
-    }
-
-    // The data block is referenced but was not loaded with the message's subnodes.
-    // When that is because the block failed its integrity check, say so instead of
-    // reporting a generic unresolved reference.
-    if let Some(data_bid) = unloaded_subnode_data_bid(properties, blocks) {
-        if let Err(error) = crate::pst::payload::load_payload_block(
-            reader,
-            bbt,
-            crate::pst::primitives::BlockId(data_bid),
-            limits,
-        ) {
-            let reason = error.to_string();
-            if reason.contains(crate::pst::payload::BLOCK_CHECKSUM_MISMATCH)
-                || reason.contains(crate::pst::payload::BLOCK_TRAILER_SIZE_MISMATCH)
-            {
-                return Err(reason);
-            }
-        }
     }
 
     if let Some(bytes) = inline_object_heap_bytes(properties, blocks) {
