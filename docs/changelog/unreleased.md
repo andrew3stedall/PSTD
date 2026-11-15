@@ -600,7 +600,7 @@ when the row's existence bitmap sets them. Folder membership and message recipie
 use it: a 300-recipient message yields 300 recipients, and a 1,200-message mailbox
 keeps every message's folder. A table whose index, matrix or layout disagree yields
 no rows. Recipients are not read for a message whose own Property Context is not a
-resolved heap; such messages keep the earlier evidence-selected path. This does not
+resolved heap; since ROBUST-07 (#633) such messages get no recipients. This does not
 close checksum (#624), damaged-attachment (#625) or folder-nesting (#626) gaps, nor
 establish broad producer compatibility.
 
@@ -637,6 +637,23 @@ that needed the block reports it (an attachment keeps its record with
 ANSI and 4K-page files are not checked, nor is a block whose aligned extent runs
 past the end of the file. The trailer's block id and signature are not compared.
 Raw block reads that bypass the payload loader are not covered.
+
+### ROBUST-07: Property Contexts stored in a data tree (#633)
+
+A message whose Property Context heap does not fit one block stores it in an XBLOCK
+data tree. A node whose BID is internal and whose block is an XBLOCK or XXBLOCK is
+now read by structure: every heap block is loaded, heap ids resolve across blocks,
+and the BTH may have index levels. A repeated property, revisited BTH node, partial
+record or non-Property-Context heap yields no properties and the status
+`data_tree_property_context_unreadable`. In `tika-testPST.pst` two messages gain
+subject and sender and read recipients from their recipient table (Hong-Thai Nguyen
+becomes `Hong-Thai.Nguyen@polyspot.com` instead of a truncated Exchange address);
+in `tika-various-body-types.pst` three messages gain text bodies and one an RTF
+body. Recipients now come only from a recipient table read by column tag: the
+evidence-selected projection is removed, so a message whose Property Context is not
+a heap, such as the flat ANSI stage-B synthetic message, has no recipient records
+(#638 makes those fixtures spec-valid). The two recovered Tika messages' bodies stay
+present but unresolved, like other large Tika bodies (#639).
 
 ## ROBUST-01 validation follow-up
 
