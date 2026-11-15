@@ -1,6 +1,6 @@
 use crate::error::PstdResult;
 use crate::pst::bbt::BbtIndex;
-use crate::pst::bth::BthMap;
+use crate::pst::bth::{BthHeader, BthMap};
 use crate::pst::heap::{
     heap_candidate_offsets_with_limit, heap_signature_offsets_with_limit, HeapOnNode,
     PQ12_MAX_HEAP_SCAN_OFFSET,
@@ -8,8 +8,25 @@ use crate::pst::heap::{
 use crate::pst::limits::ParserLimits;
 use crate::pst::nbt::NbtEntry;
 use crate::pst::payload::{load_payload_block, PayloadBlock};
+use crate::pst::pc_tree::read_property_context_tree;
 use crate::pst::property_context::{PropertyContext, PropertyContextParseReport};
 use crate::pst::reader::PstByteReader;
+use crate::pst::tc_reader::TcSource;
+
+/// A BID with this bit set names an XBLOCK/XXBLOCK, not a data block.
+const BID_INTERNAL_MASK: u64 = 0x02;
+const XBLOCK_TYPE: u8 = 0x01;
+
+/// A node's data is a data tree when its BID is internal and the block is an
+/// XBLOCK (level 1) or XXBLOCK (level 2). Both must agree: the deterministic
+/// ANSI fixtures label flat data blocks with internal BIDs, and those keep
+/// the single-block path.
+fn is_data_tree_root(bid: u64, bytes: &[u8]) -> bool {
+    bid & BID_INTERNAL_MASK != 0
+        && bytes.len() >= 8
+        && bytes[0] == XBLOCK_TYPE
+        && matches!(bytes[1], 1 | 2)
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NodePayloadReport {
@@ -46,14 +63,44 @@ pub fn load_node_property_context_with_fallback_charset(
 ) -> PstdResult<LoadedNodePayload> {
     let payload = load_payload_block(reader, bbt, entry.data_block_id, limits)?;
     let payload_base_offset = payload.block_ref.offset.0;
-    let (mut bth, traversal_status) =
+    let (mut bth, traversal_status) = if is_data_tree_root(entry.data_block_id.0, &payload.bytes) {
+        // The heap spans a data tree: read it by structure, never by probing
+        // the XBLOCK's own bytes for something that looks like a heap.
+        let source = TcSource {
+            reader,
+            bbt,
+            limits,
+        };
+        match read_property_context_tree(source, entry.data_block_id) {
+            Ok((bth, blocks)) => (
+                bth,
+                format!("heap_bth_property_context_data_tree; data_tree_blocks={blocks}"),
+            ),
+            Err(reason) => (
+                BthMap {
+                    header: BthHeader {
+                        key_size: 0,
+                        value_size: 0,
+                        entry_count: 0,
+                        root_allocation: 0,
+                    },
+                    entries: Vec::new(),
+                },
+                format!(
+                    "data_tree_property_context_unreadable; reason={}",
+                    sanitized_reason(&reason.to_string())
+                ),
+            ),
+        }
+    } else {
         match load_heap_bth_from_candidates(&payload.bytes, payload_base_offset) {
             Ok((bth, status)) => (bth, status),
             Err(reason) => (
                 BthMap::parse(&payload.bytes, payload_base_offset)?,
                 format!("legacy_flat_bth_property_context; pq11_heap_probe={reason}"),
             ),
-        };
+        }
+    };
     if traversal_status.starts_with("heap_bth") {
         crate::pst::property_source::resolve_values(
             &mut bth,

@@ -58,9 +58,6 @@ use crate::pst::subnodes::{
     SubnodeReference,
 };
 use crate::pst::tc_extraction_reporting::finalize_table_probe_collection;
-use crate::pst::tc_message_recipient_output::{
-    build_message_recipient_output, MESSAGE_RECIPIENT_OUTPUT_ATTACHED,
-};
 use crate::pst::tc_probe_collection::record_subnode_payload_probe;
 use crate::pst::tc_reader::TcSource;
 use crate::pst::tc_run_reporting::TcRunProbeCollector;
@@ -492,7 +489,7 @@ fn extract_metadata_with_limits(
                             pq14_message_subnode_probe_attempts += 1;
                             let loaded_subnodes =
                                 load_recursive_subnode_blocks(&reader, &bbt, reference, 1, limits);
-                            let probe = record_subnode_payload_probe(
+                            record_subnode_payload_probe(
                                 &mut table_probe_collector,
                                 reference,
                                 &loaded_subnodes.payloads,
@@ -502,7 +499,6 @@ fn extract_metadata_with_limits(
                                 tc_source,
                                 reference.subnode_block_id,
                                 selected_charset,
-                                &probe,
                             ));
                             recipient_probe_completed = true;
                             let (property_context_attachments, attachment_property_report) =
@@ -565,7 +561,7 @@ fn extract_metadata_with_limits(
                             let loaded_subnodes =
                                 load_recursive_subnode_blocks(&reader, &bbt, reference, 1, limits);
                             if !recipient_probe_completed {
-                                let probe = record_subnode_payload_probe(
+                                record_subnode_payload_probe(
                                     &mut table_probe_collector,
                                     reference,
                                     &loaded_subnodes.payloads,
@@ -575,7 +571,6 @@ fn extract_metadata_with_limits(
                                     tc_source,
                                     reference.subnode_block_id,
                                     selected_charset,
-                                    &probe,
                                 ));
                             }
                             let (
@@ -1414,7 +1409,7 @@ fn recover_embedded_message(
             subnode_block_id: crate::pst::primitives::BlockId(subnode_bid),
             status: "embedded_message_subnode_reference".to_string(),
         };
-        let probe = record_subnode_payload_probe(
+        record_subnode_payload_probe(
             table_probe_collector,
             &reference,
             &candidate.subnode_payloads,
@@ -1428,7 +1423,6 @@ fn recover_embedded_message(
             }),
             reference.subnode_block_id,
             selected_charset,
-            &probe,
         );
     }
 
@@ -1841,26 +1835,19 @@ pub fn fallback_metadata(
     }
 }
 
-/// Recipients for one message: the recipient table read by column tag, or the
-/// evidence-selected projection when the message has no readable recipient table.
+/// Recipients for one message: its recipient table read by column tag. A
+/// message whose own Property Context is unreadable, or whose recipient table
+/// cannot be read by structure, gets no recipients rather than a projection
+/// selected from candidate payloads.
 fn message_recipient_records(
     message_key: &str,
     source: Option<TcSource<'_>>,
     subnode_root: crate::pst::primitives::BlockId,
     fallback_charset: Option<&str>,
-    probe: &crate::pst::tc_reporting::TcSubnodeProbeReport,
 ) -> Vec<RecipientRecord> {
-    if let Some(recipients) = source
+    source
         .and_then(|source| message_recipients(message_key, source, subnode_root, fallback_charset))
-    {
-        return recipients;
-    }
-    let output = build_message_recipient_output(message_key, probe);
-    if output.status == MESSAGE_RECIPIENT_OUTPUT_ATTACHED {
-        output.recipients
-    } else {
-        Vec::new()
-    }
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

@@ -33,6 +33,7 @@ pub mod messages;
 pub mod nbt;
 pub mod node_payload;
 pub mod payload;
+pub(crate) mod pc_tree;
 pub mod primitives;
 pub mod property_context;
 pub(crate) mod property_source;

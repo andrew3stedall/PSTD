@@ -259,7 +259,7 @@ fn is_ansi(source: TcSource<'_>) -> PstdResult<bool> {
 }
 
 /// Load the leaf data blocks of a data tree, one buffer per block, in order.
-fn load_data_blocks(source: TcSource<'_>, root: BlockId) -> PstdResult<Vec<Vec<u8>>> {
+pub(crate) fn load_data_blocks(source: TcSource<'_>, root: BlockId) -> PstdResult<Vec<Vec<u8>>> {
     let bid_width = if is_ansi(source)? { 4 } else { 8 };
     let mut blocks = Vec::new();
     let mut seen = HashSet::new();
@@ -310,7 +310,7 @@ fn append_data_blocks(
 
 /// Resolve a heap id across the blocks of a heap-on-node. Every block starts
 /// with the offset of its own page map, whatever header it carries.
-fn heap_allocation(heap: &[Vec<u8>], hid: u32) -> PstdResult<&[u8]> {
+pub(crate) fn heap_allocation(heap: &[Vec<u8>], hid: u32) -> PstdResult<&[u8]> {
     let missing = || parse_error(format!("table heap id 0x{hid:08x} does not resolve"));
     let index = ((hid >> 5) & 0x7ff) as usize;
     if hid & 0x1f != 0 || index == 0 {

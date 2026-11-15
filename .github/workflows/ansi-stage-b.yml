@@ -134,10 +134,10 @@ jobs:
           }
           for key, value in expected.items():
               assert message.get(key) == value, (key, message)
-          assert len(recipients) == 1, recipients
-          assert recipients[0]['recipient_type'] == 'to', recipients
-          assert recipients[0]['display_name'] == 'Recipient', recipients
-          assert recipients[0]['smtp_address'] == 'recipient@example.test', recipients
+          # The synthetic message stores its properties as a flat list, not a
+          # Property Context heap, so it has no readable recipient table and
+          # recipients are never projected from candidate payloads (#633).
+          assert recipients == [], recipients
           assert len(bodies) == 1, bodies
           assert bodies[0]['body_type'] == 'text', bodies
           assert bodies[0]['status'] == 'extracted', bodies
@@ -186,6 +186,7 @@ jobs:
           message = BytesParser(policy=policy.default).parsebytes(raw)
           expected_headers = {
               'From': 'PSTD Fixture Sender <sender@example.test>',
+              # From the message's own transport headers, not a recipient record.
               'To': 'Recipient <recipient@example.test>',
               'Subject': 'ANSI Stage B synthetic message',
               'Date': 'Tue, 01 Jan 2019 00:00:00 +0000',

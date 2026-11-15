@@ -77,17 +77,25 @@ jobs:
               message['message_key'] for message in messages
           }:
               raise SystemExit('body-types headers do not cover message keys')
-          if len(bodies) != 5:
+          if len(bodies) != 7:
               raise SystemExit(f'unexpected body record count: {len(bodies)}')
 
+          # The three forwarded messages store their Property Context in a
+          # data tree; reading it by structure recovers their bodies (#633).
           expected_forms = {
-              'msg_41a42378327281a0': [('text', 0, 'body_payload_property_absent; supported_body_properties=0')],
-              'msg_5745cddf4a8063e4': [('text', 0, 'body_payload_property_absent; supported_body_properties=0')],
+              'msg_41a42378327281a0': [
+                  ('rtf', 3838, 'extracted'),
+                  ('text', 195, 'extracted'),
+              ],
+              'msg_5745cddf4a8063e4': [
+                  ('html', 0, 'body_payload_property_present_but_unresolved; body_type=html'),
+                  ('text', 210, 'extracted'),
+              ],
               'msg_58f39dbbca78135b': [
                   ('html', 0, 'body_payload_property_present_but_unresolved; body_type=html'),
                   ('text', 37, 'extracted'),
               ],
-              'msg_6e55e2f20573a339': [('text', 0, 'body_payload_property_absent; supported_body_properties=0')],
+              'msg_6e55e2f20573a339': [('text', 202, 'extracted')],
           }
           actual_forms = {
               message_key: sorted(
