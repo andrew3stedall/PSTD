@@ -1,7 +1,7 @@
 # Active implementation checkpoint
 
 - Issue: #633 [ROBUST-07] legacy flat Property Context path keeps evidence-selected recipients (follow-up to #623/#629, PR #632).
-- Branch: `t3/issue-633-legacy-pc-recipients`. PR: not yet opened.
+- Branch: `t3/issue-633-legacy-pc-recipients`. PR: #637 (draft).
 
 ## Established conclusions
 
@@ -14,11 +14,15 @@
 In: `pc_tree.rs`, `node_payload.rs` dispatch, recipient fallback removal, Tika workflow expectations, docs.
 Out: ANSI/4K trailer checks, embedded-message attachment reconciliation, deleting the now-unused evidence recipient modules.
 
+- The data-tree path requires both an internal BID and an XBLOCK/XXBLOCK header: the deterministic ANSI fixtures (`tools/ansi_fixture.rs`) label flat data blocks with internal BIDs (0x102, 0x10a), a spec deviation left for a follow-up.
+- User decision: the ANSI stage-B flat synthetic message now expects zero recipient records (no readable recipient table); its EML `To` still comes from the message's own transport headers. Follow-up: make the ANSI fixtures spec-valid.
+- Recovered: Tika `msg_d7325f9579306ba3` and `msg_4bc9d7bd77cbe661` gain subject/sender; Hong-Thai Nguyen is SMTP from the table; body-types messages `msg_41a4...`, `msg_5745...`, `msg_6e55...` gain text (and one RTF) bodies. Tika data-tree messages' text/HTML bodies stay present-but-unresolved, like existing `msg_33144...`/`msg_5e70...` (pre-existing large-body gap).
+
 ## Tests
 
-- Local: pending (`cargo test -j 2 --lib pc_tree`, `cargo test -j 2 --test synthetic_pst`).
-- CI: pending.
+- Local builds exceed the memory budget; rely on PR CI.
+- Tika attachment and body-types workflow checks re-run locally against the fd92d6f CI artifacts: both pass with the updated expectations.
 
 ## Next exact change
 
-Run focused tests; open draft PR; read Tika workflow failures for the new expected output (two messages gain metadata; `Hong-Thai Nguyen` now from the table) and update expectations.
+Wait for CI on the stage-b expectation commit; if green, update README/changelog/project-status (ROBUST-07), delete this checkpoint, mark ready and squash-merge.
