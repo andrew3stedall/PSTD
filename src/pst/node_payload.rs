@@ -15,6 +15,18 @@ use crate::pst::tc_reader::TcSource;
 
 /// A BID with this bit set names an XBLOCK/XXBLOCK, not a data block.
 const BID_INTERNAL_MASK: u64 = 0x02;
+const XBLOCK_TYPE: u8 = 0x01;
+
+/// A node's data is a data tree when its BID is internal and the block is an
+/// XBLOCK (level 1) or XXBLOCK (level 2). Both must agree: the deterministic
+/// ANSI fixtures label flat data blocks with internal BIDs, and those keep
+/// the single-block path.
+fn is_data_tree_root(bid: u64, bytes: &[u8]) -> bool {
+    bid & BID_INTERNAL_MASK != 0
+        && bytes.len() >= 8
+        && bytes[0] == XBLOCK_TYPE
+        && matches!(bytes[1], 1 | 2)
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct NodePayloadReport {
@@ -51,7 +63,7 @@ pub fn load_node_property_context_with_fallback_charset(
 ) -> PstdResult<LoadedNodePayload> {
     let payload = load_payload_block(reader, bbt, entry.data_block_id, limits)?;
     let payload_base_offset = payload.block_ref.offset.0;
-    let (mut bth, traversal_status) = if entry.data_block_id.0 & BID_INTERNAL_MASK != 0 {
+    let (mut bth, traversal_status) = if is_data_tree_root(entry.data_block_id.0, &payload.bytes) {
         // The heap spans a data tree: read it by structure, never by probing
         // the XBLOCK's own bytes for something that looks like a heap.
         let source = TcSource {

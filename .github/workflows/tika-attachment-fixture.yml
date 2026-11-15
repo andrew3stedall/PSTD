@@ -236,7 +236,10 @@ jobs:
 
           expected_top_level_subjects = {
               'msg_2a24cb244caffb52': '\u0001\u0005Re: Feature Generators',
-              'msg_d7325f9579306ba3': None,
+              'msg_d7325f9579306ba3': (
+                  '\u0001\u0005Re: init tokenizer fails: '
+                  '"Bad type in putfield/putstatic"'
+              ),
               'msg_ce73d10db9eceadb': '\u0001\u0001Feature Generators',
               'msg_33144a866cb58408': (
                   '\u0001\u0001[jira] [Resolved] (TIKA-1249) Vcard files detection'
@@ -245,7 +248,9 @@ jobs:
                   '\u0001\u0001[jira] [Commented] (TIKA-1250) '
                   'Process loops infintely processing a CHM file'
               ),
-              'msg_4bc9d7bd77cbe661': None,
+              'msg_4bc9d7bd77cbe661': (
+                  '\u0001\u0001[WEBINAR] - "Introducing Couchbase Server 2.5"'
+              ),
               'msg_c6163b9157944cc9': '\u0001\u0005FW: First email',
           }
           top_level_messages = {
@@ -288,7 +293,7 @@ jobs:
               or child['folder_path'] != '/'
           ):
               raise SystemExit(f'embedded child ownership changed: {child!r}')
-          if len(bodies) != 10:
+          if len(bodies) != 11:
               raise SystemExit(f'unexpected body record count: {len(bodies)}')
           unresolved_html = sorted(
               body['message_key']
@@ -302,6 +307,7 @@ jobs:
           )
           if unresolved_html != [
               'msg_0ff529af59d373d5',
+              'msg_4bc9d7bd77cbe661',
               'msg_c6163b9157944cc9',
           ]:
               raise SystemExit(
@@ -379,10 +385,10 @@ jobs:
                   'message_key': 'msg_4bc9d7bd77cbe661',
                   'recipient_type': 'to',
                   'display_name': 'Hong-Thai Nguyen',
-                  'address_type': 'native_email_address',
-                  'smtp_address': None,
-                  'raw_address': '/o=ExchangeLabs/ou=Exchange Administrative Group (FYDIBOHF23SPDLT)/cn=Recipients/cn=polyspot1.onmicrosoft.com-50609-Hong-Thai.Ng',
-                  'resolution_status': 'raw_address_preserved',
+                  'address_type': 'SMTP',
+                  'smtp_address': 'Hong-Thai.Nguyen@polyspot.com',
+                  'raw_address': 'Hong-Thai.Nguyen@polyspot.com',
+                  'resolution_status': 'smtp_available',
                   'ordinal': 0,
               },
               {
@@ -933,7 +939,7 @@ jobs:
           }
           expected_metrics = {
               'messages': 8,
-              'body_records': 10,
+              'body_records': 11,
               'recipient_records': 9,
               'attachment_records': 3,
               'body_payload_files': 4,
@@ -941,13 +947,13 @@ jobs:
               'attachment_payload_files': 3,
               'attachment_payload_bytes': 40756,
               'eml_files': 2,
-              'messages_jsonl_bytes': 29068,
-              'bodies_jsonl_bytes': 3020,
-              'recipients_jsonl_bytes': 2696,
+              'messages_jsonl_bytes': 30302,
+              'bodies_jsonl_bytes': 3348,
+              'recipients_jsonl_bytes': 2601,
               'attachments_jsonl_bytes': 2073,
-              'headers_jsonl_bytes': 4396,
-              'tar_bytes': 689664,
-              'stable_archive_bytes': 689664,
+              'headers_jsonl_bytes': 4638,
+              'tar_bytes': 796160,
+              'stable_archive_bytes': 796160,
           }
           stable_metrics = {
               key: value
