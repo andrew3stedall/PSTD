@@ -1409,7 +1409,7 @@ fn recover_embedded_message(
             subnode_block_id: crate::pst::primitives::BlockId(subnode_bid),
             status: "embedded_message_subnode_reference".to_string(),
         };
-        let probe = record_subnode_payload_probe(
+        record_subnode_payload_probe(
             table_probe_collector,
             &reference,
             &candidate.subnode_payloads,
@@ -1423,7 +1423,6 @@ fn recover_embedded_message(
             }),
             reference.subnode_block_id,
             selected_charset,
-            &probe,
         );
     }
 
