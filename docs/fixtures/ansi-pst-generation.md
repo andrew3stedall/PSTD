@@ -100,6 +100,24 @@ method-1 literal. The `--stage-c-method-3-attachment` and
 metadata and the same inline and external payload contracts; it does not claim external
 ID2/path layouts.
 
+### Stage B and C layout
+
+Since ROBUST-08 (#638), the stage-B and stage-C nodes follow MS-PST.
+
+- Data blocks use leaf BIDs: folder `0x100`, message `0x104`, contents table `0x108`,
+  recipient table `0x110`, attachment Property Context `0x114` and indirect
+  attachment data `0x118`. The SLBLOCK `0x10e` is the only internal BID.
+- The folder, message and attachment nodes are heap-on-node Property Contexts.
+  Each has a 12-byte heap header, a BTH leaf sorted by property ID, String8 values
+  without a terminator, and inline values for 4-byte-or-smaller scalar types.
+- The recipient table is the message subnode `0x692`. The cell existence bitmap in
+  its row is most-significant-bit first.
+- The stage-B SLBLOCK is ANSI: a 4-byte header and 12-byte `nid`/`bidData`/`bidSub`
+  entries. **Stage C keeps a Unicode-width SLBLOCK** (8-byte header, 24-byte
+  entries), which is not spec-valid. PSTD's attachment discovery reads only that
+  width, so stage C stays on it until #642 is fixed. Stage C also stores the
+  attachment Property Context at subnode `0x31`, with no attachment table.
+
 ### Stage D: compatibility breadth
 
 After Stages B and C pass, add separate controlled variants for:
