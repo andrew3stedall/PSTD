@@ -102,7 +102,8 @@ ID2/path layouts.
 
 ### Stage B and C layout
 
-Since ROBUST-08 (#638), the stage-B and stage-C nodes follow MS-PST.
+Since ROBUST-08 (#638), the stage-B and stage-C data blocks, Property Contexts and
+recipient table follow MS-PST.
 
 - Data blocks use leaf BIDs: folder `0x100`, message `0x104`, contents table `0x108`,
   recipient table `0x110`, attachment Property Context `0x114` and indirect
@@ -117,6 +118,15 @@ Since ROBUST-08 (#638), the stage-B and stage-C nodes follow MS-PST.
   entries), which is not spec-valid. PSTD's attachment discovery reads only that
   width, so stage C stays on it until #642 is fixed. Stage C also stores the
   attachment Property Context at subnode `0x31`, with no attachment table.
+
+These fixtures still differ from MS-PST elsewhere, and are not claimed to be
+spec-complete:
+
+- NBT entries are 12 bytes with no `nidParent`; ANSI NBT entries are 16 bytes.
+- Blocks have no trailer and no 64-byte alignment, and BBT entries leave `cRef` at 0.
+- The folder has no hierarchy, contents or associated-contents table of its own.
+- Table rows have no `PidTagLtpRowId`/`PidTagLtpRowVer` columns, and the contents
+  table has a row-index entry but no row matrix.
 
 ### Stage D: compatibility breadth
 

@@ -10,7 +10,7 @@ const HN_HEADER_SIZE: u16 = 12;
 const FOLDER_BID: u32 = 0x100;
 const MESSAGE_BID: u32 = 0x104;
 const CONTENTS_TABLE_BID: u32 = 0x108;
-const SUBNODE_BID: u32 = 0x10e;
+const SLBLOCK_BID: u32 = 0x10e;
 const RECIPIENT_TABLE_BID: u32 = 0x110;
 const ATTACHMENT_BID: u32 = 0x114;
 const ATTACHMENT_DATA_BID: u32 = 0x118;
@@ -18,6 +18,9 @@ const INDIRECT_ATTACHMENT_DATA_NID: u32 = 0x311;
 const EXTERNAL_ATTACHMENT_DATA_ID2: u32 = 0x31f;
 /// MS-PST fixed subnode NID of a message's recipient table.
 const NID_RECIPIENT_TABLE: u32 = 0x692;
+/// Subnode holding the stage-C attachment Property Context. Not an
+/// NID_TYPE_ATTACHMENT NID reached through an attachment table (#642).
+const ATTACHMENT_SUBNODE_NID: u32 = 0x31;
 
 fn put_u16(bytes: &mut [u8], offset: usize, value: u16) {
     bytes[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
@@ -408,7 +411,7 @@ fn make_stage_b_fixture() -> Vec<u8> {
         (MESSAGE_BID, make_message_payload()),
         (CONTENTS_TABLE_BID, make_message_contents_table()),
         (
-            SUBNODE_BID,
+            SLBLOCK_BID,
             make_slblock(&[(NID_RECIPIENT_TABLE, RECIPIENT_TABLE_BID, 0)]),
         ),
         (RECIPIENT_TABLE_BID, make_recipient_table()),
@@ -424,7 +427,7 @@ fn make_stage_b_fixture() -> Vec<u8> {
         block_bytes.push((offset, payload));
         match block_id {
             FOLDER_BID => nbt_entries.push((0x22u32, block_id, 0u32)),
-            MESSAGE_BID => nbt_entries.push((0x24u32, block_id, SUBNODE_BID)),
+            MESSAGE_BID => nbt_entries.push((0x24u32, block_id, SLBLOCK_BID)),
             CONTENTS_TABLE_BID => nbt_entries.push((0x2eu32, block_id, 0u32)),
             _ => {}
         }
@@ -475,7 +478,7 @@ fn make_stage_b_fixture() -> Vec<u8> {
 
 fn make_stage_c_fixture(indirect: bool, method: i32, external_id2: bool) -> Vec<u8> {
     let mut slblock_entries = vec![
-        (0x31, ATTACHMENT_BID, 0),
+        (ATTACHMENT_SUBNODE_NID, ATTACHMENT_BID, 0),
         (NID_RECIPIENT_TABLE, RECIPIENT_TABLE_BID, 0),
     ];
     if indirect {
@@ -491,7 +494,7 @@ fn make_stage_c_fixture(indirect: bool, method: i32, external_id2: bool) -> Vec<
         (FOLDER_BID, make_folder_payload()),
         (MESSAGE_BID, make_attachment_message_payload()),
         (CONTENTS_TABLE_BID, make_message_contents_table()),
-        (SUBNODE_BID, make_legacy_unicode_width_slblock(&slblock_entries)),
+        (SLBLOCK_BID, make_legacy_unicode_width_slblock(&slblock_entries)),
         (RECIPIENT_TABLE_BID, make_recipient_table()),
         (
             ATTACHMENT_BID,
@@ -512,7 +515,7 @@ fn make_stage_c_fixture(indirect: bool, method: i32, external_id2: bool) -> Vec<
         block_bytes.push((offset, payload));
         match block_id {
             FOLDER_BID => nbt_entries.push((0x22u32, block_id, 0u32)),
-            MESSAGE_BID => nbt_entries.push((0x24u32, block_id, SUBNODE_BID)),
+            MESSAGE_BID => nbt_entries.push((0x24u32, block_id, SLBLOCK_BID)),
             CONTENTS_TABLE_BID => nbt_entries.push((0x2eu32, block_id, 0u32)),
             _ => {}
         }

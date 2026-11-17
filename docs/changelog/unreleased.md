@@ -655,7 +655,7 @@ a heap, such as the flat ANSI stage-B synthetic message, has no recipient record
 (#638 makes those fixtures spec-valid). The two recovered Tika messages' bodies stay
 present but unresolved, like other large Tika bodies (#639).
 
-### ROBUST-08: Spec-valid ANSI stage-B and stage-C fixtures (#638)
+### ROBUST-08: ANSI stage-B and stage-C fixtures with leaf BIDs and heap Property Contexts (#638)
 
 `tools/ansi_fixture.rs` now gives every data block a leaf BID; only the SLBLOCK keeps
 an internal BID. Folder and message nodes are heap-on-node Property Contexts, with

@@ -103,6 +103,8 @@ Verticals 35-45 and the ANSI by-value/reference attachment slices are complete t
 merged #590 adapter delivery; they must not be duplicated. ANSI Stage A remains a structural
 baseline, Stage B adds one controlled email/EML shape, and Stage C now covers direct and
 indirect method-1 plus method-2, method-3, and method-4 HNID/SLBLOCK attachment layouts.
+Those attachments are found only through a Unicode-width SLBLOCK, which is not the
+ANSI layout; reading ANSI-width SLBLOCKs in attachment discovery is #642.
 The next ANSI slices require separate fixtures for external ID2/path references,
 embedded/OLE attachments, HTML/RTF bodies, typed items, malformed derivatives, and
 producer-specific layouts. In parallel, an approved OLE-bearing PST or Purview Unicode

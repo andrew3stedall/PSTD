@@ -13,7 +13,13 @@ PAGE_SIZE = 512
 BBT_OFFSET = 1024
 NBT_OFFSET = 1536
 HN_HEADER_SIZE = 12
+FOLDER_BID = 0x100
+MESSAGE_BID = 0x104
+CONTENTS_TABLE_BID = 0x108
 SLBLOCK_BID = 0x10E
+RECIPIENT_TABLE_BID = 0x110
+HEAP_CLIENT_TABLE_CONTEXT = 0x7C
+HEAP_CLIENT_PROPERTY_CONTEXT = 0xBC
 NID_RECIPIENT_TABLE = 0x692
 INLINE_PC_TYPES = {0x0002, 0x0003, 0x0004, 0x000A, 0x000B, 0x000D}
 
@@ -40,10 +46,11 @@ def page_signature(file_offset: int, bid: int) -> int:
     return ((value >> 16) & 0xFFFF) ^ (value & 0xFFFF)
 
 
-def parse_heap(data: bytes) -> tuple[int, dict[int, bytes]]:
+def parse_heap(data: bytes, client_signature: int) -> tuple[int, dict[int, bytes]]:
     assert len(data) >= 8
     page_map_offset = u16(data, 0)
     assert data[2] == 0xEC
+    assert data[3] == client_signature
     user_root = u32(data, 4)
     count = u16(data, page_map_offset)
     offsets = [u16(data, page_map_offset + 4 + index * 2) for index in range(count + 1)]
@@ -66,8 +73,7 @@ def hid(allocations: dict[int, bytes], value: int) -> bytes:
 
 def parse_property_context(data: bytes) -> dict[int, bytes]:
     """Read a heap-on-node Property Context: HN -> BTH header -> sorted leaf."""
-    assert data[2:4] == b"\xec\xbc"
-    user_root, allocations = parse_heap(data)
+    user_root, allocations = parse_heap(data, HEAP_CLIENT_PROPERTY_CONTEXT)
     assert user_root == 0x20
     bth_header = hid(allocations, user_root)
     assert bth_header[:4] == b"\xb5\x02\x06\x00"
@@ -154,15 +160,15 @@ def validate(path: Path) -> dict[str, object]:
         nodes[node_id] = (data_bid, subnode_bid)
 
     assert set(nodes) == {0x22, 0x24, 0x2E}
-    assert nodes[0x22] == (0x100, 0)
-    assert nodes[0x24] == (0x104, SLBLOCK_BID)
-    assert nodes[0x2E] == (0x108, 0)
+    assert nodes[0x22] == (FOLDER_BID, 0)
+    assert nodes[0x24] == (MESSAGE_BID, SLBLOCK_BID)
+    assert nodes[0x2E] == (CONTENTS_TABLE_BID, 0)
 
-    folder = parse_property_context(blocks[0x100])
+    folder = parse_property_context(blocks[FOLDER_BID])
     assert string8(folder, 0x3001_001E) == "Synthetic Mail"
     assert u32(folder[0x3602_0003], 0) == 1
 
-    message = parse_property_context(blocks[0x104])
+    message = parse_property_context(blocks[MESSAGE_BID])
     expected_message = {
         0x001A_001E: "IPM.Note",
         0x0037_001E: "ANSI Stage B synthetic message",
@@ -177,8 +183,9 @@ def validate(path: Path) -> dict[str, object]:
     assert "Date: Tue, 01 Jan 2019 00:00:00 +0000" in string8(message, 0x007D_001E)
     assert "To: Recipient <recipient@example.test>" in string8(message, 0x007D_001E)
 
-    assert blocks[0x108][3] == 0x7C
-    contents_root, contents_allocations = parse_heap(blocks[0x108])
+    contents_root, contents_allocations = parse_heap(
+        blocks[CONTENTS_TABLE_BID], HEAP_CLIENT_TABLE_CONTEXT
+    )
     assert contents_root == 0x40
     contents_tcinfo = hid(contents_allocations, contents_root)
     assert contents_tcinfo[:2] == b"\x7c\x01"
@@ -193,11 +200,12 @@ def validate(path: Path) -> dict[str, object]:
     # ANSI SLBLOCK: no padding after cEnt; SLENTRY is nid, bidData, bidSub.
     assert len(slblock) == 4 + 12
     assert u32(slblock, 4) == NID_RECIPIENT_TABLE
-    assert u32(slblock, 8) == 0x110
+    assert u32(slblock, 8) == RECIPIENT_TABLE_BID
     assert u32(slblock, 12) == 0
 
-    assert blocks[0x110][3] == 0x7C
-    recipient_root, recipient_allocations = parse_heap(blocks[0x110])
+    recipient_root, recipient_allocations = parse_heap(
+        blocks[RECIPIENT_TABLE_BID], HEAP_CLIENT_TABLE_CONTEXT
+    )
     assert recipient_root == 0x40
     recipient_tcinfo = hid(recipient_allocations, recipient_root)
     assert recipient_tcinfo[:2] == b"\x7c\x03"

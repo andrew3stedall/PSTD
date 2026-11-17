@@ -131,6 +131,10 @@ jobs:
           messages = records(first, 'messages.jsonl')
           attachments = records(first, 'attachments.jsonl')
           bodies = records(first, 'bodies.jsonl')
+          # Stage C keeps a Unicode-width SLBLOCK so attachment discovery still
+          # finds its attachment; the recipient-table reader reads ANSI-width
+          # SLBLOCKs and so finds no recipient table here (#642).
+          assert records(first, 'recipients.jsonl') == [], records(first, 'recipients.jsonl')
           assert len([row for row in messages if row['item_type'] == 'message_metadata']) == 1, messages
           message = next(row for row in messages if row['item_type'] == 'message_metadata')
           assert message['subject'] == 'ANSI Stage C attachment message', message

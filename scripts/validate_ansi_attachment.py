@@ -83,7 +83,7 @@ def string8(properties: dict[int, bytes], tag: int) -> str:
     return value.decode("latin-1")
 
 
-def parse_property_heap(data: bytes) -> dict[int, bytes]:
+def parse_property_context(data: bytes) -> dict[int, bytes]:
     """Read a heap-on-node Property Context: HN -> BTH header -> sorted leaf."""
     assert data[2:4] == b"\xec\xbc"
     user_root, allocations = parse_heap(data)
@@ -182,10 +182,10 @@ def validate(
         0x2E: (CONTENTS_TABLE_BID, 0),
     }
 
-    folder = parse_property_heap(blocks[FOLDER_BID])
+    folder = parse_property_context(blocks[FOLDER_BID])
     assert string8(folder, 0x3001_001E) == "Synthetic Mail"
 
-    message = parse_property_heap(blocks[MESSAGE_BID])
+    message = parse_property_context(blocks[MESSAGE_BID])
     assert string8(message, 0x0037_001E) == "ANSI Stage C attachment message"
     assert u32(message[0x0E1B_000B], 0) == 1
     assert string8(message, 0x1000_001E) == "Hello from the deterministic ANSI Stage-C fixture."
@@ -208,7 +208,7 @@ def validate(
     ]
     assert subnodes == expected_subnodes, subnodes
 
-    attachment = parse_property_heap(blocks[ATTACHMENT_BID])
+    attachment = parse_property_context(blocks[ATTACHMENT_BID])
     assert string8(attachment, 0x3704_001E) == "ansi-attachment.bin"
     assert string8(attachment, 0x370E_001E) == "application/octet-stream"
     assert u32(attachment[0x3705_0003], 0) == method
