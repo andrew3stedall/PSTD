@@ -306,6 +306,24 @@ fn make_slblock(entries: &[(u32, u32, u32)]) -> Vec<u8> {
     bytes
 }
 
+/// Unicode-width SLBLOCK (8-byte header, 24-byte SLENTRY records) inside an
+/// ANSI file. This is NOT spec-valid: stage C keeps it only because PSTD's
+/// attachment discovery reads Unicode-width SLBLOCKs alone (#642). Switch
+/// stage C to `make_slblock` when that is fixed.
+fn make_legacy_unicode_width_slblock(entries: &[(u32, u32, u32)]) -> Vec<u8> {
+    assert!(entries.windows(2).all(|pair| pair[0].0 < pair[1].0));
+    let mut bytes = vec![0u8; 8 + entries.len() * 24];
+    bytes[0] = 0x02;
+    put_u16(&mut bytes, 2, entries.len() as u16);
+    for (index, (node_id, data_bid, subnode_bid)) in entries.iter().enumerate() {
+        let start = 8 + index * 24;
+        bytes[start..start + 8].copy_from_slice(&u64::from(*node_id).to_le_bytes());
+        bytes[start + 8..start + 16].copy_from_slice(&u64::from(*data_bid).to_le_bytes());
+        bytes[start + 16..start + 24].copy_from_slice(&u64::from(*subnode_bid).to_le_bytes());
+    }
+    bytes
+}
+
 fn make_property_context_heap(properties: &[(u16, u16, Vec<u8>)]) -> Vec<u8> {
     let mut bth_header = vec![0xb5, 2, 6, 0];
     bth_header.extend_from_slice(&0x40u32.to_le_bytes());
@@ -473,7 +491,7 @@ fn make_stage_c_fixture(indirect: bool, method: i32, external_id2: bool) -> Vec<
         (FOLDER_BID, make_folder_payload()),
         (MESSAGE_BID, make_attachment_message_payload()),
         (CONTENTS_TABLE_BID, make_message_contents_table()),
-        (SUBNODE_BID, make_slblock(&slblock_entries)),
+        (SUBNODE_BID, make_legacy_unicode_width_slblock(&slblock_entries)),
         (RECIPIENT_TABLE_BID, make_recipient_table()),
         (
             ATTACHMENT_BID,
