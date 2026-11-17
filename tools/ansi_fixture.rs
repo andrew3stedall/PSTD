@@ -4,9 +4,20 @@ const PAGE_SIZE: usize = 512;
 const BBT_OFFSET: usize = 1024;
 const NBT_OFFSET: usize = 1536;
 const FILE_SIZE: usize = NBT_OFFSET + PAGE_SIZE;
-const ANSI_PROPERTY_VALUE_WIDTH: usize = 128;
+/// HNHDR: ibHnpm, bSig, bClientSig, hidUserRoot and rgbFillLevel.
+const HN_HEADER_SIZE: u16 = 12;
+/// Data blocks use leaf BIDs (bit 0x2 clear); only the SLBLOCK is internal.
+const FOLDER_BID: u32 = 0x100;
+const MESSAGE_BID: u32 = 0x104;
+const CONTENTS_TABLE_BID: u32 = 0x108;
+const SUBNODE_BID: u32 = 0x10e;
+const RECIPIENT_TABLE_BID: u32 = 0x110;
+const ATTACHMENT_BID: u32 = 0x114;
+const ATTACHMENT_DATA_BID: u32 = 0x118;
 const INDIRECT_ATTACHMENT_DATA_NID: u32 = 0x311;
 const EXTERNAL_ATTACHMENT_DATA_ID2: u32 = 0x31f;
+/// MS-PST fixed subnode NID of a message's recipient table.
+const NID_RECIPIENT_TABLE: u32 = 0x692;
 
 fn put_u16(bytes: &mut [u8], offset: usize, value: u16) {
     bytes[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
@@ -122,77 +133,49 @@ fn make_index_page(
     page
 }
 
-fn make_flat_property_context(properties: &[(u32, Vec<u8>)]) -> Vec<u8> {
-    let entry_size = 4 + ANSI_PROPERTY_VALUE_WIDTH;
-    let mut bytes = vec![0u8; 8 + properties.len() * entry_size];
-    bytes[0] = 4;
-    bytes[1] = ANSI_PROPERTY_VALUE_WIDTH as u8;
-    put_u16(&mut bytes, 2, properties.len() as u16);
-
-    for (index, (tag, value)) in properties.iter().enumerate() {
-        let start = 8 + index * entry_size;
-        put_u32(&mut bytes, start, *tag);
-        let value_end = start + 4 + value.len().min(ANSI_PROPERTY_VALUE_WIDTH);
-        bytes[start + 4..value_end].copy_from_slice(&value[..value_end - start - 4]);
-    }
-    bytes
-}
-
-fn ansi_string(value: &str) -> Vec<u8> {
-    let mut bytes = vec![0u8; ANSI_PROPERTY_VALUE_WIDTH];
-    let raw = value.as_bytes();
-    assert!(raw.len() < ANSI_PROPERTY_VALUE_WIDTH);
-    bytes[..raw.len()].copy_from_slice(raw);
-    bytes
-}
-
-fn ansi_i32(value: i32) -> Vec<u8> {
-    let mut bytes = vec![0u8; ANSI_PROPERTY_VALUE_WIDTH];
-    bytes[..4].copy_from_slice(&value.to_le_bytes());
-    bytes
-}
-
 fn make_folder_payload() -> Vec<u8> {
-    make_flat_property_context(&[
-        (0x3001_001e, ansi_string("Synthetic Mail")),
-        (0x3602_0003, ansi_i32(1)),
+    make_property_context_heap(&[
+        (0x3001, 0x001e, b"Synthetic Mail".to_vec()),
+        (0x3602, 0x0003, 1i32.to_le_bytes().to_vec()),
     ])
 }
 
+fn transport_headers() -> Vec<u8> {
+    b"Date: Tue, 01 Jan 2019 00:00:00 +0000\r\nTo: Recipient <recipient@example.test>\r\n".to_vec()
+}
+
 fn make_message_payload() -> Vec<u8> {
-    make_flat_property_context(&[
-        (0x001a_001e, ansi_string("IPM.Note")),
-        (0x0037_001e, ansi_string("ANSI Stage B synthetic message")),
-        (0x0c1a_001e, ansi_string("PSTD Fixture Sender")),
-        (0x0c1f_001e, ansi_string("sender@example.test")),
-        (0x0c1e_001e, ansi_string("SMTP")),
-        (0x1000_001e, ansi_string("Hello from the deterministic ANSI Stage-B fixture.")),
-        (0x1035_001e, ansi_string("<ansi-stage-b-001@example.test>")),
+    make_property_context_heap(&[
+        (0x001a, 0x001e, b"IPM.Note".to_vec()),
+        (0x0037, 0x001e, b"ANSI Stage B synthetic message".to_vec()),
+        (0x0c1a, 0x001e, b"PSTD Fixture Sender".to_vec()),
+        (0x0c1f, 0x001e, b"sender@example.test".to_vec()),
+        (0x0c1e, 0x001e, b"SMTP".to_vec()),
         (
-            0x007d_001e,
-            ansi_string(
-                "Date: Tue, 01 Jan 2019 00:00:00 +0000\r\nTo: Recipient <recipient@example.test>\r\n",
-            ),
+            0x1000,
+            0x001e,
+            b"Hello from the deterministic ANSI Stage-B fixture.".to_vec(),
         ),
+        (0x1035, 0x001e, b"<ansi-stage-b-001@example.test>".to_vec()),
+        (0x007d, 0x001e, transport_headers()),
     ])
 }
 
 fn make_attachment_message_payload() -> Vec<u8> {
-    make_flat_property_context(&[
-        (0x001a_001e, ansi_string("IPM.Note")),
-        (0x0037_001e, ansi_string("ANSI Stage C attachment message")),
-        (0x0c1a_001e, ansi_string("PSTD Fixture Sender")),
-        (0x0c1f_001e, ansi_string("sender@example.test")),
-        (0x0c1e_001e, ansi_string("SMTP")),
-        (0x0e1b_000b, vec![1]),
-        (0x1000_001e, ansi_string("Hello from the deterministic ANSI Stage-C fixture.")),
-        (0x1035_001e, ansi_string("<ansi-stage-c-001@example.test>")),
+    make_property_context_heap(&[
+        (0x001a, 0x001e, b"IPM.Note".to_vec()),
+        (0x0037, 0x001e, b"ANSI Stage C attachment message".to_vec()),
+        (0x0c1a, 0x001e, b"PSTD Fixture Sender".to_vec()),
+        (0x0c1f, 0x001e, b"sender@example.test".to_vec()),
+        (0x0c1e, 0x001e, b"SMTP".to_vec()),
+        (0x0e1b, 0x000b, 1u32.to_le_bytes().to_vec()),
         (
-            0x007d_001e,
-            ansi_string(
-                "Date: Tue, 01 Jan 2019 00:00:00 +0000\r\nTo: Recipient <recipient@example.test>\r\n",
-            ),
+            0x1000,
+            0x001e,
+            b"Hello from the deterministic ANSI Stage-C fixture.".to_vec(),
         ),
+        (0x1035, 0x001e, b"<ansi-stage-c-001@example.test>".to_vec()),
+        (0x007d, 0x001e, transport_headers()),
     ])
 }
 
@@ -257,7 +240,8 @@ fn make_recipient_table() -> Vec<u8> {
     row[0..4].copy_from_slice(&1u32.to_le_bytes());
     row[4..8].copy_from_slice(&0xa0u32.to_le_bytes());
     row[8..12].copy_from_slice(&0xc0u32.to_le_bytes());
-    row[12] = 0b0000_0111;
+    // Cell existence bitmap: column iBit n is bit 0x80 >> n of byte n / 8.
+    row[12] = 0b1110_0000;
 
     make_heap(vec![
         bth_header,
@@ -270,7 +254,7 @@ fn make_recipient_table() -> Vec<u8> {
 }
 
 fn make_heap(allocations: Vec<Vec<u8>>, user_root: u32) -> Vec<u8> {
-    let mut offsets = vec![8u16];
+    let mut offsets = vec![HN_HEADER_SIZE];
     for allocation in &allocations {
         let next = usize::from(*offsets.last().expect("heap offset")) + allocation.len();
         offsets.push(u16::try_from(next).expect("ANSI heap fits in u16"));
@@ -305,15 +289,19 @@ fn utf16(value: &str) -> Vec<u8> {
         .collect()
 }
 
-fn make_slblock(entries: &[(u32, u64, u64)]) -> Vec<u8> {
-    let mut bytes = vec![0u8; 8 + entries.len() * 24];
+/// ANSI SLBLOCK: btype, cLevel and cEnt with no padding, then 12-byte
+/// SLENTRY records (nid, bidData, bidSub), each field 32 bits wide.
+fn make_slblock(entries: &[(u32, u32, u32)]) -> Vec<u8> {
+    // SLENTRY records are sorted by subnode NID.
+    assert!(entries.windows(2).all(|pair| pair[0].0 < pair[1].0));
+    let mut bytes = vec![0u8; 4 + entries.len() * 12];
     bytes[0] = 0x02;
-    bytes[2..4].copy_from_slice(&(entries.len() as u16).to_le_bytes());
+    put_u16(&mut bytes, 2, entries.len() as u16);
     for (index, (node_id, data_bid, subnode_bid)) in entries.iter().enumerate() {
-        let start = 8 + index * 24;
-        bytes[start..start + 8].copy_from_slice(&u64::from(*node_id).to_le_bytes());
-        bytes[start + 8..start + 16].copy_from_slice(&data_bid.to_le_bytes());
-        bytes[start + 16..start + 24].copy_from_slice(&subnode_bid.to_le_bytes());
+        let start = 4 + index * 12;
+        put_u32(&mut bytes, start, *node_id);
+        put_u32(&mut bytes, start + 4, *data_bid);
+        put_u32(&mut bytes, start + 8, *subnode_bid);
     }
     bytes
 }
@@ -324,9 +312,20 @@ fn make_property_context_heap(properties: &[(u16, u16, Vec<u8>)]) -> Vec<u8> {
     let mut leaf = Vec::with_capacity(properties.len() * 8);
     let mut allocations = vec![bth_header, Vec::new()];
 
+    // BTH leaf records are sorted by key, the property ID.
+    let mut properties = properties.iter().collect::<Vec<_>>();
+    properties.sort_by_key(|(property_id, _, _)| *property_id);
+    for window in properties.windows(2) {
+        assert_ne!(window[0].0, window[1].0, "duplicate PC property ID");
+    }
+
     for (property_id, property_type, value) in properties {
-        // Fixed-size values up to four bytes are stored inline in a PC.
-        let value_hid = if matches!(*property_type, 0x0003 | 0x000d) {
+        // Fixed-size values up to four bytes, and the PtypObject HNID, are
+        // stored inline in a PC.
+        let value_hid = if matches!(
+            *property_type,
+            0x0002 | 0x0003 | 0x0004 | 0x000a | 0x000b | 0x000d
+        ) {
             u32::from_le_bytes(
                 value
                     .as_slice()
@@ -373,8 +372,8 @@ fn make_attachment_property_context(
         (0x0102, payload)
     };
     make_property_context_heap(&[
-        (0x3704, 0x001e, b"ansi-attachment.bin\0".to_vec()),
-        (0x370e, 0x001e, b"application/octet-stream\0".to_vec()),
+        (0x3704, 0x001e, b"ansi-attachment.bin".to_vec()),
+        (0x370e, 0x001e, b"application/octet-stream".to_vec()),
         (0x3705, 0x0003, method.to_le_bytes().to_vec()),
         (
             0x0e20,
@@ -387,11 +386,14 @@ fn make_attachment_property_context(
 
 fn make_stage_b_fixture() -> Vec<u8> {
     let block_specs = vec![
-        (0x100u32, make_folder_payload()),
-        (0x102u32, make_message_payload()),
-        (0x104u32, make_message_contents_table()),
-        (0x106u32, make_slblock(&[(0x32, 0x108, 0)])),
-        (0x108u32, make_recipient_table()),
+        (FOLDER_BID, make_folder_payload()),
+        (MESSAGE_BID, make_message_payload()),
+        (CONTENTS_TABLE_BID, make_message_contents_table()),
+        (
+            SUBNODE_BID,
+            make_slblock(&[(NID_RECIPIENT_TABLE, RECIPIENT_TABLE_BID, 0)]),
+        ),
+        (RECIPIENT_TABLE_BID, make_recipient_table()),
     ];
     let mut block_entries = Vec::new();
     let mut nbt_entries = Vec::new();
@@ -403,9 +405,9 @@ fn make_stage_b_fixture() -> Vec<u8> {
         block_entries.push((block_id, offset as u32, payload.len() as u16));
         block_bytes.push((offset, payload));
         match block_id {
-            0x100 => nbt_entries.push((0x22u32, block_id, 0u32)),
-            0x102 => nbt_entries.push((0x24u32, block_id, 0x106u32)),
-            0x104 => nbt_entries.push((0x2eu32, block_id, 0u32)),
+            FOLDER_BID => nbt_entries.push((0x22u32, block_id, 0u32)),
+            MESSAGE_BID => nbt_entries.push((0x24u32, block_id, SUBNODE_BID)),
+            CONTENTS_TABLE_BID => nbt_entries.push((0x2eu32, block_id, 0u32)),
             _ => {}
         }
     }
@@ -454,26 +456,32 @@ fn make_stage_b_fixture() -> Vec<u8> {
 }
 
 fn make_stage_c_fixture(indirect: bool, method: i32, external_id2: bool) -> Vec<u8> {
-    let mut slblock_entries = vec![(0x32, 0x108, 0), (0x31, 0x10a, 0)];
+    let mut slblock_entries = vec![
+        (0x31, ATTACHMENT_BID, 0),
+        (NID_RECIPIENT_TABLE, RECIPIENT_TABLE_BID, 0),
+    ];
     if indirect {
         let reference = if external_id2 {
             EXTERNAL_ATTACHMENT_DATA_ID2
         } else {
             INDIRECT_ATTACHMENT_DATA_NID
         };
-        slblock_entries.push((reference, 0x10c, 0));
+        slblock_entries.push((reference, ATTACHMENT_DATA_BID, 0));
+        slblock_entries.sort_by_key(|(node_id, _, _)| *node_id);
     }
-    let block_specs = vec![
-        (0x100u32, make_folder_payload()),
-        (0x102u32, make_attachment_message_payload()),
-        (0x104u32, make_message_contents_table()),
-        (0x106u32, make_slblock(&slblock_entries)),
-        (0x108u32, make_recipient_table()),
-        (0x10au32, make_attachment_property_context(indirect, method, external_id2)),
+    let mut block_specs = vec![
+        (FOLDER_BID, make_folder_payload()),
+        (MESSAGE_BID, make_attachment_message_payload()),
+        (CONTENTS_TABLE_BID, make_message_contents_table()),
+        (SUBNODE_BID, make_slblock(&slblock_entries)),
+        (RECIPIENT_TABLE_BID, make_recipient_table()),
+        (
+            ATTACHMENT_BID,
+            make_attachment_property_context(indirect, method, external_id2),
+        ),
     ];
-    let mut block_specs = block_specs;
     if indirect {
-        block_specs.push((0x10cu32, attachment_payload_bytes()));
+        block_specs.push((ATTACHMENT_DATA_BID, attachment_payload_bytes()));
     }
     let mut block_entries = Vec::new();
     let mut nbt_entries = Vec::new();
@@ -485,9 +493,9 @@ fn make_stage_c_fixture(indirect: bool, method: i32, external_id2: bool) -> Vec<
         block_entries.push((block_id, offset as u32, payload.len() as u16));
         block_bytes.push((offset, payload));
         match block_id {
-            0x100 => nbt_entries.push((0x22u32, block_id, 0u32)),
-            0x102 => nbt_entries.push((0x24u32, block_id, 0x106u32)),
-            0x104 => nbt_entries.push((0x2eu32, block_id, 0u32)),
+            FOLDER_BID => nbt_entries.push((0x22u32, block_id, 0u32)),
+            MESSAGE_BID => nbt_entries.push((0x24u32, block_id, SUBNODE_BID)),
+            CONTENTS_TABLE_BID => nbt_entries.push((0x2eu32, block_id, 0u32)),
             _ => {}
         }
     }
