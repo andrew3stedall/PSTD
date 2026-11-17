@@ -94,3 +94,9 @@ Use these when the work genuinely requires planning. Do not force a planning cou
 - `execution/deferred-testing`
 
 Treat “milestone” in older skill names as a scoped delivery unit. For current parser work, the implementation unit should normally be one GitHub issue or one coherent vertical extraction slice, with the parent epic used for ordering and dependencies rather than as active context.
+
+## Vendored skills: mattpocock/skills
+
+The top-level skill folders `ask-matt`, `code-review`, `codebase-design`, `diagnosing-bugs`, `domain-modeling`, `grill-me`, `grill-with-docs`, `grilling`, `handoff`, `implement`, `implement-spec`, `improve-codebase-architecture`, `pr`, `prototype`, `research`, `retro`, `setup-matt-pocock-skills`, `tdd`, `teach`, `to-questionnaire`, `to-spec`, `to-tickets`, `triage`, `wait-what`, `wayfinder`, `wizard` and `writing-for-agents` are vendored from [mattpocock/skills](https://github.com/mattpocock/skills) with `npx skills add`. `skills-lock.json` pins the source commit; update them with `npx skills@latest update`. `.claude/skills/` symlinks to the same folders so Claude Code and Codex read one copy.
+
+These are general engineering skills. They sit at level 5 of the precedence order above: root `AGENTS.md`, the active checkpoint and the active issue override them, including their issue, branch, test and PR workflows.
