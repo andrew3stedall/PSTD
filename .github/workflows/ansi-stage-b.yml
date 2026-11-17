@@ -134,10 +134,12 @@ jobs:
           }
           for key, value in expected.items():
               assert message.get(key) == value, (key, message)
-          # The synthetic message stores its properties as a flat list, not a
-          # Property Context heap, so it has no readable recipient table and
-          # recipients are never projected from candidate payloads (#633).
-          assert recipients == [], recipients
+          # Read from the message's recipient table subnode by column tag (#638).
+          assert len(recipients) == 1, recipients
+          assert recipients[0]['recipient_type'] == 'to', recipients
+          assert recipients[0]['display_name'] == 'Recipient', recipients
+          assert recipients[0]['smtp_address'] == 'recipient@example.test', recipients
+          assert recipients[0]['resolution_status'] == 'smtp_available', recipients
           assert len(bodies) == 1, bodies
           assert bodies[0]['body_type'] == 'text', bodies
           assert bodies[0]['status'] == 'extracted', bodies

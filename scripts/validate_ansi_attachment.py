@@ -15,6 +15,17 @@ NBT_OFFSET = 1536
 ATTACHMENT_PAYLOAD = b"ANSI Stage-C arbitrary attachment payload\n"
 INDIRECT_ATTACHMENT_DATA_NID = 0x311
 EXTERNAL_ATTACHMENT_DATA_ID2 = 0x31F
+HN_HEADER_SIZE = 12
+NID_ATTACHMENT = 0x31
+NID_RECIPIENT_TABLE = 0x692
+FOLDER_BID = 0x100
+MESSAGE_BID = 0x104
+CONTENTS_TABLE_BID = 0x108
+SLBLOCK_BID = 0x10E
+RECIPIENT_TABLE_BID = 0x110
+ATTACHMENT_BID = 0x114
+ATTACHMENT_DATA_BID = 0x118
+INLINE_PC_TYPES = {0x0002, 0x0003, 0x0004, 0x000A, 0x000B, 0x000D}
 
 
 def weak_crc32(data: bytes) -> int:
@@ -51,6 +62,9 @@ def parse_heap(data: bytes) -> tuple[int, dict[int, bytes]]:
     count = u16(data, page_map_offset)
     offsets = [u16(data, page_map_offset + 4 + index * 2) for index in range(count + 1)]
     assert offsets == sorted(offsets)
+    # The full HNHDR (ibHnpm, bSig, bClientSig, hidUserRoot, rgbFillLevel)
+    # precedes the first allocation.
+    assert offsets[0] == HN_HEADER_SIZE
     assert all(offset <= len(data) for offset in offsets)
     return user_root, {
         index + 1: data[offsets[index] : offsets[index + 1]]
@@ -63,38 +77,31 @@ def hid(allocations: dict[int, bytes], value: int) -> bytes:
     return allocations[value >> 5]
 
 
-def parse_flat_properties(data: bytes) -> dict[int, bytes]:
-    assert data[0] == 4
-    width = data[1]
-    count = u16(data, 2)
-    entry_size = 4 + width
-    assert len(data) == 8 + count * entry_size
-    return {
-        u32(data, 8 + index * entry_size): data[12 + index * entry_size : 8 + (index + 1) * entry_size]
-        for index in range(count)
-    }
-
-
 def string8(properties: dict[int, bytes], tag: int) -> str:
-    return properties[tag].split(b"\0", 1)[0].decode("latin-1")
+    value = properties[tag]
+    assert b"\0" not in value
+    return value.decode("latin-1")
 
 
-def parse_property_heap(data: bytes) -> dict[int, bytes]:
+def parse_property_context(data: bytes) -> dict[int, bytes]:
+    """Read a heap-on-node Property Context: HN -> BTH header -> sorted leaf."""
     assert data[2:4] == b"\xec\xbc"
     user_root, allocations = parse_heap(data)
+    assert user_root == 0x20
     bth_header = hid(allocations, user_root)
     assert bth_header[:4] == b"\xb5\x02\x06\x00"
     leaf = hid(allocations, u32(bth_header, 4))
-    assert len(leaf) == 5 * 8
+    assert len(leaf) % 8 == 0 and leaf
+    property_ids = [u16(leaf, start) for start in range(0, len(leaf), 8)]
+    assert property_ids == sorted(set(property_ids))
     properties = {}
-    for index in range(5):
-        start = index * 8
+    for start in range(0, len(leaf), 8):
         property_id = u16(leaf, start)
         property_type = u16(leaf, start + 2)
         value_hid = u32(leaf, start + 4)
         properties[(property_id << 16) | property_type] = (
             value_hid.to_bytes(4, "little")
-            if property_type in (0x0003, 0x000D)
+            if property_type in INLINE_PC_TYPES
             else hid(allocations, value_hid)
         )
     return properties
@@ -139,13 +146,22 @@ def validate(
             bbt_page, start + 8
         )
         assert block_id not in blocks
+        # Only the SLBLOCK is internal; every data block has a leaf BID.
+        assert bool(block_id & 0x2) == (block_id == SLBLOCK_BID), hex(block_id)
         assert offset >= NBT_OFFSET + PAGE_SIZE
         assert size > 0
         assert offset + size <= len(data)
         blocks[block_id] = data[offset : offset + size]
-    expected_blocks = {0x100, 0x102, 0x104, 0x106, 0x108, 0x10A}
+    expected_blocks = {
+        FOLDER_BID,
+        MESSAGE_BID,
+        CONTENTS_TABLE_BID,
+        SLBLOCK_BID,
+        RECIPIENT_TABLE_BID,
+        ATTACHMENT_BID,
+    }
     if indirect:
-        expected_blocks.add(0x10C)
+        expected_blocks.add(ATTACHMENT_DATA_BID)
     assert set(blocks) == expected_blocks
 
     assert nbt_page[496] == 3
@@ -160,35 +176,46 @@ def validate(
         assert node_id not in nodes
         assert data_bid in blocks
         nodes[node_id] = (data_bid, subnode_bid)
-    assert nodes == {0x22: (0x100, 0), 0x24: (0x102, 0x106), 0x2E: (0x104, 0)}
+    assert nodes == {
+        0x22: (FOLDER_BID, 0),
+        0x24: (MESSAGE_BID, SLBLOCK_BID),
+        0x2E: (CONTENTS_TABLE_BID, 0),
+    }
 
-    folder = parse_flat_properties(blocks[0x100])
+    folder = parse_property_context(blocks[FOLDER_BID])
     assert string8(folder, 0x3001_001E) == "Synthetic Mail"
 
-    message = parse_flat_properties(blocks[0x102])
+    message = parse_property_context(blocks[MESSAGE_BID])
     assert string8(message, 0x0037_001E) == "ANSI Stage C attachment message"
-    assert message[0x0E1B_000B][0] == 1
+    assert u32(message[0x0E1B_000B], 0) == 1
     assert string8(message, 0x1000_001E) == "Hello from the deterministic ANSI Stage-C fixture."
 
-    slblock = blocks[0x106]
-    assert slblock[:4] == bytes((0x02, 0x00, 0x03 if indirect else 0x02, 0x00))
+    # Stage C keeps a Unicode-width SLBLOCK (8-byte header, 24-byte SLENTRY
+    # records sorted by subnode NID). This is not the ANSI layout: PSTD's
+    # attachment discovery reads Unicode-width SLBLOCKs alone (#642).
+    slblock = blocks[SLBLOCK_BID]
     reference = EXTERNAL_ATTACHMENT_DATA_ID2 if external_id2 else INDIRECT_ATTACHMENT_DATA_NID
-    assert u64(slblock, 8) == 0x32
-    assert u64(slblock, 16) == 0x108
-    assert u64(slblock, 32) == 0x31
-    assert u64(slblock, 40) == 0x10A
+    expected_subnodes = [(NID_ATTACHMENT, ATTACHMENT_BID, 0)]
     if indirect:
-        assert u64(slblock, 56) == reference
-        assert u64(slblock, 64) == 0x10C
+        expected_subnodes.append((reference, ATTACHMENT_DATA_BID, 0))
+    expected_subnodes.append((NID_RECIPIENT_TABLE, RECIPIENT_TABLE_BID, 0))
+    assert slblock[:4] == bytes((0x02, 0x00, len(expected_subnodes), 0x00))
+    assert u32(slblock, 4) == 0
+    assert len(slblock) == 8 + 24 * len(expected_subnodes)
+    subnodes = [
+        (u64(slblock, start), u64(slblock, start + 8), u64(slblock, start + 16))
+        for start in range(8, len(slblock), 24)
+    ]
+    assert subnodes == expected_subnodes, subnodes
 
-    attachment = parse_property_heap(blocks[0x10A])
+    attachment = parse_property_context(blocks[ATTACHMENT_BID])
     assert string8(attachment, 0x3704_001E) == "ansi-attachment.bin"
     assert string8(attachment, 0x370E_001E) == "application/octet-stream"
     assert u32(attachment[0x3705_0003], 0) == method
     assert u32(attachment[0x0E20_0003], 0) == len(ATTACHMENT_PAYLOAD)
     if indirect:
         assert attachment[0x3701_000D] == reference.to_bytes(4, "little")
-        assert blocks[0x10C] == ATTACHMENT_PAYLOAD
+        assert blocks[ATTACHMENT_DATA_BID] == ATTACHMENT_PAYLOAD
     else:
         assert attachment[0x3701_0102] == ATTACHMENT_PAYLOAD
 

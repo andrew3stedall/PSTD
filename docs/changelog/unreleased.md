@@ -655,6 +655,21 @@ a heap, such as the flat ANSI stage-B synthetic message, has no recipient record
 (#638 makes those fixtures spec-valid). The two recovered Tika messages' bodies stay
 present but unresolved, like other large Tika bodies (#639).
 
+### ROBUST-08: ANSI stage-B and stage-C fixtures with leaf BIDs and heap Property Contexts (#638)
+
+`tools/ansi_fixture.rs` now gives every data block a leaf BID; only the SLBLOCK keeps
+an internal BID. Folder and message nodes are heap-on-node Property Contexts, with
+BTH leaves sorted by property ID and a full 12-byte heap header. The recipient table
+sits at the fixed subnode NID `0x692`, and its cell existence bitmap is
+most-significant-bit first. The stage-B SLBLOCK uses the ANSI layout (4-byte header,
+12-byte entries). The stage-B message again reads one `to` recipient,
+`Recipient <recipient@example.test>`, from its recipient table. The stage-C
+attachment variants share this layout except for the SLBLOCK, which stays
+Unicode-width. That keeps it non-spec on purpose: PSTD's attachment discovery reads
+Unicode-width SLBLOCKs only, and with the ANSI layout the stage-C attachment is not
+found (#642). Stage C also still stores the attachment Property Context at subnode
+`0x31`, with no attachment table.
+
 ## ROBUST-01 validation follow-up
 
 - Resolve property values despite unrelated empty sibling entries; compare wide

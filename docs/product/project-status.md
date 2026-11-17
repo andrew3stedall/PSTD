@@ -18,7 +18,7 @@ Provide the authoritative view of the merged extraction baseline and the next ev
 | Embedded message | Partial bounded recovery | One separately linked child remains exact for the approved layout; child attachment subnodes and nested method-5 children are now walked under the depth budget, while additional producer layouts remain unproven. |
 | Folder/message ownership | Exact on the Tika fixture | Eight folders and seven top-level physical message owners resolved from authoritative contents-table rows; the embedded child remains isolated. |
 | Independent body forms | Exact on approved fixtures | Four-byte Property Context body locators remain explicit unavailable forms; valid plain-text siblings are retained independently. Encrypted text/HTML source bytes are now retained as opaque hashed body artefacts with base64 MIME projection and fail-closed reference handling. |
-| ANSI input baseline | Stage B message plus Stage C direct/indirect method-1, method-2, method-3, method-4, and external-ID2 attachment exact for seven controlled shapes | Deterministic Linux Rust v14 fixtures cover one `Synthetic Mail` folder/message with a plain-text body and structured To row, plus direct and HNID/SLBLOCK-resolved ANSI/String8 property-context method-1 variants and method-2/method-3/method-4 reference variants with exact method metadata, filename, MIME, payload hash, canonical bytes, inline MIME/base64, external raw-file/manifest, and independent validation. Broad ANSI producers, external ID2/path references, embedded/OLE attachments, HTML/RTF, and typed items remain unproven. |
+| ANSI input baseline | Stage B message plus Stage C direct/indirect method-1, method-2, method-3, method-4, and external-ID2 attachment exact for seven controlled shapes | Deterministic Linux Rust v14 fixtures cover one `Synthetic Mail` folder/message with a plain-text body and structured To row, plus direct and HNID/SLBLOCK-resolved ANSI/String8 property-context method-1 variants and method-2/method-3/method-4 reference variants with exact method metadata, filename, MIME, payload hash, canonical bytes, inline MIME/base64, external raw-file/manifest, and independent validation. Stage-C attachments are found only through a Unicode-width SLBLOCK, which is not the ANSI layout (#642). Broad ANSI producers, external ID2/path references, embedded/OLE attachments, HTML/RTF, and typed items remain unproven. |
 | Microsoft Purview Unicode exports | Active corpus target | No approved Purview export fixture is yet committed. Compatibility must be established capability-by-capability on controlled synthetic Purview exports rather than inferred from the existing fixtures. |
 | External PST implementations | Comparison-only tooling | Pinned external tools may generate or independently inventory controlled fixtures, but PSTD acceptance must come from its own Rust implementation and exact deterministic output. |
 | Downstream systems | Parked | Snowflake, UI, search, analytics, semantic search, and graph work remain out of scope. |
@@ -198,3 +198,18 @@ evidence-selected projection is removed, so a message whose Property Context is 
 a heap, such as the flat ANSI stage-B synthetic message, has no recipient records
 (#638 makes those fixtures spec-valid). The two recovered Tika messages' bodies stay
 present but unresolved, like other large Tika bodies (#639).
+
+### ROBUST-08: ANSI stage-B and stage-C fixtures with leaf BIDs and heap Property Contexts (#638)
+
+`tools/ansi_fixture.rs` now gives every data block a leaf BID; only the SLBLOCK keeps
+an internal BID. Folder and message nodes are heap-on-node Property Contexts, with
+BTH leaves sorted by property ID and a full 12-byte heap header. The recipient table
+sits at the fixed subnode NID `0x692`, and its cell existence bitmap is
+most-significant-bit first. The stage-B SLBLOCK uses the ANSI layout (4-byte header,
+12-byte entries). The stage-B message again reads one `to` recipient,
+`Recipient <recipient@example.test>`, from its recipient table. The stage-C
+attachment variants share this layout except for the SLBLOCK, which stays
+Unicode-width. That keeps it non-spec on purpose: PSTD's attachment discovery reads
+Unicode-width SLBLOCKs only, and with the ANSI layout the stage-C attachment is not
+found (#642). Stage C also still stores the attachment Property Context at subnode
+`0x31`, with no attachment table.
