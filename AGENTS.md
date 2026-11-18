@@ -198,6 +198,8 @@ Use `.agents/skills/README.md` as the repository skills index. Skills remain reu
 
 ## Agent skills
 
+Prefer the repository-pinned copy in `.agents/skills/` when a plugin offers the same skill.
+
 ### Issue tracker
 
 Issues are tracked in GitHub Issues for `andrew3stedall/PSTD` via the `gh` CLI. See `docs/agents/issue-tracker.md`.
